@@ -13,6 +13,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
+
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -150,14 +151,14 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 	}
 
 	vmRoles := make(map[string]vmlayer.VMRole)
-	vmChefParams := make(map[string]*chefmgmt.VMChefParams)
+	ServerChefParams := make(map[string]*chefmgmt.ServerChefParams)
 	vmAccessKeys := make(map[string]string)
 	for _, vm := range orchVMs {
 		vmRoles[vm.Name] = vm.Role
-		vmChefParams[vm.Name] = vm.CloudConfigParams.ChefParams
+		ServerChefParams[vm.Name] = vm.CloudConfigParams.ChefParams
 		vmAccessKeys[vm.Name] = vm.CloudConfigParams.AccessKey
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Fetch VM info", "vmRoles", vmRoles, "chefParams", vmChefParams)
+	log.SpanLog(ctx, log.DebugLevelInfra, "Fetch VM info", "vmRoles", vmRoles, "chefParams", ServerChefParams)
 
 	// Setup Cluster Nodes
 	masterAddr := ""
@@ -174,7 +175,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 				return err
 			}
 		} else {
-			client, err = o.VMProperties.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
+			client, err = o.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
 			if err != nil {
 				return fmt.Errorf("can't get ssh client for %s %v", vm.NetInfo.ExternalIp, err)
 			}
@@ -209,7 +210,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		}
 
 		// Setup Chef
-		chefParams, ok := vmChefParams[vm.InternalName]
+		chefParams, ok := ServerChefParams[vm.InternalName]
 		if ok && chefParams != nil {
 			// Setup chef client key
 			log.SpanLog(ctx, log.DebugLevelInfra, "Setting up chef-client", "vm", vm.Name)
@@ -228,7 +229,8 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		switch role {
 		case vmlayer.RoleMaster:
 			masterAddr = vm.NetInfo.InternalIp
-		case vmlayer.RoleNode:
+		case vmlayer.RoleK8sNode:
+		case vmlayer.RoleDockerNode:
 		default:
 			// rootlb
 			continue
@@ -270,7 +272,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		// bring other nodes once master node is up (if deployment is k8s)
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes worker nodes"))
 		for _, vm := range markedVMs {
-			if vmRoles[vm.InternalName] != vmlayer.RoleNode {
+			if vmRoles[vm.InternalName] != vmlayer.RoleK8sNode {
 				continue
 			}
 			client, err := accessClient.AddHop(vm.NetInfo.InternalIp, 22)
@@ -401,7 +403,7 @@ func (o *VMPoolPlatform) GetAccessClient(ctx context.Context) (ssh.Client, error
 		return nil, fmt.Errorf("unable to find any VM with external IP")
 	}
 
-	accessClient, err := o.VMProperties.GetSSHClientFromIPAddr(ctx, accessIP)
+	accessClient, err := o.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, accessIP)
 	if err != nil {
 		return nil, fmt.Errorf("can't get ssh client for %s %v", accessIP, err)
 	}
@@ -420,7 +422,7 @@ func (o *VMPoolPlatform) deleteVMsInternal(ctx context.Context, markedVMs map[st
 	for _, vm := range markedVMs {
 		var client ssh.Client
 		if vm.NetInfo.ExternalIp != "" {
-			client, err = o.VMProperties.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
+			client, err = o.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
 		} else if vm.NetInfo.InternalIp != "" {
 			client, err = accessClient.AddHop(vm.NetInfo.InternalIp, 22)
 		}
@@ -625,61 +627,35 @@ func (s *VMPoolPlatform) VerifyVMs(ctx context.Context, vms []edgeproto.VM) erro
 	if accessIP == "" {
 		return fmt.Errorf("At least one VM should have access to external network")
 	}
-	accessClient, err := s.VMProperties.GetSSHClientFromIPAddr(ctx, accessIP)
+
+	accessClient, err := s.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, accessIP)
 	if err != nil {
 		return fmt.Errorf("can't get ssh client for %s, %v", accessIP, err)
 	}
 
-	wgError := make(chan error)
-	wgDone := make(chan bool)
-	var wg sync.WaitGroup
 	for _, vm := range vms {
-		wg.Add(1)
-		go func(accessClientIn ssh.Client, accessIPIn string, vmIn *edgeproto.VM, wg *sync.WaitGroup) {
-			if vmIn.NetInfo.ExternalIp != "" {
-				client, err := s.VMProperties.GetSSHClientFromIPAddr(ctx, vmIn.NetInfo.ExternalIp)
-				if err != nil {
-					wgError <- fmt.Errorf("failed to verify vm %s, can't get ssh client for %s, %v", vmIn.Name, vmIn.NetInfo.ExternalIp, err)
-					return
-				}
-				out, err := client.Output("echo test")
-				if err != nil {
-					wgError <- fmt.Errorf("failed to verify if vm %s is accessible over external network: %s - %v", vmIn.Name, out, err)
-					return
-				}
+		if vm.NetInfo.ExternalIp != "" {
+			client, err := s.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, vm.NetInfo.ExternalIp)
+			if err != nil {
+				return fmt.Errorf("failed to verify vm %s, can't get ssh client for %s, %v", vm.Name, vm.NetInfo.ExternalIp, err)
+			}
+			out, err := client.Output("echo test")
+			if err != nil {
+				return fmt.Errorf("failed to verify if vm %s is accessible over external network: %s - %v", vm.Name, out, err)
+			}
+		}
+
+		if vm.NetInfo.InternalIp != "" {
+			client, err := accessClient.AddHop(vm.NetInfo.InternalIp, 22)
+			if err != nil {
+				return err
 			}
 
-			if vmIn.NetInfo.InternalIp != "" {
-				client, err := accessClientIn.AddHop(vmIn.NetInfo.InternalIp, 22)
-				if err != nil {
-					wgError <- err
-					return
-				}
-
-				out, err := client.Output("echo test")
-				if err != nil {
-					wgError <- fmt.Errorf("failed to verify if vm %s is accessible over internal network from %s: %s - %v", vmIn.Name, accessIPIn, out, err)
-					return
-				}
+			out, err := client.Output("echo test")
+			if err != nil {
+				return fmt.Errorf("failed to verify if vm %s is accessible over internal network from %s: %s - %v", vm.Name, accessIP, out, err)
 			}
-			wg.Done()
-		}(accessClient, accessIP, &vm, &wg)
-	}
-
-	go func() {
-		wg.Wait()
-		close(wgDone)
-	}()
-
-	// Wait until either WaitGroup is done or an error is received through the channel
-	select {
-	case <-wgDone:
-		break
-	case err := <-wgError:
-		// note: do not close wgError, let gc clean it
-		return err
-	case <-time.After(AllVMAccessTimeout):
-		return fmt.Errorf("Timed out verifying VMs")
+		}
 	}
 
 	return nil

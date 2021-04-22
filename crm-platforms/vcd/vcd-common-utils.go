@@ -2,17 +2,13 @@ package vcd
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"strings"
-	"time"
 
-	"github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"path/filepath"
 )
 
 // This functions could be shared across non-openstack platforms, and were basicly hijacked from vsphere
@@ -99,8 +95,6 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 //CreateImageFromUrl downloads image from URL and then imports to the datastore
 //func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
 
-var qcowConvertTimeout = 5 * time.Minute
-
 func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion)
 	//	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
@@ -118,50 +112,12 @@ func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUr
 		}
 	}()
 
-	vmdkFile, err := v.ConvertQcowToVmdk(ctx, filePath, vmlayer.MINIMUM_DISK_SIZE)
+	vmdkFile, err := vmlayer.ConvertQcowToVmdk(ctx, filePath, vmlayer.MINIMUM_DISK_SIZE)
 	if err != nil {
 		return "", err
 	}
 	return vmdkFile, nil
 	// return v.ImportImage(ctx, imageName, vmdkFile)
-}
-
-func (v *VcdPlatform) ConvertQcowToVmdk(ctx context.Context, sourceFile string, size uint64) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "ConvertQcowToVmdk", "sourceFile", sourceFile, "size", size)
-	destFile := strings.TrimSuffix(sourceFile, filepath.Ext(sourceFile))
-	destFile = destFile + ".vmdk"
-
-	convertChan := make(chan string, 1)
-	var convertErr string
-	go func() {
-		//resize to the correct size
-		sizeInGB := fmt.Sprintf("%dG", size)
-		log.SpanLog(ctx, log.DebugLevelInfra, "Resizing to", "size", sizeInGB)
-		out, err := sh.Command("qemu-img", "resize", sourceFile, "--shrink", sizeInGB).CombinedOutput()
-
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img resize failed", "out", string(out), "err", err)
-			convertChan <- fmt.Sprintf("qemu-img resize failed: %s %v", out, err)
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "doing qemu-img convert", "destFile", destFile)
-		out, err = sh.Command("qemu-img", "convert", "-O", "vmdk", "-o", "subformat=streamOptimized", sourceFile, destFile).CombinedOutput()
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img convert failed", "out", string(out), "err", err)
-			convertChan <- fmt.Sprintf("qemu-img convert failed: %s %v", out, err)
-		} else {
-			convertChan <- ""
-
-		}
-	}()
-	select {
-	case convertErr = <-convertChan:
-	case <-time.After(qcowConvertTimeout):
-		return "", fmt.Errorf("ConvertQcowToVmdk timed out")
-	}
-	if convertErr != "" {
-		return "", errors.New(convertErr)
-	}
-	return destFile, nil
 }
 
 func (v *VcdPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
@@ -201,4 +157,23 @@ func TakeIntPointer(x int) *int {
 
 func TakeUint64Pointer(x uint64) *uint64 {
 	return &x
+}
+
+func (v *VcdPlatform) GetCloudletTrustPolicy(ctx context.Context) (*edgeproto.TrustPolicy, error) {
+
+	cldlet := edgeproto.Cloudlet{}
+	trustcache := v.caches.TrustPolicyCache
+	key := v.vmProperties.CommonPf.PlatformConfig.CloudletKey
+
+	if !v.caches.CloudletCache.Get(key, &cldlet) {
+		log.SpanLog(ctx, log.DebugLevelInfra, "vcd:GetCloudletTrustPolicy unable to retrieve cloudlet from cache", "cloudlet", cldlet.Key.Name, "cloudletOrg", key.Organization)
+		return nil, fmt.Errorf("Cloudlet Not Found")
+	}
+	tpol, err := crmutil.GetCloudletTrustPolicy(ctx, cldlet.TrustPolicy, key.Organization, trustcache)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "vcd:GetCloudletTrustPolicy crmutil failed", "cloudlet", cldlet.Key.Name, "cloudletOrg", key.Organization, "error", err)
+		return nil, err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "vcd:GetCloudletTrustPolicy fetched", "TrustPolicy", tpol.Key.Name, "cloudlet", cldlet.Key.Name)
+	return tpol, nil
 }

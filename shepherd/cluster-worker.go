@@ -115,14 +115,14 @@ func (p *ClusterWorker) RunNotify() {
 			for key, stat := range appStatsMap {
 				log.SpanLog(ctx, log.DebugLevelMetrics, "App metrics",
 					"AppInst key", key, "stats", stat)
-				appMetrics := MarshalAppMetrics(&key, stat)
+				appMetrics := MarshalAppMetrics(&key, stat, p.reservedBy)
 				for _, metric := range appMetrics {
-					p.send(ctx, metric)
+					p.send(context.Background(), metric)
 				}
 			}
 			clusterMetrics := p.MarshalClusterMetrics(clusterStats)
 			for _, metric := range clusterMetrics {
-				p.send(ctx, metric)
+				p.send(context.Background(), metric)
 			}
 
 			clusterAlerts := p.clusterStat.GetAlerts(actx)
@@ -151,11 +151,15 @@ func newMetric(clusterInstKey edgeproto.ClusterInstKey, reservedBy string, name 
 		metric.AddTag("clusterorg", clusterInstKey.Organization)
 	}
 	if key != nil {
-		metric.AddTag("pod", key.Pod)
+		metric.AddStringVal("pod", key.Pod)
 		metric.AddTag("app", key.App)
 		metric.AddTag("ver", key.Version)
 		//TODO: this should be changed when we have the actual app key
-		metric.AddTag("apporg", key.ClusterInstKey.Organization)
+		if reservedBy != "" {
+			metric.AddTag("apporg", reservedBy)
+		} else {
+			metric.AddTag("apporg", clusterInstKey.Organization)
+		}
 	}
 	return &metric
 }
@@ -225,7 +229,7 @@ func (p *ClusterWorker) MarshalClusterMetrics(cm *shepherd_common.ClusterMetrics
 	return metrics
 }
 
-func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_common.AppMetrics) []*edgeproto.Metric {
+func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_common.AppMetrics, reservedBy string) []*edgeproto.Metric {
 	var metrics []*edgeproto.Metric
 	var metric *edgeproto.Metric
 
@@ -235,21 +239,21 @@ func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_com
 	}
 
 	if stat.CpuTS != nil {
-		metric = newMetric(key.ClusterInstKey, "", "appinst-cpu", key, stat.CpuTS)
+		metric = newMetric(key.ClusterInstKey, reservedBy, "appinst-cpu", key, stat.CpuTS)
 		metric.AddDoubleVal("cpu", stat.Cpu)
 		metrics = append(metrics, metric)
 		stat.CpuTS = nil
 	}
 
 	if stat.MemTS != nil {
-		metric = newMetric(key.ClusterInstKey, "", "appinst-mem", key, stat.MemTS)
+		metric = newMetric(key.ClusterInstKey, reservedBy, "appinst-mem", key, stat.MemTS)
 		metric.AddIntVal("mem", stat.Mem)
 		metrics = append(metrics, metric)
 		stat.MemTS = nil
 	}
 
 	if stat.DiskTS != nil {
-		metric = newMetric(key.ClusterInstKey, "", "appinst-disk", key, stat.DiskTS)
+		metric = newMetric(key.ClusterInstKey, reservedBy, "appinst-disk", key, stat.DiskTS)
 		metric.AddIntVal("disk", stat.Disk)
 		metrics = append(metrics, metric)
 		stat.DiskTS = nil
@@ -257,7 +261,7 @@ func MarshalAppMetrics(key *shepherd_common.MetricAppInstKey, stat *shepherd_com
 
 	if stat.NetSentTS != nil && stat.NetRecvTS != nil {
 		//for measurements with multiple values just pick one timestamp to use
-		metric = newMetric(key.ClusterInstKey, "", "appinst-network", key, stat.NetSentTS)
+		metric = newMetric(key.ClusterInstKey, reservedBy, "appinst-network", key, stat.NetSentTS)
 		metric.AddIntVal("sendBytes", stat.NetSent)
 		metric.AddIntVal("recvBytes", stat.NetRecv)
 		metrics = append(metrics, metric)

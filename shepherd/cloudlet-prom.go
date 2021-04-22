@@ -18,6 +18,7 @@ import (
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
+	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/prommgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
@@ -206,14 +207,15 @@ func metricsProxy(w http.ResponseWriter, r *http.Request) {
 		if target.ProxyContainer == "nginx" {
 			return
 		}
-		request := fmt.Sprintf("docker exec %s curl -s -S http://127.0.0.1:%d/stats/prometheus", target.ProxyContainer, cloudcommon.ProxyMetricsPort)
-		if myPlatform.GetType() == "fake" {
+		request := getProxyMetricsRequest(target, "stats/prometheus")
+		if pf.GetType(*platformName) == "fake" {
 			sock := "/tmp/envoy_" + app + ".sock"
 			request = fmt.Sprintf("curl -s --unix-socket %s http:/sock/stats/prometheus", sock)
 		}
 		resp, err := target.Client.OutputWithTimeout(request, shepherd_common.ShepherdSshConnectTimeout)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			errStr := fmt.Sprintf("%s[%s]", err, resp)
+			http.Error(w, errStr, http.StatusInternalServerError)
 			return
 		}
 		w.Write([]byte(resp))
@@ -287,7 +289,7 @@ func writePrometheusAlertRuleForAppInst(ctx context.Context, k interface{}) {
 	appInst := edgeproto.AppInst{}
 	found := AppInstCache.Get(&key, &appInst)
 	if !found || appInst.State != edgeproto.TrackedState_READY {
-		log.SpanLog(ctx, log.DebugLevelApi, "delete rules for AppInst", "AppInst", key)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "delete rules for AppInst", "AppInst", key)
 		untrackAppInstByPolicy(key)
 		// AppInst is being deleted - delete rules
 		fileName := getAppInstRulesFileName(key)
@@ -304,7 +306,7 @@ func writePrometheusAlertRuleForAppInst(ctx context.Context, k interface{}) {
 		return
 	}
 
-	log.SpanLog(ctx, log.DebugLevelApi, "write rules for AppInst", "AppInst", key)
+	log.SpanLog(ctx, log.DebugLevelMetrics, "write rules for AppInst", "AppInst", key)
 
 	// get any rules for AppInst
 	grps := prommgmt.GroupsData{}
@@ -325,13 +327,13 @@ func writePrometheusAlertRuleForAppInst(ctx context.Context, k interface{}) {
 	}
 
 	if len(grps.Groups) == 0 {
-		log.SpanLog(ctx, log.DebugLevelApi, "no rules for AppInst", "AppInst", key)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "no rules for AppInst", "AppInst", key)
 		// no rules
 		return
 	}
 	byt, err := yaml.Marshal(grps)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to marshal prom rule groups", "AppInst", appInst.Key, "rules", grps, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to marshal prom rule groups", "AppInst", appInst.Key, "rules", grps, "err", err)
 		return
 	}
 

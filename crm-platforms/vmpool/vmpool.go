@@ -21,10 +21,6 @@ type VMPoolPlatform struct {
 	FlavorList   []*edgeproto.FlavorInfo
 }
 
-func (o *VMPoolPlatform) GetType() string {
-	return "vmpool"
-}
-
 func (o *VMPoolPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	o.VMProperties = vmProperties
 }
@@ -59,8 +55,8 @@ func (o *VMPoolPlatform) InitProvider(ctx context.Context, caches *platform.Cach
 	return nil
 }
 
-func (v *VMPoolPlatform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, error) {
-	return ctx, nil
+func (v *VMPoolPlatform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, vmlayer.OperationInitResult, error) {
+	return ctx, vmlayer.OperationNewlyInitialized, nil
 }
 
 func (o *VMPoolPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
@@ -105,7 +101,7 @@ func (o *VMPoolPlatform) GetResourceID(ctx context.Context, resourceType vmlayer
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
 }
 
-func (o *VMPoolPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy) error {
+func (o *VMPoolPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	// nothing to do
 	return nil
 }

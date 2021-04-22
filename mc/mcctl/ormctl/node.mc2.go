@@ -24,7 +24,8 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 var ShowNodeCmd = &cli.Command{
-	Use:          "ShowNode",
+	Use:          "show",
+	Short:        "Show all Nodes connected to all Controllers",
 	OptionalArgs: strings.Join(append(NodeRequiredArgs, NodeOptionalArgs...), " "),
 	AliasArgs:    strings.Join(NodeAliasArgs, " "),
 	SpecialArgs:  &NodeSpecialArgs,
@@ -38,6 +39,8 @@ var ShowNodeCmd = &cli.Command{
 var NodeApiCmds = []*cli.Command{
 	ShowNodeCmd,
 }
+
+var NodeApiCmdsGroup = cli.GenGroup("node", "Manage Nodes", NodeApiCmds)
 
 var NodeKeyRequiredArgs = []string{}
 var NodeKeyOptionalArgs = []string{
@@ -78,6 +81,7 @@ var NodeOptionalArgs = []string{
 	"hostname",
 	"containerversion",
 	"internalpki",
+	"properties",
 }
 var NodeAliasArgs = []string{
 	"fields=node.fields",
@@ -94,6 +98,7 @@ var NodeAliasArgs = []string{
 	"hostname=node.hostname",
 	"containerversion=node.containerversion",
 	"internalpki=node.internalpki",
+	"properties=node.properties",
 }
 var NodeComments = map[string]string{
 	"fields":           "Fields are used for the Update API to specify which fields to apply",
@@ -110,9 +115,11 @@ var NodeComments = map[string]string{
 	"hostname":         "Hostname",
 	"containerversion": "Docker edge-cloud container version which node instance use",
 	"internalpki":      "Internal PKI Config",
+	"properties":       "Additional properties",
 }
 var NodeSpecialArgs = map[string]string{
-	"node.fields": "StringArray",
+	"node.fields":     "StringArray",
+	"node.properties": "StringToString",
 }
 var NodeDataRequiredArgs = []string{}
 var NodeDataOptionalArgs = []string{
@@ -130,6 +137,7 @@ var NodeDataOptionalArgs = []string{
 	"nodes:#.hostname",
 	"nodes:#.containerversion",
 	"nodes:#.internalpki",
+	"nodes:#.properties",
 }
 var NodeDataAliasArgs = []string{
 	"nodes:#.fields=nodedata.nodes:#.fields",
@@ -146,6 +154,7 @@ var NodeDataAliasArgs = []string{
 	"nodes:#.hostname=nodedata.nodes:#.hostname",
 	"nodes:#.containerversion=nodedata.nodes:#.containerversion",
 	"nodes:#.internalpki=nodedata.nodes:#.internalpki",
+	"nodes:#.properties=nodedata.nodes:#.properties",
 }
 var NodeDataComments = map[string]string{
 	"nodes:#.fields":                       "Fields are used for the Update API to specify which fields to apply",
@@ -162,7 +171,9 @@ var NodeDataComments = map[string]string{
 	"nodes:#.hostname":                     "Hostname",
 	"nodes:#.containerversion":             "Docker edge-cloud container version which node instance use",
 	"nodes:#.internalpki":                  "Internal PKI Config",
+	"nodes:#.properties":                   "Additional properties",
 }
 var NodeDataSpecialArgs = map[string]string{
-	"nodedata.nodes:#.fields": "StringArray",
+	"nodedata.nodes:#.fields":     "StringArray",
+	"nodedata.nodes:#.properties": "StringToString",
 }

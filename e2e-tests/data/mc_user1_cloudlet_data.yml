@@ -1,26 +1,4 @@
-orgs:
-- name: tmus
-  type: operator
-  address: tmus headquarters
-  phone: 123-123-1234
-  adminusername: user1
-- name: azure
-  type: operator
-  address: amazon jungle
-  phone: 123-123-1234
-  adminusername: user1
-- name: gcp
-  type: operator
-  address: mountain view
-  phone: 123-123-1234
-  adminusername: user1
-- name: enterprise
-  type: operator
-  address: enterprise headquarters
-  phone: 123-123-1234
-  adminusername: user1
-
-orgcloudletpools:
+cloudletpoolaccessinvitations:
 - org: user3org
   region: local
   cloudletpool: enterprise-pool
@@ -46,6 +24,14 @@ regiondata:
       platformtype: PlatformTypeFakeinfra
       envvar:
         foo: bar
+      resourcequotas:
+        - name: "RAM"
+          alertthreshold: 50
+        - name: "vCPUs"
+          value: 20
+          alertthreshold: 50
+        - name: "External IPs"
+          alertthreshold: 10
     - key:
         organization: tmus
         name: tmus-cloud-2
@@ -172,6 +158,10 @@ regiondata:
       osmaxvcores: 50
       osmaxvolgb: 5000
       flavors:
+      - name: x1.tiny
+        vcpus: 1
+        ram: 1024
+        disk: 20
       - name: x1.small
         vcpus: 10
         ram: 101024

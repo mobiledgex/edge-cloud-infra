@@ -24,7 +24,8 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 var StreamAppInstCmd = &cli.Command{
-	Use:                  "StreamAppInst",
+	Use:                  "streamappinst",
+	Short:                "Stream Application Instance current progress",
 	RequiredArgs:         "region " + strings.Join(AppInstKeyRequiredArgs, " "),
 	OptionalArgs:         strings.Join(AppInstKeyOptionalArgs, " "),
 	AliasArgs:            strings.Join(AppInstKeyAliasArgs, " "),
@@ -38,7 +39,8 @@ var StreamAppInstCmd = &cli.Command{
 }
 
 var StreamClusterInstCmd = &cli.Command{
-	Use:                  "StreamClusterInst",
+	Use:                  "streamclusterinst",
+	Short:                "Stream Cluster Instance current progress",
 	RequiredArgs:         "region " + strings.Join(ClusterInstKeyRequiredArgs, " "),
 	OptionalArgs:         strings.Join(ClusterInstKeyOptionalArgs, " "),
 	AliasArgs:            strings.Join(ClusterInstKeyAliasArgs, " "),
@@ -52,7 +54,8 @@ var StreamClusterInstCmd = &cli.Command{
 }
 
 var StreamCloudletCmd = &cli.Command{
-	Use:                  "StreamCloudlet",
+	Use:                  "streamcloudlet",
+	Short:                "Stream Cloudlet current progress",
 	RequiredArgs:         "region " + strings.Join(CloudletKeyRequiredArgs, " "),
 	OptionalArgs:         strings.Join(CloudletKeyOptionalArgs, " "),
 	AliasArgs:            strings.Join(CloudletKeyAliasArgs, " "),
@@ -69,4 +72,51 @@ var StreamObjApiCmds = []*cli.Command{
 	StreamAppInstCmd,
 	StreamClusterInstCmd,
 	StreamCloudletCmd,
+}
+
+var StreamObjApiCmdsGroup = cli.GenGroup("streamobj", "Manage StreamObjs", StreamObjApiCmds)
+
+var StreamObjRequiredArgs = []string{
+	"key.appkey.organization",
+	"key.appkey.name",
+	"key.appkey.version",
+	"key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.cloudletkey.organization",
+	"key.clusterinstkey.cloudletkey.name",
+	"key.clusterinstkey.organization",
+}
+var StreamObjOptionalArgs = []string{
+	"status.tasknumber",
+	"status.maxtasks",
+	"status.taskname",
+	"status.stepname",
+	"status.msgcount",
+	"status.msgs",
+}
+var StreamObjAliasArgs = []string{
+	"key.appkey.organization=streamobj.key.appkey.organization",
+	"key.appkey.name=streamobj.key.appkey.name",
+	"key.appkey.version=streamobj.key.appkey.version",
+	"key.clusterinstkey.clusterkey.name=streamobj.key.clusterinstkey.clusterkey.name",
+	"key.clusterinstkey.cloudletkey.organization=streamobj.key.clusterinstkey.cloudletkey.organization",
+	"key.clusterinstkey.cloudletkey.name=streamobj.key.clusterinstkey.cloudletkey.name",
+	"key.clusterinstkey.organization=streamobj.key.clusterinstkey.organization",
+	"status.tasknumber=streamobj.status.tasknumber",
+	"status.maxtasks=streamobj.status.maxtasks",
+	"status.taskname=streamobj.status.taskname",
+	"status.stepname=streamobj.status.stepname",
+	"status.msgcount=streamobj.status.msgcount",
+	"status.msgs=streamobj.status.msgs",
+}
+var StreamObjComments = map[string]string{
+	"key.appkey.organization":                     "App developer organization",
+	"key.appkey.name":                             "App name",
+	"key.appkey.version":                          "App version",
+	"key.clusterinstkey.clusterkey.name":          "Cluster name",
+	"key.clusterinstkey.cloudletkey.organization": "Organization of the cloudlet site",
+	"key.clusterinstkey.cloudletkey.name":         "Name of the cloudlet",
+	"key.clusterinstkey.organization":             "Name of Developer organization that this cluster belongs to",
+}
+var StreamObjSpecialArgs = map[string]string{
+	"streamobj.status.msgs": "StringArray",
 }

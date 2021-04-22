@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"golang.org/x/crypto/pbkdf2"
@@ -233,15 +234,16 @@ func authorized(ctx context.Context, sub, org, obj, act string, ops ...authOp) e
 	if !allow {
 		return echo.ErrForbidden
 	}
+
 	if opts.requiresOrg != "" && !opts.showAudit {
-		if err := checkRequiresOrg(ctx, opts.requiresOrg, admin); err != nil {
+		if err := checkRequiresOrg(ctx, opts.requiresOrg, obj, admin, opts.noEdgeboxOnly); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func checkRequiresOrg(ctx context.Context, org string, admin bool) error {
+func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgeboxOnly bool) error {
 	// make sure org actually exists, and is not in the
 	// process of being deleted.
 	lookup, err := orgExists(ctx, org)
@@ -250,24 +252,37 @@ func checkRequiresOrg(ctx context.Context, org string, admin bool) error {
 		if !admin {
 			return echo.ErrForbidden
 		}
-		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("org %s lookup failed: %v", org, err))
-	}
-	if lookup == nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "org not found", "org", org)
-		if !admin {
-			return echo.ErrForbidden
+		if strings.Contains(err.Error(), "not found") {
+			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("org %s not found", org))
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Org %s lookup failed: %v", org, err))
 	}
 	if lookup.DeleteInProgress {
-		return echo.NewHTTPError(http.StatusBadRequest, "operation not allowed for org with delete in progress")
+		return echo.NewHTTPError(http.StatusBadRequest, "Operation not allowed for org with delete in progress")
+	}
+	// see if resource is only for a specific type of org
+	orgType := ""
+	if _, ok := DeveloperResourcesMap[resource]; ok {
+		orgType = OrgTypeDeveloper
+	} else if _, ok := OperatorResourcesMap[resource]; ok {
+		orgType = OrgTypeOperator
+	}
+	if orgType != "" && lookup.Type != orgType {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Operation only allowed for organizations of type %s", orgType))
+	}
+	// make sure only edgebox cloudlets are created for edgebox org
+	if lookup.EdgeboxOnly && noEdgeboxOnly {
+		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Only allowed to create EDGEBOX cloudlet on org %s", org))
 	}
 	return nil
 }
 
 type authOptions struct {
-	showAudit   bool
-	requiresOrg string
+	showAudit          bool
+	requiresOrg        string
+	noEdgeboxOnly      bool
+	requiresBillingOrg string
+	targetCloudlet     *edgeproto.Cloudlet
 }
 
 type authOp func(opts *authOptions)
@@ -278,4 +293,15 @@ func withShowAudit() authOp {
 
 func withRequiresOrg(org string) authOp {
 	return func(opts *authOptions) { opts.requiresOrg = org }
+}
+
+func withNoEdgeboxOnly() authOp {
+	return func(opts *authOptions) { opts.noEdgeboxOnly = true }
+}
+
+func withRequiresBillingOrg(org string, targetCloudlet *edgeproto.Cloudlet) authOp {
+	return func(opts *authOptions) {
+		opts.requiresBillingOrg = org
+		opts.targetCloudlet = targetCloudlet
+	}
 }

@@ -67,7 +67,7 @@ func GetAppMetrics(c echo.Context) error {
 	}
 	cmd = GetAppInstsGroupQuery(&in)
 
-	err = influxStream(ctx, rc, cloudcommon.DeveloperMetricsDbName, cmd, func(res interface{}) {
+	err = influxStream(ctx, rc, []string{cloudcommon.DeveloperMetricsDbName}, cmd, func(res interface{}) {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		WriteStream(c, &payload)

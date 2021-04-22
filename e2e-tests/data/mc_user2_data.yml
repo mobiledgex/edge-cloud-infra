@@ -24,6 +24,11 @@ billingorgs:
   phone: 123-123-1234
   currency: USD
 
+accountinfos:
+- orgname: AcmeAppCo
+  accountid: "11111"
+  subscriptionid: "11111"
+
 regiondata:
 - region: local
   appdata:
@@ -80,7 +85,8 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
     - key:
         organization: AcmeAppCo
         name: autoprovappd
@@ -91,7 +97,8 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
     - key:
         organization: Samsung
         name: SamsungEnablingLayer
@@ -132,6 +139,20 @@ regiondata:
             organization: tmus
             name: tmus-cloud-2
           organization: AcmeAppCo
+      flavor:
+        name: x1.small
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: someapplication1
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: autoclusterAcme
+          cloudletkey:
+            organization: tmus
+            name: tmus-cloud-2
+          organization: MobiledgeX
       flavor:
         name: x1.small
 
@@ -216,7 +237,8 @@ regiondata:
       defaultflavor:
         name: x1.small
       accessports: "tcp:81"
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
     - key:
         organization: Samsung
         name: SamsungEnablingLayer

@@ -109,7 +109,38 @@ func TestGetCloudletProps(mcClient *ormclient.Client, uri, token, region string,
 }
 func TestPermGetCloudletProps(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletProps)) (*edgeproto.CloudletProps, int, error) {
 	in := &edgeproto.CloudletProps{}
+	in.Organization = org
 	return TestGetCloudletProps(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestGetCloudletResourceQuotaProps(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.CloudletResourceQuotaProps, modFuncs ...func(*edgeproto.CloudletResourceQuotaProps)) (*edgeproto.CloudletResourceQuotaProps, int, error) {
+	dat := &ormapi.RegionCloudletResourceQuotaProps{}
+	dat.Region = region
+	dat.CloudletResourceQuotaProps = *in
+	for _, fn := range modFuncs {
+		fn(&dat.CloudletResourceQuotaProps)
+	}
+	return mcClient.GetCloudletResourceQuotaProps(uri, token, dat)
+}
+func TestPermGetCloudletResourceQuotaProps(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletResourceQuotaProps)) (*edgeproto.CloudletResourceQuotaProps, int, error) {
+	in := &edgeproto.CloudletResourceQuotaProps{}
+	in.Organization = org
+	return TestGetCloudletResourceQuotaProps(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestGetCloudletResourceUsage(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.CloudletResourceUsage, modFuncs ...func(*edgeproto.CloudletResourceUsage)) (*edgeproto.CloudletResourceUsage, int, error) {
+	dat := &ormapi.RegionCloudletResourceUsage{}
+	dat.Region = region
+	dat.CloudletResourceUsage = *in
+	for _, fn := range modFuncs {
+		fn(&dat.CloudletResourceUsage)
+	}
+	return mcClient.GetCloudletResourceUsage(uri, token, dat)
+}
+func TestPermGetCloudletResourceUsage(mcClient *ormclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletResourceUsage)) (*edgeproto.CloudletResourceUsage, int, error) {
+	in := &edgeproto.CloudletResourceUsage{}
+	in.Key.Organization = org
+	return TestGetCloudletResourceUsage(mcClient, uri, token, region, in, modFuncs...)
 }
 
 func TestAddCloudletResMapping(mcClient *ormclient.Client, uri, token, region string, in *edgeproto.CloudletResMap, modFuncs ...func(*edgeproto.CloudletResMap)) (*edgeproto.Result, int, error) {
@@ -235,6 +266,10 @@ func (s *TestClient) ShowCloudlet(ctx context.Context, in *edgeproto.Cloudlet) (
 	return out, err
 }
 
+func (s *TestClient) PlatformDeleteCloudlet(ctx context.Context, in *edgeproto.Cloudlet) ([]edgeproto.Result, error) {
+	return nil, nil
+}
+
 func (s *TestClient) GetCloudletManifest(ctx context.Context, in *edgeproto.CloudletKey) (*edgeproto.CloudletManifest, error) {
 	inR := &ormapi.RegionCloudletKey{
 		Region:      s.Region,
@@ -301,6 +336,30 @@ func (s *TestClient) RemoveCloudletResMapping(ctx context.Context, in *edgeproto
 		CloudletResMap: *in,
 	}
 	out, status, err := s.McClient.RemoveCloudletResMapping(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) GetCloudletResourceQuotaProps(ctx context.Context, in *edgeproto.CloudletResourceQuotaProps) (*edgeproto.CloudletResourceQuotaProps, error) {
+	inR := &ormapi.RegionCloudletResourceQuotaProps{
+		Region:                     s.Region,
+		CloudletResourceQuotaProps: *in,
+	}
+	out, status, err := s.McClient.GetCloudletResourceQuotaProps(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) GetCloudletResourceUsage(ctx context.Context, in *edgeproto.CloudletResourceUsage) (*edgeproto.CloudletResourceUsage, error) {
+	inR := &ormapi.RegionCloudletResourceUsage{
+		Region:                s.Region,
+		CloudletResourceUsage: *in,
+	}
+	out, status, err := s.McClient.GetCloudletResourceUsage(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}

@@ -11,6 +11,7 @@ import (
 func GetUsageCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "app",
+		Short:        "View App usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, AppUsageRequiredArgs...), " "),
 		OptionalArgs: strings.Join(AppUsageOptionalArgs, " "),
 		AliasArgs:    strings.Join(AppUsageAliasArgs, " "),
@@ -20,6 +21,7 @@ func GetUsageCommand() *cobra.Command {
 		Run:          runRest("/auth/usage/app"),
 	}, &cli.Command{
 		Use:          "cluster",
+		Short:        "View ClusterInst usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClusterUsageRequiredArgs...), " "),
 		OptionalArgs: strings.Join(ClusterUsageOptionalArgs, " "),
 		AliasArgs:    strings.Join(ClusterUsageAliasArgs, " "),
@@ -29,14 +31,16 @@ func GetUsageCommand() *cobra.Command {
 		Run:          runRest("/auth/usage/cluster"),
 	}, &cli.Command{
 		Use:          "cloudletpool",
+		Short:        "View CloudletPool usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletPoolUsageRequiredArgs...), " "),
+		OptionalArgs: "shownonvmapps",
 		AliasArgs:    strings.Join(CloudletPoolUsageAliasArgs, " "),
 		Comments:     addRegionComment(CloudletPoolUsageComments),
 		ReqData:      &ormapi.RegionCloudletPoolUsage{},
 		ReplyData:    &ormapi.AllMetrics{},
 		Run:          runRest("/auth/usage/cloudletpool"),
 	}}
-	return cli.GenGroup("usage", "view usage ", cmds)
+	return cli.GenGroup("usage", "View App, Cluster, etc usage ", cmds)
 }
 
 var AppUsageRequiredArgs = []string{
@@ -120,4 +124,5 @@ var CloudletPoolUsageComments = map[string]string{
 	"cloudletpoolorg": "Organization or Company Name that a Operator is part of",
 	"starttime":       "Time to start displaying usage from",
 	"endtime":         "Time up to which to display usage",
+	"shownonvmapps":   "Display all appinsts instead of just vm based ones",
 }

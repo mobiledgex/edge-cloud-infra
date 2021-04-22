@@ -49,6 +49,12 @@
   vars:
     begin_def: !unsafe '{{ define "console.link" }}'
     end_def: !unsafe '{{ end }}'
+  notify: Restart alertmanager
+
+- name: Run receiver name upgrade
+  script: "files/name_delim_upgrade.sh"
+  args:
+    creates: "{{ alertmanager_config_path }}/receiver_dashed_name_upgraded"
 
 - name: Load noreply email details from vault
   import_role:
@@ -71,3 +77,20 @@
     host: "0.0.0.0"
     port: 9094
     timeout: 30
+
+- name: Load artifactory publish key from vault
+  import_role:
+    name: load-vault-creds
+    tasks_from: artifactory-publish
+
+- name: Install the backup cronjob
+  cron:
+    name: Alertmanager config backup
+    minute: "0"
+    hour: "7"
+    user: root
+    job: 'curl -sf -H "X-JFrog-Art-Api:{{ artifactory_publish_api_key }}"
+        -T /var/tmp/alertmanager/config.yml
+        https://artifactory.mobiledgex.net/artifactory/build-artifacts/alertmanager-backup/{{ deploy_environ }}/$( date +"\%Y-\%m-\%d-\%H\%M" )/config.yml
+        >/dev/null 2>/var/log/alertmanager-backup.log'
+  become: yes

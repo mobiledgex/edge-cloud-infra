@@ -20,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
+	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -28,7 +29,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/notify"
 	edgetls "github.com/mobiledgex/edge-cloud/tls"
 	"github.com/mobiledgex/edge-cloud/vault"
-	"github.com/mobiledgex/edge-cloud/version"
 	"github.com/nmcclain/ldap"
 	gitlab "github.com/xanzy/go-gitlab"
 	"google.golang.org/grpc/status"
@@ -42,7 +42,7 @@ type Server struct {
 	echo         *echo.Echo
 	vault        *process.Vault
 	stopInitData bool
-	initDataDone chan struct{}
+	initDataDone chan error
 	initJWKDone  chan struct{}
 	notifyServer *notify.ServerMgr
 	notifyClient *notify.Client
@@ -90,7 +90,6 @@ var Superuser string
 
 var database *gorm.DB
 
-//var enforcer *casbin.SyncedEnforcer
 var enforcer *rbac.Enforcer
 var serverConfig *ServerConfig
 var gitlabClient *gitlab.Client
@@ -148,6 +147,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 			server.Stop()
 		}
 	}()
+	nodeMgr.UpdateNodeProps(ctx, version.InfraBuildProps("Infra"))
 
 	if config.LocalVault {
 		vaultProc := process.Vault{
@@ -245,7 +245,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		return nil, fmt.Errorf("enforcer init failed, %v", err)
 	}
 
-	server.initDataDone = make(chan struct{}, 1)
+	server.initDataDone = make(chan error, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
 
 	if config.AlertMgrAddr != "" {
@@ -404,17 +404,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/org/delete", DeleteOrg)
 
-	// swagger:route POST /auth/billingorg/create BillingOrganization CreateBillingOrg
-	// Create BillingOrganization.
-	// Create a BillingOrganization to set up billing info.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
 	auth.POST("/billingorg/create", CreateBillingOrg)
+	auth.POST("/billingorg/updateaccount", UpdateAccountInfo)
 	// swagger:route POST /auth/billingorg/update BillingOrganization UpdateBillingOrg
 	// Update BillingOrganization.
 	// API to update an existing BillingOrganization.
@@ -470,6 +461,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/billingorg/delete", DeleteBillingOrg)
+	auth.POST("/billingorg/invoice", GetInvoice)
 
 	auth.POST("/controller/create", CreateController)
 	auth.POST("/controller/delete", DeleteController)
@@ -482,12 +474,18 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/config/show", ShowConfig)
 	auth.POST("/config/version", ShowVersion)
 	auth.POST("/restricted/user/update", RestrictedUserUpdate)
+	auth.POST("/restricted/org/update", RestrictedUpdateOrg)
 	auth.POST("/audit/showself", ShowAuditSelf)
 	auth.POST("/audit/showorg", ShowAuditOrg)
 	auth.POST("/audit/operations", GetAuditOperations)
-	auth.POST("/orgcloudletpool/create", CreateOrgCloudletPool)
-	auth.POST("/orgcloudletpool/delete", DeleteOrgCloudletPool)
-	auth.POST("/orgcloudletpool/show", ShowOrgCloudletPool)
+	auth.POST("/cloudletpoolaccessinvitation/create", CreateCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessinvitation/delete", DeleteCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessinvitation/show", ShowCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessresponse/create", CreateCloudletPoolAccessResponse)
+	auth.POST("/cloudletpoolaccessresponse/delete", DeleteCloudletPoolAccessResponse)
+	auth.POST("/cloudletpoolaccessresponse/show", ShowCloudletPoolAccessResponse)
+	auth.POST("/cloudletpoolaccessgranted/show", ShowCloudletPoolAccessGranted)
+	auth.POST("/cloudletpoolaccesspending/show", ShowCloudletPoolAccessPending)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
 	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
 
@@ -532,9 +530,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/metrics/cloudlet", GetMetricsCommon)
 
-	// swagger:route POST /auth/metrics/client DeveloperMetrics ClientMetrics
-	// Client related metrics.
-	// Display client related metrics.
+	// swagger:route POST /auth/metrics/cloudlet/usage OperatorMetrics CloudletUsageMetrics
+	// Cloudlet usage related metrics.
+	// Display cloudlet usage related metrics.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -542,7 +540,43 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	auth.POST("/metrics/client", GetMetricsCommon)
+	auth.POST("/metrics/cloudlet/usage", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/clientapiusage DeveloperMetrics ClientApiUsageMetrics
+	// Client api usage related metrics.
+	// Display client api usage related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/metrics/clientapiusage", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/clientappusage DeveloperMetrics ClientAppUsageMetrics
+	// Client app usage related metrics.
+	// Display client app usage related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/metrics/clientappusage", GetMetricsCommon)
+
+	// swagger:route POST /auth/metrics/clientcloudletusage DeveloperMetrics ClientCloudletUsageMetrics
+	// Client cloudlet usage related metrics.
+	// Display client cloudlet usage related metrics.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	auth.POST("/metrics/clientcloudletusage", GetMetricsCommon)
 
 	// swagger:route POST /auth/metrics/v2/app DeveloperMetrics AppMetrics
 	// App related metrics.
@@ -594,6 +628,10 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/events/terms", EventTerms)
+
+	auth.POST("/spans/terms", SpanTerms)
+	auth.POST("/spans/show", ShowSpans)
+	auth.POST("/spans/showverbose", ShowSpansVerbose)
 
 	// swagger:route POST /auth/usage/app DeveloperUsage AppUsage
 	// App Usage
@@ -673,7 +711,10 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	ws.GET("/metrics/app", GetMetricsCommon)
 	ws.GET("/metrics/cluster", GetMetricsCommon)
 	ws.GET("/metrics/cloudlet", GetMetricsCommon)
-	ws.GET("/metrics/client", GetMetricsCommon)
+	ws.GET("/metrics/cloudlet/usage", GetMetricsCommon)
+	ws.GET("/metrics/clientapiusage", GetMetricsCommon)
+	ws.GET("/metrics/clientappusage", GetMetricsCommon)
+	ws.GET("/metrics/clientcloudletusage", GetMetricsCommon)
 
 	if config.NotifySrvAddr != "" {
 		server.notifyServer = &notify.ServerMgr{}
@@ -742,7 +783,10 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	artifactorySync = ArtifactoryNewSync()
 
 	// gitlab/artifactory sync and alertmanager requires data to be initialized
-	<-server.initDataDone
+	err = <-server.initDataDone
+	if err != nil {
+		return nil, err
+	}
 	gitlabSync.Start()
 	artifactorySync.Start()
 	if AlertManagerServer != nil {
@@ -755,7 +799,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	server.sqlListener = sqlListener
 	go func() {
 		err := server.sqlListener.Listen(sqlEventsChannel)
-		if err != nil {
+		if err != nil && !strings.Contains(err.Error(), "Listener has been closed") {
 			log.FatalLog("Failed to listen for sql events", "err", err)
 		}
 	}()
@@ -810,6 +854,7 @@ func (s *Server) Stop() {
 	}
 	if AlertManagerServer != nil {
 		AlertManagerServer.Stop()
+		AlertManagerServer = nil
 	}
 	nodeMgr.Finish()
 }

@@ -2,10 +2,13 @@ package vmlayer
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/codeskyblue/go-sh"
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/access"
@@ -15,6 +18,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
+	proxycerts "github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy/certs"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -24,6 +28,8 @@ import (
 )
 
 var MaxDockerSeedWait = 1 * time.Minute
+
+var qcowConvertTimeout = 15 * time.Minute
 
 type ProxyDnsSecOpts struct {
 	AddProxy              bool
@@ -38,10 +44,6 @@ type vmAppOrchValues struct {
 	newSubnetName      string
 }
 
-func GetAppWhitelistRulesLabel(app *edgeproto.App) string {
-	return "appaccess-" + k8smgmt.NormalizeName(app.Key.Name)
-}
-
 func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) (*vmAppOrchValues, error) {
 	var orchVals vmAppOrchValues
 
@@ -52,6 +54,9 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	var imageInfo infracommon.ImageInfo
 	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
 	imageInfo.LocalImageName = imageName + "-" + md5Sum
+	if v.VMProperties.AppendFlavorToVmAppImage {
+		imageInfo.LocalImageName = imageInfo.LocalImageName + "-" + appInst.Flavor.Name
+	}
 	imageInfo.Md5sum = md5Sum
 	imageInfo.SourceImageTime = sourceImageTime
 	if err != nil {
@@ -86,7 +91,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 		orchVals.lbName = cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 		orchVals.externalServerName = orchVals.lbName
 		orchVals.newSubnetName = objName + "-subnet"
-		tags := v.GetChefClusterTags(&appInst.Key.ClusterInstKey, VMTypeRootLB)
+		tags := v.GetChefClusterTags(appInst.ClusterInstKey(), cloudcommon.VMTypeRootLB)
 		lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, tags, updateCallback)
 		if err != nil {
 			return &orchVals, err
@@ -96,7 +101,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 
 	appVm, err := v.GetVMRequestSpec(
 		ctx,
-		VMTypeAppVM,
+		cloudcommon.VMTypeAppVM,
 		objName,
 		appInst.VmFlavor,
 		imageInfo.LocalImageName,
@@ -114,8 +119,8 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	vms = append(vms, appVm)
 	updateCallback(edgeproto.UpdateTask, "Deploying App")
 	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, objName, vms, ActionCreate, updateCallback, WithNewSubnet(orchVals.newSubnetName),
-		WithAccessPorts(app.AccessPorts, RemoteCidrAll),
-		WithNewSecurityGroup(GetServerSecurityGroupName(orchVals.externalServerName)),
+		WithAccessPorts(app.AccessPorts, infracommon.RemoteCidrAll),
+		WithNewSecurityGroup(infracommon.GetServerSecurityGroupName(orchVals.externalServerName)),
 	)
 	if err != nil {
 		return &orchVals, err
@@ -148,11 +153,14 @@ func seedDockerSecrets(ctx context.Context, client ssh.Client, clusterInst *edge
 func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, appFlavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	var err error
-	ctx, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
 		return err
 	}
-	defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
@@ -172,7 +180,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		updateCallback(edgeproto.UpdateTask, "Setting up registry secret")
 		kconf := k8smgmt.GetKconfName(clusterInst)
 		for _, imagePath := range names.ImagePaths {
-			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names)
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names, nil)
 			if err != nil {
 				return err
 			}
@@ -238,8 +246,16 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				err = v.VMProperties.CommonPf.CreateAppDNSAndPatchKubeSvc(ctx, client, names, infracommon.NoDnsOverride, getDnsAction)
 			} else {
 				updateCallback(edgeproto.UpdateTask, "Configuring Service: LB, Firewall Rules and DNS")
-				ops := ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
-				err = v.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, rootLBName, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+				ops := infracommon.ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
+				wlParams := infracommon.WhiteListParams{
+					SecGrpName:  infracommon.GetServerSecurityGroupName(rootLBName),
+					ServerName:  rootLBName,
+					Label:       infracommon.GetAppWhitelistRulesLabel(app),
+					AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+					Ports:       appInst.MappedPorts,
+					DestIP:      infracommon.DestIPUnspecified,
+				}
+				err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerNetwork("host"), proxy.WithMetricIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
 			}
 		}
 
@@ -272,12 +288,15 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				return err
 			}
+			proxycerts.NewDedicatedLB(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 			// clusterInst is empty but that is ok here
 			names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 			if err != nil {
 				return fmt.Errorf("get kube names failed: %s", err)
 			}
-			proxyOps = append(proxyOps, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+			proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
+			proxyOps = append(proxyOps, proxy.WithMetricIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
+
 			getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 				action := infracommon.DnsSvcAction{}
 				action.PatchKube = false
@@ -289,12 +308,21 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return err
 			}
 			updateCallback(edgeproto.UpdateTask, "Configuring Firewall Rules")
-			ops := ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: false, AddSecurityRules: false}
-			err = v.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, orchVals.externalServerName, cloudcommon.IPAddrAllInterfaces, vmIP.ExternalAddr, ops, proxyOps...)
+			ops := infracommon.ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: false, AddSecurityRules: false}
+			wlParams := infracommon.WhiteListParams{
+				SecGrpName:  infracommon.GetServerSecurityGroupName(orchVals.externalServerName),
+				ServerName:  orchVals.externalServerName,
+				Label:       infracommon.GetAppWhitelistRulesLabel(app),
+				AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+				Ports:       appInst.MappedPorts,
+				DestIP:      infracommon.DestIPUnspecified,
+			}
+			err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, vmIP.ExternalAddr, ops, proxyOps...)
 			if err != nil {
 				return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 			}
 
+			var internalIfName string
 			if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Need to attach internal interface on rootlb")
 
@@ -305,16 +333,21 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 					return err
 				}
 				attachPort := v.VMProvider.GetInternalPortPolicy() == AttachPortAfterCreate
-				err = v.AttachAndEnableRootLBInterface(ctx, client, orchVals.lbName, attachPort, orchVals.newSubnetName, GetPortName(orchVals.lbName, orchVals.newSubnetName), gw)
+				internalIfName, err = v.AttachAndEnableRootLBInterface(ctx, client, orchVals.lbName, attachPort, orchVals.newSubnetName, GetPortName(orchVals.lbName, orchVals.newSubnetName), gw)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 					return err
 				}
+				if v.VMProperties.RunLbDhcpServerForVmApps {
+					updateCallback(edgeproto.UpdateTask, "Enabling DHCP on RootLB for VM App")
+					err = v.StartDhcpServerForVmApp(ctx, client, internalIfName, vmIP.InternalAddr, objName)
+					if err != nil {
+						return err
+					}
+				}
 			} else {
 				log.SpanLog(ctx, log.DebugLevelInfra, "External router in use, no internal interface for rootlb")
 			}
-			proxy.NewDedicatedLB(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
-			// DNS entry is already added while setting up RootLB
 			return nil
 		}
 		updateCallback(edgeproto.UpdateTask, "Adding DNS Entry")
@@ -404,12 +437,22 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		addproxy := false
 		listenIP := "NONE" // only applicable for proxy case
 		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
-			proxyOps = append(proxyOps, proxy.WithDockerPublishPorts(), proxy.WithDockerNetwork(""))
+			loopbackIp := infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)
+			proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
+			proxyOps = append(proxyOps, proxy.WithMetricIP(loopbackIp))
 			addproxy = true
 			listenIP = rootLBIPaddr.InternalAddr
 		}
-		ops := ProxyDnsSecOpts{AddProxy: addproxy, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
-		err = v.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, rootLBName, listenIP, backendIP, ops, proxyOps...)
+		ops := infracommon.ProxyDnsSecOpts{AddProxy: addproxy, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
+		wlParams := infracommon.WhiteListParams{
+			SecGrpName:  infracommon.GetServerSecurityGroupName(rootLBName),
+			ServerName:  rootLBName,
+			Label:       infracommon.GetAppWhitelistRulesLabel(app),
+			AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+			Ports:       appInst.MappedPorts,
+			DestIP:      infracommon.DestIPUnspecified,
+		}
+		err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, listenIP, backendIP, ops, proxyOps...)
 		if err != nil {
 			return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 		}
@@ -425,11 +468,14 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		return fmt.Errorf("Chef client is not initialized")
 	}
 	var err error
-	ctx, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
 		return err
 	}
-	defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
@@ -458,8 +504,15 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			if strings.Contains(err.Error(), ServerDoesNotExistError) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cluster is gone, allow app deletion")
-				secGrp := GetServerSecurityGroupName(rootLBName)
-				v.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName)
+				wlParams := infracommon.WhiteListParams{
+					SecGrpName:  infracommon.GetServerSecurityGroupName(rootLBName),
+					ServerName:  rootLBName,
+					Label:       infracommon.GetAppWhitelistRulesLabel(app),
+					AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+					Ports:       appInst.MappedPorts,
+					DestIP:      infracommon.DestIPUnspecified,
+				}
+				v.VMProperties.CommonPf.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), v.VMProvider.RemoveWhitelistSecurityRules, &wlParams)
 				return nil
 			}
 			return err
@@ -478,8 +531,15 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
 		// Clean up security rules and proxy if app is external
-		secGrp := GetServerSecurityGroupName(rootLBName)
-		if err := v.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), secGrp, GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName); err != nil {
+		wlParams := infracommon.WhiteListParams{
+			SecGrpName:  infracommon.GetServerSecurityGroupName(rootLBName),
+			ServerName:  rootLBName,
+			Label:       infracommon.GetAppWhitelistRulesLabel(app),
+			AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+			Ports:       appInst.MappedPorts,
+			DestIP:      infracommon.DestIPUnspecified,
+		}
+		if err := v.VMProperties.CommonPf.DeleteProxySecurityGroupRules(ctx, client, dockermgmt.GetContainerName(&app.Key), v.VMProvider.RemoveWhitelistSecurityRules, &wlParams); err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete security rules", "name", names.AppName, "rootlb", rootLBName, "error", err)
 		}
 		if !app.InternalPorts {
@@ -514,7 +574,7 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 			}
-			proxy.RemoveDedicatedLB(ctx, lbName)
+			proxycerts.RemoveDedicatedLB(ctx, lbName)
 			DeleteServerIpFromCache(ctx, lbName)
 		}
 		imgName, err := cloudcommon.GetFileName(app.ImagePath)
@@ -523,10 +583,16 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
 		localImageName := imgName + "-" + md5Sum
-
-		err = v.VMProvider.DeleteImage(ctx, cloudcommon.GetAppFQN(&app.Key), localImageName)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete image", "imgName", imgName)
+		if v.VMProperties.AppendFlavorToVmAppImage {
+			localImageName = localImageName + "-" + appInst.Flavor.Name
+		}
+		if v.VMProperties.GetVMAppCleanupImageOnDelete() {
+			err = v.VMProvider.DeleteImage(ctx, cloudcommon.GetAppFQN(&app.Key), localImageName)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete image", "localImageName", localImageName)
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "skipping image cleanup due to MEX_VM_APP_IMAGE_CLEANUP_ON_DELETE setting")
 		}
 		if appInst.Uri != "" {
 			fqdn := appInst.Uri
@@ -555,8 +621,15 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			if strings.Contains(err.Error(), ServerDoesNotExistError) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cluster is gone, allow app deletion")
-				secGrp := GetServerSecurityGroupName(rootLBName)
-				v.DeleteProxySecurityGroupRules(ctx, rootLBClient, dockermgmt.GetContainerName(&app.Key), secGrp, GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName)
+				wlParams := infracommon.WhiteListParams{
+					SecGrpName:  infracommon.GetServerSecurityGroupName(rootLBName),
+					ServerName:  rootLBName,
+					Label:       infracommon.GetAppWhitelistRulesLabel(app),
+					AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+					Ports:       appInst.MappedPorts,
+					DestIP:      infracommon.DestIPUnspecified,
+				}
+				v.VMProperties.CommonPf.DeleteProxySecurityGroupRules(ctx, rootLBClient, dockermgmt.GetContainerName(&app.Key), v.VMProvider.RemoveWhitelistSecurityRules, &wlParams)
 				return nil
 			}
 			return err
@@ -571,9 +644,16 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		name := dockermgmt.GetContainerName(&app.Key)
 		if !app.InternalPorts {
-			secGrp := GetServerSecurityGroupName(rootLBName)
 			//  the proxy does not yet exist for docker, but it eventually will.  Secgrp rules should be deleted in either case
-			if err := v.DeleteProxySecurityGroupRules(ctx, rootLBClient, name, secGrp, GetAppWhitelistRulesLabel(app), appInst.MappedPorts, app, rootLBName); err != nil {
+			wlParams := infracommon.WhiteListParams{
+				SecGrpName:  infracommon.GetServerSecurityGroupName(rootLBName),
+				ServerName:  rootLBName,
+				Label:       infracommon.GetAppWhitelistRulesLabel(app),
+				AllowedCIDR: infracommon.GetAllowedClientCIDR(),
+				Ports:       appInst.MappedPorts,
+				DestIP:      infracommon.DestIPUnspecified,
+			}
+			if err := v.VMProperties.CommonPf.DeleteProxySecurityGroupRules(ctx, rootLBClient, name, v.VMProvider.RemoveWhitelistSecurityRules, &wlParams); err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete security rules", "name", name, "rootlb", rootLBName, "error", err)
 			}
 		}
@@ -588,11 +668,14 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	var err error
-	ctx, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
 		return err
 	}
-	defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 
 	masterIP, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
 	if err != nil {
@@ -625,11 +708,11 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		kconf := k8smgmt.GetKconfName(clusterInst)
 		for _, imagePath := range names.ImagePaths {
 			// secret may have changed, so delete and re-create
-			err = infracommon.DeleteDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names)
+			err = infracommon.DeleteDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names, nil)
 			if err != nil {
 				return err
 			}
-			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names)
+			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names, nil)
 			if err != nil {
 				return err
 			}
@@ -694,6 +777,8 @@ func (v *VMPlatform) GetContainerCommand(ctx context.Context, clusterInst *edgep
 }
 
 func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageName, imageUrl, md5Sum string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DownloadVMImage", "imageName", imageName, "imageUrl", imageUrl)
+
 	fileExt, err := cloudcommon.GetFileNameWithExt(imageUrl)
 	if err != nil {
 		return "", err
@@ -716,4 +801,42 @@ func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageNam
 		}
 	}
 	return filePath, nil
+}
+
+func ConvertQcowToVmdk(ctx context.Context, sourceFile string, size uint64) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ConvertQcowToVmdk", "sourceFile", sourceFile, "size", size, "timeout", qcowConvertTimeout)
+	destFile := strings.TrimSuffix(sourceFile, filepath.Ext(sourceFile))
+	destFile = destFile + ".vmdk"
+
+	convertChan := make(chan string, 1)
+	var convertErr string
+	go func() {
+		//resize to the correct size
+		sizeInGB := fmt.Sprintf("%dG", size)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Resizing to", "size", sizeInGB)
+		out, err := sh.Command("qemu-img", "resize", sourceFile, "--shrink", sizeInGB).CombinedOutput()
+
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img resize failed", "out", string(out), "err", err)
+			convertChan <- fmt.Sprintf("qemu-img resize failed: %s %v", out, err)
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "doing qemu-img convert", "destFile", destFile)
+		out, err = sh.Command("qemu-img", "convert", "-O", "vmdk", "-o", "subformat=streamOptimized", sourceFile, destFile).CombinedOutput()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "qemu-img convert failed", "out", string(out), "err", err)
+			convertChan <- fmt.Sprintf("qemu-img convert failed: %s %v", out, err)
+		} else {
+			convertChan <- ""
+
+		}
+	}()
+	select {
+	case convertErr = <-convertChan:
+	case <-time.After(qcowConvertTimeout):
+		return "", fmt.Errorf("ConvertQcowToVmdk timed out")
+	}
+	if convertErr != "" {
+		return "", errors.New(convertErr)
+	}
+	return destFile, nil
 }

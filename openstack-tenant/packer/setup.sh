@@ -118,14 +118,13 @@ EOT
 log "Set up the APT keys"
 curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/api/gpg/key/public | sudo apt-key add -
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -
-curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
 
 ps -ef | grep cloud
 
 log "Set up APT sources"
 sudo rm -rf /etc/apt/sources.list.d
 sudo tee /etc/apt/sources.list <<EOT
-deb https://apt.mobiledgex.net/cirrus/2021-01-06 bionic main
+deb https://apt.mobiledgex.net/cirrus/2021-02-01 bionic main
 deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
 EOT
 sudo apt-get update
@@ -166,7 +165,13 @@ log "Install mobiledgex ${TAG#v}"
 # avoid interactive for iptables-persistent
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
-sudo apt-get install -y mobiledgex=${TAG#v}
+# Pin mobiledgex package version
+sudo tee /etc/apt/preferences.d/99mobiledgex <<EOT
+Package: mobiledgex
+Pin: version ${TAG#v}
+Pin-Priority: 1001
+EOT
+sudo apt-get install -y mobiledgex
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 
 sudo apt-mark hold mobiledgex linux-image-generic linux-image-virtual
@@ -211,10 +216,21 @@ $TOTP_KEY
 EOT
 sudo chmod 400 /root/.google_authenticator
 
+# Fetch kubeadm package version
+K8SVERS=$( dpkg -l | grep kubeadm | awk '{print $3}' | cut -d- -f1 )
+
+log "Pulling docker images for kubernetes $K8SVERS"
+sudo kubeadm config images pull --kubernetes-version "$K8SVERS"
+for DOCKER_IMAGE in $( cat /tmp/docker-image-cache.txt ); do
+	sudo docker pull --quiet "$DOCKER_IMAGE"
+done
+
+log "Cached docker images"
+sudo docker image ls
+
 log "System setup"
 sudo swapoff -a
 sudo sed -i "s/cgroup-driver=systemd/cgroup-driver=cgroupfs/g" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-sudo kubeadm config images pull
 sudo usermod -aG docker root
 
 echo "d /run/sshd 0755 root root" | sudo tee -a /usr/lib/tmpfiles.d/sshd.conf

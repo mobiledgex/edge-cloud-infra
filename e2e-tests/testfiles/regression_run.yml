@@ -3,6 +3,10 @@ tests:
   - includefile: deploy_start.yml
   - includefile: mc_add_delete.yml
     loops: 2
+  - includefile: mc_spans_setendtime.yml
+  - includefile: mc_spans.yml
+  - includefile: mc_spans.yml
+    mods: [cli]
   - includefile: mc_audit_setup.yml
   - includefile: mc_audit.yml
   - includefile: mc_audit.yml
@@ -12,8 +16,6 @@ tests:
     mods: [cli]
     loops: 2
   - includefile: verify_loc.yml
-    loops: 2
-  - includefile: stream_edgeevent.yml
     loops: 2
   - includefile: fetchlogs.yml
   - includefile: {{edge-cloud-testfiles}}/stop_cleanup.yml

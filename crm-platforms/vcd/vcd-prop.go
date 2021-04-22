@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -12,44 +13,60 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const NSXT = "NSX-T"
+const NSXV = "NSX-V"
+
 // model VcdProps after vsphere to start
 
 // This is now an edgeproto object
 var VcdProps = map[string]*edgeproto.PropertyInfo{
 
-	"MEX_ORG": {
-		Description: "vCD Org for our tenant",
-		Value:       "vcd-org",
-	},
 	"MEX_CATALOG": {
 		Mandatory:   true,
 		Description: "VCD Org Catalog Name",
 	},
-	"MEX_EXTERNAL_IP_RANGES": {
-		Description: "Override natrual ext net range if more limited",
-		Mandatory:   false,
-	},
 	// We don't get a value for the edgegateway xxx
 	"MEX_EXTERNAL_NETWORK_EDGEGATEWAY": {
-		Mandatory: false,
-	},
-	"MEX_EXT_NETWORK": {
-		Description: "External OrgVDCNetwork to use",
-		Mandatory:   true,
-	},
-	"MEX_EXTERNAL_NETWORK_MASK": {
-		Name:        "External Network Mask",
-		Description: "External Network Mask",
-		Mandatory:   true,
+		Description: "currently unused",
 	},
 	"MEX_VDC_TEMPLATE": {
 		Description: "The uploaded ova template name",
-		Mandatory:   false,
-		// could be in the secret
 	},
 	"MEX_ENABLE_VCD_DISK_RESIZE": {
 		Description: "VM disks cloned from the VDC template will be resized based on flavor if set to \"true\".  Must be set to \"false\" if fast provisioning is enabled in the VDC or VM creation will fail.",
 		Value:       "true",
+	},
+	"VCDVerbose": {
+		Description: "Verbose logging for VCD",
+		Internal:    true,
+	},
+	// Use this when we don't have OrgAdmin rights and can not disable Org lease settings
+	// but still wish to run. Leases will enforced by VCD.
+	"VCD_OVERRIDE_LEASE_DISABLE": {
+		Description: "Accept Org runtime lease values for VCD if unable to disable",
+		Internal:    true,
+	},
+	"VCD_OVERRIDE_VCPU_SPEED": {
+		Description: "Set value for vCPU Speed if unable to read from admin VCD",
+		Internal:    true,
+	},
+	"MEX_TEMPLATE_URL": {
+		Description: "Optional HTTP URL to retrieve template",
+		Internal:    true,
+	},
+	"VCD_ALLOW_APIGW_IMAGE_UPLOAD": {
+		Description: "If value is \"true\", VM App images can be uploaded via an API GW",
+		Value:       "true",
+		Internal:    true,
+	},
+	"VCD_NSX_TYPE": {
+		Description: "NSX-T or NSX-V",
+		Mandatory:   true,
+	},
+	"VCD_CLEANUP_ORPHAN_NETS": {
+		Description: "Indicates Isolated Org VDC networks with no VApps to be deleted on startup",
+		Value:       "false",
+		Internal:    true,
 	},
 }
 
@@ -60,7 +77,6 @@ func (v *VcdPlatform) GetVaultCloudletAccessPath(key *edgeproto.CloudletKey, reg
 func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessApi) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "vcd vars")
-
 	vars, err := accessApi.GetCloudletAccessVars(ctx)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "vcd vars accessApi vars failed", "err", err)
@@ -73,28 +89,36 @@ func (v *VcdPlatform) GetVcdVars(ctx context.Context, accessApi platform.AccessA
 	if v.Verbose {
 		log.SpanLog(ctx, log.DebugLevelInfra, "vcd ", "Vars", v.vcdVars)
 	}
-	err = v.PopulateOrgLoginCredsFromVault(ctx)
+	err = v.PopulateOrgLoginCredsFromVcdVars(ctx)
 
 	if err != nil {
 		return err
 	}
-	v.vcdVars["VCD_URL"] = v.Creds.Href
-	log.SpanLog(ctx, log.DebugLevelInfra, "vcd ", "HREF", v.Creds.Href)
 	return nil
 }
 
-func (v *VcdPlatform) GetVcdVerbose() bool {
-	if v.TestMode {
-		verbose := os.Getenv("VCDVerbose")
-		if verbose == "true" {
-			return true
-		}
-	}
-	return false
-}
+// access vars from the vault
 
-func (v *VcdPlatform) GetVCDIP() string {
-	return v.vcdVars["VCD_IP"]
+func (v *VcdPlatform) GetVcdUrl() string {
+	return v.vcdVars["VCD_URL"]
+}
+func (v *VcdPlatform) GetVcdOauthSgwUrl() string {
+	return v.vcdVars["VCD_OAUTH_SGW_URL"]
+}
+func (v *VcdPlatform) GetVcdOauthAgwUrl() string {
+	return v.vcdVars["VCD_OAUTH_AGW_URL"]
+}
+func (v *VcdPlatform) GetVcdOauthClientId() string {
+	return v.vcdVars["VCD_OAUTH_CLIENT_ID"]
+}
+func (v *VcdPlatform) GetVcdOauthClientSecret() string {
+	return v.vcdVars["VCD_OAUTH_CLIENT_SECRET"]
+}
+func (v *VcdPlatform) GetVcdClientTlsCert() string {
+	return v.vcdVars["VCD_CLIENT_TLS_CERT"]
+}
+func (v *VcdPlatform) GetVcdClientTlsKey() string {
+	return v.vcdVars["VCD_CLIENT_TLS_KEY"]
 }
 func (v *VcdPlatform) GetVCDUser() string {
 	return v.vcdVars["VCD_USER"]
@@ -114,37 +138,73 @@ func (v *VcdPlatform) GetVDCName() string {
 func (v *VcdPlatform) GetVCDURL() string {
 	return v.vcdVars["VCD_URL"]
 }
-
-func (v *VcdPlatform) GetPrimaryVdc() string {
-	if v.TestMode {
-		return os.Getenv("PRIMARY_VDC")
-	}
-	return v.vcdVars["PRIMARY_VDC"]
-}
-
-func (v *VcdPlatform) GetExtNetworkName() string {
-	return v.vcdVars["MEX_EXT_NETWORK"]
-}
-
-func (v *VcdPlatform) GetEnableVdcDiskResize() bool {
-	val := v.vcdVars["MEX_ENABLE_VCD_DISK_RESIZE"]
-	return strings.ToLower(val) == "true"
-}
-
-// Sort out the spelling VCD vs VDC template name in all the secrets. It's offically a vdc template.
 func (v *VcdPlatform) GetVDCTemplateName() string {
 	if v.TestMode {
-		tmplName := os.Getenv("VCDTEMPLATE")
+		tmplName := os.Getenv("VDCTEMPLATE")
 		if tmplName != "" {
 			return tmplName
 		}
 	}
-	tmplName := v.vcdVars["VCDTEMPLATE"]
-	if tmplName != "" {
-		return tmplName
+	return v.vcdVars["VDCTEMPLATE"]
+}
+func (v *VcdPlatform) GetVcdClientRefreshInterval(ctx context.Context) uint64 {
+	intervalStr := v.vcdVars["VCD_CLIENT_REFRESH_INTERVAL"]
+	if intervalStr == "" {
+		return DefaultClientRefreshInterval
+	}
+	interval, err := strconv.ParseUint(intervalStr, 10, 32)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Warning: unable to parse VCD_CLIENT_REFRESH_INTERVAL %s as int, using default", intervalStr)
+		return DefaultClientRefreshInterval
+	}
+	return interval
+}
+
+// GetVcdInsecure defaults to true unless explicitly set to false
+func (v *VcdPlatform) GetVcdInsecure() bool {
+	insecure := v.vcdVars["VCD_INSECURE"]
+	if strings.ToLower(insecure) == "false" {
+		return false
+	}
+	return true
+}
+
+// properties from envvars
+func (v *VcdPlatform) GetVcdVerbose() bool {
+	verbose, _ := v.vmProperties.CommonPf.Properties.GetValue("VCDVerbose")
+	if verbose == "true" {
+		return true
+	}
+	return false
+}
+
+func (v *VcdPlatform) GetCatalogName() string {
+	if v.TestMode {
+		return os.Getenv("MEX_CATALOG")
 	}
 
-	return v.vcdVars["VDCTEMPLATE"]
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_CATALOG")
+	return val
+}
+
+func (v *VcdPlatform) GetEnableVcdDiskResize() bool {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_ENABLE_VCD_DISK_RESIZE")
+	return strings.ToLower(val) == "true"
+}
+
+// the normal methods of querying this seem sometimes unreliable e.g. vdc.IsNsxv()
+func (v *VcdPlatform) GetNsxType() string {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_NSX_TYPE")
+	if val != NSXT && val != NSXV {
+		log.FatalLog("VCD_NSX_TYPE must be " + NSXT + " or " + NSXV)
+	}
+	return val
+}
+
+// the normal methods of querying this seem sometimes unreliable e.g. vdc.IsNsxv()
+func (v *VcdPlatform) GetCleanupOrphanedNetworks() bool {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_CLEANUP_ORPHAN_NETS")
+	return strings.ToLower(val) == "true"
 }
 
 // start fetching access  bits from vault
@@ -168,39 +228,48 @@ func (v *VcdPlatform) GetProviderSpecificProps(ctx context.Context) (map[string]
 	return VcdProps, nil
 }
 
-func (v *VcdPlatform) GetExternalNetmask() string {
-
-	if v.vmProperties.Domain == vmlayer.VMDomainPlatform {
-		// check for optional management netmask
-		val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_MANAGEMENT_EXTERNAL_NETWORK_MASK")
-		if val != "" {
-			return val
-		}
-	}
-	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_EXTERNAL_NETWORK_MASK")
-	return val
-}
-
-func (v *VcdPlatform) GetInternalNetmask() string {
-	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_INTERNAL_NETWORK_MASK")
-	return val
-}
-
-func (v *VcdPlatform) GetCatalogName() string {
-	if v.TestMode {
-		val := os.Getenv("MEX_CATALOG")
-		return val
-	}
-	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_CATALOG")
-	return val
-}
-
-func (v *VcdPlatform) GetTemplateName() string {
-	if v.TestMode {
-		val := os.Getenv("MEX_VDC_TEMPLATE")
-		return val
-	}
-
+func (v *VcdPlatform) GetTemplateNameFromProps() string {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_VDC_TEMPLATE")
 	return val
+}
+func (v *VcdPlatform) GetVcpuSpeedOverride(ctx context.Context) int64 {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_OVERRIDE_VCPU_SPEED")
+	if val == "" {
+		return 0
+	}
+	speed, err := strconv.ParseInt(val, 10, 64)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Unable to convert VCD_OVERRIDE_VCPU_SPEED to int", "val", val, "err", err)
+		return 0
+	}
+	return speed
+}
+func (v *VcdPlatform) GetLeaseOverride() bool {
+	if v.TestMode {
+		or := os.Getenv("VCD_OVERRIDE_LEASE_DISABLE")
+		if or == "true" {
+			return true
+		}
+		return false
+	}
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_OVERRIDE_LEASE_DISABLE")
+	if val == "true" {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (v *VcdPlatform) GetTemplateUrl() string {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_TEMPLATE_URL")
+	return val
+}
+
+func (v *VcdPlatform) GetAllowApiGwImageUpload() bool {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_ALLOW_APIGW_IMAGE_UPLOAD")
+	if val == "true" {
+		return true
+	} else {
+		return false
+	}
 }

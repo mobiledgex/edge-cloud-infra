@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/xml"
 	"fmt"
+	"net/url"
 	"testing"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -11,6 +12,69 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
+
+func TestRMAllVAppFromVdc(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
+
+	if live {
+		fmt.Printf("TestRAllVAppFromVdc\n")
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("Failed to get vdc %s\n", err.Error())
+			return
+		}
+		err = vdc.Refresh()
+		if err != nil {
+			fmt.Printf("Refresh failed%s\n", err.Error())
+			return
+		}
+		for _, resents := range vdc.Vdc.ResourceEntities {
+			for _, resent := range resents.ResourceEntity {
+				if resent.Type == "application/vnd.vmware.vcloud.vApp+xml" {
+					vappHREF, err := url.Parse(resent.HREF)
+					if err != nil {
+						fmt.Printf("Error url.parse %s\n", err.Error())
+						return
+					}
+					vapp, err := vdc.GetVAppByHref(vappHREF.String())
+					if err != nil {
+						fmt.Printf("error retrieving vapp with url: %s and with error %s", vappHREF.Path, err)
+						return
+					}
+					fmt.Printf("Found %s undeploy()\n", vapp.VApp.Name)
+					task, err := vapp.Undeploy()
+					if err != nil {
+						fmt.Printf("Undeploy failed %s\n", err.Error())
+						return
+					}
+
+					if task == (govcd.Task{}) {
+						continue
+					}
+					err = task.WaitTaskCompletion()
+					if err != nil {
+						fmt.Printf("Undeploy failed %s\n", err.Error())
+						return
+					}
+
+					task, err = vapp.Delete()
+					if err != nil {
+						fmt.Printf("error deleting vapp: %s", err.Error())
+						return
+					}
+					err = task.WaitTaskCompletion()
+					if err != nil {
+						fmt.Printf("couldn't finish removing vapp %s", err.Error())
+						return
+					}
+				}
+			}
+		}
+	}
+	return
+}
 
 func TestDumpVappNetworks(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
@@ -112,7 +176,7 @@ func TestMexVApp(t *testing.T) {
 			Gateway: "172.70.52.1",
 		},
 		)
-		//	cparams := chefmgmt.VMChefParams{}
+		//	cparams := chefmgmt.ServerChefParams{}
 
 		vmgp := vmlayer.VMGroupOrchestrationParams{}
 		vmgp.GroupName = "mex-plat-vapp"
@@ -474,49 +538,66 @@ func createInternalNetwork(t *testing.T, ctx context.Context, vapp *govcd.VApp) 
 // Doesn't matter if the vapp is current powered on or off, this will delete it.
 //
 func testDeleteVApp(t *testing.T, ctx context.Context, name string) error {
-
 	vdc, err := tv.GetVdc(ctx, testVcdClient)
 	if err != nil {
 		fmt.Printf("GetVdc failed: %s\n", err.Error())
 		return err
 	}
-
 	vapp, err := vdc.GetVAppByName(name, true)
 	if err != nil {
 		fmt.Printf("testDestroyVApp-E-error Getting Vapp %s by name: %s\n", name, err.Error())
 		return err
 	}
-	status, err := vapp.GetStatus()
-	fmt.Printf("Vapp %s currently in state: %s\n", name, status)
+	// Info only.
+	vappStatus, err := vapp.GetStatus()
 	if err != nil {
 		fmt.Printf("Error fetching status for vapp %s\n", name)
 		return err
 	}
-	// If the vapp is already powered off, it may be deleteled directy
-	// else, first undeploy
-	if status == "POWERED_ON" {
-		task, err := vapp.Undeploy()
-
-		if err != nil {
-			fmt.Printf("Error from vapp.Undploy the vapp  as : %s\n", err.Error())
-			return err
-		}
+	fmt.Printf("Vapp %s currently in state: %s\n", name, vappStatus)
+	task, err := vapp.Undeploy()
+	if err != nil {
+		fmt.Printf("Error from vapp.Undploy the vapp  as : %s CONTINUE \n", err.Error())
+	} else {
 		err = task.WaitTaskCompletion()
 		if err != nil {
-			fmt.Printf("Error waiting undeploy of the vapp first %s \n", name)
+			fmt.Printf("Error waiting undeploy of the vapp first %s CONTINUE\n", name)
+		}
+	}
+	vappStatus, err = vapp.GetStatus()
+	fmt.Printf("vapp  status now %s \n", vappStatus)
+	for _, tvm := range vapp.VApp.Children.VM {
+		vm, err := vapp.GetVMByName(tvm.Name, true)
+		if err != nil {
+			fmt.Printf("Error GetVMByName  as : %s\n", err.Error())
 			return err
 		}
-		fmt.Printf("vapp  undeployed...\n")
+		vm.Undeploy()
+		fmt.Printf("Powering off vm %s for vapp deletion\n", vm.VM.Name)
+		task, err := vm.PowerOff()
+		if err != nil {
+			fmt.Printf("Error from PowerOFf  vm %s  : %s Continue\n", vm.VM.Name, err.Error())
+		} else {
+			err = task.WaitTaskCompletion()
+			if err != nil {
+				fmt.Printf("Error waiting for power off : %s Continue\n", err.Error())
+			}
+		}
+		vm.Delete()
+		fmt.Printf("VM should be off\n")
 	}
-	fmt.Printf("Call vapp.Delete()\n")
-	task, err := vapp.Delete()
+	fmt.Printf("Calling vapp.Delete()\n")
+	task, err = vapp.Delete()
 	if err != nil {
-		fmt.Printf("vapp.Delete failed: %s\n current status: %s\n", err.Error(), status)
-		return err
+		fmt.Printf("vapp.Delete failed: %s\n current status: %s Continue\n", err.Error(), vappStatus)
 	}
 	err = task.WaitTaskCompletion()
-
-	fmt.Printf("VApp %s Deleted.\n", name)
+	if err != nil {
+		fmt.Printf("Wait task for delete vapp failed:  %s\n", err.Error())
+		return err
+	} else {
+		fmt.Printf("VApp %s Deleted.\n", name)
+	}
 	return nil
 }
 
@@ -620,5 +701,31 @@ func TestExtAddrVApp(t *testing.T) {
 			return
 		}
 		fmt.Printf("Vapp %s has external address as %s\n", *vappName, addr)
+	}
+}
+
+func TestListAllVApps(t *testing.T) {
+
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
+
+	if live {
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s", err.Error())
+			return
+		}
+
+		fmt.Printf("List all VApps in vdc\n")
+		resRefs := vdc.GetVappList()
+		if err != nil {
+			fmt.Printf("GetVappList failed: %s", err.Error())
+			return
+		}
+
+		for _, ref := range resRefs {
+			fmt.Printf("Vapp : %s\n", ref.Name)
+		}
 	}
 }

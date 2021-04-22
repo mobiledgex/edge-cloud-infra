@@ -19,6 +19,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/e2eapi"
 	setupmex "github.com/mobiledgex/edge-cloud/setup-env/setup-mex"
 	"github.com/mobiledgex/edge-cloud/setup-env/util"
+	"github.com/mobiledgex/jaeger/plugin/storage/es/spanstore/dbmodel"
 )
 
 var Deployment DeploymentData
@@ -104,6 +105,21 @@ type EventTerms struct {
 	Terms  *node.EventTerms
 }
 
+type SpanSearch struct {
+	Search  node.SpanSearch
+	Results []node.SpanOutCondensed
+}
+
+type SpanSearchVerbose struct {
+	Search  node.SpanSearch
+	Results []dbmodel.Span
+}
+
+type SpanTerms struct {
+	Search node.SpanSearch
+	Terms  *node.SpanTerms
+}
+
 // metrics that e2e currently tests for
 var E2eAppSelectors = []string{
 	"cpu",
@@ -128,10 +144,25 @@ var TagValues = map[string]struct{}{
 	"apporg":      struct{}{},
 	"clusterorg":  struct{}{},
 	"cloudletorg": struct{}{},
+	"method":      struct{}{},
 	// special event tags
 	"event":  struct{}{},
 	"status": struct{}{},
 	"flavor": struct{}{},
+	// edgeevents metrics tags
+	"deviceos":       struct{}{},
+	"devicemodel":    struct{}{},
+	"locationtile":   struct{}{},
+	"devicecarrier":  struct{}{},
+	"signalstrength": struct{}{},
+}
+
+// methods for dme-api metric
+var ApiMethods = []string{
+	"FindCloudlet",
+	"PlatformFindCloudlet",
+	"RegisterClient",
+	"VerifyLocation",
 }
 
 var apiAddrsUpdated = false
@@ -472,6 +503,12 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 	case "slack":
 		*retry = true
 		err := RunSlackAPI(actionSubtype, spec.ApiFile, outputDir)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
+	case "pagerduty":
+		*retry = true
+		err := RunPagerDutyAPI(actionSubtype, spec.ApiFile, outputDir)
 		if err != nil {
 			errors = append(errors, err.Error())
 		}

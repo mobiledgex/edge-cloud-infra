@@ -2,6 +2,7 @@ package e2esetup
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/labstack/echo"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/cliwrapper"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
@@ -63,6 +63,8 @@ func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string
 		return runMcConfig(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData)
 	} else if strings.HasPrefix(api, "events") {
 		return runMcEvents(api, uri, apiFile, curUserFile, outputDir, mods, vars, retry)
+	} else if strings.HasPrefix(api, "spans") {
+		return runMcSpans(api, uri, apiFile, curUserFile, outputDir, mods, vars, retry)
 	} else if api == "runcommand" {
 		return runMcExec(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData)
 	} else if api == "showlogs" {
@@ -105,7 +107,7 @@ func runMcUsersAPI(api, uri, apiFile, curUserFile, outputDir string, mods []stri
 		if !rc {
 			return false
 		}
-		users, status, err := mcClient.ShowUser(uri, token, &ormapi.Organization{})
+		users, status, err := mcClient.ShowUser(uri, token, &ormapi.ShowUser{})
 		checkMcErr("ShowUser", status, err, &rc)
 		util.PrintToYamlFile("show-commands.yml", outputDir, users, true)
 		return rc
@@ -206,6 +208,7 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		// convert showMetrics into something yml compatible
 		parsedMetrics = parseMetrics(showEvents)
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		*retry = true
 		return rc
 	}
 
@@ -229,6 +232,40 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 			}
 		}
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		*retry = true
+		return rc
+	}
+
+	if api == "showclientapimetrics" {
+		var showClientApiMetrics *ormapi.AllMetrics
+		targets := readMCMetricTargetsFile(apiFile, vars)
+		var parsedMetrics *[]MetricsCompare
+		showClientApiMetrics = showMcClientApiMetrics(uri, token, targets, &rc)
+		parsedMetrics = parseMetrics(showClientApiMetrics)
+		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		*retry = true
+		return rc
+	}
+
+	if api == "showclientappmetrics" {
+		var showClientAppMetrics *ormapi.AllMetrics
+		targets := readMCMetricTargetsFile(apiFile, vars)
+		var parsedMetrics *[]MetricsCompare
+		showClientAppMetrics = showMcClientAppMetrics(uri, token, targets, &rc)
+		parsedMetrics = parseMetrics(showClientAppMetrics)
+		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		*retry = true
+		return rc
+	}
+
+	if api == "showclientcloudletmetrics" {
+		var showClientCloudletMetrics *ormapi.AllMetrics
+		targets := readMCMetricTargetsFile(apiFile, vars)
+		var parsedMetrics *[]MetricsCompare
+		showClientCloudletMetrics = showMcClientCloudletMetrics(uri, token, targets, &rc)
+		parsedMetrics = parseMetrics(showClientCloudletMetrics)
+		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		*retry = true
 		return rc
 	}
 
@@ -267,6 +304,34 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	case "stream":
 		dataOut := streamMcData(uri, token, tag, data, &rc)
 		util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
+	case "restrictedupdateorg":
+		val, ok := dataMap["orgs"]
+		if !ok {
+			fmt.Fprintf(os.Stderr, "mcapi: no orgs in %v\n", dataMap)
+			os.Exit(1)
+		}
+		arr, ok := val.([]interface{})
+		if !ok {
+			fmt.Fprintf(os.Stderr, "mcapi: orgs in map not []interface{}: %v\n", dataMap)
+			os.Exit(1)
+		}
+		output := &AllDataOut{}
+		for ii, orgIntf := range arr {
+			var orgMap map[string]interface{}
+			orgObj, err := json.Marshal(orgIntf)
+			if err != nil {
+				log.Printf("error in marshal org for %v: %v\n", orgIntf, err)
+				return false
+			}
+			err = json.Unmarshal(orgObj, &orgMap)
+			if err != nil {
+				log.Printf("error in unmarshal org for %s: %v\n", string(orgObj), err)
+				return false
+			}
+			st, err := mcClient.RestrictedUpdateOrg(uri, token, orgMap)
+			outMcErr(output, fmt.Sprintf("RestrictedUpdateOrg[%d]", ii), st, err)
+		}
+		errs = output.Errors
 	}
 	if tag != "expecterr" && errs != nil {
 		// no errors expected
@@ -370,7 +435,7 @@ func loginCurUser(uri, curUserFile string, vars, sharedData map[string]string) (
 			log.Printf("failed to generate otp: %v, %s\n", sharedData, users[0].Name)
 		}
 	}
-	token, err := mcClient.DoLogin(uri, users[0].Name, users[0].Passhash, otp, orm.NoApiKeyId, orm.NoApiKey)
+	token, _, err := mcClient.DoLogin(uri, users[0].Name, users[0].Passhash, otp, orm.NoApiKeyId, orm.NoApiKey)
 	rc := true
 	checkMcErr("DoLogin", http.StatusOK, err, &rc)
 	return token, rc
@@ -392,8 +457,9 @@ func outMcErr(output *AllDataOut, desc string, status int, err error) {
 
 func checkMcErr(msg string, status int, err error, rc *bool) {
 	if strings.HasPrefix(msg, "Show") || strings.HasPrefix(msg, "show") {
-		if err == echo.ErrForbidden {
+		if status == http.StatusForbidden {
 			err = nil
+			status = http.StatusOK
 		}
 	}
 	if err != nil || status != http.StatusOK {
@@ -432,15 +498,18 @@ func showMcData(uri, token, tag string, rc *bool) *ormapi.AllData {
 	checkMcErr("ShowBillingOrgs", status, err, rc)
 	roles, status, err := mcClient.ShowUserRole(uri, token)
 	checkMcErr("ShowRoles", status, err, rc)
-	ocs, status, err := mcClient.ShowOrgCloudletPool(uri, token)
-	checkMcErr("ShowOrgCloudletPools", status, err, rc)
+	invites, status, err := mcClient.ShowCloudletPoolAccessInvitation(uri, token, &ormapi.OrgCloudletPool{})
+	checkMcErr("ShowCloudletPoolAccessInvitations", status, err, rc)
+	responses, status, err := mcClient.ShowCloudletPoolAccessResponse(uri, token, &ormapi.OrgCloudletPool{})
+	checkMcErr("ShowCloudletPoolAccessResponses", status, err, rc)
 
 	showData := &ormapi.AllData{
-		Controllers:      ctrls,
-		Orgs:             orgs,
-		BillingOrgs:      bOrgs,
-		Roles:            roles,
-		OrgCloudletPools: ocs,
+		Controllers:                   ctrls,
+		Orgs:                          orgs,
+		BillingOrgs:                   bOrgs,
+		Roles:                         roles,
+		CloudletPoolAccessInvitations: invites,
+		CloudletPoolAccessResponses:   responses,
 	}
 	for _, ctrl := range ctrls {
 		client := testutil.TestClient{
@@ -504,7 +573,7 @@ func getRegionAppDataFromMap(regionDataMap interface{}) map[string]interface{} {
 	return appData
 }
 
-func runRegionDataApi(mcClient ormclient.Api, uri, token, tag string, rd *ormapi.RegionData, rdMap interface{}, rc *bool, mode string) *edgetestutil.AllDataOut {
+func runRegionDataApi(mcClient ormclient.Api, uri, token, tag string, rd *ormapi.RegionData, rdMap interface{}, rc *bool, mode string, apicb edgetestutil.RunAllDataApiCallback) *edgetestutil.AllDataOut {
 	appDataMap := getRegionAppDataFromMap(rdMap)
 	client := testutil.TestClient{
 		Region:   rd.Region,
@@ -521,11 +590,11 @@ func runRegionDataApi(mcClient ormclient.Api, uri, token, tag string, rd *ormapi
 	case "add":
 		fallthrough
 	case "update":
-		edgetestutil.RunAllDataApis(run, &rd.AppData, appDataMap, output)
+		edgetestutil.RunAllDataApis(run, &rd.AppData, appDataMap, output, apicb)
 	case "remove":
 		fallthrough
 	case "delete":
-		edgetestutil.RunAllDataReverseApis(run, &rd.AppData, appDataMap, output)
+		edgetestutil.RunAllDataReverseApis(run, &rd.AppData, appDataMap, output, apicb)
 	}
 	run.CheckErrs(fmt.Sprintf("%s region %s", mode, rd.Region), tag)
 	return output
@@ -542,20 +611,56 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 	}
 	for ii, bOrg := range data.BillingOrgs {
 		st, err := mcClient.CreateBillingOrg(uri, token, &bOrg)
-		outMcErr(output, fmt.Sprintf("CreateBillingOrg[%d]", ii), st, err)
+		outMcErr(output, fmt.Sprintf("CreateBillingOrgPrimer[%d]", ii), st, err)
+	}
+	for ii, acc := range data.AccountInfos {
+		st, err := mcClient.UpdateAccountInfo(uri, token, &acc)
+		outMcErr(output, fmt.Sprintf("CreateBillingOrgCommit[%d]", ii), st, err)
 	}
 	for ii, role := range data.Roles {
 		st, err := mcClient.AddUserRole(uri, token, &role)
 		outMcErr(output, fmt.Sprintf("AddUserRole[%d]", ii), st, err)
 	}
+	// CloudletPoolAccess must be run after regional CloudletPools, because
+	// they require the CloudletPools to exist, but before
+	// AppInst/ClusterInst since they affect the RBAC for them.
+	// We use a callback to intersperse their create in between the regional
+	// data creates.
+	// We also need to handle the case where there's no regional data,
+	// so the callback func is not called.
+	regions := getRegionsForCb(data)
+	apiRegionCb := func(done, region string) {
+		// this is done after cloudletpools are created
+		if done == "cloudletpools" {
+			for ii, oc := range data.CloudletPoolAccessInvitations {
+				if oc.Region != region {
+					continue
+				}
+				st, err := mcClient.CreateCloudletPoolAccessInvitation(uri, token, &oc)
+				outMcErr(output, fmt.Sprintf("CreateCloudletPoolAccessInvitation[%d]", ii), st, err)
+			}
+			for ii, oc := range data.CloudletPoolAccessResponses {
+				if oc.Region != region {
+					continue
+				}
+				st, err := mcClient.CreateCloudletPoolAccessResponse(uri, token, &oc)
+				outMcErr(output, fmt.Sprintf("CreateCloudletPoolAccessResponse[%d]", ii), st, err)
+			}
+		}
+		delete(regions, region)
+	}
 	for ii, rd := range data.RegionData {
+		apicb := func(done string) {
+			apiRegionCb(done, rd.Region)
+		}
 		rdm := getRegionDataMap(dataMap, ii)
-		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "create")
+		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "create", apicb)
 		output.RegionData = append(output.RegionData, *rdout)
 	}
-	for ii, oc := range data.OrgCloudletPools {
-		st, err := mcClient.CreateOrgCloudletPool(uri, token, &oc)
-		outMcErr(output, fmt.Sprintf("CreateOrgCloudletPool[%d]", ii), st, err)
+	for region, _ := range regions {
+		// process MC data that was waiting on regional apis, but where
+		// no regional data was present so no regional apis where called.
+		apiRegionCb("cloudletpools", region)
 	}
 	for ii, ar := range data.AlertReceivers {
 		st, err := mcClient.CreateAlertReceiver(uri, token, &ar)
@@ -564,14 +669,43 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 }
 
 func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
-	for ii, oc := range data.OrgCloudletPools {
-		st, err := mcClient.DeleteOrgCloudletPool(uri, token, &oc)
-		outMcErr(output, fmt.Sprintf("DeleteOrgCloudletPool[%d]", ii), st, err)
+	for ii, ar := range data.AlertReceivers {
+		st, err := mcClient.DeleteAlertReceiver(uri, token, &ar)
+		outMcErr(output, fmt.Sprintf("DeleteAlertReceiver[%d]", ii), st, err)
+	}
+	// see comments in createMcData
+	regions := getRegionsForCb(data)
+	apiRegionCb := func(next, region string) {
+		// these must be done before CloudletPools
+		if next == "cloudletpools" {
+			for ii, oc := range data.CloudletPoolAccessResponses {
+				if oc.Region != region {
+					continue
+				}
+				st, err := mcClient.DeleteCloudletPoolAccessResponse(uri, token, &oc)
+				outMcErr(output, fmt.Sprintf("DeleteCloudletPoolAccessResponse[%d]", ii), st, err)
+			}
+			for ii, oc := range data.CloudletPoolAccessInvitations {
+				if oc.Region != region {
+					continue
+				}
+				st, err := mcClient.DeleteCloudletPoolAccessInvitation(uri, token, &oc)
+				outMcErr(output, fmt.Sprintf("DeleteCloudletPoolAccessInvitation[%d]", ii), st, err)
+			}
+		}
+		delete(regions, region)
 	}
 	for ii, rd := range data.RegionData {
+		apicb := func(next string) {
+			apiRegionCb(next, rd.Region)
+		}
 		rdm := getRegionDataMap(dataMap, ii)
-		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "delete")
+		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, "delete", apicb)
 		output.RegionData = append(output.RegionData, *rdout)
+	}
+	for region, _ := range regions {
+		// unused callbacks
+		apiRegionCb("cloudletpools", region)
 	}
 	for ii, bOrg := range data.BillingOrgs {
 		st, err := mcClient.DeleteBillingOrg(uri, token, &bOrg)
@@ -589,18 +723,25 @@ func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.DeleteController(uri, token, &ctrl)
 		outMcErr(output, fmt.Sprintf("DeleteController[%d]", ii), st, err)
 	}
-	for ii, ar := range data.AlertReceivers {
-		st, err := mcClient.DeleteAlertReceiver(uri, token, &ar)
-		outMcErr(output, fmt.Sprintf("DeleteAlertReceiver[%d]", ii), st, err)
-	}
 }
 
 func updateMcData(mode, uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
 	for ii, rd := range data.RegionData {
 		rdm := getRegionDataMap(dataMap, ii)
-		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, mode)
+		rdout := runRegionDataApi(mcClient, uri, token, tag, &rd, rdm, rc, mode, edgetestutil.NoApiCallback)
 		output.RegionData = append(output.RegionData, *rdout)
 	}
+}
+
+func getRegionsForCb(data *ormapi.AllData) map[string]struct{} {
+	regions := make(map[string]struct{})
+	for _, oc := range data.CloudletPoolAccessInvitations {
+		regions[oc.Region] = struct{}{}
+	}
+	for _, oc := range data.CloudletPoolAccessResponses {
+		regions[oc.Region] = struct{}{}
+	}
+	return regions
 }
 
 func showMcMetricsAll(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
@@ -624,6 +765,7 @@ func showMcMetricsAll(uri, token string, targets *MetricTargets, rc *bool) *orma
 	appMetrics.Data = append(appMetrics.Data, clusterMetrics.Data...)
 	return appMetrics
 }
+
 func showMcEvents(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
 	appQuery := ormapi.RegionAppInstEvents{
 		Region:  "local",
@@ -678,6 +820,64 @@ func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *orma
 		clusterMetric, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 		checkMcErr("ShowCluster"+strings.Title(selector), status, err, rc)
 		allMetrics.Data = append(allMetrics.Data, clusterMetric.Data...)
+	}
+	return &allMetrics
+}
+
+func showMcClientApiMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
+	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
+	for _, method := range ApiMethods {
+		clientApiUsageQuery := ormapi.RegionClientApiUsageMetrics{
+			Region: "local",
+			AppInst: edgeproto.AppInstKey{
+				AppKey: targets.AppInstKey.AppKey,
+			},
+			Method: method,
+			Last:   1,
+		}
+		for _, selector := range orm.ClientApiUsageSelectors {
+			clientApiUsageQuery.Selector = selector
+			clientApiUsageMetric, status, err := mcClient.ShowClientApiUsageMetrics(uri, token, &clientApiUsageQuery)
+			checkMcErr("ShowClientApiUsage"+strings.Title(selector), status, err, rc)
+			allMetrics.Data = append(allMetrics.Data, clientApiUsageMetric.Data...)
+		}
+	}
+	return &allMetrics
+}
+
+func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
+	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
+	clientAppUsageQuery := ormapi.RegionClientAppUsageMetrics{
+		Region:  "local",
+		AppInst: targets.AppInstKey,
+		RawData: true,
+		Last:    1,
+	}
+	for _, selector := range orm.ClientAppUsageSelectors {
+		if selector == "custom" {
+			continue
+		}
+		clientAppUsageQuery.Selector = selector
+		clientAppUsageMetric, status, err := mcClient.ShowClientAppUsageMetrics(uri, token, &clientAppUsageQuery)
+		checkMcErr("ShowClientAppUsage"+strings.Title(selector), status, err, rc)
+		allMetrics.Data = append(allMetrics.Data, clientAppUsageMetric.Data...)
+	}
+	return &allMetrics
+}
+
+func showMcClientCloudletMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
+	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
+	clientCloudletUsageQuery := ormapi.RegionClientCloudletUsageMetrics{
+		Region:   "local",
+		Cloudlet: targets.CloudletKey,
+		RawData:  true,
+		Last:     1,
+	}
+	for _, selector := range orm.ClientCloudletUsageSelectors {
+		clientCloudletUsageQuery.Selector = selector
+		clientCloudletUsageMetric, status, err := mcClient.ShowClientCloudletUsageMetrics(uri, token, &clientCloudletUsageQuery)
+		checkMcErr("ShowClientCloudletUsage"+strings.Title(selector), status, err, rc)
+		allMetrics.Data = append(allMetrics.Data, clientCloudletUsageMetric.Data...)
 	}
 	return &allMetrics
 }
@@ -760,7 +960,7 @@ func runMcAudit(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 					log.Printf("failed to generate otp: %v, %s\n", sharedData, user.Name)
 				}
 			}
-			token, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, orm.NoApiKeyId, orm.NoApiKey)
+			token, _, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, orm.NoApiKeyId, orm.NoApiKey)
 			checkMcErr("DoLogin", http.StatusOK, err, &rc)
 			if err == nil && rc {
 				fname := getTokenFile(user.Name, outputDir)
@@ -781,6 +981,15 @@ func runMcAudit(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 			log.Printf("Write events start time file %s failed, %v\n", fname, err)
 			rc = false
 		}
+
+		// Clear our edgeeventsfindcloudlet.yml, so that we upload deviceinfo stats on FindCloudlet each time
+		// Otherwise mc apis will pull metrics from other findcloudlet calls
+		err = ioutil.WriteFile(outputDir+"/"+"edgeeventfindcloudlet.yml", []byte{}, 0644)
+		if err != nil {
+			log.Printf("Failed to clear contents of edgeeventfindcloudlet.yml\n")
+			rc = false
+		}
+
 		return rc
 	}
 	users := readUsersFiles(curUserFile, vars)
@@ -903,6 +1112,122 @@ func runMcEvents(api, uri, apiFile, curUserFile, outputDir string, mods []string
 			resp, status, err := mcClient.EventTerms(uri, token, &q)
 			checkMcErr("EventTerms", status, err, &rc)
 			results = append(results, EventTerms{
+				Search: q,
+				Terms:  resp,
+			})
+		}
+		util.PrintToYamlFile("show-commands.yml", outputDir, results, true)
+	default:
+		log.Printf("invalid mcapi action %s\n", api)
+		return false
+	}
+	*retry = true
+	return rc
+}
+
+var spansEndTimeFile = "spans-endtime"
+
+func runMcSpans(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars map[string]string, retry *bool) bool {
+	log.Printf("Running %s MC spans APIs for %s %v\n", api, apiFile, mods)
+
+	if api == "spansendtime" {
+		// It takes time for ES in docker on Mac to index
+		// new spans for search. Instead of waiting, we set an end
+		// time early in the test suite and then run a check at the
+		// end of the test suite. This should leave enough time
+		// in between for ES to finish indexing.
+		fname := getTokenFile(spansEndTimeFile, outputDir)
+		err := ioutil.WriteFile(fname, []byte(time.Now().Format(time.RFC3339Nano)), 0644)
+		if err != nil {
+			log.Printf("Write spans end time file %s failed, %v\n", fname, err)
+			return false
+		}
+		return true
+	}
+
+	if apiFile == "" {
+		log.Println("Error: Cannot run MC spans APIs without API file")
+		return false
+	}
+
+	rc := true
+	users := readUsersFiles(curUserFile, vars)
+	if len(users) == 0 {
+		log.Printf("no user to run MC spans api\n")
+		return false
+	}
+	fname := getTokenFile(users[0].Name, outputDir)
+	out, err := ioutil.ReadFile(fname)
+	if err != nil {
+		log.Printf("Read token file %s failed, %v\n", fname, err)
+		return false
+	}
+	token := string(out)
+
+	fname = getTokenFile(spansEndTimeFile, outputDir)
+	out, err = ioutil.ReadFile(fname)
+	if err != nil {
+		log.Printf("Read file %s failed, %v\n", fname, err)
+		return false
+	}
+	endtime, err := time.Parse(time.RFC3339Nano, string(out))
+	if err != nil {
+		log.Printf("parse spans end time %s failed, %v\n", string(out), err)
+		return false
+	}
+
+	query := []node.SpanSearch{}
+	err = util.ReadYamlFile(apiFile, &query, util.WithVars(vars), util.ValidateReplacedVars())
+	if err != nil {
+		if !util.IsYamlOk(err, "spans") {
+			fmt.Fprintf(os.Stderr, "error in unmarshal for file %s\n", apiFile)
+			os.Exit(1)
+		}
+	}
+	switch api {
+	case "spansshow":
+		var results []SpanSearch
+		for _, q := range query {
+			if q.TimeRange.EndTime.IsZero() {
+				q.TimeRange.EndTime = endtime
+			}
+			resp, status, err := mcClient.ShowSpans(uri, token, &q)
+			checkMcErr("ShowSpans", status, err, &rc)
+			results = append(results, SpanSearch{
+				Search:  q,
+				Results: resp,
+			})
+		}
+		util.PrintToYamlFile("show-commands.yml", outputDir, results, true)
+	case "spansshowverbose":
+		var results []SpanSearchVerbose
+		for _, q := range query {
+			if q.TimeRange.EndTime.IsZero() {
+				q.TimeRange.EndTime = endtime
+			}
+			resp, status, err := mcClient.ShowSpansVerbose(uri, token, &q)
+			checkMcErr("ShowSpansVerbose", status, err, &rc)
+			results = append(results, SpanSearchVerbose{
+				Search:  q,
+				Results: resp,
+			})
+		}
+		util.PrintToYamlFile("show-commands.yml", outputDir, results, true)
+	case "spansterms":
+		// There are no tests for span terms in e2e because the
+		// span results varies from run-to-run. This may be because of
+		// dropped spans or timing causing certain things to happen,
+		// but it makes it impossible to get a consistent result from
+		// the terms query. It would probably take a decent amount of
+		// effort to make sure the results are consistent.
+		var results []SpanTerms
+		for _, q := range query {
+			if q.TimeRange.EndTime.IsZero() {
+				q.TimeRange.EndTime = endtime
+			}
+			resp, status, err := mcClient.SpanTerms(uri, token, &q)
+			checkMcErr("SpanTerms", status, err, &rc)
+			results = append(results, SpanTerms{
 				Search: q,
 				Terms:  resp,
 			})

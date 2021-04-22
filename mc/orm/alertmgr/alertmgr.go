@@ -142,14 +142,16 @@ func isInternalAlert(alert *edgeproto.Alert) bool {
 	if !ok {
 		return true
 	}
-	if name == cloudcommon.AlertAppInstDown || name == cloudcommon.AlertCloudletDown {
+	if name == cloudcommon.AlertAppInstDown ||
+		name == cloudcommon.AlertCloudletDown ||
+		name == cloudcommon.AlertCloudletResourceUsage {
 		return false
 	}
 	return true
 }
 
 func isLabelInternal(label string) bool {
-	if label == "instance" {
+	if label == "instance" || label == "job" {
 		return true
 	}
 	return false
@@ -247,7 +249,7 @@ func (s *AlertMgrServer) AddAlerts(ctx context.Context, alerts ...*edgeproto.Ale
 }
 
 func getAlertmgrReceiverName(receiver *ormapi.AlertReceiver) string {
-	return receiver.Name + "-" + receiver.User + "-" + receiver.Severity + "-" + receiver.Type
+	return receiver.Name + "::" + receiver.User + "::" + receiver.Severity + "::" + receiver.Type
 }
 
 func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]string {
@@ -308,8 +310,8 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 	var rec alertmanager_config.Receiver
 
 	// sanity - certain characters should not be part of the receiver name
-	if strings.ContainsAny(receiver.Name, "-:") {
-		return fmt.Errorf("Receiver name cannot contain dashes(\"-\"), or colons(\":\")")
+	if strings.ContainsAny(receiver.Name, ":") {
+		return fmt.Errorf("Receiver name cannot contain colons(\":\")")
 	}
 	// get a labelset from the receiver
 	routeMatchLabels := getRouteMatchLabelsFromAlertReceiver(receiver)
@@ -361,6 +363,28 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 			Name:         receiverName,
 			SlackConfigs: []*alertmanager_config.SlackConfig{&slackCfg},
 		}
+	case AlertReceiverTypePagerDuty:
+		pagerDutyCfg := alertmanager_config.PagerdutyConfig{
+			NotifierConfig: notifierCfg,
+			Description:    alertmanagerConfigPagerDutyDescription,
+			Details:        alertmanagerConfigPagerDutyDetails,
+			Client:         alertmanagerConfigPagerDutyClient,
+			ClientURL:      alertmanagerConfigSlackTitleLink,
+			Severity:       receiver.Severity,
+		}
+		if receiver.PagerDutyApiVersion == "" || receiver.PagerDutyApiVersion == "v2" {
+			pagerDutyCfg.RoutingKey = alertmanager_config.Secret(receiver.PagerDutyIntegrationKey)
+		} else if receiver.PagerDutyApiVersion == "v1" {
+			// Prometheus integration
+			pagerDutyCfg.ServiceKey = alertmanager_config.Secret(receiver.PagerDutyIntegrationKey)
+		} else {
+			return fmt.Errorf("PagerDuty Integration Api version must be \"v1\" or \"v2\"(\"v2\" will be used if not specified)")
+		}
+		rec = alertmanager_config.Receiver{
+			// to make the name unique - construct it with all the fields and username
+			Name:             receiverName,
+			PagerdutyConfigs: []*alertmanager_config.PagerdutyConfig{&pagerDutyCfg},
+		}
 	default:
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unsupported receiver type", "type", receiver.Type,
 			"receiver", receiver)
@@ -393,8 +417,8 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 
 func (s *AlertMgrServer) DeleteReceiver(ctx context.Context, receiver *ormapi.AlertReceiver) error {
 	// sanity - certain characters should not be part of the receiver name
-	if strings.ContainsAny(receiver.Name, "-:") {
-		return fmt.Errorf("Receiver name cannot contain dashes(\"-\"), or colons(\":\")")
+	if strings.ContainsAny(receiver.Name, ":") {
+		return fmt.Errorf("Receiver name cannot contain colons(\":\")")
 	}
 
 	// We create one entry per receiver, to make it simpler
@@ -409,7 +433,7 @@ func (s *AlertMgrServer) DeleteReceiver(ctx context.Context, receiver *ormapi.Al
 
 func getAlertReceiverFromName(name string) (*ormapi.AlertReceiver, error) {
 	receiver := ormapi.AlertReceiver{}
-	vals := strings.Split(name, "-")
+	vals := strings.Split(name, "::")
 	if len(vals) != 4 {
 		return nil, fmt.Errorf("Unable to parse receiver name: %s", name)
 	}
@@ -487,7 +511,15 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 			receiver.Email = rec.Receiver.EmailConfigs[0].To
 		case AlertReceiverTypeSlack:
 			receiver.SlackChannel = rec.Receiver.SlackConfigs[0].Channel
-			receiver.SlackWebhook = AlertMgrSlackWebhookToken
+			receiver.SlackWebhook = AlertMgrDisplayHidden
+		case AlertReceiverTypePagerDuty:
+			if rec.Receiver.PagerdutyConfigs[0].ServiceKey != "" {
+				receiver.PagerDutyApiVersion = "v1"
+				receiver.PagerDutyIntegrationKey = AlertMgrDisplayHidden
+			} else {
+				receiver.PagerDutyApiVersion = "v2"
+				receiver.PagerDutyIntegrationKey = AlertMgrDisplayHidden
+			}
 		default:
 			log.SpanLog(ctx, log.DebugLevelApi, "Unknown receiver type", "type", receiver.Type)
 		}

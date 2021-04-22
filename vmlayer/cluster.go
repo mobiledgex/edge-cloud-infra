@@ -11,7 +11,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy"
+	proxycerts "github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy/certs"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -46,6 +46,8 @@ type ClusterFlavor struct {
 	NodeFlavor     ClusterNodeFlavor
 	Topology       string
 }
+
+var MaxDockerVmWait = 2 * time.Minute
 
 func GetClusterSubnetName(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
 	return MexSubnetPrefix + k8smgmt.GetCloudletClusterName(&clusterInst.Key)
@@ -83,11 +85,14 @@ func ParseClusterNodePrefix(name string) (bool, uint32) {
 
 func (v *VMPlatform) UpdateClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
-	ctx, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
 		return err
 	}
-	defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
@@ -185,8 +190,8 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	dedicatedRootLB := clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
-		if strings.Contains(err.Error(), ServerDoesNotExistError) {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone, allow stack delete to proceed")
+		if strings.Contains(err.Error(), ServerDoesNotExistError) || strings.Contains(err.Error(), ServerIPNotFound) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Dedicated RootLB is gone or has no IP, allow stack delete to proceed", "err", err)
 		} else {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Error in getting platform client", "err", err)
 			return err
@@ -259,7 +264,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	}
 
 	if dedicatedRootLB {
-		proxy.RemoveDedicatedLB(ctx, rootLBName)
+		proxycerts.RemoveDedicatedLB(ctx, rootLBName)
 		DeleteServerIpFromCache(ctx, rootLBName)
 	}
 	return nil
@@ -270,11 +275,14 @@ func (v *VMPlatform) CreateClusterInst(ctx context.Context, clusterInst *edgepro
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateClusterInst", "clusterInst", clusterInst, "lbName", lbName)
 
 	var err error
-	ctx, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
 		return err
 	}
-	defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 
 	//find the flavor and check the disk size
 	for _, flavor := range v.FlavorList {
@@ -348,7 +356,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED && v.VMProvider.GetInternalPortPolicy() == AttachPortDuringCreate {
 				attachPort = false
 			}
-			err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
+			_, err = v.AttachAndEnableRootLBInterface(ctx, client, rootLBName, attachPort, subnetName, GetPortName(rootLBName, subnetName), gw)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 				return err
@@ -376,17 +384,33 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		// subtract elapsed time from total time to get remaining time
 		timeout -= elapsed
 		updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Initialize")
+		k8sTime := time.Now()
 		err := v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, timeout)
 		if err != nil {
 			return err
 		}
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Wait Cluster Complete time: %s", cloudcommon.FormatDuration(time.Since(k8sTime), 2)))
 		updateCallback(edgeproto.UpdateTask, "Creating config map")
+
 		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
+			return err
+		}
+	} else if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
+		// ensure the docker node is ready before calling the cluster create done
+		updateCallback(edgeproto.UpdateTask, "Waiting for Docker VM to Initialize")
+
+		nodeClient, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeClusterVM)
+		if err != nil {
+			return err
+		}
+		vmName := GetClusterMasterName(ctx, clusterInst)
+		err = WaitServerReady(ctx, v.VMProvider, nodeClient, vmName, MaxDockerVmWait)
+		if err != nil {
 			return err
 		}
 	}
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		proxy.NewDedicatedLB(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
+		proxycerts.NewDedicatedLB(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created cluster")
 	return nil
@@ -394,11 +418,14 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 
 func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
-	ctx, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	var result OperationInitResult
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
 		return err
 	}
-	defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
 
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst)
 	return v.deleteCluster(ctx, lbName, clusterInst, updateCallback)
@@ -537,7 +564,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 	return true, readyCount, nil
 }
 
-func (v *VMPlatform) GetChefClusterTags(key *edgeproto.ClusterInstKey, vmType VMType) []string {
+func (v *VMPlatform) GetChefClusterTags(key *edgeproto.ClusterInstKey, vmType string) []string {
 	region := v.VMProperties.GetRegion()
 	deploymentTag := v.VMProperties.GetDeploymentTag()
 	return []string{
@@ -561,13 +588,13 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 	newSubnetName := GetClusterSubnetName(ctx, clusterInst)
 
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		tags := v.GetChefClusterTags(&clusterInst.Key, VMTypeRootLB)
+		tags := v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeRootLB)
 		rootlb, err := v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, updateCallback)
 		if err != nil {
 			return vms, newSubnetName, newSecgrpName, err
 		}
 		vms = append(vms, rootlb)
-		newSecgrpName = GetServerSecurityGroupName(rootlb.Name)
+		newSecgrpName = infracommon.GetServerSecurityGroupName(rootlb.Name)
 	} else {
 
 		log.SpanLog(ctx, log.DebugLevelInfo, "creating shared rootlb port")
@@ -583,12 +610,12 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		}
 	}
 	chefAttributes := make(map[string]interface{})
-	chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterNode)
+	chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeClusterDockerNode)
 	clientName := v.GetChefClientName(dockerVmName)
-	chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+	chefParams := v.GetServerChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 	dockervm, err := v.GetVMRequestSpec(
 		ctx,
-		VMTypeClusterNode,
+		cloudcommon.VMTypeClusterDockerNode,
 		dockerVmName,
 		clusterInst.NodeFlavor,
 		imgName,
@@ -629,13 +656,13 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		var rootlb *VMRequestSpec
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			// dedicated for docker means the docker VM acts as its own rootLB
-			tags := v.GetChefClusterTags(&clusterInst.Key, VMTypeRootLB)
+			tags := v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeRootLB)
 			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, updateCallback)
 			if err != nil {
 				return nil, err
 			}
 			vms = append(vms, rootlb)
-			newSecgrpName = GetServerSecurityGroupName(rootlb.Name)
+			newSecgrpName = infracommon.GetServerSecurityGroupName(rootlb.Name)
 		} else if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 			// If no router in use, create ports on the existing shared rootLB
 			rootlb, err = v.GetVMSpecForRootLBPorts(ctx, v.VMProperties.SharedRootLBName, newSubnetName)
@@ -646,10 +673,10 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		}
 
 		chefAttributes := make(map[string]interface{})
-		chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterMaster)
+		chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeClusterMaster)
 
 		clientName := v.GetChefClientName(GetClusterMasterName(ctx, clusterInst))
-		chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+		chefParams := v.GetServerChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 
 		masterFlavor := clusterInst.MasterNodeFlavor
 		if masterFlavor == "" {
@@ -661,7 +688,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 			masterAZ = clusterInst.AvailabilityZone
 		}
 		master, err := v.GetVMRequestSpec(ctx,
-			VMTypeClusterMaster,
+			cloudcommon.VMTypeClusterMaster,
 			GetClusterMasterName(ctx, clusterInst),
 			masterFlavor,
 			pfImage,
@@ -678,12 +705,12 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		vms = append(vms, master)
 
 		chefAttributes = make(map[string]interface{})
-		chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, VMTypeClusterNode)
+		chefAttributes["tags"] = v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeClusterK8sNode)
 		for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {
 			clientName := v.GetChefClientName(GetClusterNodeName(ctx, clusterInst, nn))
-			chefParams := v.GetVMChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
+			chefParams := v.GetServerChefParams(clientName, "", chefmgmt.ChefPolicyBase, chefAttributes)
 			node, err := v.GetVMRequestSpec(ctx,
-				VMTypeClusterNode,
+				cloudcommon.VMTypeClusterK8sNode,
 				GetClusterNodeName(ctx, clusterInst, nn),
 				clusterInst.NodeFlavor,
 				pfImage,

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jarcoal/httpmock"
+	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -141,6 +142,7 @@ func TestAppStoreApi(t *testing.T) {
 		SkipVerifyEmail:         true,
 		LocalVault:              true,
 		UsageCheckpointInterval: "MONTH",
+		BillingPlatform:         billing.BillingTypeFake,
 	}
 
 	server, err := RunServer(&config)
@@ -160,7 +162,7 @@ func TestAppStoreApi(t *testing.T) {
 	mcClient := &ormclient.Client{}
 
 	// login as super user
-	tokenAdmin, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
+	tokenAdmin, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 
 	// Before Artifactory/Gitlab are hooked into mock, create "missing" data

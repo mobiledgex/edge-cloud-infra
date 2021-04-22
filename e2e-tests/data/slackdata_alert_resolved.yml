@@ -1,15 +1,14 @@
 - channel: '#alerts'
   username: AlertManager
   attachments:
-  - title: |
-      [FIRING:1] Alert for emailSlackReceiver: AppInstDown Application: someapplication1 Version: 1.0
+  - title: '[FIRING:1] Alert for emailSlackReceiver: AppInstDown Application: someapplication1 Version: 1.0'
     titlelink: |
       https://console.mobiledgex.net
     text: "\n*Alert:* AppInstDown\n\n*Description:* Application server port is not responding\n\n*Details:*\n
       \  • *alertname:* AppInstDown\n   • *app:* someapplication1\n   • *apporg:*
       AcmeAppCo\n   • *appver:* 1.0\n   • *cloudlet:* tmus-cloud-1\n   • *cloudletorg:*
-      tmus\n   • *cluster:* SmallCluster\n   • *clusterorg:* AcmeAppCo\n   • *job:*
-      MobiledgeX Monitoring\n   • *region:* local\n   • *scope:* Application\n   •
+      tmus\n   • *cluster:* SmallCluster\n   • *clusterorg:* AcmeAppCo\n   • *region:*
+      local\n   • *scope:* Application\n   •
       *status:* HealthCheckFailServerFail\n  \n\n"
     fallback: |+
       [FIRING:1] Alert for emailSlackReceiver: AppInstDown Application: someapplication1 Version: 1.0 | https://console.mobiledgex.net
@@ -17,15 +16,14 @@
 - channel: '#alerts'
   username: AlertManager
   attachments:
-  - title: |
-      [RESOLVED] Alert for emailSlackReceiver: AppInstDown Application: someapplication1 Version: 1.0
+  - title: '[RESOLVED] Alert for emailSlackReceiver: AppInstDown Application: someapplication1 Version: 1.0'
     titlelink: |
       https://console.mobiledgex.net
     text: "\n*Alert:* AppInstDown\n\n*Description:* Application server port is not responding\n\n*Details:*\n
       \  • *alertname:* AppInstDown\n   • *app:* someapplication1\n   • *apporg:*
       AcmeAppCo\n   • *appver:* 1.0\n   • *cloudlet:* tmus-cloud-1\n   • *cloudletorg:*
-      tmus\n   • *cluster:* SmallCluster\n   • *clusterorg:* AcmeAppCo\n   • *job:*
-      MobiledgeX Monitoring\n   • *region:* local\n   • *scope:* Application\n   •
+      tmus\n   • *cluster:* SmallCluster\n   • *clusterorg:* AcmeAppCo\n   • *region:*
+      local\n   • *scope:* Application\n   •
       *status:* HealthCheckFailServerFail\n  \n\n"
     fallback: |+
       [RESOLVED] Alert for emailSlackReceiver: AppInstDown Application: someapplication1 Version: 1.0 | https://console.mobiledgex.net

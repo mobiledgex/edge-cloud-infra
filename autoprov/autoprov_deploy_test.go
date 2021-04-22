@@ -57,12 +57,16 @@ type DummyController struct {
 	lis              *bufconn.Listener
 	failCreate       bool
 	failDelete       bool
+	failCreateInsts  map[edgeproto.AppInstKey]struct{}
+	failDeleteInsts  map[edgeproto.AppInstKey]struct{}
 }
 
 func newDummyController(appInstCache *edgeproto.AppInstCache, appInstRefsCache *edgeproto.AppInstRefsCache) *DummyController {
 	d := DummyController{}
 	d.appInstCache = appInstCache
 	d.appInstRefsCache = appInstRefsCache
+	d.failCreateInsts = make(map[edgeproto.AppInstKey]struct{})
+	d.failDeleteInsts = make(map[edgeproto.AppInstKey]struct{})
 	d.serv = grpc.NewServer(
 		grpc.UnaryInterceptor(cloudcommon.AuditUnaryInterceptor),
 		grpc.StreamInterceptor(cloudcommon.AuditStreamInterceptor))
@@ -106,6 +110,9 @@ func (s *DummyController) CreateAppInst(in *edgeproto.AppInst, server edgeproto.
 	if s.failCreate {
 		return fmt.Errorf("Some error")
 	}
+	if _, found := s.failCreateInsts[in.Key]; found {
+		return fmt.Errorf("Some error")
+	}
 	s.updateAppInst(server.Context(), in)
 	return nil
 }
@@ -117,6 +124,9 @@ func (s *DummyController) UpdateAppInst(in *edgeproto.AppInst, server edgeproto.
 
 func (s *DummyController) DeleteAppInst(in *edgeproto.AppInst, server edgeproto.AppInstApi_DeleteAppInstServer) error {
 	if s.failDelete {
+		return fmt.Errorf("Some error")
+	}
+	if _, found := s.failDeleteInsts[in.Key]; found {
 		return fmt.Errorf("Some error")
 	}
 	s.deleteAppInst(server.Context(), in)
@@ -176,4 +186,17 @@ func (s *DummyController) dump() {
 		}
 	}
 	s.appInstRefsCache.Mux.Unlock()
+}
+
+func waitForRetryAppInsts(ctx context.Context, appInstKey edgeproto.AppInstKey, checkFound bool) error {
+	for i := 0; i < 50; i++ {
+		found := retryTracker.hasFailure(ctx, appInstKey.AppKey, appInstKey.ClusterInstKey.CloudletKey)
+		if checkFound == found {
+			log.SpanLog(ctx, log.DebugLevelInfo, "waitForRetryAppInsts: retry appInst found", "found", checkFound)
+			return nil
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfo, "Timed out waiting for retryTracker to find appInstKey", "found", checkFound)
+	return fmt.Errorf("Timed out waiting for AppInst %v, %v to be found(%v) by retryTracker", appInstKey.AppKey, appInstKey.ClusterInstKey.CloudletKey, checkFound)
 }

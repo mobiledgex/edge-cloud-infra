@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -399,6 +398,33 @@ func (s *AppChecker) Check(ctx context.Context) {
 	}
 }
 
+type HasItType int
+
+const (
+	NotHasIt HasItType = 0
+	HasIt    HasItType = 1
+)
+
+type potentialCreateSite struct {
+	cloudletKey edgeproto.CloudletKey
+	hasFree     HasItType
+}
+
+type potentialCreateSites struct {
+	sites []*potentialCreateSite
+	next  int
+	mux   sync.Mutex
+}
+
+func (s *potentialCreateSites) getNext() *potentialCreateSite {
+	var site *potentialCreateSite
+	if s.next < len(s.sites) {
+		site = s.sites[s.next]
+		s.next++
+	}
+	return site
+}
+
 func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname string, prevPolicyCloudlets map[edgeproto.CloudletKey]struct{}) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "checkPolicy", "app", s.appKey, "policy", pname)
 	policy := edgeproto.AutoProvPolicy{}
@@ -413,7 +439,7 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 
 	// get counts
 	potentialDelete := []edgeproto.AppInstKey{}
-	potentialCreate := []edgeproto.AppInstKey{}
+	potentialCreate := []*potentialCreateSite{}
 	onlineCount := 0
 	totalCount := 0
 	// check AppInsts on the policy's cloudlets
@@ -425,15 +451,18 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 			if !s.cloudletOnline(&apCloudlet.Key) {
 				continue
 			}
-			// see if free reservable ClusterInst exists
-			freeClustKey := s.caches.frClusterInsts.GetForCloudlet(&apCloudlet.Key, app.Deployment, cloudcommon.AppInstToClusterDeployment)
-			if freeClustKey != nil {
-				appInstKey := edgeproto.AppInstKey{
-					AppKey:         s.appKey,
-					ClusterInstKey: *freeClustKey,
-				}
-				potentialCreate = append(potentialCreate, appInstKey)
+			if retryTracker.hasFailure(ctx, app.Key, apCloudlet.Key) {
+				continue
 			}
+			pt := &potentialCreateSite{
+				cloudletKey: apCloudlet.Key,
+			}
+			// see if free reservable ClusterInst exists
+			freeClustKey := s.caches.frClusterInsts.GetForCloudlet(&apCloudlet.Key, app.Deployment, app.DefaultFlavor.Name, cloudcommon.AppInstToClusterDeployment)
+			if freeClustKey != nil {
+				pt.hasFree = HasIt
+			}
+			potentialCreate = append(potentialCreate, pt)
 		} else {
 			for appInstKey, _ := range insts {
 				totalCount++
@@ -465,38 +494,69 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 	}
 
 	// Check min
-	createKeys := s.chooseCreate(ctx, potentialCreate, int(policy.MinActiveInstances)-onlineCount)
-	if len(createKeys) < int(policy.MinActiveInstances)-onlineCount {
+	needCreateCount := int(policy.MinActiveInstances) - onlineCount
+	potentialCreate = s.sortPotentialCreate(ctx, potentialCreate)
+	if len(potentialCreate) < needCreateCount {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Not enough potential Cloudlets to meet min constraint", "App", s.appKey, "policy", pname, "min", policy.MinActiveInstances)
 		str := fmt.Sprintf("Not enough potential cloudlets to deploy to for App %s to meet policy %s min constraint %d", s.appKey.GetKeyString(), pname, policy.MinActiveInstances)
 		for _, req := range s.failoverReqs {
 			req.addError(str)
 		}
 	}
-	for _, key := range createKeys {
-		inst := edgeproto.AppInst{
-			Key: key,
-		}
+	createSites := potentialCreateSites{
+		sites: potentialCreate,
+	}
+	// Spawn the same number of threads as the number of AppInsts we need
+	// to create. Each thread will try to create a single AppInst.
+	// If a create fails, it will retry with the next best potential
+	// cloudlet in the list. This will continue until each thread has
+	// created a single AppInst, or we've run out of sites to try.
+	// These could potentially overlap with a retry of this App,
+	// but that's ok for create since the Controller will prevent
+	// extra creates to meet the min.
+	log.SpanLog(ctx, log.DebugLevelMetrics, "auto-prov create min workers", "needCreateCount", needCreateCount, "numPotential", len(potentialCreate))
+	for ii := 0; ii < needCreateCount && ii < len(potentialCreate); ii++ {
 		for _, req := range s.failoverReqs {
 			req.waitApiCalls.Add(1)
 		}
-		go func() {
-			err := goAppInstApi(ctx, &inst, cloudcommon.Create, cloudcommon.AutoProvReasonMinMax, pname)
-			if err == nil {
-				str := fmt.Sprintf("Created AppInst %s to meet policy %s min constraint %d", inst.Key.GetKeyString(), pname, policy.MinActiveInstances)
-				for _, req := range s.failoverReqs {
-					req.addCompleted(str)
+		go func(workerNum int) {
+			span, ctx := log.ChildSpan(ctx, log.DebugLevelMetrics, "auto-prov create for min worker")
+			defer span.Finish()
+			log.SetTags(span, s.appKey.GetTags())
+			for attempt := 0; ; attempt++ {
+				site := createSites.getNext()
+				if site == nil {
+					break
 				}
-			} else if !strings.Contains(err.Error(), "Create to satisfy min already met, ignoring") {
-				str := fmt.Sprintf("Failed to create AppInst %s to meet policy %s min constraint %d: %s", inst.Key.GetKeyString(), pname, policy.MinActiveInstances, err)
-				for _, req := range s.failoverReqs {
-					req.addError(str)
+				log.SpanLog(ctx, log.DebugLevelMetrics, "auto-prov create min worker", "workerNum", workerNum, "attempt", attempt)
+				inst := edgeproto.AppInst{}
+				inst.Key.AppKey = app.Key
+				inst.Key.ClusterInstKey.CloudletKey = site.cloudletKey
+				inst.Key.ClusterInstKey.ClusterKey.Name = cloudcommon.AutoProvClusterName
+				inst.Key.ClusterInstKey.Organization = cloudcommon.OrganizationMobiledgeX
+				err := goAppInstApi(ctx, &inst, cloudcommon.Create, cloudcommon.AutoProvReasonMinMax, pname)
+				if err == nil {
+					str := fmt.Sprintf("Created AppInst %s to meet policy %s min constraint %d", inst.Key.GetKeyString(), pname, policy.MinActiveInstances)
+					for _, req := range s.failoverReqs {
+						req.addCompleted(str)
+					}
+				} else if ignoreDeployError(inst.Key, err) {
+					err = nil
+				} else {
+					str := fmt.Sprintf("Failed to create AppInst %s to meet policy %s min constraint %d: %s", inst.Key.GetKeyString(), pname, policy.MinActiveInstances, err)
+					for _, req := range s.failoverReqs {
+						req.addError(str)
+					}
 				}
+				if err == nil {
+					break
+				}
+				attempt++
 			}
 			for _, req := range s.failoverReqs {
 				req.waitApiCalls.Done()
 			}
-		}()
+		}(ii)
 	}
 }
 
@@ -516,28 +576,32 @@ func (s *AppChecker) chooseDelete(ctx context.Context, potential []edgeproto.App
 	return potential[len(potential)-count : len(potential)]
 }
 
-func (s *AppChecker) chooseCreate(ctx context.Context, potential []edgeproto.AppInstKey, count int) []edgeproto.AppInstKey {
-	if count <= 0 {
-		return []edgeproto.AppInstKey{}
-	}
-	if count >= len(potential) {
-		count = len(potential)
+func (s *AppChecker) sortPotentialCreate(ctx context.Context, potential []*potentialCreateSite) []*potentialCreateSite {
+	if len(potential) <= 1 {
+		return potential
 	}
 
 	autoProvAggr.mux.Lock()
 	defer autoProvAggr.mux.Unlock()
 
-	appStats, found := autoProvAggr.allStats[s.appKey]
-	if !found {
-		return potential[:count]
-	}
+	appStats, statsFound := autoProvAggr.allStats[s.appKey]
 
-	// sort to put highest client demand first
-	// client demand is only tracked for the last interval,
-	// and is scaled by the deploy client count.
 	sort.Slice(potential, func(i, j int) bool {
-		ckey1 := potential[i].ClusterInstKey.CloudletKey
-		ckey2 := potential[j].ClusterInstKey.CloudletKey
+		p1 := potential[i]
+		p2 := potential[j]
+		if p1.hasFree != p2.hasFree {
+			// prefer cloudlets that have a matching free ClusterInst
+			return p1.hasFree > p2.hasFree
+		}
+		if !statsFound {
+			// no stats so preserve existing order in list
+			return false
+		}
+		// sort to put highest client demand first
+		// client demand is only tracked for the last interval,
+		// and is scaled by the deploy client count.
+		ckey1 := p1.cloudletKey
+		ckey2 := p2.cloudletKey
 
 		var incr1, incr2 uint64
 		if cstats, found := appStats.cloudlets[ckey1]; found && cstats.intervalNum == autoProvAggr.intervalNum {
@@ -549,7 +613,7 @@ func (s *AppChecker) chooseCreate(ctx context.Context, potential []edgeproto.App
 		log.SpanLog(ctx, log.DebugLevelMetrics, "chooseCreate stats", "cloudlet1", ckey1, "cloudlet2", ckey2, "incr1", incr1, "incr2", incr2)
 		return incr1 > incr2
 	})
-	return potential[:count]
+	return potential
 }
 
 func (s *AppChecker) appInstOnline(key *edgeproto.AppInstKey) bool {

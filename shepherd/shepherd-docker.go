@@ -39,6 +39,7 @@ type ContainerStats struct {
 	Memory    ContainerMem
 	Cpu       string
 	IO        ContainerIO
+	coreCount uint64
 }
 
 type DockerStats struct {
@@ -112,13 +113,8 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 		containers[containerStat.Container] = &containerStat
 	}
 
-	// Walk AppInstCache with a filter and add appName
-	filter := edgeproto.AppInst{
-		Key: edgeproto.AppInstKey{
-			ClusterInstKey: c.key,
-		},
-	}
-	err = AppInstCache.Show(&filter, func(obj *edgeproto.AppInst) error {
+	// find apps on this cluster and add appName
+	AppInstCache.GetForRealClusterInstKey(&c.key, func(obj *edgeproto.AppInst) {
 		var cData *ContainerStats
 		var found bool
 
@@ -126,15 +122,18 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 			cData, found = containers[cID]
 
 			if found {
+				flavor := edgeproto.Flavor{}
+				if FlavorCache.Get(&obj.Flavor, &flavor) {
+					cData.coreCount = flavor.Vcpus
+				}
 				cData.App = util.DNSSanitize(obj.Key.AppKey.Name)
 				cData.Version = util.DNSSanitize(obj.Key.AppKey.Version)
 				dockerResp.Containers = append(dockerResp.Containers, *cData)
-
 			}
 		}
-		return nil
 	})
 	// Keep track of those containers not associated with any App, just in case
+	// Also avg out the cpu based on how many cores, since docker stats just returns a sum %
 	for _, container := range containers {
 		if container.App == "" {
 			// container and app are the same here
@@ -337,10 +336,14 @@ func (c *DockerClusterStats) collectDockerAppMetrics(ctx context.Context, p *Doc
 		stat.CpuTS, stat.MemTS, stat.DiskTS, stat.NetSentTS, stat.NetRecvTS = ts, ts, ts, ts, ts
 		// cpu is in the form "0.00%" - remove the % at the end and cast to float
 		cpu, err := parsePercentStr(containerStats.Cpu)
+		if containerStats.coreCount > 0 {
+			cpu = cpu / float64(containerStats.coreCount)
+		}
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse CPU usage", "App", appKey, "stats", containerStats, "err", err)
 		}
 		// TODO EDGECLOUD-1316 - add stats for all containers together
+		// since cpu is a percentage it needs to be averaged
 		stat.Cpu += cpu
 
 		memData, err := parseComputeUnitsDelim(ctx, containerStats.Memory.Raw)

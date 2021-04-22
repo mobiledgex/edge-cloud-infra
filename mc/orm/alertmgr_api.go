@@ -2,6 +2,7 @@ package orm
 
 import (
 	fmt "fmt"
+	"strings"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
@@ -92,12 +93,6 @@ func CreateAlertReceiver(c echo.Context) error {
 				return setReply(c, fmt.Errorf("Receiver email is invalid"), nil)
 			}
 		}
-		err = AlertManagerServer.CreateReceiver(ctx, &in)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create a receiver", "err", err)
-			return setReply(c, fmt.Errorf("Unable to create a receiver - %s", err.Error()),
-				nil)
-		}
 	case alertmgr.AlertReceiverTypeSlack:
 		// TODO - retrieve org slack channel from vault, for now require slack details
 		if in.SlackWebhook == "" || in.SlackChannel == "" {
@@ -105,15 +100,29 @@ func CreateAlertReceiver(c echo.Context) error {
 			return setReply(c, fmt.Errorf("Both slack URL and slack channel must be specified"),
 				nil)
 		}
-		err = AlertManagerServer.CreateReceiver(ctx, &in)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create a receiver", "err", err)
-			return setReply(c, fmt.Errorf("Unable to create a receiver - %s", err.Error()),
+		// make sure channel has "#" as a prefix
+		// this allows channel to be specified without # on the api
+		if !strings.HasPrefix(in.SlackChannel, "#") {
+			in.SlackChannel = "#" + in.SlackChannel
+		}
+	case alertmgr.AlertReceiverTypePagerDuty:
+		if in.PagerDutyIntegrationKey == "" {
+			return setReply(c, fmt.Errorf("PagerDuty Integration Key must be present"),
 				nil)
+		}
+		if len(in.PagerDutyIntegrationKey) != alertmgr.PagerDutyIntegrationKeyLen {
+			return setReply(c, fmt.Errorf("PagerDuty Integration Key must contain %d characters",
+				alertmgr.PagerDutyIntegrationKeyLen), nil)
 		}
 	default:
 		log.SpanLog(ctx, log.DebugLevelInfo, "type of a receiver is invalid")
 		return setReply(c, fmt.Errorf("Receiver type invalid"), nil)
+	}
+	err = AlertManagerServer.CreateReceiver(ctx, &in)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create a receiver", "err", err)
+		return setReply(c, fmt.Errorf("Unable to create a receiver - %s", err.Error()),
+			nil)
 	}
 	return setReply(c, nil, Msg("Alert receiver created successfully"))
 }

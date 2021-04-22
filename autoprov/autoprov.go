@@ -9,6 +9,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -32,6 +33,7 @@ var notifyClient *notify.Client
 var vaultConfig *vault.Config
 var autoProvAggr *AutoProvAggr
 var minMaxChecker *MinMaxChecker
+var retryTracker *RetryTracker
 var settings edgeproto.Settings
 var nodeMgr node.NodeMgr
 
@@ -63,6 +65,7 @@ func start() error {
 	}
 	defer span.Finish()
 	vaultConfig = nodeMgr.VaultConfig
+	nodeMgr.UpdateNodeProps(ctx, version.InfraBuildProps("Infra"))
 
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),
@@ -74,6 +77,7 @@ func start() error {
 	dialOpts = tls.GetGrpcDialOption(clientTlsConfig)
 
 	cacheData.init()
+	retryTracker = newRetryTracker()
 	autoProvAggr = NewAutoProvAggr(settings.AutoDeployIntervalSec, settings.AutoDeployOffsetSec, &cacheData)
 	minMaxChecker = newMinMaxChecker(&cacheData)
 	cacheData.alertCache.AddUpdatedCb(alertChanged)

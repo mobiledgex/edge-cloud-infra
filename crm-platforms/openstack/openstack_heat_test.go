@@ -14,6 +14,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -25,7 +26,7 @@ var subnetName = "subnet-test"
 var vms = []*vmlayer.VMRequestSpec{
 	{
 		Name:                    "rootlb-xyz",
-		Type:                    vmlayer.VMTypeRootLB,
+		Type:                    cloudcommon.VMTypeRootLB,
 		FlavorName:              "m1.medium",
 		ImageName:               "mobiledgex-v9.9.9",
 		ComputeAvailabilityZone: "nova1",
@@ -35,7 +36,7 @@ var vms = []*vmlayer.VMRequestSpec{
 	},
 	{
 		Name:                    "master-xyz",
-		Type:                    vmlayer.VMTypeClusterMaster,
+		Type:                    cloudcommon.VMTypeClusterMaster,
 		FlavorName:              "m1.medium",
 		ImageName:               "mobiledgex-v9.9.9",
 		ComputeAvailabilityZone: "nova1",
@@ -45,7 +46,7 @@ var vms = []*vmlayer.VMRequestSpec{
 	},
 	{
 		Name:                    "node1-xyz",
-		Type:                    vmlayer.VMTypeClusterNode,
+		Type:                    cloudcommon.VMTypeClusterK8sNode,
 		FlavorName:              "m1.medium",
 		ImageName:               "mobiledgex-v9.9.9",
 		ComputeAvailabilityZone: "nova1",
@@ -53,7 +54,15 @@ var vms = []*vmlayer.VMRequestSpec{
 	},
 	{
 		Name:                    "node2-xyz",
-		Type:                    vmlayer.VMTypeClusterNode,
+		Type:                    cloudcommon.VMTypeClusterK8sNode,
+		FlavorName:              "m1.medium",
+		ImageName:               "mobiledgex-v9.9.9",
+		ComputeAvailabilityZone: "nova1",
+		ConnectToSubnet:         subnetName,
+	},
+	{
+		Name:                    "app-vm",
+		Type:                    cloudcommon.VMTypeAppVM,
 		FlavorName:              "m1.medium",
 		ImageName:               "mobiledgex-v9.9.9",
 		ComputeAvailabilityZone: "nova1",
@@ -103,7 +112,7 @@ func validateStack(ctx context.Context, t *testing.T, vmgp *vmlayer.VMGroupOrche
 
 	keys, err := GetChefKeysFromOSResource(ctx, stackTemplate)
 	require.Nil(t, err)
-	require.Equal(t, 4, len(keys))
+	require.Equal(t, 5, len(keys))
 
 	for _, key := range keys {
 		require.True(t, strings.HasPrefix(key, "-----BEGIN RSA PRIVATE KEY-----"))
@@ -119,7 +128,7 @@ func validateStack(ctx context.Context, t *testing.T, vmgp *vmlayer.VMGroupOrche
 
 	vmsUserData, err := GetUserDataFromOSResource(ctx, stackTemplate)
 	require.Nil(t, err)
-	require.Equal(t, 4, len(vmsUserData))
+	require.Equal(t, 5, len(vmsUserData))
 	for vName, userData := range vmsUserData {
 		require.True(t, strings.HasPrefix(userData, "#cloud-config"))
 		genUserData, ok := genVMsUserData[vName]
@@ -214,10 +223,11 @@ func TestHeatTemplate(t *testing.T) {
 	require.Nil(t, err)
 	op.InitResourceReservations(ctx)
 	op.VMProperties.CommonPf.Properties.SetValue("MEX_EXT_NETWORK", "external-network-shared")
+	op.VMProperties.CommonPf.Properties.SetValue("MEX_VM_APP_SUBNET_DHCP_ENABLED", "no")
 	op.VMProperties.CommonPf.PlatformConfig.TestMode = true
 	// Add chef params
 	for _, vm := range vms {
-		vm.ChefParams = &chefmgmt.VMChefParams{
+		vm.ChefParams = &chefmgmt.ServerChefParams{
 			NodeName:   vm.Name,
 			ServerPath: "cheftestserver.mobiledgex.net/organizations/mobiledgex",
 			ClientKey:  "-----BEGIN RSA PRIVATE KEY-----\nNDFGHJKLJHGHJKJNHJNBHJNBGYUJNBGHJNBGSZiO/8i6ERbmqPopV8GWC5VjxlZm\n-----END RSA PRIVATE KEY-----",
@@ -228,7 +238,7 @@ func TestHeatTemplate(t *testing.T) {
 		"openstack-test",
 		vms,
 		vmlayer.WithNewSecurityGroup("testvmgroup-sg"),
-		vmlayer.WithAccessPorts("tcp:7777,udp:8888", vmlayer.RemoteCidrAll),
+		vmlayer.WithAccessPorts("tcp:7777,udp:8888", infracommon.RemoteCidrAll),
 		vmlayer.WithNewSubnet(subnetName),
 	)
 
@@ -236,12 +246,13 @@ func TestHeatTemplate(t *testing.T) {
 	require.Nil(t, err)
 	validateStack(ctx, t, vmgp1, &op)
 
+	op.VMProperties.CommonPf.Properties.SetValue("MEX_VM_APP_SUBNET_DHCP_ENABLED", "yes")
 	op.VMProperties.CommonPf.Properties.SetValue("MEX_NETWORK_SCHEME", "cidr=10.101.X.0/24,floatingipnet=public_internal,floatingipsubnet=subnetname,floatingipextnet=public")
 	vmgp2, err := vmp.GetVMGroupOrchestrationParamsFromVMSpec(ctx,
 		"openstack-fip-test",
 		vms,
 		vmlayer.WithNewSecurityGroup("testvmgroup-sg"),
-		vmlayer.WithAccessPorts("tcp:7777,udp:8888", vmlayer.RemoteCidrAll),
+		vmlayer.WithAccessPorts("tcp:7777,udp:8888", infracommon.RemoteCidrAll),
 		vmlayer.WithNewSubnet(subnetName),
 		vmlayer.WithSkipInfraSpecificCheck(true),
 	)

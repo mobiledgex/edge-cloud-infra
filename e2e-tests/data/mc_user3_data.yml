@@ -1,3 +1,15 @@
+cloudletpoolaccessresponses:
+- org: user3org
+  region: local
+  cloudletpool: enterprise-pool
+  cloudletpoolorg: enterprise
+  decision: accept
+- org: user3org
+  region: locala
+  cloudletpool: enterprise-pool
+  cloudletpoolorg: enterprise
+  decision: accept
+
 regiondata:
 - region: local
   appdata:

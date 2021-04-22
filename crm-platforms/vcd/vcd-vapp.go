@@ -5,8 +5,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
@@ -33,6 +35,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	}
 	storRef := types.Reference{}
 	// Nil ref wins default storage policy
+	createStart := time.Now()
 	updateCallback(edgeproto.UpdateTask, "Creating vApp")
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp", "name", vmgp.GroupName, "tmpl", vappTmpl.VAppTemplate.Name)
@@ -46,6 +49,9 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 
 	vmtmpl := &types.VAppTemplate{}
 	vmparams := vmlayer.VMOrchestrationParams{}
+	if vappTmpl.VAppTemplate.Children.VM == nil || len(vappTmpl.VAppTemplate.Children.VM) == 0 {
+		return nil, fmt.Errorf("No children in vapp template")
+	}
 	vmtmpl = vappTmpl.VAppTemplate.Children.VM[0]
 	vmparams = vmgp.VMs[0]
 	vmtmplVMName := vmtmpl.Name
@@ -58,6 +64,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp compose vApp", "name", vappName, "vmRole", vmRole, "vmType", vmType)
 
 	description = description + vcdProviderVersion
+	composeStart := time.Now()
 	task, err := vdc.ComposeVApp(networks, *vappTmpl, storRef, vappName, description, true)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp compose failed", "error", err)
@@ -75,6 +82,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		log.SpanLog(ctx, log.DebugLevelInfra, "can't retrieve composed vapp", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
 	}
+
 	// wait before adding vms
 	err = vapp.BlockWhileStatus("UNRESOLVED", ResolvedStateMaxWait) // upto seconds
 
@@ -82,28 +90,17 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		log.SpanLog(ctx, log.DebugLevelInfra, "wait for RESOLVED error", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
 	}
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "Compose Vapp successfully", "VApp", vmgp.GroupName, "tmpl", vappTmpl.VAppTemplate.Name)
+	elapsedCompose := time.Since(composeStart).String()
+	log.SpanLog(ctx, log.DebugLevelInfra, "Compose Vapp successfully", "VApp", vmgp.GroupName, "tmpl", vappTmpl.VAppTemplate.Name, "time", elapsedCompose)
 
 	err = v.validateVMSpecSection(ctx, *vapp)
 	if err != nil {
 		return nil, err
 	}
-	// ensure we have a clean slate
-	task, err = vapp.RemoveAllNetworks()
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "remove networks failed", "VAppName", vmgp.GroupName, "error", err)
-		return nil, err
-	}
-	err = task.WaitTaskCompletion()
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "task completion failed", "VAppName", vmgp.GroupName, "error", err)
-	}
-
 	updateCallback(edgeproto.UpdateTask, "Updating vApp Ports")
-
-	// Get the VApp network in place, all vapps need an external network at least
-	nextCidr, err := v.AddPortsToVapp(ctx, vapp, *vmgp, vcdClient)
+	updatePortsStart := time.Now()
+	// Get the VApp network(s) in place.
+	nextCidr, err := v.AddPortsToVapp(ctx, vapp, *vmgp, updateCallback, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp failed", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
@@ -111,63 +108,68 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp nextCidr for vapp internal net", "Cidr", nextCidr, "vmRole", vmRole, "vmType", vmType)
 
 	vmtmplName := vapp.VApp.Children.VM[0].Name
-	vm, err := vapp.GetVMByName(vmtmplName, false)
+	_, err = vapp.GetVMByName(vmtmplName, false)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp failed to retrieve", "VM", vmtmplName)
 		return nil, err
 	}
-	err = v.updateVM(ctx, vm, vmparams)
+	if v.Verbose {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Update vApp Ports time %s",
+			cloudcommon.FormatDuration(time.Since(updatePortsStart), 2)))
+	}
+
+	updateCallback(edgeproto.UpdateTask, "Adding VMs to vApp")
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed adding VMs for ", "GroupName", vmgp.GroupName, "count", numVMs)
+	addVMStart := time.Now()
+
+	vmsToCustomize, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr, vdc, vcdClient, updateCallback)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "update vm failed ", "VAppName", vmgp.GroupName, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp AddVMsToVApp failed", "error", err)
+		return nil, err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VMs added", "GroupName", vmgp.GroupName)
+	// poweron and customize
+	if v.Verbose {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Add VMs to VApp time %s",
+			cloudcommon.FormatDuration(time.Since(addVMStart), 2)))
+	}
+	updateCallback(edgeproto.UpdateTask, "Powering on VMs")
+	powerOnStart := time.Now()
+	err = v.powerOnVmsAndForceCustomization(ctx, vmsToCustomize)
+	if err != nil {
 		return nil, err
 	}
 
-	if numVMs > 1 {
-		updateCallback(edgeproto.UpdateTask, "Adding VMs to vApp")
-
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed adding VMs for ", "GroupName", vmgp.GroupName)
-		vmsAdded, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr, vcdClient)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp AddVMsToVApp failed", "error", err)
-			return nil, err
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VMs added", "GroupName", vmgp.GroupName)
-		// poweron and customize
-		updateCallback(edgeproto.UpdateTask, "Powering on VMs")
-		err = v.powerOnVmsAndForceCustomization(ctx, vmsAdded)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		if v.Verbose {
-			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed VApp no extra VMs added", "GroupName", vmgp.GroupName)
-		}
-	}
 	if v.Verbose {
-		// govcd.ShowVapp(*vapp.VApp) its... quite large
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("VM PowerOn time %s",
+			cloudcommon.FormatDuration(time.Since(powerOnStart), 2)))
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed Powering On", "Vapp", vappName)
-	err = v.refreshVappNets(ctx, vapp)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "refreshVappNets failed", "err", err)
-		return nil, err
-	}
+	vappPowerOnStart := time.Now()
+	updateCallback(edgeproto.UpdateTask, "Powering on Vapp")
+
 	task, err = vapp.PowerOn()
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "power on  failed ", "VAppName", vapp.VApp.Name, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "power on failed ", "VAppName", vapp.VApp.Name, "err", err)
 		return nil, err
 	}
 	err = task.WaitTaskCompletion()
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "wait power on  failed", "VAppName", vmgp.GroupName, "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "wait power on failed", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
 	}
-	vapp.Refresh()
+	if v.Verbose {
+		msg := fmt.Sprintf("%s %s", "vapp power on  time ", cloudcommon.FormatDuration(time.Since(vappPowerOnStart), 2))
+		updateCallback(edgeproto.UpdateTask, msg)
+	}
 
 	if v.Verbose {
 		v.LogVappVMsStatus(ctx, vapp)
 	}
-
+	if v.Verbose {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("%s %s", "CreateVMs  time ",
+			cloudcommon.FormatDuration(time.Since(createStart), 2)))
+	}
 	return vapp, nil
 }
 
@@ -203,34 +205,138 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 		return nil
 	}
 
-	status, err := vapp.GetStatus()
+	// handle deletion of an iso orgvdcnet of the client of a shared LB
+	// DetachPortFromServer has already been called, and can't delete the network
+	// because it's still in use, possibly by this vapp (shared clusterInst)
+
+	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp err getting vdc", "vapp", vappName, "err", err)
 		return err
 	}
 
-	if status == "POWERED_ON" {
-		task, err := vapp.Undeploy()
-		if err != nil {
-			return err
+	// Notes on deletion order related to isolated Org VDC networks:
+	// - GetVappIsoNetwork must happen before VMs are deleted or the network will not be found
+	// - VMs are deleted next
+	// - The network must then be removed from the vApp (RemoveAllNetworks) and then the vApp is deleted. This
+	//   ensures that the vApp is not associated with the network, so it can be deleted
+	// - Deleting the network (RemoveOrgVdcNetworkIfExists) must happen last, as if there
+	//   are any users of the network this will fail
+
+	// find the org vcd isolated network if one exists.  Do this before deleting VMs
+	netName, err := v.GetVappIsoNetwork(ctx, vdc, vapp)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get org VCD net", "err", err)
+	}
+
+	task, err := vapp.Undeploy()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp err vapp.Undeploy ignoring", "vapp", vappName, "err", err)
+	} else {
+		_ = task.WaitTaskCompletion()
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeployed", "Vapp", vappName)
+	if vapp.VApp != nil && vapp.VApp.Children != nil && vapp.VApp.Children.VM != nil {
+		vms := vapp.VApp.Children.VM
+		for _, tvm := range vms {
+			vmName := tvm.Name
+			vm, err := vapp.GetVMByName(vmName, true)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vm not found", "vm", vmName, "for server", vappName)
+				return err
+			}
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeploy/poweroff/delete", "vm", vmName)
+			task, err := vm.Undeploy()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp unDeploy failed", "vm", vmName, "error", err)
+			} else {
+				if err = task.WaitTaskCompletion(); err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for undeploy failed", "vm", vmName, "error", err)
+				}
+			}
+			// undeployed
+			task, err = vm.PowerOff()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
+			} else {
+				if err = task.WaitTaskCompletion(); err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for PowerOff failed", "vm", vmName, "error", err)
+				}
+			}
+			// powered off
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp delete powered off", "vm", vmName)
+			err = vm.Delete()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
+			}
+			// deleted
 		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveAllNetworks")
+	task, err = vapp.RemoveAllNetworks()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveAllNetworks failed ", "err", err)
+	} else {
 		err = task.WaitTaskCompletion()
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait task for RemoveAllNetworks failed", "error", err)
+		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "vapp Delete")
+	task, err = vapp.Delete()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "netName", netName, "err", err)
+	} else {
+		err = task.WaitTaskCompletion()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait task failed vapp.Delete", "vapp", vappName, "err", err)
 			return err
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeployed", "Vapp", vappName)
 	}
-	task, err := vapp.Delete()
-	if err != nil {
-		return err
-	}
-	err = task.WaitTaskCompletion()
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName)
-	return nil
-}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName, "netName", netName)
+	// check if we're using a isolated orgvdcnetwork /  sharedLB
+	if netName != "" {
+		if v.GetNsxType() == NSXV {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-v removing iosNetworks if exists", "vapp", vappName, "netName", netName, "isNsxt?", vdc.IsNsxt(), "isNsxv?", vdc.IsNsxv())
+			err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, netName)
+			if err != nil {
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists failed for", "netName", netName, "error", err)
+					return err
+				}
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-t marking network free", "vapp", vappName, "netName", netName)
 
+			// place the network on the free list for resue. Should be an nsx-t backed vdc
+			orgvdcnetwork, err := vdc.GetOrgVdcNetworkByName(netName, false)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetOrgVdcNetworkByName failed for", "netName", netName)
+				return err
+			}
+			v.FreeIsoNets[netName] = orgvdcnetwork
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists nsx-t, add to free list for reuse", "vapp", vappName, "netName", netName, "err", err)
+
+		}
+
+	} else if err != nil {
+		// If GetVappIsoNetwork actually fails
+		// don't fail the delete cluster operation here, dedicated LBs don't use type 2 orgvcdnetworks.
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "netName", netName, "err", err)
+	}
+
+	if netName != "" {
+		// finally, remove the IsoNamesMap entry for shared LBs.
+		key, err := v.updateIsoNamesMap(ctx, IsoMapActionDelete, "", "", netName)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp updateIsoNamesMap", "error", err)
+			return err
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp removed namemap entry ", "cidr", netName, "subnetId", key)
+	}
+	return nil
+
+}
 func (v *VcdPlatform) FindVApp(ctx context.Context, vappName string, vcdClient *govcd.VCDClient) (*govcd.VApp, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "FindVApp", "vappName", vappName)
 
@@ -266,13 +372,14 @@ func makeMetaMap(ctx context.Context, mexmeta string) map[string]string {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "makeMetaMap", "meta", mexmeta)
 	smap := make(map[string]string)
-	s := strings.Replace(mexmeta, "\n", ":", -1)
-	parts := strings.Split(s, ":")
-	len := len(parts)
-	for i := 0; i < len; i += 2 {
-		key := strings.TrimSpace(parts[i])
-		val := strings.TrimSpace(parts[i+1])
-		smap[key] = val
+	if mexmeta != "" {
+		s := strings.Replace(mexmeta, "\n", ":", -1)
+		parts := strings.Split(s, ":")
+		for i := 0; i < len(parts); i += 2 {
+			key := strings.TrimSpace(parts[i])
+			val := strings.TrimSpace(parts[i+1])
+			smap[key] = val
+		}
 	}
 	return smap
 }
@@ -286,7 +393,7 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	command := ""
 	manifest := ""
 	// format vmparams.CloudConfigParams into yaml format, which we'll then base64 encode for the ovf datasource
-	udata, err := vmlayer.GetVMUserData(vm.VM.Name, false, manifest, command, &vmparams.CloudConfigParams, vcdUserDataFormatter)
+	udata, err := vmlayer.GetVMUserData(vm.VM.Name, vmparams.SharedVolume, manifest, command, &vmparams.CloudConfigParams, vcdUserDataFormatter)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Unable to retrive VMUserData", "err", err)
 		return nil, err
@@ -298,6 +405,7 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	}
 	guestCustomSec.Enabled = TakeBoolPointer(true)
 	guestCustomSec.ComputerName = vmparams.HostName
+	guestCustomSec.AdminPasswordEnabled = TakeBoolPointer(false) // we have our own baseimage password
 	_, err = vm.SetGuestCustomizationSection(guestCustomSec)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SetGuestCustomizationSection failed", "err", err)
@@ -305,7 +413,7 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	}
 	// find the master, which can be either the first or second vm in the vapp, or none
 	masterIP := ""
-	if vmparams.Role == vmlayer.RoleNode { // k8s-node
+	if vmparams.Role == vmlayer.RoleK8sNode { // k8s-node
 		log.SpanLog(ctx, log.DebugLevelInfra, "Have k8s-node find masterIP ", "vm", vm.VM.Name)
 		vapp, err := vm.GetParentVApp()
 
@@ -377,25 +485,6 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	return psl, nil
 }
 
-func (v *VcdPlatform) refreshVappNets(ctx context.Context, vapp *govcd.VApp) error {
-	vmname := vapp.VApp.Children.VM[0].Name
-	vm, err := vapp.GetVMByName(vmname, true)
-	if err != nil {
-		return err
-	}
-	//InternalNetConfigSec := &types.NetworkConfigSection{}
-	ncs, err := vm.GetNetworkConnectionSection()
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "refreshVapp", "Vapp", vapp.VApp.Name, "vmName", vmname)
-	err = vm.UpdateNetworkConnectionSection(ncs)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func (v *VcdPlatform) GetVMFromVAppByIdx(ctx context.Context, vapp *govcd.VApp, idx int) (*govcd.VM, error) {
 
 	if vapp.VApp.Children == nil {
@@ -448,6 +537,5 @@ func (v *VcdPlatform) validateVMSpecSection(ctx context.Context, vapp govcd.VApp
 			log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion err updating spec section", "vm", vm.VM.Name, "err", err)
 		}
 	}
-	// what else will we find missing in 10.0? No problems in 10.1
 	return nil
 }

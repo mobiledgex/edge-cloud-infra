@@ -31,8 +31,8 @@ func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.C
 	return nil
 }
 
-func (a *OpenstackPlatform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, error) {
-	return ctx, nil
+func (a *OpenstackPlatform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, vmlayer.OperationInitResult, error) {
+	return ctx, vmlayer.OperationNewlyInitialized, nil
 }
 
 func (o *OpenstackPlatform) InitData(ctx context.Context, caches *platform.Caches) {
@@ -86,7 +86,7 @@ func (o *OpenstackPlatform) GetResourceID(ctx context.Context, resourceType vmla
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
 }
 
-func (o *OpenstackPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy) error {
+func (o *OpenstackPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	// nothing to do
 	return nil
 }

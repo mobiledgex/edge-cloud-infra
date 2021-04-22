@@ -54,14 +54,6 @@ regiondata:
       numdynamicips: 254
       state: Ready
       platformtype: PlatformTypeFakeinfra
-      deploymentlocal: false
-      notifysrvaddr: 127.0.0.1:51001
-      flavor:
-        name: DefaultPlatformFlavor
-      physicalname: tmus-cloud-1
-      envvar:
-        foo: bar
-      containerversion: 2019-10-24
     - key:
         organization: tmus
         name: tmus-cloud-2
@@ -71,12 +63,6 @@ regiondata:
       ipsupport: IpSupportDynamic
       numdynamicips: 254
       state: Ready
-      deploymentlocal: false
-      notifysrvaddr: 127.0.0.1:51002
-      flavor:
-        name: DefaultPlatformFlavor
-      physicalname: tmus-cloud-2
-      containerversion: 2019-10-24
     - key:
         organization: azure
         name: azure-cloud-4
@@ -86,12 +72,6 @@ regiondata:
       ipsupport: IpSupportDynamic
       numdynamicips: 254
       state: Ready
-      deploymentlocal: false
-      notifysrvaddr: 127.0.0.1:51004
-      flavor:
-        name: DefaultPlatformFlavor
-      physicalname: azure-cloud-4
-      containerversion: 2019-10-24
     - key:
         organization: gcp
         name: gcp-cloud-5
@@ -101,12 +81,6 @@ regiondata:
       ipsupport: IpSupportDynamic
       numdynamicips: 254
       state: Ready
-      deploymentlocal: false
-      notifysrvaddr: 127.0.0.1:51005
-      flavor:
-        name: DefaultPlatformFlavor
-      physicalname: gcp-cloud-5
-      containerversion: 2019-10-24
     flavors:
     - key:
         name: x1.tiny
@@ -314,7 +288,8 @@ regiondata:
                 - containerPort: 81
                   protocol: TCP
       deploymentgenerator: kubernetes-basic
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
     - key:
         organization: AcmeAppCo
         name: autoprovappd
@@ -325,7 +300,8 @@ regiondata:
       defaultflavor:
         name: x1.small
       deployment: docker
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
       accesstype: AccessTypeLoadBalancer
     - key:
         organization: Samsung
@@ -457,6 +433,44 @@ regiondata:
       runtimeinfo:
         containerids:
         - appOnClusterNode0
+    - key:
+        appkey:
+          organization: AcmeAppCo
+          name: someapplication1
+          version: "1.0"
+        clusterinstkey:
+          clusterkey:
+            name: autoclusterAcme
+          cloudletkey:
+            organization: tmus
+            name: tmus-cloud-2
+          organization: MobiledgeX
+      cloudletloc:
+        latitude: 35
+        longitude: -95
+      uri: tmus-cloud-2.tmus.mobiledgex.net
+      liveness: LivenessStatic
+      mappedports:
+      - proto: LProtoTcp
+        internalport: 80
+        publicport: 10000
+        fqdnprefix: someapplication110-tcp.
+      - proto: LProtoTcp
+        internalport: 443
+        publicport: 10001
+        fqdnprefix: someapplication110-tcp.
+      - proto: LProtoUdp
+        internalport: 10002
+        publicport: 10000
+        fqdnprefix: someapplication110-udp.
+      flavor:
+        name: x1.small
+      state: Ready
+      runtimeinfo:
+        containerids:
+        - appOnClusterNode0
+      powerstate: PowerOn
+      realclustername: reservable0
 
     autoprovpolicies:
     - key:
@@ -488,6 +502,8 @@ regiondata:
         ? '{"app_key":{"organization":"AcmeAppCo","name":"someapplication1","version":"1.0"},"cluster_inst_key":{"cluster_key":{"name":"SmallCluster"},"cloudlet_key":{"organization":"tmus","name":"tmus-cloud-1"},"organization":"AcmeAppCo"}}'
         : 1
         ? '{"app_key":{"organization":"AcmeAppCo","name":"someapplication1","version":"1.0"},"cluster_inst_key":{"cluster_key":{"name":"SmallCluster"},"cloudlet_key":{"organization":"tmus","name":"tmus-cloud-2"},"organization":"AcmeAppCo"}}'
+        : 1
+        ? '{"app_key":{"organization":"AcmeAppCo","name":"someapplication1","version":"1.0"},"cluster_inst_key":{"cluster_key":{"name":"autoclusterAcme"},"cloudlet_key":{"organization":"tmus","name":"tmus-cloud-2"},"organization":"MobiledgeX"}}'
         : 1
     - key:
         organization: AcmeAppCo
@@ -530,11 +546,6 @@ regiondata:
       numdynamicips: 254
       state: Ready
       platformtype: PlatformTypeFake
-      notifysrvaddr: 127.0.0.1:51017
-      flavor:
-        name: DefaultPlatformFlavor
-      physicalname: tmus-cloud-3
-      containerversion: "2019-10-24"
     - key:
         organization: tmus
         name: tmus-cloud-4
@@ -544,11 +555,6 @@ regiondata:
       ipsupport: IpSupportDynamic
       numdynamicips: 254
       state: Ready
-      notifysrvaddr: 127.0.0.1:51018
-      flavor:
-        name: DefaultPlatformFlavor
-      physicalname: tmus-cloud-4
-      containerversion: "2019-10-24"
     autoprovpolicies:
     - key:
         organization: AcmeAppCo
@@ -669,7 +675,8 @@ regiondata:
                 - containerPort: 81
                   protocol: TCP
       deploymentgenerator: kubernetes-basic
-      autoprovpolicy: autoprov1
+      autoprovpolicies:
+      - autoprov1
       accesstype: AccessTypeLoadBalancer
     - key:
         organization: Samsung

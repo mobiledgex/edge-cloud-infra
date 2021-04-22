@@ -83,7 +83,7 @@ var appInstDataColumns = []string{
 	"note",
 }
 
-var usageInfluDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
+var usageInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE time >='{{.StartTime}}'` +
 	` AND time <= '{{.EndTime}}'` +
 	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
@@ -110,7 +110,7 @@ var usageTypeCluster = "cluster-usage"
 var usageTypeAppInst = "appinst-usage"
 
 func init() {
-	usageInfluxDBTemplate = template.Must(template.New("influxquery").Parse(usageInfluDBT))
+	usageInfluxDBTemplate = template.Must(template.New("influxquery").Parse(usageInfluxDBT))
 }
 
 func checkUsageCheckpointInterval() error {
@@ -365,7 +365,7 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 						Version:      ver,
 						Organization: org,
 					},
-					ClusterInstKey: edgeproto.ClusterInstKey{
+					ClusterInstKey: edgeproto.VirtualClusterInstKey{
 						ClusterKey: edgeproto.ClusterKey{Name: cluster},
 						CloudletKey: edgeproto.CloudletKey{
 							Organization: cloudletorg,
@@ -416,7 +416,7 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 					Version:      ver,
 					Organization: apporg,
 				},
-				ClusterInstKey: edgeproto.ClusterInstKey{
+				ClusterInstKey: edgeproto.VirtualClusterInstKey{
 					ClusterKey: edgeproto.ClusterKey{Name: cluster},
 					CloudletKey: edgeproto.CloudletKey{
 						Organization: cloudletorg,
@@ -505,15 +505,21 @@ func GetAppUsage(event *client.Response, checkpoint *client.Response, start, end
 }
 
 // Query is a template with a specific set of if/else
-func ClusterCheckpointsQuery(obj *ormapi.RegionClusterInstUsage) string {
+func ClusterCheckpointsQuery(obj *ormapi.RegionClusterInstUsage, cloudletList []string) string {
 	arg := influxQueryArgs{
 		Selector:     strings.Join(append(ClusterFields, clusterCheckpointFields...), ","),
 		Measurement:  cloudcommon.ClusterInstCheckpoints,
-		OrgField:     "org",
-		ApiCallerOrg: obj.ClusterInst.Organization,
-		CloudletName: obj.ClusterInst.CloudletKey.Name,
+		CloudletList: generateCloudletList(cloudletList),
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
-		CloudletOrg:  obj.ClusterInst.CloudletKey.Organization,
+	}
+	if obj.ClusterInst.Organization != "" {
+		arg.OrgField = "clusterorg"
+		arg.ApiCallerOrg = obj.ClusterInst.Organization
+		arg.CloudletOrg = obj.ClusterInst.CloudletKey.Organization
+	} else {
+		arg.OrgField = "cloudletorg"
+		arg.ApiCallerOrg = obj.ClusterInst.CloudletKey.Organization
+		arg.ClusterOrg = obj.ClusterInst.Organization
 	}
 	// set endtime to start and back up starttime by a checkpoint interval to hit the most recent
 	// checkpoint that occurred before startTime
@@ -521,32 +527,44 @@ func ClusterCheckpointsQuery(obj *ormapi.RegionClusterInstUsage) string {
 	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &checkpointTime, &checkpointTime)
 }
 
-func ClusterUsageEventsQuery(obj *ormapi.RegionClusterInstUsage) string {
+func ClusterUsageEventsQuery(obj *ormapi.RegionClusterInstUsage, cloudletList []string) string {
 	arg := influxQueryArgs{
 		Selector:     strings.Join(append(ClusterFields, clusterUsageEventFields...), ","),
 		Measurement:  EVENT_CLUSTERINST,
-		OrgField:     "org",
-		ApiCallerOrg: obj.ClusterInst.Organization,
-		CloudletName: obj.ClusterInst.CloudletKey.Name,
+		CloudletList: generateCloudletList(cloudletList),
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
-		CloudletOrg:  obj.ClusterInst.CloudletKey.Organization,
+	}
+	if obj.ClusterInst.Organization != "" {
+		arg.OrgField = "clusterorg"
+		arg.ApiCallerOrg = obj.ClusterInst.Organization
+		arg.CloudletOrg = obj.ClusterInst.CloudletKey.Organization
+	} else {
+		arg.OrgField = "cloudletorg"
+		arg.ApiCallerOrg = obj.ClusterInst.CloudletKey.Organization
+		arg.ClusterOrg = obj.ClusterInst.Organization
 	}
 	queryStart := prevCheckpoint(obj.StartTime)
 	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &queryStart, &obj.EndTime)
 }
 
-func AppInstCheckpointsQuery(obj *ormapi.RegionAppInstUsage) string {
+func AppInstCheckpointsQuery(obj *ormapi.RegionAppInstUsage, cloudletList []string) string {
 	arg := influxQueryArgs{
 		Selector:     strings.Join(AppCheckpointFields, ","),
 		Measurement:  cloudcommon.AppInstCheckpoints,
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
-		OrgField:     "org",
-		ApiCallerOrg: obj.AppInst.AppKey.Organization,
 		AppVersion:   obj.AppInst.AppKey.Version,
-		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
+		CloudletList: generateCloudletList(cloudletList),
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
-		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
+	}
+	if obj.AppInst.AppKey.Organization != "" {
+		arg.OrgField = "apporg"
+		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
+		arg.CloudletOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+	} else {
+		arg.OrgField = "cloudletorg"
+		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
 	if obj.VmOnly {
 		arg.DeploymentType = cloudcommon.DeploymentTypeVM
@@ -557,18 +575,24 @@ func AppInstCheckpointsQuery(obj *ormapi.RegionAppInstUsage) string {
 	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &checkpointTime, &checkpointTime)
 }
 
-func AppInstUsageEventsQuery(obj *ormapi.RegionAppInstUsage) string {
+func AppInstUsageEventsQuery(obj *ormapi.RegionAppInstUsage, cloudletList []string) string {
 	arg := influxQueryArgs{
 		Selector:     strings.Join(append(AppFields, appUsageEventFields...), ","),
 		Measurement:  EVENT_APPINST,
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
-		OrgField:     "apporg",
-		ApiCallerOrg: obj.AppInst.AppKey.Organization,
 		AppVersion:   obj.AppInst.AppKey.Version,
-		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
+		CloudletList: generateCloudletList(cloudletList),
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
-		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
+	}
+	if obj.AppInst.AppKey.Organization != "" {
+		arg.OrgField = "apporg"
+		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
+		arg.CloudletOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+	} else {
+		arg.OrgField = "cloudletorg"
+		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
 	if obj.VmOnly {
 		arg.DeploymentType = cloudcommon.DeploymentTypeVM
@@ -595,7 +619,7 @@ func checkInfluxOutput(resp *client.Response, measurement string) (bool, error) 
 
 func GetEventAndCheckpoint(ctx context.Context, rc *InfluxDBContext, eventCmd, checkpointCmd string) (*client.Response, *client.Response, error) {
 	var eventResponse, checkpointResponse *client.Response
-	err := influxStream(ctx, rc, cloudcommon.EventsDbName, eventCmd, func(res interface{}) {
+	err := influxStream(ctx, rc, []string{cloudcommon.EventsDbName}, eventCmd, func(res interface{}) {
 		resp, ok := res.([]client.Result)
 		if ok {
 			eventResponse = &client.Response{Results: resp}
@@ -604,7 +628,7 @@ func GetEventAndCheckpoint(ctx context.Context, rc *InfluxDBContext, eventCmd, c
 	if err != nil {
 		return nil, nil, err
 	}
-	err = influxStream(ctx, rc, cloudcommon.EventsDbName, checkpointCmd, func(res interface{}) {
+	err = influxStream(ctx, rc, []string{cloudcommon.EventsDbName}, checkpointCmd, func(res interface{}) {
 		resp, ok := res.([]client.Result)
 		if ok {
 			checkpointResponse = &client.Response{Results: resp}
@@ -624,7 +648,7 @@ func GetEventAndCheckpoint(ctx context.Context, rc *InfluxDBContext, eventCmd, c
 
 // Common method to handle both app and cluster metrics
 func GetUsageCommon(c echo.Context) error {
-	var checkpointCmd, eventCmd, org string
+	var checkpointCmd, eventCmd string
 	var usage *ormapi.MetricData
 	rc := &InfluxDBContext{}
 	claims, err := getClaims(c)
@@ -646,34 +670,15 @@ func GetUsageCommon(c echo.Context) error {
 			return setReply(c, fmt.Errorf("Both start and end times must be specified"), nil)
 		}
 
-		// Developer name has to be specified
-		if in.AppInst.AppKey.Organization == "" {
-			// the only way this is ok is if its mexadmin
-			roles, err := ShowUserRoleObj(ctx, claims.Username)
-			if err != nil {
-				return setReply(c, fmt.Errorf("Unable to discover user roles: %v", err), nil)
-			}
-			isAdmin := false
-			for _, role := range roles {
-				if isAdminRole(role.Role) {
-					isAdmin = true
-				}
-			}
-			if !isAdmin {
-				return setReply(c, fmt.Errorf("App details must be present"), nil)
-			}
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.AppInst.AppKey.Organization, ResourceAppAnalytics, in.AppInst.ClusterInstKey.CloudletKey)
+		if err != nil {
+			return setReply(c, err, nil)
 		}
 
 		rc.region = in.Region
-		org = in.AppInst.AppKey.Organization
 
-		eventCmd = AppInstUsageEventsQuery(&in)
-		checkpointCmd = AppInstCheckpointsQuery(&in)
-
-		// Check the developer against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView); err != nil {
-			return setReply(c, err, nil)
-		}
+		eventCmd = AppInstUsageEventsQuery(&in, cloudletList)
+		checkpointCmd = AppInstCheckpointsQuery(&in, cloudletList)
 
 		eventResp, checkResp, err := GetEventAndCheckpoint(ctx, rc, eventCmd, checkpointCmd)
 		usage, err = GetAppUsage(eventResp, checkResp, in.StartTime, in.EndTime, in.Region)
@@ -692,34 +697,15 @@ func GetUsageCommon(c echo.Context) error {
 			return setReply(c, fmt.Errorf("Both start and end times must be specified"), nil)
 		}
 
-		// Developer name has to be specified
-		if in.ClusterInst.Organization == "" {
-			// the only way this is ok is if its mexadmin
-			roles, err := ShowUserRoleObj(ctx, claims.Username)
-			if err != nil {
-				return setReply(c, fmt.Errorf("Unable to discover user roles: %v", err), nil)
-			}
-			isAdmin := false
-			for _, role := range roles {
-				if isAdminRole(role.Role) {
-					isAdmin = true
-				}
-			}
-			if !isAdmin {
-				return setReply(c, fmt.Errorf("Cluster details must be present"), nil)
-			}
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.ClusterInst.Organization, ResourceClusterAnalytics, in.ClusterInst.CloudletKey)
+		if err != nil {
+			return setReply(c, err, nil)
 		}
 
 		rc.region = in.Region
-		org = in.ClusterInst.Organization
 
-		eventCmd = ClusterUsageEventsQuery(&in)
-		checkpointCmd = ClusterCheckpointsQuery(&in)
-
-		// Check the developer org against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView); err != nil {
-			return err
-		}
+		eventCmd = ClusterUsageEventsQuery(&in, cloudletList)
+		checkpointCmd = ClusterCheckpointsQuery(&in, cloudletList)
 
 		eventResp, checkResp, err := GetEventAndCheckpoint(ctx, rc, eventCmd, checkpointCmd)
 		if err != nil {

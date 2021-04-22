@@ -124,8 +124,12 @@ SOFTWARE.
 {{ end }}
 
 {{ define "common.title" -}}
-[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] Alert for {{ reReplaceAll "([^-]*)-.*" "${1}" .Receiver}}: {{.CommonLabels.alertname }}{{ if .CommonLabels.app }} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}}{{ else if .CommonLabels.cloudlet}} Cloudlet: {{.CommonLabels.cloudlet}}{{ end }}
-{{ end }}
+Alert for {{ reReplaceAll "([^::]*)::.*" "${1}" .Receiver}}: {{.CommonLabels.alertname }}{{ if .CommonLabels.app }} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}}{{ else if .CommonLabels.cloudlet}} Cloudlet: {{.CommonLabels.cloudlet}}{{ end }}
+{{- end }}
+
+{{ define "status.title" -}}
+[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] {{ template "common.title" . }}
+{{- end }}
 
 {{ define "email.text" }}
 MobiledX Monitoring System: {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}s{{ end }} for {{ range .GroupLabels.SortedPairs }}
@@ -140,7 +144,7 @@ MobiledX Monitoring System: {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}
 {{ end }}
 
 {{ define "slack.fallback" -}}
-[{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}] Alert for {{ reReplaceAll "([^-]*)-.*" "${1}" .Receiver}}: {{.CommonLabels.alertname }} Application: {{.CommonLabels.app}} Version: {{.CommonLabels.appver}} | {{template "console.link" .}}
+{{ template "status.title" . }} | {{template "console.link" .}}
 {{ end }}
 
 {{ define "slack.text" -}}
@@ -154,3 +158,10 @@ MobiledX Monitoring System: {{ .Alerts | len }} alert{{ if gt (len .Alerts) 1 }}
   {{ end }}
 {{ end }}
 {{ end }}
+
+# use description as the title of the alert, so no need to add "description" label, subsequently skip description annotation
+{{ define "pagerduty.instances" -}}
+{{ range . }}{{ .Annotations.title }} - {{ .Annotations.description }}
+Labels:
+{{ range .Labels.SortedPairs }} {{ .Name }} = {{ .Value }}
+{{ end }}{{ end }}{{ end }}

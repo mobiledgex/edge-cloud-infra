@@ -1,5 +1,5 @@
 #!/bin/bash
-ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net'
+ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net/artifactory'
 ARTIFACTORY_USER='packer'
 ARTIFACTORY_ARTIFACTS_TAG='2020-04-27'
 CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'

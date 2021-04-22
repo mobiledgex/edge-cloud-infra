@@ -16,6 +16,10 @@ internal: build-internal install-internal
 dep:
 	dep ensure -vendor-only
 
+build-vers:
+	mkdir -p version
+	(cd version; ../../edge-cloud/version/version.sh "Infra")
+
 #
 # Local OS Target
 #
@@ -35,7 +39,9 @@ edge-cloud-version-set:
 	@echo "Setting edge-cloud repo branch/tag to $(EDGE_CLOUD_VERSION)"
 	git -C ../edge-cloud checkout $(EDGE_CLOUD_VERSION)
 
-build-internal:
+APICOMMENTS = ./mc/ormapi/api.comments.go
+
+build-internal: build-vers $(APICOMMENTS)
 	go install ./fixmod
 	fixmod -srcRepo ../edge-cloud -keep github.com/mobiledgex/edge-cloud
 	go install ./protoc-gen-mc2
@@ -51,6 +57,10 @@ install-edge-cloud:
 
 install-internal:
 	go install ./...
+
+$(APICOMMENTS): ./mc/ormapi/apidoc/apidoc.go ./mc/ormapi/api.go
+	go install ./mc/ormapi/apidoc
+	apidoc --apiFile ./mc/ormapi/api.go
 
 doc:
 	go install ./protoc-gen-mc2

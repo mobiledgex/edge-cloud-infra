@@ -3,6 +3,7 @@ package orm
 import (
 	"context"
 
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
@@ -26,12 +27,20 @@ func newShowAlertAuthz(ctx context.Context, region, username, resource, action s
 	return &authz, nil
 }
 
-func (s *AuthzAlert) Ok(obj *edgeproto.Alert) bool {
+func (s *AuthzAlert) Ok(obj *edgeproto.Alert) (bool, bool) {
+	filterOutput := false
 	if s.allowAll {
-		return true
+		return true, filterOutput
 	}
 
 	org := obj.Labels["apporg"]
+	alertScope := obj.Labels["scope"]
+	if alertScope == cloudcommon.AlertScopeCloudlet {
+		org = obj.Labels["cloudletorg"]
+	}
 	_, found := s.orgs[org]
-	return found
+	return found, filterOutput
+}
+
+func (s *AuthzAlert) Filter(obj *edgeproto.Alert) {
 }

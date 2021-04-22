@@ -57,7 +57,8 @@ func ShowAlert(c echo.Context) error {
 }
 
 type ShowAlertAuthz interface {
-	Ok(obj *edgeproto.Alert) bool
+	Ok(obj *edgeproto.Alert) (bool, bool)
+	Filter(obj *edgeproto.Alert)
 }
 
 func ShowAlertStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert, cb func(res *edgeproto.Alert)) error {
@@ -95,8 +96,12 @@ func ShowAlertStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Aler
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res) {
+			authzOk, filterOutput := authz.Ok(res)
+			if !authzOk {
 				continue
+			}
+			if filterOutput {
+				authz.Filter(res)
 			}
 		}
 		cb(res)
@@ -141,7 +146,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdateClusterInstTimeout: 12
 	// DeleteClusterInstTimeout: 13
 	// MasterNodeFlavor: 14
-	// LoadBalancerMaxPortRange: 15
 	// MaxTrackedDmeClients: 16
 	// ChefClientInterval: 17
 	// InfluxDbMetricsRetention: 18
@@ -149,7 +153,17 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdateVmPoolTimeout: 21
 	// UpdateTrustPolicyTimeout: 22
 	// DmeApiMetricsCollectionInterval: 23
-	// PersistentConnectionMetricsCollectionInterval: 24
+	// EdgeEventsMetricsCollectionInterval: 24
+	// CleanupReservableAutoClusterIdletime: 25
+	// InfluxDbCloudletUsageMetricsRetention: 26
+	// CreateCloudletTimeout: 27
+	// UpdateCloudletTimeout: 28
+	// LocationTileSideLengthKm: 29
+	// EdgeEventsMetricsContinuousQueriesCollectionIntervals: 30
+	// EdgeEventsMetricsContinuousQueriesCollectionIntervalsInterval: 30.1
+	// InfluxDbDownsampledMetricsRetention: 31
+	// InfluxDbEdgeEventsMetricsRetention: 32
+	// AppinstClientCleanupInterval: 33
 	// ```
 	// Security:
 	//   Bearer:
@@ -304,7 +318,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteResTagTable", DeleteResTagTable)
 	// swagger:route POST /auth/ctrl/UpdateResTagTable ResTagTable UpdateResTagTable
-	// .
+	// Update TagTable.
 	// The following values should be added to `ResTagTable.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
@@ -324,7 +338,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateResTagTable", UpdateResTagTable)
 	// swagger:route POST /auth/ctrl/ShowResTagTable ResTagTable ShowResTagTable
-	// show TagTable.
+	// Show TagTable.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -334,7 +348,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowResTagTable", ShowResTagTable)
 	// swagger:route POST /auth/ctrl/AddResTag ResTagTable AddResTag
-	// add new tag(s) to TagTable.
+	// Add new tag(s) to TagTable.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -344,7 +358,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddResTag", AddResTag)
 	// swagger:route POST /auth/ctrl/RemoveResTag ResTagTable RemoveResTag
-	// remove existing tag(s) from TagTable.
+	// Remove existing tag(s) from TagTable.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -363,6 +377,115 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GetResTagTable", GetResTagTable)
+	// swagger:route POST /auth/ctrl/CreateApp App CreateApp
+	// Create Application.
+	//  Creates a definition for an application instance for Cloudlet deployment.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateApp", CreateApp)
+	// swagger:route POST /auth/ctrl/DeleteApp App DeleteApp
+	// Delete Application.
+	//  Deletes a definition of an Application instance. Make sure no other application instances exist with that definition. If they do exist, you must delete those Application instances first.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteApp", DeleteApp)
+	// swagger:route POST /auth/ctrl/UpdateApp App UpdateApp
+	// Update Application.
+	//  Updates the definition of an Application instance.
+	// The following values should be added to `App.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// KeyVersion: 2.3
+	// ImagePath: 4
+	// ImageType: 5
+	// AccessPorts: 7
+	// DefaultFlavor: 9
+	// DefaultFlavorName: 9.1
+	// AuthPublicKey: 12
+	// Command: 13
+	// Annotations: 14
+	// Deployment: 15
+	// DeploymentManifest: 16
+	// DeploymentGenerator: 17
+	// AndroidPackageName: 18
+	// DelOpt: 20
+	// Configs: 21
+	// ConfigsKind: 21.1
+	// ConfigsConfig: 21.2
+	// ScaleWithCluster: 22
+	// InternalPorts: 23
+	// Revision: 24
+	// OfficialFqdn: 25
+	// Md5Sum: 26
+	// AutoProvPolicy: 28
+	// AccessType: 29
+	// DeletePrepare: 31
+	// AutoProvPolicies: 32
+	// TemplateDelimiter: 33
+	// SkipHcPorts: 34
+	// CreatedAt: 35
+	// CreatedAtSeconds: 35.1
+	// CreatedAtNanos: 35.2
+	// UpdatedAt: 36
+	// UpdatedAtSeconds: 36.1
+	// UpdatedAtNanos: 36.2
+	// Trusted: 37
+	// RequiredOutboundConnections: 38
+	// RequiredOutboundConnectionsProtocol: 38.1
+	// RequiredOutboundConnectionsPort: 38.2
+	// RequiredOutboundConnectionsRemoteIp: 38.4
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateApp", UpdateApp)
+	// swagger:route POST /auth/ctrl/ShowApp App ShowApp
+	// Show Applications.
+	//  Lists all Application definitions managed from the Edge Controller. Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
+	// swagger:route POST /auth/ctrl/AddAppAutoProvPolicy AppAutoProvPolicy AddAppAutoProvPolicy
+	// Add an AutoProvPolicy to the App.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AddAppAutoProvPolicy", AddAppAutoProvPolicy)
+	// swagger:route POST /auth/ctrl/RemoveAppAutoProvPolicy AppAutoProvPolicy RemoveAppAutoProvPolicy
+	// Remove an AutoProvPolicy from the App.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
 	// swagger:route POST /auth/ctrl/CreateCloudlet Cloudlet CreateCloudlet
 	// Create Cloudlet.
 	//  Sets up Cloudlet services on the Operators compute resources, and integrated as part of MobiledgeX edge resource portfolio. These resources are managed from the Edge Controller.
@@ -450,8 +573,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigCleanupMode: 21.11
 	// ConfigRegion: 21.12
 	// ConfigCommercialCerts: 21.13
-	// ConfigUseVaultCerts: 21.14
-	// ConfigUseVaultCas: 21.15
+	// ConfigUseVaultPki: 21.14
 	// ConfigAppDnsRoot: 21.16
 	// ConfigChefServerPath: 21.17
 	// ConfigChefClientInterval: 21.18
@@ -488,6 +610,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAtNanos: 36.2
 	// TrustPolicy: 37
 	// TrustPolicyState: 38
+	// ResourceQuotas: 39
+	// ResourceQuotasName: 39.1
+	// ResourceQuotasValue: 39.2
+	// ResourceQuotasAlertThreshold: 39.3
+	// DefaultResourceAlertThreshold: 40
+	// HostController: 41
 	// ```
 	// Security:
 	//   Bearer:
@@ -530,6 +658,28 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GetCloudletProps", GetCloudletProps)
+	// swagger:route POST /auth/ctrl/GetCloudletResourceQuotaProps CloudletResourceQuotaProps GetCloudletResourceQuotaProps
+	// Get Cloudlet Resource Quota Properties.
+	//  Shows all the resource quota properties of the cloudlet
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetCloudletResourceQuotaProps", GetCloudletResourceQuotaProps)
+	// swagger:route POST /auth/ctrl/GetCloudletResourceUsage CloudletResourceUsage GetCloudletResourceUsage
+	// Get Cloudlet resource information.
+	//  Shows cloudlet resources used and their limits
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetCloudletResourceUsage", GetCloudletResourceUsage)
 	// swagger:route POST /auth/ctrl/AddCloudletResMapping CloudletResMap AddCloudletResMapping
 	// Add Optional Resource tag table.
 	// Security:
@@ -836,116 +986,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAutoScalePolicy", ShowAutoScalePolicy)
-	// swagger:route POST /auth/ctrl/CreateApp App CreateApp
-	// Create Application.
-	//  Creates a definition for an application instance for Cloudlet deployment.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateApp", CreateApp)
-	// swagger:route POST /auth/ctrl/DeleteApp App DeleteApp
-	// Delete Application.
-	//  Deletes a definition of an Application instance. Make sure no other application instances exist with that definition. If they do exist, you must delete those Application instances first.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteApp", DeleteApp)
-	// swagger:route POST /auth/ctrl/UpdateApp App UpdateApp
-	// Update Application.
-	//  Updates the definition of an Application instance.
-	// The following values should be added to `App.fields` field array to specify which fields will be updated.
-	// ```
-	// Key: 2
-	// KeyOrganization: 2.1
-	// KeyName: 2.2
-	// KeyVersion: 2.3
-	// ImagePath: 4
-	// ImageType: 5
-	// AccessPorts: 7
-	// DefaultFlavor: 9
-	// DefaultFlavorName: 9.1
-	// AuthPublicKey: 12
-	// Command: 13
-	// Annotations: 14
-	// Deployment: 15
-	// DeploymentManifest: 16
-	// DeploymentGenerator: 17
-	// AndroidPackageName: 18
-	// DelOpt: 20
-	// Configs: 21
-	// ConfigsKind: 21.1
-	// ConfigsConfig: 21.2
-	// ScaleWithCluster: 22
-	// InternalPorts: 23
-	// Revision: 24
-	// OfficialFqdn: 25
-	// Md5Sum: 26
-	// DefaultSharedVolumeSize: 27
-	// AutoProvPolicy: 28
-	// AccessType: 29
-	// DeletePrepare: 31
-	// AutoProvPolicies: 32
-	// TemplateDelimiter: 33
-	// SkipHcPorts: 34
-	// CreatedAt: 35
-	// CreatedAtSeconds: 35.1
-	// CreatedAtNanos: 35.2
-	// UpdatedAt: 36
-	// UpdatedAtSeconds: 36.1
-	// UpdatedAtNanos: 36.2
-	// Trusted: 37
-	// RequiredOutboundConnections: 38
-	// RequiredOutboundConnectionsProtocol: 38.1
-	// RequiredOutboundConnectionsPort: 38.2
-	// RequiredOutboundConnectionsRemoteIp: 38.4
-	// ```
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateApp", UpdateApp)
-	// swagger:route POST /auth/ctrl/ShowApp App ShowApp
-	// Show Applications.
-	//  Lists all Application definitions managed from the Edge Controller. Any fields specified will be used to filter results.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowApp", ShowApp)
-	// swagger:route POST /auth/ctrl/AddAppAutoProvPolicy AppAutoProvPolicy AddAppAutoProvPolicy
-	// .
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/AddAppAutoProvPolicy", AddAppAutoProvPolicy)
-	// swagger:route POST /auth/ctrl/RemoveAppAutoProvPolicy AppAutoProvPolicy RemoveAppAutoProvPolicy
-	// .
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
 	// swagger:route POST /auth/ctrl/CreateClusterInst ClusterInst CreateClusterInst
 	// Create Cluster Instance.
 	//  Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key. ClusterInst is a collection of compute resources on a Cloudlet on which AppInsts are deployed.
@@ -1031,6 +1071,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 30
 	// UpdatedAtSeconds: 30.1
 	// UpdatedAtNanos: 30.2
+	// ReservationEndedAt: 31
+	// ReservationEndedAtSeconds: 31.1
+	// ReservationEndedAtNanos: 31.2
 	// ```
 	// Security:
 	//   Bearer:
@@ -1051,6 +1094,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowClusterInst", ShowClusterInst)
+	// swagger:route POST /auth/ctrl/DeleteIdleReservableClusterInsts IdleReservableClusterInsts DeleteIdleReservableClusterInsts
+	// Cleanup Reservable Cluster Instances.
+	//  Deletes reservable cluster instances that are not in use.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteIdleReservableClusterInsts", DeleteIdleReservableClusterInsts)
 	// swagger:route POST /auth/ctrl/CreateAutoProvPolicy AutoProvPolicy CreateAutoProvPolicy
 	// Create an Auto Provisioning Policy.
 	// Security:
@@ -1286,7 +1340,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// Configs: 27
 	// ConfigsKind: 27.1
 	// ConfigsConfig: 27.2
-	// SharedVolumeSize: 28
 	// HealthCheck: 29
 	// PrivacyPolicy: 30
 	// PowerState: 31
@@ -1297,6 +1350,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAt: 36
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
+	// RealClusterName: 37
 	// ```
 	// Security:
 	//   Bearer:
@@ -1379,7 +1433,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowNode", ShowNode)
 	// swagger:route POST /auth/ctrl/EnableDebugLevels DebugRequest EnableDebugLevels
-	// .
+	// Enable debug log levels.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1389,7 +1443,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/EnableDebugLevels", EnableDebugLevels)
 	// swagger:route POST /auth/ctrl/DisableDebugLevels DebugRequest DisableDebugLevels
-	// .
+	// Disable debug log levels.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1399,7 +1453,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DisableDebugLevels", DisableDebugLevels)
 	// swagger:route POST /auth/ctrl/ShowDebugLevels DebugRequest ShowDebugLevels
-	// .
+	// Show debug log levels.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1409,7 +1463,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowDebugLevels", ShowDebugLevels)
 	// swagger:route POST /auth/ctrl/RunDebug DebugRequest RunDebug
-	// .
+	// Run debug command.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1419,7 +1473,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RunDebug", RunDebug)
 	// swagger:route POST /auth/ctrl/InjectDevice Device InjectDevice
-	// .
+	// Inject a device.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1429,7 +1483,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/InjectDevice", InjectDevice)
 	// swagger:route POST /auth/ctrl/ShowDevice Device ShowDevice
-	// .
+	// Show devices.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1439,7 +1493,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowDevice", ShowDevice)
 	// swagger:route POST /auth/ctrl/EvictDevice Device EvictDevice
-	// .
+	// Evict a device.
 	// Security:
 	//   Bearer:
 	// responses:

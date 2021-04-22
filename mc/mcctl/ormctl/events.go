@@ -5,12 +5,14 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/cli"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	"github.com/mobiledgex/jaeger/plugin/storage/es/spanstore/dbmodel"
 	"github.com/spf13/cobra"
 )
 
 func GetEventsCommand() *cobra.Command {
 	cmds := []*cli.Command{&cli.Command{
 		Use:          "show",
+		Short:        "Show events and audit events",
 		OptionalArgs: strings.Join(EventsOptionalArgs, " "),
 		AliasArgs:    strings.Join(EventsAliasArgs, " "),
 		Comments:     addRegionComment(EventsComments),
@@ -19,7 +21,18 @@ func GetEventsCommand() *cobra.Command {
 		ReplyData:    &[]node.EventData{},
 		Run:          runRest("/auth/events/show"),
 	}, &cli.Command{
+		Use:          "showold",
+		Short:        "Show events and audit events (for old events format)",
+		OptionalArgs: strings.Join(EventsOptionalArgs, " "),
+		AliasArgs:    strings.Join(EventsAliasArgs, " "),
+		Comments:     addRegionComment(EventsComments),
+		SpecialArgs:  &EventsSpecialArgs,
+		ReqData:      &node.EventSearch{},
+		ReplyData:    &[]node.EventDataOld{},
+		Run:          runRest("/auth/events/show"),
+	}, &cli.Command{
 		Use:          "find",
+		Short:        "Find events and audit events, results sorted by relevance",
 		OptionalArgs: strings.Join(EventsOptionalArgs, " "),
 		AliasArgs:    strings.Join(EventsAliasArgs, " "),
 		Comments:     addRegionComment(EventsComments),
@@ -29,6 +42,7 @@ func GetEventsCommand() *cobra.Command {
 		Run:          runRest("/auth/events/find"),
 	}, &cli.Command{
 		Use:          "terms",
+		Short:        "Show aggregated events terms",
 		OptionalArgs: strings.Join(EventsOptionalArgs, " "),
 		AliasArgs:    strings.Join(EventsAliasArgs, " "),
 		Comments:     addRegionComment(EventsComments),
@@ -37,7 +51,42 @@ func GetEventsCommand() *cobra.Command {
 		ReplyData:    &node.EventTerms{},
 		Run:          runRest("/auth/events/terms"),
 	}}
-	return cli.GenGroup("events", "view or find events", cmds)
+	return cli.GenGroup("events", "Search events and audit events", cmds)
+}
+
+func GetSpansCommand() *cobra.Command {
+	cmds := []*cli.Command{&cli.Command{
+		Use:          "terms",
+		Short:        "Show aggregated spans terms",
+		OptionalArgs: strings.Join(ShowSpansOptionalArgs, " "),
+		AliasArgs:    strings.Join(ShowSpansAliasArgs, " "),
+		Comments:     addRegionComment(ShowSpansComments),
+		SpecialArgs:  &ShowSpansSpecialArgs,
+		ReqData:      &node.SpanSearch{},
+		ReplyData:    &node.SpanTerms{},
+		Run:          runRest("/auth/spans/terms"),
+	}, &cli.Command{
+		Use:          "show",
+		Short:        "Search spans",
+		OptionalArgs: strings.Join(ShowSpansOptionalArgs, " "),
+		AliasArgs:    strings.Join(ShowSpansAliasArgs, " "),
+		Comments:     addRegionComment(ShowSpansComments),
+		SpecialArgs:  &ShowSpansSpecialArgs,
+		ReqData:      &node.SpanSearch{},
+		ReplyData:    &[]node.SpanOutCondensed{},
+		Run:          runRest("/auth/spans/show"),
+	}, &cli.Command{
+		Use:          "showverbose",
+		Short:        "Search spans, output raw format",
+		OptionalArgs: strings.Join(ShowSpansOptionalArgs, " "),
+		AliasArgs:    strings.Join(ShowSpansAliasArgs, " "),
+		Comments:     addRegionComment(ShowSpansComments),
+		SpecialArgs:  &ShowSpansSpecialArgs,
+		ReqData:      &node.SpanSearch{},
+		ReplyData:    &[]dbmodel.Span{},
+		Run:          runRest("/auth/spans/showverbose"),
+	}}
+	return cli.GenGroup("spans", "Search spans", cmds)
 }
 
 var EventsOptionalArgs = []string{
@@ -111,4 +160,82 @@ var EventsSpecialArgs = map[string]string{
 	"notmatch.types":   "StringArray",
 	"notmatch.regions": "StringArray",
 	"notmatch.tags":    "StringToString",
+}
+
+var ShowSpansOptionalArgs = []string{
+	"service",
+	"operation",
+	"hostname",
+	"tagvalue",
+	"tagkeyvalue",
+	"logmsg",
+	"logvalue",
+	"logkeyvalue",
+	"starttime",
+	"endtime",
+	"startage",
+	"endage",
+	"from",
+	"limit",
+	"searchbyrelevance",
+}
+
+var ShowSpansAliasArgs = []string{
+	"service=match.services",
+	"operation=match.operations",
+	"hostname=match.hostnames",
+	"tagvalue=match.tagvalues",
+	"tagkeyvalue=match.tagkeyvalues",
+	"logmsg=match.logmsgs",
+	"logvalue=match.logvalues",
+	"logkeyvalue=match.logkeyvalues",
+	"notservice=notmatch.services",
+	"notoperation=notmatch.operations",
+	"nothostname=notmatch.hostnames",
+	"nottagvalue=match.nottagvalues",
+	"nottagkeyvalue=match.nottagkeyvalues",
+	"notlogmsg=notmatch.logmsgs",
+	"notlogvalue=notmatch.logvalues",
+	"notlogkeyvalue=notmatch.logkeyvalues",
+	"starttime=timerange.starttime",
+	"endtime=timerange.endtime",
+	"startage=timerange.startage",
+	"endage=timerange.endage",
+}
+
+var ShowSpansComments = map[string]string{
+	"service":           "name of the service: mc, controller, dme, etc., may be specified multiple times",
+	"operation":         "name of the span operation, i.e. FindCloudlet, may be specified multiple times",
+	"hostname":          "hostname of the container/VM running the service, may be specified multiple times",
+	"tagvalue":          "tag value of any key, may be specified multiple times",
+	"tagkeyvalue":       "tag key=value, may be specified multiple times",
+	"logmsg":            "log message (first string arg to log.SpanLog), may be specified multiple times",
+	"logvalue":          "log value of any key, may be specified multiple times, values longer than 256 chars cannot be searched",
+	"logkeyvalue":       "log key=value, may be specified multiple times, values longer than 256 chars cannot be searched",
+	"starttime":         "absolute time of search range start (RFC3339)",
+	"endtime":           "absolute time of search range end (RFC3339)",
+	"startage":          "relative age from now of search range start (default 48h)",
+	"endage":            "relative age from now of search range end (default 0)",
+	"from":              "start offset if paging through results",
+	"limit":             "number of results to return, either to limit or for paging results",
+	"searchbyrelevance": "search results by relevance instead of time",
+}
+
+var ShowSpansSpecialArgs = map[string]string{
+	"match.services":        "StringArray",
+	"match.operations":      "StringArray",
+	"match.hostnames":       "StringArray",
+	"match.tagvalues":       "StringArray",
+	"match.tagkeyvalues":    "StringToString",
+	"match.logmsgs":         "StringArray",
+	"match.logvalues":       "StringArray",
+	"match.logkeyvalues":    "StringToString",
+	"notmatch.services":     "StringArray",
+	"notmatch.operations":   "StringArray",
+	"notmatch.hostnames":    "StringArray",
+	"notmatch.tagvalues":    "StringArray",
+	"notmatch.tagkeyvalues": "StringToString",
+	"notmatch.logmsgs":      "StringArray",
+	"notmatch.logvalues":    "StringArray",
+	"notmatch.logkeyvalues": "StringToString",
 }

@@ -24,9 +24,9 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func (s *Client) CreateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error) {
-	args := []string{"region", "CreateApp"}
+	args := []string{"app", "create"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,DelOpt", ",")
+	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,DelOpt,AutoProvPolicy", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -35,9 +35,9 @@ func (s *Client) CreateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.
 }
 
 func (s *Client) DeleteApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error) {
-	args := []string{"region", "DeleteApp"}
+	args := []string{"app", "delete"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,DelOpt", ",")
+	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,DelOpt,AutoProvPolicy", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -46,9 +46,9 @@ func (s *Client) DeleteApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.
 }
 
 func (s *Client) UpdateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.Result, int, error) {
-	args := []string{"region", "UpdateApp"}
+	args := []string{"app", "update"}
 	out := edgeproto.Result{}
-	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,DelOpt", ",")
+	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,DelOpt,AutoProvPolicy", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
 	if err != nil {
 		return nil, st, err
@@ -57,9 +57,9 @@ func (s *Client) UpdateApp(uri, token string, in *ormapi.RegionApp) (*edgeproto.
 }
 
 func (s *Client) ShowApp(uri, token string, in *ormapi.RegionApp) ([]edgeproto.App, int, error) {
-	args := []string{"region", "ShowApp"}
+	args := []string{"app", "show"}
 	outlist := []edgeproto.App{}
-	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,DelOpt", ",")
+	noconfig := strings.Split("DeletePrepare,CreatedAt,UpdatedAt,DelOpt,AutoProvPolicy", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}
@@ -68,7 +68,7 @@ func (s *Client) ShowApp(uri, token string, in *ormapi.RegionApp) ([]edgeproto.A
 }
 
 func (s *Client) AddAppAutoProvPolicy(uri, token string, in *ormapi.RegionAppAutoProvPolicy) (*edgeproto.Result, int, error) {
-	args := []string{"region", "AddAppAutoProvPolicy"}
+	args := []string{"app", "addautoprovpolicy"}
 	out := edgeproto.Result{}
 	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))
@@ -79,7 +79,7 @@ func (s *Client) AddAppAutoProvPolicy(uri, token string, in *ormapi.RegionAppAut
 }
 
 func (s *Client) RemoveAppAutoProvPolicy(uri, token string, in *ormapi.RegionAppAutoProvPolicy) (*edgeproto.Result, int, error) {
-	args := []string{"region", "RemoveAppAutoProvPolicy"}
+	args := []string{"app", "removeautoprovpolicy"}
 	out := edgeproto.Result{}
 	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))

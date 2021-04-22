@@ -10,7 +10,10 @@ REGION="$2"
 
 set -e
 
-POD=$( kubectl get pods --selector=k8s-app=influxdb --output='jsonpath={.items[*].metadata.name}' )
+POD=$( kubectl get pods \
+	--selector=k8s-app=influxdb \
+	--field-selector status.phase=Running \
+	--output='jsonpath={.items[*].metadata.name}' )
 
 echo "Backing up influxdb"
 kubectl exec "$POD" -- rm -rf "$BACKUPDIR"

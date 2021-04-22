@@ -25,7 +25,8 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 var CreateClusterInstCmd = &cli.Command{
-	Use:                  "CreateClusterInst",
+	Use:                  "create",
+	Short:                "Create Cluster Instance. Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key. ClusterInst is a collection of compute resources on a Cloudlet on which AppInsts are deployed.",
 	RequiredArgs:         "region " + strings.Join(ClusterInstRequiredArgs, " "),
 	OptionalArgs:         strings.Join(ClusterInstOptionalArgs, " "),
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
@@ -39,7 +40,8 @@ var CreateClusterInstCmd = &cli.Command{
 }
 
 var DeleteClusterInstCmd = &cli.Command{
-	Use:                  "DeleteClusterInst",
+	Use:                  "delete",
+	Short:                "Delete Cluster Instance. Deletes an instance of a Cluster deployed on a Cloudlet.",
 	RequiredArgs:         "region " + strings.Join(ClusterInstRequiredArgs, " "),
 	OptionalArgs:         strings.Join(ClusterInstOptionalArgs, " "),
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
@@ -53,7 +55,8 @@ var DeleteClusterInstCmd = &cli.Command{
 }
 
 var UpdateClusterInstCmd = &cli.Command{
-	Use:          "UpdateClusterInst",
+	Use:          "update",
+	Short:        "Update Cluster Instance. Updates an instance of a Cluster deployed on a Cloudlet.",
 	RequiredArgs: "region " + strings.Join(UpdateClusterInstRequiredArgs, " "),
 	OptionalArgs: strings.Join(UpdateClusterInstOptionalArgs, " "),
 	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
@@ -89,7 +92,8 @@ func setUpdateClusterInstFields(in map[string]interface{}) {
 }
 
 var ShowClusterInstCmd = &cli.Command{
-	Use:          "ShowClusterInst",
+	Use:          "show",
+	Short:        "Show Cluster Instances. Lists all the cluster instances managed by Edge Controller.",
 	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(ClusterInstRequiredArgs, ClusterInstOptionalArgs...), " "),
 	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
@@ -101,12 +105,28 @@ var ShowClusterInstCmd = &cli.Command{
 	StreamOut:    true,
 }
 
+var DeleteIdleReservableClusterInstsCmd = &cli.Command{
+	Use:          "deleteidlereservables",
+	Short:        "Cleanup Reservable Cluster Instances. Deletes reservable cluster instances that are not in use.",
+	RequiredArgs: "region " + strings.Join(IdleReservableClusterInstsRequiredArgs, " "),
+	OptionalArgs: strings.Join(IdleReservableClusterInstsOptionalArgs, " "),
+	AliasArgs:    strings.Join(IdleReservableClusterInstsAliasArgs, " "),
+	SpecialArgs:  &IdleReservableClusterInstsSpecialArgs,
+	Comments:     addRegionComment(IdleReservableClusterInstsComments),
+	ReqData:      &ormapi.RegionIdleReservableClusterInsts{},
+	ReplyData:    &edgeproto.Result{},
+	Run:          runRest("/auth/ctrl/DeleteIdleReservableClusterInsts"),
+}
+
 var ClusterInstApiCmds = []*cli.Command{
 	CreateClusterInstCmd,
 	DeleteClusterInstCmd,
 	UpdateClusterInstCmd,
 	ShowClusterInstCmd,
+	DeleteIdleReservableClusterInstsCmd,
 }
+
+var ClusterInstApiCmdsGroup = cli.GenGroup("clusterinst", "Manage ClusterInsts", ClusterInstApiCmds)
 
 var UpdateClusterInstRequiredArgs = []string{
 	"cluster",
@@ -119,6 +139,8 @@ var UpdateClusterInstOptionalArgs = []string{
 	"numnodes",
 	"autoscalepolicy",
 	"skipcrmcleanuponfailure",
+	"reservationendedat.seconds",
+	"reservationendedat.nanos",
 }
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
@@ -158,6 +180,8 @@ var ClusterInstOptionalArgs = []string{
 	"reservable",
 	"sharedvolumesize",
 	"skipcrmcleanuponfailure",
+	"reservationendedat.seconds",
+	"reservationendedat.nanos",
 }
 var ClusterInstAliasArgs = []string{
 	"fields=clusterinst.fields",
@@ -208,6 +232,8 @@ var ClusterInstAliasArgs = []string{
 	"createdat.nanos=clusterinst.createdat.nanos",
 	"updatedat.seconds=clusterinst.updatedat.seconds",
 	"updatedat.nanos=clusterinst.updatedat.nanos",
+	"reservationendedat.seconds=clusterinst.reservationendedat.seconds",
+	"reservationendedat.nanos=clusterinst.reservationendedat.nanos",
 }
 var ClusterInstComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -238,7 +264,7 @@ var ClusterInstComments = map[string]string{
 	"skipcrmcleanuponfailure":                "Prevents cleanup of resources on failure within CRM, used for diagnostic purposes",
 	"optres":                                 "Optional Resources required by OS flavor if any",
 	"resources.vms:#.name":                   "Virtual machine name",
-	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-node, vmapp",
+	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-k8s-node, cluster-docker-node, appvm",
 	"resources.vms:#.status":                 "Runtime status of the VM",
 	"resources.vms:#.infraflavor":            "Flavor allocated within the cloudlet infrastructure, distinct from the control plane flavor",
 	"resources.vms:#.containers:#.name":      "Name of the container",
@@ -252,6 +278,17 @@ var ClusterInstSpecialArgs = map[string]string{
 	"clusterinst.fields":      "StringArray",
 	"clusterinst.status.msgs": "StringArray",
 }
+var IdleReservableClusterInstsRequiredArgs = []string{}
+var IdleReservableClusterInstsOptionalArgs = []string{
+	"idletime",
+}
+var IdleReservableClusterInstsAliasArgs = []string{
+	"idletime=idlereservableclusterinsts.idletime",
+}
+var IdleReservableClusterInstsComments = map[string]string{
+	"idletime": "Idle time (duration)",
+}
+var IdleReservableClusterInstsSpecialArgs = map[string]string{}
 var ClusterInstInfoRequiredArgs = []string{
 	"key.clusterkey.name",
 	"key.cloudletkey.organization",
@@ -317,7 +354,7 @@ var ClusterInstInfoComments = map[string]string{
 	"state":                                  "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"errors":                                 "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
 	"resources.vms:#.name":                   "Virtual machine name",
-	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-node, vmapp",
+	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-k8s-node, cluster-docker-node, appvm",
 	"resources.vms:#.status":                 "Runtime status of the VM",
 	"resources.vms:#.infraflavor":            "Flavor allocated within the cloudlet infrastructure, distinct from the control plane flavor",
 	"resources.vms:#.containers:#.name":      "Name of the container",

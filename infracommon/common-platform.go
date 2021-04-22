@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chef/chef"
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
+	"github.com/mobiledgex/edge-cloud-infra/version"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -24,10 +25,12 @@ type CommonPlatform struct {
 	ChefClient        *chef.Client
 	ChefServerPath    string
 	DeploymentTag     string
+	SshKey            CloudletSSHKey
 }
 
 // Package level test mode variable
 var testMode = false
+var edgeboxMode = false
 
 func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf.PlatformConfig, platformSpecificProps map[string]*edgeproto.PropertyInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon", "cloudletKey", platformConfig.CloudletKey)
@@ -52,7 +55,7 @@ func (c *CommonPlatform) InitInfraCommon(ctx context.Context, platformConfig *pf
 		return fmt.Errorf("unable to init Mapped IPs: %v", err)
 	}
 
-	if testMode {
+	if testMode || edgeboxMode {
 		return nil
 	}
 
@@ -104,6 +107,10 @@ func SetTestMode(tMode bool) {
 	testMode = tMode
 }
 
+func SetEdgeboxMode(mode bool) {
+	edgeboxMode = mode
+}
+
 // initMappedIPs takes the env var MEX_EXTERNAL_IP_MAP contents like:
 // fromip1=toip1,fromip2=toip2 and populates mappedExternalIPs
 func (c *CommonPlatform) initMappedIPs() error {
@@ -120,6 +127,23 @@ func (c *CommonPlatform) initMappedIPs() error {
 			toip := ia[1]
 			c.MappedExternalIPs[fromip] = toip
 		}
+	}
+	return nil
+}
+
+// ValidateExternalIPMapping checjs mapped IPs are defined but there is no entry for this particular
+// IP, then it may indicate a provisioning error in which the external range is not matched with the
+// internal range
+func (c *CommonPlatform) ValidateExternalIPMapping(ctx context.Context, ip string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ValidateExternalIPMapping", "ip", ip)
+
+	if len(c.MappedExternalIPs) == 0 {
+		// no mapped ips defined
+		return nil
+	}
+	_, ok := c.MappedExternalIPs[ip]
+	if !ok {
+		return fmt.Errorf("Mapped IPs defined but IP %s not found in map", ip)
 	}
 	return nil
 }
@@ -149,4 +173,10 @@ func GetPlatformConfig(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.Platfor
 		AccessApi:           accessApi,
 	}
 	return &platCfg
+}
+
+type CommonEmbedded struct{}
+
+func (c *CommonEmbedded) GetVersionProperties() map[string]string {
+	return version.InfraBuildProps("Platform")
 }

@@ -15,6 +15,7 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
+	"google.golang.org/grpc/status"
 	"io"
 	math "math"
 )
@@ -301,11 +302,16 @@ func ShowClusterInst(c echo.Context) error {
 	return nil
 }
 
+type ShowClusterInstAuthz interface {
+	Ok(obj *edgeproto.ClusterInst) (bool, bool)
+	Filter(obj *edgeproto.ClusterInst)
+}
+
 func ShowClusterInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.ClusterInst)) error {
-	var authz *AuthzShow
+	var authz ShowClusterInstAuthz
 	var err error
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceClusterInsts, ActionView)
+		authz, err = newShowClusterInstAuthz(ctx, rc.region, rc.username, ResourceClusterInsts, ActionView)
 		if err != nil {
 			return err
 		}
@@ -336,8 +342,12 @@ func ShowClusterInstStream(ctx context.Context, rc *RegionContext, obj *edgeprot
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.Organization) {
+			authzOk, filterOutput := authz.Ok(res)
+			if !authzOk {
 				continue
+			}
+			if filterOutput {
+				authz.Filter(res)
 			}
 		}
 		cb(res)
@@ -351,4 +361,55 @@ func ShowClusterInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.C
 		arr = append(arr, *res)
 	})
 	return arr, err
+}
+
+func DeleteIdleReservableClusterInsts(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionIdleReservableClusterInsts{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(c, err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	resp, err := DeleteIdleReservableClusterInstsObj(ctx, rc, &in.IdleReservableClusterInsts)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+	}
+	return setReply(c, err, resp)
+}
+
+func DeleteIdleReservableClusterInstsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.IdleReservableClusterInsts) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteIdleReservableClusterInsts(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceClusterInsts, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewClusterInstApiClient(rc.conn)
+	return api.DeleteIdleReservableClusterInsts(ctx, obj)
 }

@@ -23,13 +23,11 @@ type VSpherePlatform struct {
 	caches       *platform.Caches
 }
 
-func (v *VSpherePlatform) GetType() string {
-	return "vsphere"
-}
-
 func (v *VSpherePlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
 	vmProperties.IptablesBasedFirewall = true
+	vmProperties.RunLbDhcpServerForVmApps = true
+	vmProperties.AppendFlavorToVmAppImage = true
 }
 
 func (v *VSpherePlatform) InitData(ctx context.Context, caches *platform.Caches) {
@@ -53,8 +51,8 @@ func (v *VSpherePlatform) InitProvider(ctx context.Context, caches *platform.Cac
 	return nil
 }
 
-func (v *VSpherePlatform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, error) {
-	return ctx, nil
+func (v *VSpherePlatform) InitOperationContext(ctx context.Context, operationStage vmlayer.OperationInitStage) (context.Context, vmlayer.OperationInitResult, error) {
+	return ctx, vmlayer.OperationNewlyInitialized, nil
 }
 
 func (v *VSpherePlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {

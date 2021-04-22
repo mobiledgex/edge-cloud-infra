@@ -25,7 +25,8 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 var CreateAppInstCmd = &cli.Command{
-	Use:                  "CreateAppInst",
+	Use:                  "create",
+	Short:                "Create Application Instance. Creates an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key. Many of the fields here are inherited from the App definition.",
 	RequiredArgs:         "region " + strings.Join(CreateAppInstRequiredArgs, " "),
 	OptionalArgs:         strings.Join(CreateAppInstOptionalArgs, " "),
 	AliasArgs:            strings.Join(AppInstAliasArgs, " "),
@@ -39,7 +40,8 @@ var CreateAppInstCmd = &cli.Command{
 }
 
 var DeleteAppInstCmd = &cli.Command{
-	Use:                  "DeleteAppInst",
+	Use:                  "delete",
+	Short:                "Delete Application Instance. Deletes an instance of the App from the Cloudlet.",
 	RequiredArgs:         "region " + strings.Join(DeleteAppInstRequiredArgs, " "),
 	OptionalArgs:         strings.Join(DeleteAppInstOptionalArgs, " "),
 	AliasArgs:            strings.Join(AppInstAliasArgs, " "),
@@ -53,7 +55,8 @@ var DeleteAppInstCmd = &cli.Command{
 }
 
 var RefreshAppInstCmd = &cli.Command{
-	Use:                  "RefreshAppInst",
+	Use:                  "refresh",
+	Short:                "Refresh Application Instance. Restarts an App instance with new App settings or image.",
 	RequiredArgs:         "region " + strings.Join(RefreshAppInstRequiredArgs, " "),
 	OptionalArgs:         strings.Join(RefreshAppInstOptionalArgs, " "),
 	AliasArgs:            strings.Join(AppInstAliasArgs, " "),
@@ -67,7 +70,8 @@ var RefreshAppInstCmd = &cli.Command{
 }
 
 var UpdateAppInstCmd = &cli.Command{
-	Use:          "UpdateAppInst",
+	Use:          "update",
+	Short:        "Update Application Instance. Updates an Application instance and then refreshes it.",
 	RequiredArgs: "region " + strings.Join(UpdateAppInstRequiredArgs, " "),
 	OptionalArgs: strings.Join(UpdateAppInstOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppInstAliasArgs, " "),
@@ -103,7 +107,8 @@ func setUpdateAppInstFields(in map[string]interface{}) {
 }
 
 var ShowAppInstCmd = &cli.Command{
-	Use:          "ShowAppInst",
+	Use:          "show",
+	Short:        "Show Application Instances. Lists all the Application instances managed by the Edge Controller. Any fields specified will be used to filter results.",
 	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(AppInstRequiredArgs, AppInstOptionalArgs...), " "),
 	AliasArgs:    strings.Join(AppInstAliasArgs, " "),
@@ -123,6 +128,8 @@ var AppInstApiCmds = []*cli.Command{
 	ShowAppInstCmd,
 }
 
+var AppInstApiCmdsGroup = cli.GenGroup("appinst", "Manage AppInsts", AppInstApiCmds)
+
 var CreateAppInstRequiredArgs = []string{
 	"app-org",
 	"appname",
@@ -135,12 +142,11 @@ var CreateAppInstOptionalArgs = []string{
 	"cluster-org",
 	"flavor",
 	"crmoverride",
-	"autoclusteripaccess",
 	"configs:#.kind",
 	"configs:#.config",
-	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"realclustername",
 }
 var DeleteAppInstRequiredArgs = []string{
 	"app-org",
@@ -154,14 +160,13 @@ var DeleteAppInstOptionalArgs = []string{
 	"cluster-org",
 	"flavor",
 	"crmoverride",
-	"autoclusteripaccess",
 	"forceupdate",
 	"updatemultiple",
 	"configs:#.kind",
 	"configs:#.config",
-	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
+	"realclustername",
 }
 var RefreshAppInstRequiredArgs = []string{
 	"app-org",
@@ -177,6 +182,7 @@ var RefreshAppInstOptionalArgs = []string{
 	"forceupdate",
 	"updatemultiple",
 	"privacypolicy",
+	"realclustername",
 }
 var UpdateAppInstRequiredArgs = []string{
 	"app-org",
@@ -193,11 +199,13 @@ var UpdateAppInstOptionalArgs = []string{
 	"configs:#.config",
 	"privacypolicy",
 	"powerstate",
+	"realclustername",
 }
 
 var RequestAppInstLatencyCmd = &cli.Command{
-	Use:          "RequestAppInstLatency",
-	RequiredArgs: strings.Join(AppInstLatencyRequiredArgs, " "),
+	Use:          "request",
+	Short:        "Request Latency measurements for clients connected to AppInst",
+	RequiredArgs: "region " + strings.Join(AppInstLatencyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppInstLatencyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppInstLatencyAliasArgs, " "),
 	SpecialArgs:  &AppInstLatencySpecialArgs,
@@ -211,6 +219,28 @@ var AppInstLatencyApiCmds = []*cli.Command{
 	RequestAppInstLatencyCmd,
 }
 
+var AppInstLatencyApiCmdsGroup = cli.GenGroup("appinstlatency", "Manage AppInstLatencys", AppInstLatencyApiCmds)
+
+var VirtualClusterInstKeyRequiredArgs = []string{}
+var VirtualClusterInstKeyOptionalArgs = []string{
+	"clusterkey.name",
+	"cloudletkey.organization",
+	"cloudletkey.name",
+	"organization",
+}
+var VirtualClusterInstKeyAliasArgs = []string{
+	"clusterkey.name=virtualclusterinstkey.clusterkey.name",
+	"cloudletkey.organization=virtualclusterinstkey.cloudletkey.organization",
+	"cloudletkey.name=virtualclusterinstkey.cloudletkey.name",
+	"organization=virtualclusterinstkey.organization",
+}
+var VirtualClusterInstKeyComments = map[string]string{
+	"clusterkey.name":          "Cluster name",
+	"cloudletkey.organization": "Organization of the cloudlet site",
+	"cloudletkey.name":         "Name of the cloudlet",
+	"organization":             "Name of Developer organization that this cluster belongs to",
+}
+var VirtualClusterInstKeySpecialArgs = map[string]string{}
 var AppInstKeyRequiredArgs = []string{}
 var AppInstKeyOptionalArgs = []string{
 	"appkey.organization",
@@ -252,15 +282,14 @@ var AppInstOptionalArgs = []string{
 	"cluster-org",
 	"flavor",
 	"crmoverride",
-	"autoclusteripaccess",
 	"forceupdate",
 	"updatemultiple",
 	"configs:#.kind",
 	"configs:#.config",
-	"sharedvolumesize",
 	"healthcheck",
 	"privacypolicy",
 	"powerstate",
+	"realclustername",
 }
 var AppInstAliasArgs = []string{
 	"fields=appinst.fields",
@@ -308,7 +337,6 @@ var AppInstAliasArgs = []string{
 	"updatemultiple=appinst.updatemultiple",
 	"configs:#.kind=appinst.configs:#.kind",
 	"configs:#.config=appinst.configs:#.config",
-	"sharedvolumesize=appinst.sharedvolumesize",
 	"healthcheck=appinst.healthcheck",
 	"privacypolicy=appinst.privacypolicy",
 	"powerstate=appinst.powerstate",
@@ -318,6 +346,7 @@ var AppInstAliasArgs = []string{
 	"optres=appinst.optres",
 	"updatedat.seconds=appinst.updatedat.seconds",
 	"updatedat.nanos=appinst.updatedat.nanos",
+	"realclustername=appinst.realclustername",
 }
 var AppInstComments = map[string]string{
 	"fields":                         "Fields are used for the Update API to specify which fields to apply",
@@ -349,13 +378,12 @@ var AppInstComments = map[string]string{
 	"errors":                         "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
 	"crmoverride":                    "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"runtimeinfo.containerids":       "List of container names",
-	"autoclusteripaccess":            "IpAccess for auto-clusters. Ignored otherwise., one of IpAccessUnknown, IpAccessDedicated, IpAccessShared",
+	"autoclusteripaccess":            "(Deprecated) IpAccess for auto-clusters. Ignored otherwise., one of IpAccessUnknown, IpAccessDedicated, IpAccessShared",
 	"revision":                       "Revision changes each time the App is updated.  Refreshing the App Instance will sync the revision with that of the App",
 	"forceupdate":                    "Force Appinst refresh even if revision number matches App revision number.",
 	"updatemultiple":                 "Allow multiple instances to be updated at once",
-	"configs:#.kind":                 "kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
-	"configs:#.config":               "config file contents or URI reference",
-	"sharedvolumesize":               "shared volume size when creating auto cluster",
+	"configs:#.kind":                 "Kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
+	"configs:#.config":               "Config file contents or URI reference",
 	"healthcheck":                    "Health Check status, one of HealthCheckUnknown, HealthCheckFailRootlbOffline, HealthCheckFailServerFail, HealthCheckOk",
 	"privacypolicy":                  "Optional privacy policy name",
 	"powerstate":                     "Power State of the AppInst, one of PowerStateUnknown, PowerOnRequested, PoweringOn, PowerOn, PowerOffRequested, PoweringOff, PowerOff, RebootRequested, Rebooting, Reboot, PowerStateError",
@@ -363,6 +391,7 @@ var AppInstComments = map[string]string{
 	"availabilityzone":               "Optional Availability Zone if any",
 	"vmflavor":                       "OS node flavor to use",
 	"optres":                         "Optional Resources required by OS flavor if any",
+	"realclustername":                "Real ClusterInst name",
 }
 var AppInstSpecialArgs = map[string]string{
 	"appinst.errors":                   "StringArray",
@@ -404,6 +433,7 @@ var AppInstInfoOptionalArgs = []string{
 	"status.msgcount",
 	"status.msgs",
 	"powerstate",
+	"uri",
 }
 var AppInstInfoAliasArgs = []string{
 	"fields=appinstinfo.fields",
@@ -425,6 +455,7 @@ var AppInstInfoAliasArgs = []string{
 	"status.msgcount=appinstinfo.status.msgcount",
 	"status.msgs=appinstinfo.status.msgs",
 	"powerstate=appinstinfo.powerstate",
+	"uri=appinstinfo.uri",
 }
 var AppInstInfoComments = map[string]string{
 	"fields":                                      "Fields are used for the Update API to specify which fields to apply",
@@ -440,6 +471,7 @@ var AppInstInfoComments = map[string]string{
 	"errors":                                      "Any errors trying to create, update, or delete the AppInst on the Cloudlet",
 	"runtimeinfo.containerids":                    "List of container names",
 	"powerstate":                                  "Power State of the AppInst, one of PowerStateUnknown, PowerOnRequested, PoweringOn, PowerOn, PowerOffRequested, PoweringOff, PowerOff, RebootRequested, Rebooting, Reboot, PowerStateError",
+	"uri":                                         "Base FQDN for the App based on the cloudlet platform",
 }
 var AppInstInfoSpecialArgs = map[string]string{
 	"appinstinfo.errors":                   "StringArray",
@@ -534,12 +566,12 @@ var AppInstLatencyRequiredArgs = []string{
 	"app-org",
 	"appname",
 	"appvers",
-	"cluster",
 	"cloudlet-org",
 	"cloudlet",
-	"cluster-org",
 }
 var AppInstLatencyOptionalArgs = []string{
+	"cluster",
+	"cluster-org",
 	"message",
 }
 var AppInstLatencyAliasArgs = []string{

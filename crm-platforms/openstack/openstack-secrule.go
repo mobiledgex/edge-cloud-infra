@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -161,15 +161,15 @@ func (s *OpenstackPlatform) DeleteSecurityGroupRule(ctx context.Context, ruleID 
 	return nil
 }
 
-func (o *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, secGrpName, label, allowedCIDR string, ports []dme.AppPort) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "secGrpName", secGrpName, "ports", ports)
+func (o *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, client ssh.Client, wlParams *infracommon.WhiteListParams) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveWhitelistSecurityRules", "wlParams", wlParams)
 
-	allowedClientCIDR := vmlayer.GetAllowedClientCIDR()
-	rules, err := o.ListSecurityGroupRules(ctx, secGrpName)
+	allowedClientCIDR := infracommon.GetAllowedClientCIDR()
+	rules, err := o.ListSecurityGroupRules(ctx, wlParams.SecGrpName)
 	if err != nil {
 		return err
 	}
-	for _, port := range ports {
+	for _, port := range wlParams.Ports {
 		portString := fmt.Sprintf("%d:%d", port.PublicPort, port.PublicPort)
 		if port.EndPort != 0 {
 			portString = fmt.Sprintf("%d:%d", port.PublicPort, port.EndPort)
@@ -189,11 +189,11 @@ func (o *OpenstackPlatform) RemoveWhitelistSecurityRules(ctx context.Context, cl
 	return nil
 }
 
-func (o *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, grpName, server, label, allowedCidr string, ports []dme.AppPort) error {
+func (o *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, wlParams *infracommon.WhiteListParams) error {
 	// open the firewall for internal traffic
-	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "grpName", grpName, "allowedCidr", allowedCidr, "ports", ports)
+	log.SpanLog(ctx, log.DebugLevelInfra, "WhitelistSecurityRules", "wlParams", wlParams)
 
-	for _, p := range ports {
+	for _, p := range wlParams.Ports {
 		portStr := fmt.Sprintf("%d", p.PublicPort)
 		if p.EndPort != 0 {
 			portStr = fmt.Sprintf("%d:%d", p.PublicPort, p.EndPort)
@@ -202,7 +202,7 @@ func (o *OpenstackPlatform) WhitelistSecurityRules(ctx context.Context, client s
 		if err != nil {
 			return err
 		}
-		if err := o.AddSecurityRuleCIDR(ctx, allowedCidr, proto, grpName, portStr); err != nil {
+		if err := o.AddSecurityRuleCIDR(ctx, wlParams.AllowedCIDR, proto, wlParams.SecGrpName, portStr); err != nil {
 			return err
 		}
 	}
@@ -238,42 +238,46 @@ func (s *OpenstackPlatform) GetSecurityGroupIDForProject(ctx context.Context, gr
 
 // PrepareCloudletSecurityGroup creates the cloudlet group if it does not exist and ensures
 // that the remote-group rules are present to allow platform components to communicate
-func (o *OpenstackPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+func (o *OpenstackPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
 	grpName := o.VMProperties.CloudletSecgrpName
-	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureCloudletSecurityRules", "CloudletSecgrpName", grpName, "egressRestricted", egressRestricted)
+	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureCloudletSecurityRules", "CloudletSecgrpName", grpName, "action", action, "egressRestricted", egressRestricted)
 
-	err := o.CreateOrUpdateCloudletSecgrpStack(ctx, egressRestricted, TrustPolicy, updateCallback)
-	if err != nil {
-		return err
-	}
-	cloudletGrpId, err := o.GetSecurityGroupIDForName(ctx, grpName)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Creating remote-group rules from cloudlet grp to itself", "cloudletGrpId", cloudletGrpId)
-
-	// Add cloudlet group rules to itself and to the platform secrgrp if one exists
-	directions := []string{"ingress", "egress"}
-	remoteGroups := []string{cloudletGrpId}
-
-	platGrpId, err := o.GetSecurityGroupIDForName(ctx, o.VMProperties.PlatformSecgrpName)
-	if err != nil {
-		if strings.Contains(err.Error(), SecgrpDoesNotExist) {
-			// this should only happen if CreateCloudlet was not used to onboard and the CRM was created manually
-			log.SpanLog(ctx, log.DebugLevelInfra, "Platform group does not exist", "platform group", o.VMProperties.PlatformSecgrpName)
-		} else {
+	if action == vmlayer.ActionCreate || action == vmlayer.ActionUpdate {
+		err := o.CreateOrUpdateCloudletSecgrpStack(ctx, egressRestricted, TrustPolicy, updateCallback)
+		if err != nil {
 			return err
 		}
-	} else {
-		remoteGroups = append(remoteGroups, platGrpId)
-	}
-	for _, remote := range remoteGroups {
-		for _, dir := range directions {
-			err = o.AddSecurityRulesForRemoteGroup(ctx, cloudletGrpId, remote, "any", dir)
-			if err != nil {
+		cloudletGrpId, err := o.GetSecurityGroupIDForName(ctx, grpName)
+		if err != nil {
+			return err
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "Creating remote-group rules from cloudlet grp to itself", "cloudletGrpId", cloudletGrpId)
+
+		// Add cloudlet group rules to itself and to the platform secrgrp if one exists
+		directions := []string{"ingress", "egress"}
+		remoteGroups := []string{cloudletGrpId}
+
+		platGrpId, err := o.GetSecurityGroupIDForName(ctx, o.VMProperties.PlatformSecgrpName)
+		if err != nil {
+			if strings.Contains(err.Error(), SecgrpDoesNotExist) {
+				// this should only happen if CreateCloudlet was not used to onboard and the CRM was created manually
+				log.SpanLog(ctx, log.DebugLevelInfra, "Platform group does not exist", "platform group", o.VMProperties.PlatformSecgrpName)
+			} else {
 				return err
 			}
+		} else {
+			remoteGroups = append(remoteGroups, platGrpId)
 		}
+		for _, remote := range remoteGroups {
+			for _, dir := range directions {
+				err = o.AddSecurityRulesForRemoteGroup(ctx, cloudletGrpId, remote, "any", dir)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	} else {
+		return o.DeleteCloudletSecgrpStack(ctx, updateCallback)
 	}
 	return nil
 }
@@ -295,7 +299,7 @@ func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Contex
 	} else {
 		grpExists = true
 	}
-	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromTrustPolicy(ctx, o.VMProperties.CloudletSecgrpName, TrustPolicy, egressRestricted, vmlayer.SecGrpWithAccessPorts("tcp:22", vmlayer.RemoteCidrAll))
+	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromTrustPolicy(ctx, o.VMProperties.CloudletSecgrpName, TrustPolicy, egressRestricted, vmlayer.SecGrpWithAccessPorts("tcp:22", infracommon.RemoteCidrAll))
 	if err != nil {
 		return err
 	}
@@ -340,4 +344,10 @@ func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Contex
 		}
 	}
 	return nil
+}
+
+func (o *OpenstackPlatform) DeleteCloudletSecgrpStack(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
+	grpName := o.VMProperties.CloudletSecgrpName
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudletSecgrpStack", "grpName", grpName)
+	return o.deleteHeatStack(ctx, grpName)
 }

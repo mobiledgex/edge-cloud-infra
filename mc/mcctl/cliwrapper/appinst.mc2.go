@@ -24,9 +24,9 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func (s *Client) CreateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
-	args := []string{"region", "CreateAppInst"}
+	args := []string{"appinst", "create"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,UpdateMultiple,ForceUpdate,PowerState", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,SharedVolumeSize,AutoClusterIpAccess,UpdateMultiple,ForceUpdate,PowerState", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -36,9 +36,9 @@ func (s *Client) CreateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]e
 }
 
 func (s *Client) DeleteAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
-	args := []string{"region", "DeleteAppInst"}
+	args := []string{"appinst", "delete"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,PowerState", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,SharedVolumeSize,AutoClusterIpAccess,PowerState", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -48,9 +48,9 @@ func (s *Client) DeleteAppInst(uri, token string, in *ormapi.RegionAppInst) ([]e
 }
 
 func (s *Client) RefreshAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
-	args := []string{"region", "RefreshAppInst"}
+	args := []string{"appinst", "refresh"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,Flavor,AutoClusterIpAccess,Configs,PowerState,HealthCheck,SharedVolumeSize,VmFlavor", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,SharedVolumeSize,AutoClusterIpAccess,Flavor,AutoClusterIpAccess,Configs,PowerState,HealthCheck,SharedVolumeSize,VmFlavor", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -60,9 +60,9 @@ func (s *Client) RefreshAppInst(uri, token string, in *ormapi.RegionAppInst) ([]
 }
 
 func (s *Client) UpdateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.Result, int, error) {
-	args := []string{"region", "UpdateAppInst"}
+	args := []string{"appinst", "update"}
 	outlist := []edgeproto.Result{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,Flavor,AutoClusterIpAccess,UpdateMultiple,ForceUpdate,HealthCheck,SharedVolumeSize,VmFlavor", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,SharedVolumeSize,AutoClusterIpAccess,Flavor,AutoClusterIpAccess,UpdateMultiple,ForceUpdate,HealthCheck,SharedVolumeSize,VmFlavor", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 		withStreamOutIncremental(),
@@ -72,9 +72,9 @@ func (s *Client) UpdateAppInst(uri, token string, in *ormapi.RegionAppInst) ([]e
 }
 
 func (s *Client) ShowAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edgeproto.AppInst, int, error) {
-	args := []string{"region", "ShowAppInst"}
+	args := []string{"appinst", "show"}
 	outlist := []edgeproto.AppInst{}
-	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes", ",")
+	noconfig := strings.Split("CloudletLoc,Uri,MappedPorts,Liveness,CreatedAt,Status,Revision,Errors,RuntimeInfo,VmFlavor,ExternalVolumeSize,AvailabilityZone,State,UpdatedAt,OptRes,SharedVolumeSize,AutoClusterIpAccess", ",")
 	ops := []runOp{
 		withIgnore(noconfig),
 	}
@@ -83,7 +83,7 @@ func (s *Client) ShowAppInst(uri, token string, in *ormapi.RegionAppInst) ([]edg
 }
 
 func (s *Client) RequestAppInstLatency(uri, token string, in *ormapi.RegionAppInstLatency) (*edgeproto.Result, int, error) {
-	args := []string{"region", "RequestAppInstLatency"}
+	args := []string{"appinstlatency", "request"}
 	out := edgeproto.Result{}
 	noconfig := strings.Split("", ",")
 	st, err := s.runObjs(uri, token, args, in, &out, withIgnore(noconfig))

@@ -25,7 +25,8 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 var CreateAppCmd = &cli.Command{
-	Use:          "CreateApp",
+	Use:          "create",
+	Short:        "Create Application. Creates a definition for an application instance for Cloudlet deployment.",
 	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
@@ -37,7 +38,8 @@ var CreateAppCmd = &cli.Command{
 }
 
 var DeleteAppCmd = &cli.Command{
-	Use:          "DeleteApp",
+	Use:          "delete",
+	Short:        "Delete Application. Deletes a definition of an Application instance. Make sure no other application instances exist with that definition. If they do exist, you must delete those Application instances first.",
 	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
@@ -49,7 +51,8 @@ var DeleteAppCmd = &cli.Command{
 }
 
 var UpdateAppCmd = &cli.Command{
-	Use:          "UpdateApp",
+	Use:          "update",
+	Short:        "Update Application. Updates the definition of an Application instance.",
 	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
@@ -83,7 +86,8 @@ func setUpdateAppFields(in map[string]interface{}) {
 }
 
 var ShowAppCmd = &cli.Command{
-	Use:          "ShowApp",
+	Use:          "show",
+	Short:        "Show Applications. Lists all Application definitions managed from the Edge Controller. Any fields specified will be used to filter results.",
 	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(AppRequiredArgs, AppOptionalArgs...), " "),
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
@@ -96,7 +100,8 @@ var ShowAppCmd = &cli.Command{
 }
 
 var AddAppAutoProvPolicyCmd = &cli.Command{
-	Use:          "AddAppAutoProvPolicy",
+	Use:          "addautoprovpolicy",
+	Short:        "Add an AutoProvPolicy to the App",
 	RequiredArgs: "region " + strings.Join(AppAutoProvPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppAutoProvPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAutoProvPolicyAliasArgs, " "),
@@ -108,7 +113,8 @@ var AddAppAutoProvPolicyCmd = &cli.Command{
 }
 
 var RemoveAppAutoProvPolicyCmd = &cli.Command{
-	Use:          "RemoveAppAutoProvPolicy",
+	Use:          "removeautoprovpolicy",
+	Short:        "Remove an AutoProvPolicy from the App",
 	RequiredArgs: "region " + strings.Join(AppAutoProvPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppAutoProvPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAutoProvPolicyAliasArgs, " "),
@@ -127,6 +133,8 @@ var AppApiCmds = []*cli.Command{
 	AddAppAutoProvPolicyCmd,
 	RemoveAppAutoProvPolicyCmd,
 }
+
+var AppApiCmdsGroup = cli.GenGroup("app", "Manage Apps", AppApiCmds)
 
 var RemoteConnectionRequiredArgs = []string{}
 var RemoteConnectionOptionalArgs = []string{
@@ -172,8 +180,8 @@ var ConfigFileAliasArgs = []string{
 	"config=configfile.config",
 }
 var ConfigFileComments = map[string]string{
-	"kind":   "kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
-	"config": "config file contents or URI reference",
+	"kind":   "Kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
+	"config": "Config file contents or URI reference",
 }
 var ConfigFileSpecialArgs = map[string]string{}
 var AppRequiredArgs = []string{
@@ -200,8 +208,6 @@ var AppOptionalArgs = []string{
 	"revision",
 	"officialfqdn",
 	"md5sum",
-	"defaultsharedvolumesize",
-	"autoprovpolicy",
 	"accesstype",
 	"autoprovpolicies",
 	"templatedelimiter",
@@ -235,7 +241,6 @@ var AppAliasArgs = []string{
 	"revision=app.revision",
 	"officialfqdn=app.officialfqdn",
 	"md5sum=app.md5sum",
-	"defaultsharedvolumesize=app.defaultsharedvolumesize",
 	"autoprovpolicy=app.autoprovpolicy",
 	"accesstype=app.accesstype",
 	"deleteprepare=app.deleteprepare",
@@ -260,28 +265,27 @@ var AppComments = map[string]string{
 	"imagetype":                              "Image type (see ImageType), one of ImageTypeUnknown, ImageTypeDocker, ImageTypeQcow, ImageTypeHelm",
 	"accessports":                            "Comma separated list of protocol:port pairs that the App listens on. Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
 	"defaultflavor":                          "Flavor name",
-	"authpublickey":                          "public key used for authentication",
+	"authpublickey":                          "Public key used for authentication",
 	"command":                                "Command that the container runs to start service",
 	"annotations":                            "Annotations is a comma separated map of arbitrary key value pairs, for example: key1=val1,key2=val2,key3=val 3",
 	"deployment":                             "Deployment type (kubernetes, docker, or vm)",
-	"deploymentmanifest":                     "Deployment manifest is the deployment specific manifest file/config For docker deployment, this can be a docker-compose or docker run file For kubernetes deployment, this can be a kubernetes yaml or helm chart file",
+	"deploymentmanifest":                     "Deployment manifest is the deployment specific manifest file/config. For docker deployment, this can be a docker-compose or docker run file. For kubernetes deployment, this can be a kubernetes yaml or helm chart file.",
 	"deploymentgenerator":                    "Deployment generator target to generate a basic deployment manifest",
 	"androidpackagename":                     "Android package name used to match the App name from the Android package",
 	"delopt":                                 "Override actions to Controller, one of NoAutoDelete, AutoDelete",
-	"configs:#.kind":                         "kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
-	"configs:#.config":                       "config file contents or URI reference",
+	"configs:#.kind":                         "Kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
+	"configs:#.config":                       "Config file contents or URI reference",
 	"scalewithcluster":                       "Option to run App on all nodes of the cluster",
 	"internalports":                          "Should this app have access to outside world?",
 	"revision":                               "Revision can be specified or defaults to current timestamp when app is updated",
 	"officialfqdn":                           "Official FQDN is the FQDN that the app uses to connect by default",
 	"md5sum":                                 "MD5Sum of the VM-based app image",
-	"defaultsharedvolumesize":                "shared volume size when creating auto cluster",
 	"autoprovpolicy":                         "(_deprecated_) Auto provisioning policy name",
 	"accesstype":                             "Access type, one of AccessTypeDefaultForDeployment, AccessTypeDirect, AccessTypeLoadBalancer",
 	"deleteprepare":                          "Preparing to be deleted",
 	"autoprovpolicies":                       "Auto provisioning policy names, may be specified multiple times",
 	"templatedelimiter":                      "Delimiter to be used for template parsing, defaults to [[ ]]",
-	"skiphcports":                            "Comma separated list of protocol:port pairs that we should not run health check on Should be configured in case app does not always listen on these ports all can be specified if no health check to be run for this app Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
+	"skiphcports":                            "Comma separated list of protocol:port pairs that we should not run health check on. Should be configured in case app does not always listen on these ports. all can be specified if no health check to be run for this app. Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443.",
 	"trusted":                                "Indicates that an instance of this app can be started on a trusted cloudlet",
 	"requiredoutboundconnections:#.protocol": "tcp, udp or icmp",
 	"requiredoutboundconnections:#.port":     "TCP or UDP port",
@@ -291,23 +295,23 @@ var AppSpecialArgs = map[string]string{
 	"app.autoprovpolicies": "StringArray",
 	"app.fields":           "StringArray",
 }
-var AppAutoProvPolicyRequiredArgs = []string{}
-var AppAutoProvPolicyOptionalArgs = []string{
-	"appkey.organization",
-	"appkey.name",
-	"appkey.version",
+var AppAutoProvPolicyRequiredArgs = []string{
+	"app-org",
+	"appname",
+	"appvers",
 	"autoprovpolicy",
 }
+var AppAutoProvPolicyOptionalArgs = []string{}
 var AppAutoProvPolicyAliasArgs = []string{
-	"appkey.organization=appautoprovpolicy.appkey.organization",
-	"appkey.name=appautoprovpolicy.appkey.name",
-	"appkey.version=appautoprovpolicy.appkey.version",
+	"app-org=appautoprovpolicy.appkey.organization",
+	"appname=appautoprovpolicy.appkey.name",
+	"appvers=appautoprovpolicy.appkey.version",
 	"autoprovpolicy=appautoprovpolicy.autoprovpolicy",
 }
 var AppAutoProvPolicyComments = map[string]string{
-	"appkey.organization": "App developer organization",
-	"appkey.name":         "App name",
-	"appkey.version":      "App version",
-	"autoprovpolicy":      "Auto provisioning policy name",
+	"app-org":        "App developer organization",
+	"appname":        "App name",
+	"appvers":        "App version",
+	"autoprovpolicy": "Auto provisioning policy name",
 }
 var AppAutoProvPolicySpecialArgs = map[string]string{}

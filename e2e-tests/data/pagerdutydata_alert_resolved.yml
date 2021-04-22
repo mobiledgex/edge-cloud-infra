@@ -1,0 +1,52 @@
+- routingkey: "01234567890123456789012345678901"
+  eventaction: trigger
+  payload:
+    summary: 'Alert for pagerdutyAppAlertReceiver: AppInstDown Application: someapplication1 Version: 1.0'
+    source: MobiledgeX Monitoring
+    severity: error
+    customdetails:
+      firing: |
+        AppInstDown - Application server port is not responding
+        Labels:
+         alertname = AppInstDown
+         app = someapplication1
+         apporg = AcmeAppCo
+         appver = 1.0
+         cloudlet = tmus-cloud-1
+         cloudletorg = tmus
+         cluster = SmallCluster
+         clusterorg = AcmeAppCo
+         region = local
+         scope = Application
+         status = HealthCheckFailServerFail
+      numfiring: "1"
+      numresolved: "0"
+  client: MobiledgeX Monitoring
+  clienturl: |
+    https://console.mobiledgex.net
+- routingkey: "01234567890123456789012345678901"
+  eventaction: resolve
+  payload:
+    summary: 'Alert for pagerdutyAppAlertReceiver: AppInstDown Application: someapplication1 Version: 1.0'
+    source: MobiledgeX Monitoring
+    severity: error
+    customdetails:
+      numfiring: "0"
+      numresolved: "1"
+      resolved: |
+        AppInstDown - Application server port is not responding
+        Labels:
+         alertname = AppInstDown
+         app = someapplication1
+         apporg = AcmeAppCo
+         appver = 1.0
+         cloudlet = tmus-cloud-1
+         cloudletorg = tmus
+         cluster = SmallCluster
+         clusterorg = AcmeAppCo
+         region = local
+         scope = Application
+         status = HealthCheckFailServerFail
+  client: MobiledgeX Monitoring
+  clienturl: |
+    https://console.mobiledgex.net

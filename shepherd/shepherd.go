@@ -437,7 +437,6 @@ func start() {
 	SettingsCache.SetUpdatedCb(settingsCb)
 	VMPoolInfoCache.SetUpdatedCb(vmPoolInfoCb)
 	CloudletCache.SetUpdatedCb(cloudletCb)
-	CloudletInternalCache.SetUpdatedCb(cloudletInternalCb)
 	edgeproto.InitCloudletInternalCache(&CloudletInternalCache)
 	CloudletInternalCache.SetUpdatedCb(cloudletInternalCb)
 

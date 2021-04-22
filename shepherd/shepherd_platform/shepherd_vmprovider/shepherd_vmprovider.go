@@ -22,9 +22,6 @@ var sharedRootLBWait = time.Minute * 5
 
 var caches *platform.Caches
 
-// used for update callback only
-var shepherdPlatform *ShepherdPlatform
-
 type ShepherdPlatform struct {
 	rootLbName      string
 	SharedClient    ssh.Client
@@ -34,13 +31,13 @@ type ShepherdPlatform struct {
 	appDNSRoot      string
 }
 
-func vmProviderCloudletCb(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
+func (s *ShepherdPlatform) vmProviderCloudletCb(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "vmProviderCloudletCb")
 
 	token, ok := new.Props[vmlayer.CloudletAccessToken]
 	if ok {
 		log.SpanLog(ctx, log.DebugLevelInfra, "stored new cloudlet access token")
-		shepherdPlatform.VMPlatform.VMProperties.CloudletAccessToken = token
+		s.VMPlatform.VMProperties.CloudletAccessToken = token
 	}
 }
 
@@ -61,8 +58,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 
 	s.VMPlatform.VMProvider.InitData(ctx, platformCaches)
 	// Override cloudlet internal updated callback so CloudletAccessToken updates from the CRM can be stored
-	shepherdPlatform = s
-	platformCaches.CloudletInternalCache.SetUpdatedCb(vmProviderCloudletCb)
+	platformCaches.CloudletInternalCache.SetUpdatedCb(s.vmProviderCloudletCb)
 
 	if err = s.VMPlatform.VMProvider.InitApiAccessProperties(ctx, pc.AccessApi, pc.EnvVars, vmlayer.ProviderInitPlatformStartShepherd); err != nil {
 		return err

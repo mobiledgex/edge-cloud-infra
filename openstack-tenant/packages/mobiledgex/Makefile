@@ -9,7 +9,7 @@ build-vers:
 	mkdir -p ../../../version
 	(cd ../../../version; ../openstack-tenant/packages/mobiledgex/version.sh "$(VERSION)")
 
-all: openstack vsphere vcd
+all: build-vers openstack vsphere vcd
 
 openstack:
 	$(MAKE) package

@@ -3,11 +3,12 @@
 VERSION=$1
 OUT=package-version.go
 
-cat <<EOF > $OUT.tmp
-package version
+OUT_TMP=$( mktemp )
+trap 'rm -f "$OUT_TMP"' EXIT
 
+cat <<EOF > $OUT_TMP
+package version
 var MobiledgeXPackageVersion = "$VERSION"
 EOF
 
-gofmt $OUT.tmp > $OUT
-rm $OUT.tmp
+gofmt $OUT_TMP > $OUT

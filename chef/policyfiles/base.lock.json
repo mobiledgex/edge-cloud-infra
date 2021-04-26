@@ -1,5 +1,5 @@
 {
-  "revision_id": "a797b053d03398e764f9721aa749f72a7d8e2c7d2b3e87019a47d5ae681a3c9a",
+  "revision_id": "bc196f3634ebedd4faf12a0708a3340562b7bc0fdbfceb0c890b71941270cb27",
   "name": "base",
   "run_list": [
     "recipe[runstatus_handler::default]",
@@ -34,8 +34,8 @@
     },
     "upgrade_mobiledgex_package": {
       "version": "1.0.0",
-      "identifier": "db3941395aa0d5d1cf225c6afe315c7a0450cc5b",
-      "dotted_decimal_identifier": "61705972197531861.59056016618880561.101679128169563",
+      "identifier": "4263450c6dcbb66abe9c56c4f265ff3b37af7f01",
+      "dotted_decimal_identifier": "18686496675318710.30045926211252837.280629802401537",
       "cache_key": "upgrade_mobiledgex_package-1.0.0",
       "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {

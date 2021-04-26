@@ -981,7 +981,7 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM, vcdClien
 			for _, qr := range qrecs {
 				if qr.Name == connection.Network && qr.LinkType == 2 {
 					netType = 2
-					log.SpanLog(ctx, log.DebugLevelInfra, "GetVNAddresses ", "iso subnet", qr.Name)
+					log.SpanLog(ctx, log.DebugLevelInfra, "GetVMAddresses ", "iso subnet", qr.Name)
 				}
 			}
 			if netType == 2 {
@@ -1013,6 +1013,7 @@ func (v *VcdPlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	vmProperties.IptablesBasedFirewall = true
 	vmProperties.RunLbDhcpServerForVmApps = true
 	vmProperties.AppendFlavorToVmAppImage = true
+	vmProperties.ValidateExternalIPMapping = true
 }
 
 // Should always be a vapp/cluster/group name

@@ -25,6 +25,8 @@ type VMProperties struct {
 	RequiresWhitelistOwnIp     bool
 	RunLbDhcpServerForVmApps   bool
 	AppendFlavorToVmAppImage   bool
+	ValidateExternalIPMapping  bool
+	CloudletAccessToken        string
 }
 
 // note that qcow2 must be understood by vsphere and vmdk must
@@ -32,7 +34,7 @@ type VMProperties struct {
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.3.2"
+var MEXInfraVersion = "4.3.4"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 

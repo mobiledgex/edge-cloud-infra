@@ -69,7 +69,7 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 	var y2 interface{}
 	copts := []cmp.Option{}
 
-	if fileType == "mcdata" || fileType == "mcdata-allcmp" || fileType == "mcdata-xind" {
+	if fileType == "mcdata" || fileType == "mcdata-xind" {
 		var a1 ormapi.AllData
 		var a2 ormapi.AllData
 
@@ -90,6 +90,8 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		if fileType == "mcdata-xind" {
 			// ignore container ids
 			copts = append(copts, cmpopts.IgnoreFields(edgeproto.AppInstRuntime{}, "ContainerIds"))
+			// ignore local hostname based data
+			copts = append(copts, cmpopts.IgnoreFields(edgeproto.CloudletInfo{}, "Controller"))
 		}
 		copts = append(copts, edgeproto.CmpSortSlices()...)
 		copts = append(copts, cmpopts.SortSlices(CmpSortOrgs))

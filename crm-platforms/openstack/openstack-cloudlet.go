@@ -179,8 +179,6 @@ func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) (
 	ramMax := uint64(0)
 	vcpusUsed := uint64(0)
 	vcpusMax := uint64(0)
-	diskUsed := uint64(0)
-	diskMax := uint64(0)
 	instancesUsed := uint64(0)
 	instancesMax := uint64(0)
 	fipsUsed := uint64(0)
@@ -195,10 +193,6 @@ func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) (
 			vcpusUsed = uint64(l.Value)
 		case "maxTotalCores":
 			vcpusMax = uint64(l.Value)
-		case "totalGigabytesUsed":
-			diskUsed = uint64(l.Value)
-		case "maxTotalVolumeGigabytes":
-			diskMax = uint64(l.Value)
 		case "totalInstancesUsed":
 			instancesUsed = uint64(l.Value)
 		case "maxTotalInstances":
@@ -220,12 +214,6 @@ func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) (
 			Name:          cloudcommon.ResourceVcpus,
 			Value:         vcpusUsed,
 			InfraMaxValue: vcpusMax,
-		},
-		edgeproto.InfraResource{
-			Name:          cloudcommon.ResourceDiskGb,
-			Value:         diskUsed,
-			InfraMaxValue: diskMax,
-			Units:         cloudcommon.ResourceDiskUnits,
 		},
 		edgeproto.InfraResource{
 			Name:          ResourceInstances,
@@ -316,4 +304,8 @@ func (o *OpenstackPlatform) GetClusterAdditionalResourceMetric(ctx context.Conte
 	resMetric.AddIntVal("instancesUsed", oRes.InstancesUsed)
 	resMetric.AddIntVal("floatingIpsUsed", oRes.FloatingIPsUsed)
 	return nil
+}
+
+func (p *OpenstackPlatform) InternalCloudletUpdatedCallback(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InternalCloudletUpdatedCallback")
 }

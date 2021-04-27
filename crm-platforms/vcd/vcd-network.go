@@ -232,7 +232,7 @@ func (v *VcdPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 	// shared LBs are asked to grow a new isolated OrgVDCNetwork
 	// The network itself has been created by the client cluster vapp.
 	cidrNet := ""
-	cidrNet, err := v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "", "")
+	cidrNet, err := v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "")
 	if cidrNet == "" || err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName, "error", err, "IsoNamesMap", v.IsoNamesMap)
 		return fmt.Errorf("No Matching Subnet in IsoNamesMap")
@@ -326,7 +326,7 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 		cidrNet = subnetName
 		portName = subnetName
 	} else {
-		cidrNet, _ = v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "", "")
+		cidrNet, _ = v.updateIsoNamesMap(ctx, IsoMapActionRead, subnetName, "")
 		if cidrNet == "" {
 			log.SpanLog(ctx, log.DebugLevelInfra, "No mapping for", "Network", subnetName, "IsoNamesMap", v.IsoNamesMap)
 			return fmt.Errorf("No Matching Subnet in IsoNamesMap")
@@ -924,7 +924,7 @@ func (v *VcdPlatform) CreateIsoVdcNetwork(ctx context.Context, vapp *govcd.VApp,
 	}
 	// xlate names map for network reuse. All these iossubnets are now named with their cidrs
 	// Addthe real vdc name (subnetId) using our netName
-	_, err = v.updateIsoNamesMap(ctx, IsoMapActionAdd, netName, cidr, "")
+	_, err = v.updateIsoNamesMap(ctx, IsoMapActionAdd, netName, cidr)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork updateIsoNamemsMap failed on Add", "error", err)
 		return err
@@ -1156,7 +1156,7 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 		vappNet, ok := vappNets[o]
 		if ok {
 			log.SpanLog(ctx, log.DebugLevelInfra, "org vcd network is not an orphan", "name", o, "vappNet", vappNet)
-			_, err := v.updateIsoNamesMap(ctx, IsoMapActionAdd, vappNet, o, "")
+			_, err := v.updateIsoNamesMap(ctx, IsoMapActionAdd, vappNet, o)
 			if err != nil {
 				return err
 			}
@@ -1279,8 +1279,8 @@ func (v *VcdPlatform) replaceIsoNamesMap(ctx context.Context, newMap map[string]
 	v.IsoNamesMap = newMap
 }
 
-func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapActionType, key, value, matchval string) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "updateIsoNamesMap", "action", action, "key", key, "value", value, "matchval", matchval, "map", v.IsoNamesMap)
+func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapActionType, key, value string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "updateIsoNamesMap", "action", action, "key", key, "value", value, "map", v.IsoNamesMap)
 
 	cacheUpdateNeeded := false
 	keyValToReturn := ""
@@ -1291,9 +1291,9 @@ func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapAction
 
 		if key != "" {
 			return v.IsoNamesMap[key], nil
-		} else if value == "" && matchval != "" {
+		} else if value != "" {
 			for k, val := range v.IsoNamesMap {
-				if val == matchval {
+				if val == value {
 					return k, nil
 				}
 			}
@@ -1302,9 +1302,9 @@ func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapAction
 		}
 	} else if action == IsoMapActionDelete {
 
-		if key == "" && value == "" && matchval != "" {
+		if key == "" && value != "" {
 			for k, val := range v.IsoNamesMap {
-				if val == matchval {
+				if val == value {
 					delete(v.IsoNamesMap, k)
 					cacheUpdateNeeded = true
 					keyValToReturn = k
@@ -1312,7 +1312,7 @@ func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapAction
 				}
 			}
 			if keyValToReturn == "" {
-				return "", fmt.Errorf("matchval %s not found in map", matchval)
+				return "", fmt.Errorf("value %s not found in map", value)
 			}
 		} else if key != "" {
 			delete(v.IsoNamesMap, key)

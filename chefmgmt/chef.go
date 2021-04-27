@@ -440,7 +440,7 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 
 	chefAttributes["tags"] = GetChefCloudletTags(cloudlet, pfConfig, serverType)
 
-	chefAttributes["mexInfraTag"] = version.MobiledgeXPackageVersion
+	chefAttributes["mobiledgeXPackageVersion"] = version.MobiledgeXPackageVersion
 
 	// Use default address if port is 0, as we'll have single
 	// CRM instance here, hence there will be no port conflict

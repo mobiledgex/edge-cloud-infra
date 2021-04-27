@@ -2,6 +2,7 @@ package vcd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 	"strconv"
@@ -20,6 +21,8 @@ import (
 
 // TODO: currently VCD assumes 10.101.x.x.  We should tweak to use the netplan value so we can have different cloudlets on one vcd
 var mexInternalNetRange = "10.101"
+
+var CloudletIsoNamesMap = "CloudletIsoNamesMap"
 
 func (v *VcdPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
 	return []string{
@@ -1266,13 +1269,23 @@ func (v *VcdPlatform) getVappToSubnetMap(ctx context.Context, vdc *govcd.Vdc, vc
 
 }
 
-var iosNamesLock sync.Mutex
+var isoNamesLock sync.Mutex
+
+func (v *VcdPlatform) replaceIsoNamesMap(ctx context.Context, newMap map[string]string) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "replaceIsoNamesMap", "newMap", newMap)
+
+	isoNamesLock.Lock()
+	defer isoNamesLock.Unlock()
+	v.IsoNamesMap = newMap
+}
 
 func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapActionType, key, value, matchval string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "updateIsoNamesMap", "action", action, "key", key, "value", value, "matchval", matchval, "map", v.IsoNamesMap)
 
-	iosNamesLock.Lock()
-	defer iosNamesLock.Unlock()
+	cacheUpdateNeeded := false
+	keyValToReturn := ""
+	isoNamesLock.Lock()
+	defer isoNamesLock.Unlock()
 
 	if action == IsoMapActionRead {
 
@@ -1293,13 +1306,17 @@ func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapAction
 			for k, val := range v.IsoNamesMap {
 				if val == matchval {
 					delete(v.IsoNamesMap, k)
-					return k, nil
+					cacheUpdateNeeded = true
+					keyValToReturn = k
+					break
 				}
 			}
-			return "", fmt.Errorf("matchval %s not found in map", matchval)
+			if keyValToReturn == "" {
+				return "", fmt.Errorf("matchval %s not found in map", matchval)
+			}
 		} else if key != "" {
 			delete(v.IsoNamesMap, key)
-			return "", nil
+			cacheUpdateNeeded = true
 		} else {
 			return "", fmt.Errorf("invalid args for action delete")
 		}
@@ -1307,11 +1324,26 @@ func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapAction
 	} else if action == IsoMapActionAdd {
 		if key != "" && value != "" {
 			v.IsoNamesMap[key] = value
+			cacheUpdateNeeded = true
 		} else {
 			return "", fmt.Errorf("invalid args for action Create")
 		}
 	} else {
 		return "", fmt.Errorf("Unsupported action type %s encountered", action)
 	}
-	return "", nil
+	if cacheUpdateNeeded {
+		var cloudletInternal edgeproto.CloudletInternal
+
+		if !v.caches.CloudletInternalCache.Get(v.vmProperties.CommonPf.PlatformConfig.CloudletKey, &cloudletInternal) {
+			return "", fmt.Errorf("cannot get cloudlet internal from cache")
+		}
+		mapJson, err := json.Marshal(v.IsoNamesMap)
+		if err != nil {
+			return "", fmt.Errorf("Fail to marshal isoNamesMap into json for cache update")
+		}
+		cloudletInternal.Props[CloudletIsoNamesMap] = string(mapJson)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Updating cache with new isoMap", "mapJson", string(mapJson))
+		v.caches.CloudletInternalCache.Update(ctx, &cloudletInternal, 0)
+	}
+	return keyValToReturn, nil
 }

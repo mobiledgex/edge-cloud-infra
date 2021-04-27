@@ -1,0 +1,80 @@
+{
+  "revision_id": "a6aa113fcb499e6891bab401466a06afc0bf192088f83bc2fa20159704027c67",
+  "name": "base",
+  "run_list": [
+    "recipe[runstatus_handler::default]",
+    "recipe[copy_resource_tracker::default]",
+    "recipe[upgrade_mobiledgex_package::default]"
+  ],
+  "included_policy_locks": [
+
+  ],
+  "cookbook_locks": {
+    "copy_resource_tracker": {
+      "version": "1.0.1",
+      "identifier": "c18ce1c87086f8bad084d95b73a33c6f10e5f98a",
+      "dotted_decimal_identifier": "54479571863504632.52583614669091747.66447722543498",
+      "cache_key": "copy_resource_tracker-1.0.1",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.1"
+      }
+    },
+    "runstatus_handler": {
+      "version": "1.0.0",
+      "identifier": "779bf5d49799fcf3e2e455abc0232abd5a792470",
+      "dotted_decimal_identifier": "33667002364566012.68647889658429475.46992755074160",
+      "cache_key": "runstatus_handler-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
+      }
+    },
+    "upgrade_mobiledgex_package": {
+      "version": "1.0.1",
+      "identifier": "1ae15156a2e69b61fccd3814d8852433a8324c96",
+      "dotted_decimal_identifier": "7566088856594075.27581031080319109.39804283800726",
+      "cache_key": "upgrade_mobiledgex_package-1.0.1",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.1"
+      }
+    }
+  },
+  "default_attributes": {
+
+  },
+  "override_attributes": {
+
+  },
+  "solution_dependencies": {
+    "Policyfile": [
+      [
+        "copy_resource_tracker",
+        "= 1.0.1"
+      ],
+      [
+        "runstatus_handler",
+        "= 1.0.0"
+      ],
+      [
+        "upgrade_mobiledgex_package",
+        "= 1.0.1"
+      ]
+    ],
+    "dependencies": {
+      "copy_resource_tracker (1.0.1)": [
+
+      ],
+      "runstatus_handler (1.0.0)": [
+
+      ],
+      "upgrade_mobiledgex_package (1.0.1)": [
+
+      ]
+    }
+  }
+}

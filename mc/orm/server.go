@@ -694,6 +694,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/reporter/delete", DeleteReporter)
 	auth.POST("/reporter/show", ShowReporter)
 	auth.POST("/report/generate", GenerateReport)
+	auth.POST("/report/show", ShowReport)
 
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients

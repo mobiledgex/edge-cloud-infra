@@ -41,7 +41,6 @@ type CellInfo struct {
 
 func NewReport() *gofpdf.Fpdf {
 	pdf := gofpdf.New(gofpdf.OrientationPortrait, "mm", "A4", "")
-	pdf.AddPage()
 	pdf.SetFont(FontName, "B", DefaultFontSize)
 	pdf.AliasNbPages("")
 	return pdf
@@ -113,10 +112,8 @@ func AddTable(pdf *gofpdf.Fpdf, title string, hdr []string, tbl [][]string, colW
 
 	// Center align all columns
 	alignCols := []string{}
-	for _, line := range tbl {
-		for _, _ = range line {
-			alignCols = append(alignCols, "C")
-		}
+	for _, _ = range hdr {
+		alignCols = append(alignCols, "C")
 	}
 
 	// Table Header

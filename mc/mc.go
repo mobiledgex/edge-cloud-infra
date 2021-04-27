@@ -91,6 +91,10 @@ func main() {
 
 	go orm.CollectBillingUsage(*usageCollectionInterval)
 
+	// start report generation thread
+	orm.InitReporter()
+	go orm.GenerateReports()
+
 	// wait until process is killed/interrupted
 	signal.Notify(sigChan, os.Interrupt)
 	<-sigChan

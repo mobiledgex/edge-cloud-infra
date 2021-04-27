@@ -135,8 +135,10 @@ func GenerateCookie(user *ormapi.User, apiKeyId, domain string) (*http.Cookie, e
 		Secure: true,
 		// true means no scripts will be able to access this cookie, http requests only
 		HttpOnly: true,
-		// limit cookie access to this subdomain only
+		// limit cookie access to this domain only
 		Domain: domain,
+		// limits cookie's scope to only requests originating from same site
+		SameSite: http.SameSiteStrictMode,
 	}
 	return &httpCookie, err
 }
@@ -179,7 +181,9 @@ func AuthCookie(next echo.HandlerFunc) echo.HandlerFunc {
 		scheme := "Bearer"
 		l := len(scheme)
 		cookie := ""
-		if len(auth) <= len(scheme) || !strings.HasPrefix(auth, scheme) {
+		if len(auth) > len(scheme) && strings.HasPrefix(auth, scheme) {
+			cookie = auth[l+1:]
+		} else {
 			// if no token provided as part of request headers,
 			// then check if it is part of http cookie
 			for _, httpCookie := range c.Request().Cookies() {
@@ -188,8 +192,6 @@ func AuthCookie(next echo.HandlerFunc) echo.HandlerFunc {
 					break
 				}
 			}
-		} else {
-			cookie = auth[l+1:]
 		}
 
 		if cookie == "" {

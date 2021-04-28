@@ -5,7 +5,11 @@ COMPONENT = main
 
 PKGDIR = $(PACKAGE)_$(VERSION)
 
-all: openstack vsphere vcd
+build-vers:
+	mkdir -p ../../../version
+	(cd ../../../version; ../openstack-tenant/packages/mobiledgex/version.sh "$(VERSION)")
+
+all: build-vers openstack vsphere vcd
 
 openstack:
 	$(MAKE) package

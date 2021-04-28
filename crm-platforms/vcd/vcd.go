@@ -2,6 +2,7 @@ package vcd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 	"unicode"
@@ -87,7 +88,7 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		return err
 	}
 
-	if stage == vmlayer.ProviderInitPlatformStart {
+	if stage == vmlayer.ProviderInitPlatformStartCrm {
 
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider RebuildMaps", "stage", stage)
 		err := v.RebuildIsoNamesAndFreeMaps(ctx)
@@ -353,6 +354,9 @@ func (v *VcdPlatform) GetAllVAppsForVdcByIntAddr(ctx context.Context, vcdClient 
 					if v.Verbose {
 						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr consider ", "vapp", res.Name)
 					}
+					if vapp.VApp.Children == nil || len(vapp.VApp.Children.VM) == 0 {
+						continue
+					}
 					ncs, err := vapp.GetNetworkConnectionSection()
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVappsByIntAddr ", "error", err)
@@ -464,4 +468,25 @@ func (v *VcdPlatform) DisableOrgRuntimeLease(ctx context.Context, override bool)
 	log.SpanLog(ctx, log.DebugLevelInfra, "DisableOrgRuntimeLease disabled lease", "settings",
 		adminOrg.AdminOrg.OrgSettings.OrgVAppLeaseSettings)
 	return nil
+}
+
+func (v *VcdPlatform) InternalCloudletUpdatedCallback(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InternalCloudletUpdatedCallback")
+
+	token, ok := new.Props[vmlayer.CloudletAccessToken]
+	if ok {
+		log.SpanLog(ctx, log.DebugLevelInfra, "stored new cloudlet access token")
+		v.vmProperties.CloudletAccessToken = token
+	}
+	// if we find an isoMap property use it to update the iso map cache which is a json string
+	isoMapStr, ok := new.Props[CloudletIsoNamesMap]
+	var isoMap map[string]string
+
+	if ok && isoMapStr != "" {
+		err := json.Unmarshal([]byte(isoMapStr), &isoMap)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Error in unmarshal of isoNamesMap", "isoMapStr", isoMapStr, "err", err)
+		}
+		v.replaceIsoNamesMap(ctx, isoMap)
+	}
 }

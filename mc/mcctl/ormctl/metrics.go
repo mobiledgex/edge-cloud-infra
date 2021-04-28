@@ -238,7 +238,7 @@ var ClientAppUsageMetricOptionalArgs = []string{
 	"cloudlet-org",
 	"locationtile",
 	"deviceos",
-	"devicetype",
+	"devicemodel",
 	"datanetworktype",
 	"rawdata",
 	"last",
@@ -265,7 +265,7 @@ var ClientCloudletUsageMetricOptionalArgs = []string{
 	"cloudlet",
 	"locationtile",
 	"deviceos",
-	"devicetype",
+	"devicemodel",
 	"datanetworktype",
 	"rawdata",
 	"last",
@@ -309,7 +309,7 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 	baseSelectorPermission := "Can be used for selectors: %s."
 	var locationtileSelectorPermission string
 	var deviceosSelectorPermission string
-	var devicetypeSelectorPermission string
+	var devicemodelSelectorPermission string
 	var datanetworktypeSelectorPermission string
 	var availableMetrics string
 
@@ -317,13 +317,13 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 	case "app":
 		locationtileSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
 		deviceosSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
-		devicetypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		datanetworktypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		availableMetrics = strings.Join(orm.ClientAppUsageSelectors, "\", \"")
 	case "cloudlet":
 		locationtileSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency, deviceinfo")
 		deviceosSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
-		devicetypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		datanetworktypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
 		availableMetrics = strings.Join(orm.ClientCloudletUsageSelectors, "\", \"")
 	default:
@@ -333,7 +333,7 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 	return map[string]string{
 		"locationtile":    fmt.Sprintf("Location tile. Format is: \"Quadrant-LatitudeIndex,LongitudeIndex-LocationTileLength\". Quadrant is the standard 1,2,3,4 sections in R2 where 1 is the top right quarter, 2 is the top left quarter, 3 is the bottom left quarter, and 4 is the bottom right quarter. Indices are the number of tiles away from the origin in the specified quadrant's direction. %s", locationtileSelectorPermission),
 		"deviceos":        fmt.Sprintf("Device operating system. %s", deviceosSelectorPermission),
-		"devicetype":      fmt.Sprintf("Device type. %s", devicetypeSelectorPermission),
+		"devicemodel":     fmt.Sprintf("Device model. %s", devicemodelSelectorPermission),
 		"datanetworktype": fmt.Sprintf("Data network type used by client device. %s", datanetworktypeSelectorPermission),
 		"rawdata":         "Set to true for additional raw data (not downsampled)",
 		"selector":        fmt.Sprintf("Comma separated list of metrics to view. Available metrics: \"%s\"", availableMetrics),

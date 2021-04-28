@@ -166,7 +166,7 @@ log "Install mobiledgex ${TAG#v}"
 echo iptables-persistent iptables-persistent/autosave_v6 boolean true | sudo debconf-set-selections
 echo iptables-persistent iptables-persistent/autosave_v4 boolean true | sudo debconf-set-selections
 # Pin mobiledgex package version
-sudo tee /etc/apt/preferences.d/99mobiledgex <<EOT
+sudo tee /etc/apt/preferences.d/mobiledgex.pref <<EOT
 Package: mobiledgex
 Pin: version ${TAG#v}
 Pin-Priority: 1001

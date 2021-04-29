@@ -68,6 +68,13 @@ done
 #fi
 # the pod network plugin has to be done for coredns to come up
 kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+while [ $? -ne 0 ] ; do
+    # network perhaps not ready, keep trying
+    echo Waiting to repull weave
+    sleep 5
+    kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+done
+
 kubectl get pods --all-namespaces
 kubectl get nodes | grep NotReady
 while [ $? -eq 0 ] ; do

@@ -28,6 +28,11 @@ var _ = math.Inf
 
 func CreateOperatorCode(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -81,6 +86,11 @@ func CreateOperatorCodeObj(ctx context.Context, rc *RegionContext, obj *edgeprot
 
 func DeleteOperatorCode(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -134,6 +144,11 @@ func DeleteOperatorCodeObj(ctx context.Context, rc *RegionContext, obj *edgeprot
 
 func ShowOperatorCode(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

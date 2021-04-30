@@ -27,6 +27,11 @@ var _ = math.Inf
 
 func StreamAppInst(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -107,6 +112,11 @@ func StreamAppInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.App
 
 func StreamClusterInst(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -187,6 +197,11 @@ func StreamClusterInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto
 
 func StreamCloudlet(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

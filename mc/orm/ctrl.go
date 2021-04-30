@@ -46,7 +46,7 @@ func connectGrpcAddr(ctx context.Context, addr string, serverIssuers []node.Matc
 		return nil, err
 	}
 	dialOption := tls.GetGrpcDialOption(tlsConfig)
-	return grpc.Dial(addr, dialOption,
+	return grpc.DialContext(ctx, addr, dialOption,
 		grpc.WithUnaryInterceptor(log.UnaryClientTraceGrpc),
 		grpc.WithStreamInterceptor(log.StreamClientTraceGrpc),
 	)

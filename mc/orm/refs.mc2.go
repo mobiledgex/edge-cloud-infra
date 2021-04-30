@@ -26,6 +26,11 @@ var _ = math.Inf
 
 func ShowCloudletRefs(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -113,6 +118,11 @@ func ShowCloudletRefsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.
 
 func ShowClusterRefs(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -199,6 +209,11 @@ func ShowClusterRefsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.C
 
 func ShowAppInstRefs(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

@@ -30,6 +30,11 @@ var _ = math.Inf
 
 func CreateVMPool(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -84,6 +89,11 @@ func CreateVMPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPo
 
 func DeleteVMPool(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -138,6 +148,11 @@ func DeleteVMPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPo
 
 func UpdateVMPool(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -192,6 +207,11 @@ func UpdateVMPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPo
 
 func ShowVMPool(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -279,6 +299,11 @@ func ShowVMPoolObj(ctx context.Context, rc *RegionContext, obj *edgeproto.VMPool
 
 func AddVMPoolMember(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -333,6 +358,11 @@ func AddVMPoolMemberObj(ctx context.Context, rc *RegionContext, obj *edgeproto.V
 
 func RemoveVMPoolMember(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

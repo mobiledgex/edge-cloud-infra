@@ -30,6 +30,11 @@ var _ = math.Inf
 
 func CreateAutoProvPolicy(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -84,6 +89,11 @@ func CreateAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgepr
 
 func DeleteAutoProvPolicy(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -138,6 +148,11 @@ func DeleteAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgepr
 
 func UpdateAutoProvPolicy(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -192,6 +207,11 @@ func UpdateAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgepr
 
 func ShowAutoProvPolicy(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -279,6 +299,11 @@ func ShowAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeprot
 
 func AddAutoProvPolicyCloudlet(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -333,6 +358,11 @@ func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *RegionContext, obj *e
 
 func RemoveAutoProvPolicyCloudlet(c echo.Context) error {
 	ctx := GetContext(c)
+
+	//rl := &ratelimit.LimiterInfo{RateLimited: true}
+	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
+	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
+
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

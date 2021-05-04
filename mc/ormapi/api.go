@@ -541,10 +541,10 @@ type AlertReceiver struct {
 }
 
 type RegionAppInstMetricsV2 struct {
-	Region    string
-	AppInsts  []edgeproto.AppInstKey
-	Selector  string
-	Function  string    `json:",omitempty"` // Future use - allow to specify rate/mean/max/sum
+	Region   string
+	AppInsts []edgeproto.AppInstKey
+	Selector string
+	//	Function  string    `json:",omitempty"` // Future use - allow to specify rate/mean/max/sum
 	StartTime time.Time `json:",omitempty"`
 	EndTime   time.Time `json:",omitempty"`
 	Last      int       `json:",omitempty"`

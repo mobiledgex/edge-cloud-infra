@@ -2,12 +2,20 @@ package orm
 
 import (
 	"fmt"
+	"strings"
 	"text/template"
+	"time"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/util"
+)
+
+const (
+	DefaultTimeWindow = 15 * time.Second
+	// Max 100 data points on the graph
+	MaxTimeDefinition = 100
 )
 
 var appInstGroupQueryTemplate *template.Template
@@ -17,7 +25,9 @@ var AppInstGroupQueryT = `SELECT {{.Selector}} FROM "{{.Measurement}}"` +
 	` WHERE ({{.QueryFilter}})` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
-	` group by time({{.TimeDefinition}}), app fill(previous)`
+	` group by {{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg` +
+	` fill(previous)` +
+	` order by time desc {{if ne .Last 0}}limit {{.Last}}{{end}}`
 
 func init() {
 	appInstGroupQueryTemplate = template.Must(template.New("influxquery").Parse(AppInstGroupQueryT))
@@ -78,12 +88,46 @@ func GetAppMetrics(c echo.Context) error {
 	return nil
 }
 
+func getTimeDefinition(apps *ormapi.RegionAppInstMetricsV2) string {
+	// In case we are requesting last n number of entries and don't provide time window
+	// we should skip the function and time-based grouping
+	if apps.StartTime.IsZero() && apps.EndTime.IsZero() && apps.Last != 0 {
+		return ""
+	}
+	// set the max number of data points per grouping
+	if apps.Last == 0 {
+		apps.Last = MaxTimeDefinition
+	}
+	if apps.EndTime.IsZero() {
+		apps.EndTime = time.Now().UTC()
+	}
+	// Default time to last 12hrs
+	if apps.StartTime.IsZero() {
+		apps.StartTime = apps.EndTime.Add(-12 * time.Hour).UTC()
+	}
+
+	// If start time is past end time, cannot group by time
+	timeDiff := apps.EndTime.Sub(apps.StartTime)
+	if timeDiff < 0 {
+		return ""
+	}
+	// Make sure we don't have any fractional seconds in here
+	timeWindow := time.Duration(timeDiff / time.Duration(apps.Last)).Truncate(time.Second)
+	if timeWindow < DefaultTimeWindow {
+		return DefaultTimeWindow.String()
+	}
+	return timeWindow.String()
+}
+
 func GetAppInstsGroupQuery(apps *ormapi.RegionAppInstMetricsV2) string {
+	timeDef := getTimeDefinition(apps)
+	selectorFunction := getFuncForSelector(apps.Selector, timeDef)
 	args := influxQueryArgs{
-		Selector:       getSelectorForMeasurement(apps.Selector, apps.Function),
+		Selector:       getSelectorForMeasurement(apps.Selector, selectorFunction),
 		Measurement:    getMeasurementString(apps.Selector, APPINST),
 		QueryFilter:    getAppInstQueryFilter(apps),
-		TimeDefinition: "10s", // TODO - calculate this
+		TimeDefinition: timeDef,
+		Last:           apps.Last,
 	}
 	return fillTimeAndGetCmd(&args, appInstGroupQueryTemplate, &apps.StartTime, &apps.EndTime)
 }
@@ -124,14 +168,58 @@ func getAppInstQueryFilter(apps *ormapi.RegionAppInstMetricsV2) string {
 	return filterStr
 }
 
-func getSelectorForMeasurement(selector, function string) string {
+func getFuncForSelector(selector, timeDefinition string) string {
+	// If we don't group by time, we cannot accumulate using a function
+	if timeDefinition == "" {
+		return ""
+	}
 	switch selector {
 	case "cpu":
-		return "mean(cpu)"
+		return "mean"
+	case "disk":
+		fallthrough
 	case "mem":
-		return "max(mem)"
+		return "max"
+	case "network":
+		fallthrough
+	case "connections":
+		fallthrough
+	case "udp":
+		return "last"
 	default:
-		return "error"
+		return ""
 	}
-	//TODO - other than cpu/mem
+}
+
+func getSelectorForMeasurement(selector, function string) string {
+	var fields []string
+
+	switch selector {
+	case "cpu":
+		fields = CpuFields
+	case "disk":
+		fields = DiskFields
+	case "mem":
+		fields = MemFields
+	case "network":
+		fields = NetworkFields
+	case "connections":
+		fields = ConnectionsFields
+	case "udp":
+		fields = appUdpFields
+	default:
+		// if it's one of the unsupported selectors just return it back
+		return selector
+	}
+	if function == "" {
+		return strings.Join(fields, ",")
+	}
+
+	// cycle through fields and create the following: "cpu, mean" -> "mean(cpu) as cpu"
+	// ah...wouldn't it be nice to have a map functionality here....
+	var newSelectors []string
+	for _, field := range fields {
+		newSelectors = append(newSelectors, function+"("+field+") as "+field)
+	}
+	return strings.Join(newSelectors, ",")
 }

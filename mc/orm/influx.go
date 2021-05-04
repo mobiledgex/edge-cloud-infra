@@ -126,83 +126,83 @@ var PodFields = []string{
 }
 
 var CpuFields = []string{
-	"\"cpu\"",
+	"cpu",
 }
 
 var MemFields = []string{
-	"\"mem\"",
+	"mem",
 }
 
 var DiskFields = []string{
-	"\"disk\"",
+	"disk",
 }
 
 var NetworkFields = []string{
-	"\"sendBytes\"",
-	"\"recvBytes\"",
+	"sendBytes",
+	"recvBytes",
 }
 
 var TcpFields = []string{
-	"\"tcpConns\"",
-	"\"tcpRetrans\"",
+	"tcpConns",
+	"tcpRetrans",
 }
 
 var UdpFields = []string{
-	"\"udpSent\"",
-	"\"udpRecv\"",
-	"\"udpRecvErr\"",
+	"udpSent",
+	"udpRecv",
+	"udpRecvErr",
 }
 
 var ConnectionsFields = []string{
-	"\"port\"",
-	"\"active\"",
-	"\"handled\"",
-	"\"accepts\"",
-	"\"bytesSent\"",
-	"\"bytesRecvd\"",
-	"\"P0\"",
-	"\"P25\"",
-	"\"P50\"",
-	"\"P75\"",
-	"\"P90\"",
-	"\"P95\"",
-	"\"P99\"",
-	"\"P99.5\"",
-	"\"P99.9\"",
-	"\"P100\"",
+	"port",
+	"active",
+	"handled",
+	"accepts",
+	"bytesSent",
+	"bytesRecvd",
+	"P0",
+	"P25",
+	"P50",
+	"P75",
+	"P90",
+	"P95",
+	"P99",
+	"P99.5",
+	"P99.9",
+	"P100",
 }
 
 var appUdpFields = []string{
-	"\"port\"",
-	"\"bytesSent\"",
-	"\"bytesRecvd\"",
-	"\"datagramsSent\"",
-	"\"datagramsRecvd\"",
-	"\"sentErrs\"",
-	"\"recvErrs\"",
-	"\"overflow\"",
-	"\"missed\"",
+	"port",
+	"bytesSent",
+	"bytesRecvd",
+	"datagramsSent",
+	"datagramsRecvd",
+	"sentErrs",
+	"recvErrs",
+	"overflow",
+	"missed",
 }
 
 var UtilizationFields = []string{
-	"\"vCpuUsed\"",
-	"\"vCpuMax\"",
-	"\"memUsed\"",
-	"\"memMax\"",
-	"\"diskUsed\"",
-	"\"diskMax\"",
+	"vCpuUsed",
+	"vCpuMax",
+	"memUsed",
+	"memMax",
+	"diskUsed",
+	"diskMax",
 }
 
 var CloudletNetworkFields = []string{
-	"\"netSend\"",
-	"\"netRecv\"",
+	"netSend",
+	"netRecv",
 }
 
 var IpUsageFields = []string{
-	"\"floatingIpsUsed\"",
-	"\"floatingIpsMax\"",
-	"\"ipv4Used\"",
-	"\"ipv4Max\"",
+	"floatingIpsUsed",
+	"floatingIpsMax",
+	"ipv4Used",
+	"ipv4Max",
 }
 
 var ResourceUsageFields = []string{
@@ -210,8 +210,8 @@ var ResourceUsageFields = []string{
 }
 
 var FlavorUsageFields = []string{
-	"\"flavor\"",
-	"\"count\"",
+	"flavor",
+	"count",
 }
 
 const (

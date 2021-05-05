@@ -59,7 +59,9 @@ func GetAppMetrics(c echo.Context) error {
 		return setReply(c, fmt.Errorf("At least one app org has to be specified"), nil)
 	}
 	rc.region = in.Region
-	// TODO - don't allow *
+	if in.Selector == "*" {
+		return setReply(c, fmt.Errorf("MetricsV2 api does not allow for a wildcard selector"), nil)
+	}
 	if err = validateSelectorString(in.Selector, APPINST); err != nil {
 		return setReply(c, err, nil)
 	}

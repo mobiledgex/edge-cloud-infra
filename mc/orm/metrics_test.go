@@ -10,7 +10,7 @@ import (
 )
 
 var (
-	testSingleAppFilter       = "(\"apporg\"='testOrg1' AND \"app\"='testapp1' AND \"ver\"='10' AND \"cloudlet\"='testCloudlet1')"
+	testSingleAppFilter       = "(\"apporg\"='testOrg1' AND \"app\"='testapp1' AND \"ver\"='10' AND \"cloudlet\"='testCloudlet1') AND (cloudlet='testCloudlet1')"
 	testSingleAppQueryDefTime = "SELECT mean(cpu) as cpu FROM \"appinst-cpu\" WHERE (" +
 		testSingleAppFilter + ") " +
 		"AND time >= '2019-12-31T13:01:00Z' AND time <= '2020-01-01T01:01:00Z' " +
@@ -38,7 +38,8 @@ var (
 		},
 	}
 	testAppsFilter = "(\"apporg\"='testOrg1' AND \"app\"='testapp1' AND \"ver\"='10' AND \"clusterorg\"='testOrg1' AND \"cluster\"='testCluster1' AND \"cloudlet\"='testCloudlet1' AND \"cloudletorg\"='testCloudletOrg1') OR " +
-		"(\"apporg\"='testOrg1' AND \"app\"='testapp2' AND \"ver\"='20' AND \"clusterorg\"='testOrg1' AND \"cluster\"='testCluster2' AND \"cloudlet\"='testCloudlet2' AND \"cloudletorg\"='testCloudletOrg2')"
+		"(\"apporg\"='testOrg1' AND \"app\"='testapp2' AND \"ver\"='20' AND \"clusterorg\"='testOrg1' AND \"cluster\"='testCluster2' AND \"cloudlet\"='testCloudlet2' AND \"cloudletorg\"='testCloudletOrg2') " +
+		"AND (cloudlet='testCloudlet1' OR cloudlet='testCloudlet2')"
 	testAppsQueryDefTime = "SELECT last(sendBytes) as sendBytes,last(recvBytes) as recvBytes FROM \"appinst-network\" WHERE (" +
 		testAppsFilter + ") " +
 		"AND time >= '2019-12-31T13:01:00Z' AND time <= '2020-01-01T01:01:00Z' " +
@@ -89,6 +90,14 @@ var (
 	}
 )
 
+func getCloudletsFromAppInsts(apps *ormapi.RegionAppInstMetricsV2) []string {
+	cloudlets := []string{}
+	for _, app := range apps.AppInsts {
+		cloudlets = append(cloudlets, app.ClusterInstKey.CloudletKey.Name)
+	}
+	return cloudlets
+}
+
 func TestFillTimeAndGetCmd(t *testing.T) {
 	// Single App, default time insterval
 	testSingleApp.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
@@ -97,7 +106,7 @@ func TestFillTimeAndGetCmd(t *testing.T) {
 	args := influxQueryArgs{
 		Selector:       getSelectorForMeasurement("cpu", selectorFunction),
 		Measurement:    getMeasurementString("cpu", APPINST),
-		QueryFilter:    getAppInstQueryFilter(&testSingleApp),
+		QueryFilter:    getAppInstQueryFilter(&testSingleApp, getCloudletsFromAppInsts(&testSingleApp)),
 		TimeDefinition: timeDef,
 		Last:           testSingleApp.Last,
 	}
@@ -112,7 +121,7 @@ func TestFillTimeAndGetCmd(t *testing.T) {
 	args = influxQueryArgs{
 		Selector:       getSelectorForMeasurement("cpu", selectorFunction),
 		Measurement:    getMeasurementString("cpu", APPINST),
-		QueryFilter:    getAppInstQueryFilter(&testSingleApp),
+		QueryFilter:    getAppInstQueryFilter(&testSingleApp, getCloudletsFromAppInsts(&testSingleApp)),
 		TimeDefinition: timeDef,
 		Last:           testSingleApp.Last,
 	}
@@ -127,7 +136,7 @@ func TestFillTimeAndGetCmd(t *testing.T) {
 	args = influxQueryArgs{
 		Selector:       getSelectorForMeasurement("network", selectorFunction),
 		Measurement:    getMeasurementString("network", APPINST),
-		QueryFilter:    getAppInstQueryFilter(&testApps),
+		QueryFilter:    getAppInstQueryFilter(&testApps, getCloudletsFromAppInsts(&testApps)),
 		TimeDefinition: timeDef,
 		Last:           testApps.Last,
 	}
@@ -142,7 +151,7 @@ func TestFillTimeAndGetCmd(t *testing.T) {
 	args = influxQueryArgs{
 		Selector:       getSelectorForMeasurement("network", selectorFunction),
 		Measurement:    getMeasurementString("network", APPINST),
-		QueryFilter:    getAppInstQueryFilter(&testApps),
+		QueryFilter:    getAppInstQueryFilter(&testApps, getCloudletsFromAppInsts(&testApps)),
 		TimeDefinition: timeDef,
 		Last:           testApps.Last,
 	}
@@ -153,9 +162,10 @@ func TestFillTimeAndGetCmd(t *testing.T) {
 
 func TestGetAppInstQueryFilter(t *testing.T) {
 	// Tests single app string
-	require.Equal(t, testSingleAppFilter, getAppInstQueryFilter(&testSingleApp))
+	require.Equal(t, testSingleAppFilter, getAppInstQueryFilter(&testSingleApp,
+		getCloudletsFromAppInsts(&testSingleApp)))
 	// Test query for multiple apps
-	require.Equal(t, testAppsFilter, getAppInstQueryFilter(&testApps))
+	require.Equal(t, testAppsFilter, getAppInstQueryFilter(&testApps, getCloudletsFromAppInsts(&testApps)))
 }
 
 func TestGetFuncForSelector(t *testing.T) {

@@ -603,7 +603,8 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.AppInst.AppKey.Organization, ResourceAppAnalytics, in.AppInst.ClusterInstKey.CloudletKey)
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, []string{in.AppInst.AppKey.Organization},
+			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
 		if err != nil {
 			return setReply(c, err, nil)
 		}
@@ -619,7 +620,8 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.ClusterInst.Organization, ResourceClusterAnalytics, in.ClusterInst.CloudletKey)
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, []string{in.ClusterInst.Organization},
+			ResourceClusterAnalytics, []edgeproto.CloudletKey{in.ClusterInst.CloudletKey})
 		if err != nil {
 			return setReply(c, err, nil)
 		}
@@ -657,7 +659,8 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.AppInst.AppKey.Organization, ResourceAppAnalytics, in.AppInst.ClusterInstKey.CloudletKey)
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, []string{in.AppInst.AppKey.Organization},
+			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
 		if err != nil {
 			return setReply(c, err, nil)
 		}
@@ -721,7 +724,8 @@ func GetMetricsCommon(c echo.Context) error {
 			dbNames = append(dbNames, cloudcommon.DownsampledMetricsDbName)
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.AppInst.AppKey.Organization, ResourceAppAnalytics, in.AppInst.ClusterInstKey.CloudletKey)
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, []string{in.AppInst.AppKey.Organization},
+			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
 		if err != nil {
 			return setReply(c, err, nil)
 		}
@@ -784,56 +788,74 @@ func checkForTimeError(errStr string) string {
 	return errStr
 }
 
-func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims, region, devOrg, devResource string, cloudletKey edgeproto.CloudletKey) ([]string, error) {
+func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims, region string, devOrgs []string, devResource string, cloudletKeys []edgeproto.CloudletKey) ([]string, error) {
 	regionRc := &RegionContext{}
 	regionRc.username = claims.Username
 	regionRc.region = region
-	cloudletList := []string{}
+	uniqueCloudlets := make(map[string]struct{})
+	devOrgPermOk := false
+	operOrgPermOk := false
 	// get all associated orgs
-	if devOrg == "" && cloudletKey.Organization == "" {
+	if len(devOrgs) == 0 && len(cloudletKeys) == 0 {
 		return []string{}, fmt.Errorf("Must provide either App organization or Cloudlet organization")
 	}
 	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, devResource, ActionView)
 	if err != nil {
 		return []string{}, err
 	}
-	_, devOrgPermOk := authDevOrgs[devOrg]
 	if _, found := authDevOrgs[""]; found {
 		// admin
 		devOrgPermOk = true
+	} else {
+		for _, devOrg := range devOrgs {
+			_, devOrgPermOk = authDevOrgs[devOrg]
+			if !devOrgPermOk {
+				// in case we find that any of the orgs passed are not authorized, break
+				break
+			}
+		}
 	}
 	authOperOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceCloudletAnalytics, ActionView)
 	if err != nil {
 		return []string{}, err
 	}
-	_, operOrgPermOk := authOperOrgs[cloudletKey.Organization]
 	if _, found := authOperOrgs[""]; found {
 		// admin
 		operOrgPermOk = true
+	} else {
+		for _, cloudletKey := range cloudletKeys {
+			_, operOrgPermOk = authOperOrgs[cloudletKey.Organization]
+			if !operOrgPermOk {
+				break
+			}
+		}
 	}
 	if !devOrgPermOk && !operOrgPermOk {
 		// no perms for specified orgs, or they forgot to specify an org that
 		// they have perms to (since there are two choices)
-		if devOrg == "" && len(authDevOrgs) > 0 {
+		if len(devOrgs) == 0 && len(authDevOrgs) > 0 {
 			// developer but didn't specify App org
 			orgField := "App"
 			if devResource == ResourceClusterAnalytics {
 				orgField = "Cluster"
 			}
 			return []string{}, fmt.Errorf("Developers please specify the %s Organization", orgField)
-		} else if cloudletKey.Organization == "" && len(authOperOrgs) > 0 {
+		} else if len(cloudletKeys) == 0 && len(authOperOrgs) > 0 {
 			return []string{}, fmt.Errorf("Operators please specify the Cloudlet Organization")
 		} else {
 			return []string{}, echo.ErrForbidden
 		}
 	}
-
-	if cloudletKey.Name != "" {
-		cloudletList = []string{cloudletKey.Name}
+	// append to the list the specified cloudlets
+	for _, cloudletKey := range cloudletKeys {
+		if cloudletKey.Name != "" {
+			uniqueCloudlets[cloudletKey.Name] = struct{}{}
+		}
 	}
+
 	// only grab the cloudletpools if no specific cloudlet was mentioned
 	getPools := false
-	if operOrgPermOk && len(cloudletList) == 0 {
+	if operOrgPermOk && len(uniqueCloudlets) == 0 {
 		getPools = true
 		// operator specified an apporg. If it is an org the user is a part of then just show everything tied to that org
 		// if the user is not part of the org, then only show the metrics of the org inside the operator's cloudletpools
@@ -842,26 +864,34 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 		}
 	}
 	if getPools {
-		cloudletpoolQuery := edgeproto.CloudletPool{Key: edgeproto.CloudletPoolKey{Organization: cloudletKey.Organization}}
+		// If we are getting a cloudlet pool, assume all the coudlets specified in the argument is from the same pool
+		cloudletpoolQuery := edgeproto.CloudletPool{Key: edgeproto.CloudletPoolKey{Organization: cloudletKeys[0].Organization}}
 		cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
 		if err != nil {
 			return []string{}, err
 		}
 		for _, pool := range cloudletPools {
 			for _, cloudlet := range pool.Cloudlets {
-				cloudletList = append(cloudletList, cloudlet)
+				uniqueCloudlets[cloudlet] = struct{}{}
 			}
 		}
-	} else if len(cloudletList) == 1 {
+	} else if len(uniqueCloudlets) == 1 {
 		//make sure the cloudlet is in a pool
 		if operOrgPermOk && !devOrgPermOk {
-			if !allRegionCaches.InPool(region, cloudletKey) {
-				return []string{}, fmt.Errorf("Operators must specify a cloudlet in a cloudletPool")
+			for _, cloudletKey := range cloudletKeys {
+				if !allRegionCaches.InPool(region, cloudletKey) {
+					return []string{}, fmt.Errorf("Operators must specify a cloudlet in a cloudletPool")
+				}
 			}
 		}
 	}
-	if operOrgPermOk && !devOrgPermOk && len(cloudletList) == 0 {
+	if operOrgPermOk && !devOrgPermOk && len(uniqueCloudlets) == 0 {
 		return []string{}, fmt.Errorf("No non-empty CloudletPools to show")
+	}
+	// collect all the list and return it
+	cloudletList := []string{}
+	for k, _ := range uniqueCloudlets {
+		cloudletList = append(cloudletList, k)
 	}
 	return cloudletList, nil
 }

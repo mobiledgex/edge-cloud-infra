@@ -122,7 +122,7 @@ curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-ke
 ps -ef | grep cloud
 
 log "Set up APT sources"
-sudo rm -rf /etc/apt/sources.list.d
+sudo rm -rf /etc/apt/sources.list.d/*
 sudo tee /etc/apt/sources.list <<EOT
 deb https://apt.mobiledgex.net/cirrus/2021-02-01 bionic main
 deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main

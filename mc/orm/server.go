@@ -80,6 +80,7 @@ type ServerConfig struct {
 	AlertmgrResolveTimout   time.Duration
 	UsageCheckpointInterval string
 	DomainName              string
+	StaticDir               string
 }
 
 var DefaultDBUser = "mcuser"

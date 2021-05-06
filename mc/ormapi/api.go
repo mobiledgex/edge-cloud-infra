@@ -562,4 +562,6 @@ type GenerateReport struct {
 	EndTime time.Time `json:",omitempty"`
 	// Region name (for internal use only)
 	Region string
+	// Timezone
+	Timezone string
 }

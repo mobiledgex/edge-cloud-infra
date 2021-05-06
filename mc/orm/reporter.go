@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -24,6 +25,7 @@ var (
 	reportTrigger chan bool
 
 	ReportTimeout = 1 * time.Hour
+	NoCloudlet    = ""
 )
 
 func DateEqual(date1, date2 time.Time) bool {
@@ -302,6 +304,31 @@ func GenerateReport(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("report can only be generated for Operator org"))
 	}
 
+	if report.Timezone == "" {
+		// check if timezone is present as part of user's setting
+		// this is set from console UI
+		user := ormapi.User{Name: claims.Username}
+		db := loggedDB(ctx)
+		err := db.Where(&user).First(&user).Error
+		if err != nil {
+			return setReply(c, dbErr(err), nil)
+		}
+		if user.Metadata != "" {
+			metadata := make(map[string]string)
+			err = json.Unmarshal([]byte(user.Metadata), &metadata)
+			if err != nil {
+				return bindErr(c, err)
+			}
+			if timezone, ok := metadata["Timezone"]; ok {
+				report.Timezone = timezone
+			}
+		}
+	}
+	if report.Timezone == "" {
+		// defaults to UTC
+		report.Timezone = "UTC"
+	}
+
 	if !report.StartTime.Before(report.EndTime) {
 		return c.JSON(http.StatusBadRequest, Msg("start time must be before end time"))
 	}
@@ -346,13 +373,19 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 		platformTypeStr := edgeproto.PlatformType_CamelName[int32(res.PlatformType)]
 		platformTypeStr = strings.TrimPrefix(platformTypeStr, "PlatformType")
 		stateStr := edgeproto.TrackedState_CamelName[int32(res.State)]
-		cloudletData := []string{res.Key.Name, platformTypeStr, stateStr, res.ContainerVersion}
+		if !strings.HasPrefix(res.Key.Name, "automation") {
+			return
+		}
+		cloudletData := []string{res.Key.Name, platformTypeStr, stateStr}
 
 		cloudlets = append(cloudlets, cloudletData)
 	})
 	if err != nil {
 		return nil, err
 	}
+	sort.Slice(cloudlets, func(i, j int) bool {
+		return cloudlets[i][0] > cloudlets[j][0]
+	})
 	return cloudlets, nil
 }
 
@@ -430,10 +463,13 @@ func GetCloudletPoolSummaryData(ctx context.Context, username string, report *or
 		}
 		cloudletpools = append(cloudletpools, entry)
 	}
+	sort.Slice(cloudletpools, func(i, j int) bool {
+		return cloudletpools[i][0] > cloudletpools[j][0]
+	})
 	return cloudletpools, nil
 }
 
-func GetCloudletResourceUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string][]TimeChartData, error) {
+func GetCloudletResourceUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]map[string]TimeChartData, error) {
 	rc := &InfluxDBContext{}
 	dbNames := []string{cloudcommon.CloudletResourceUsageDbName}
 	in := ormapi.RegionCloudletMetrics{
@@ -476,18 +512,17 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 					if !ok {
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[1])
 					}
+					if _, ok := chartMap[cloudlet]; !ok {
+						chartMap[cloudlet] = make(map[string]TimeChartData)
+					}
 					for resIndex := 3; resIndex < len(val); resIndex++ {
 						resName := row.Columns[resIndex]
-						if _, ok := chartMap[resName]; !ok {
-							chartMap[resName] = make(map[string]TimeChartData)
+						if _, ok := chartMap[cloudlet][resName]; !ok {
+							chartMap[cloudlet][resName] = TimeChartData{Name: cloudlet}
 						}
-						if _, ok := chartMap[resName][cloudlet]; !ok {
-							chartMap[resName][cloudlet] = TimeChartData{Name: cloudlet}
-						}
-						clData, _ := chartMap[resName][cloudlet]
+						clData := chartMap[cloudlet][resName]
 
 						if val[resIndex] == nil {
-							log.SpanLog(ctx, log.DebugLevelInfo, "resource value is nil", "resname", resName, "value", val[resIndex])
 							continue
 						}
 						resVal, err := val[resIndex].(json.Number).Float64()
@@ -498,7 +533,7 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 
 						clData.XValues = append(clData.XValues, time)
 						clData.YValues = append(clData.YValues, float64(resVal))
-						chartMap[resName][cloudlet] = clData
+						chartMap[cloudlet][resName] = clData
 					}
 				}
 			}
@@ -507,16 +542,10 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 	if err != nil {
 		return nil, err
 	}
-	chartDataOut := make(map[string][]TimeChartData)
-	for resName, resData := range chartMap {
-		for _, cData := range resData {
-			chartDataOut[resName] = append(chartDataOut[resName], cData)
-		}
-	}
-	return chartDataOut, nil
+	return chartMap, nil
 }
 
-func GetCloudletFlavorUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) ([][]string, error) {
+func GetCloudletFlavorUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]BarChartData, error) {
 	rc := &InfluxDBContext{}
 	dbNames := []string{cloudcommon.CloudletResourceUsageDbName}
 	in := ormapi.RegionCloudletMetrics{
@@ -552,7 +581,6 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[1])
 					}
 					if val[3] == nil {
-						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch flavor value as it is nil", "cloudlet", val[1])
 						continue
 					}
 					countVal, err := val[3].(json.Number).Float64()
@@ -567,6 +595,11 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 					if _, ok := flavorMap[cloudlet]; !ok {
 						flavorMap[cloudlet] = make(map[string]float64)
 					}
+					if curVal, ok := flavorMap[cloudlet][flavor]; ok {
+						if countVal <= curVal {
+							continue
+						}
+					}
 					flavorMap[cloudlet][flavor] = countVal
 				}
 			}
@@ -575,7 +608,7 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 	if err != nil {
 		return nil, err
 	}
-	flavorOut := [][]string{}
+	flavorOut := make(map[string]BarChartData)
 	for cloudlet, flavorCount := range flavorMap {
 		flavors := []string{}
 		for flavor, _ := range flavorCount {
@@ -584,21 +617,19 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 		sort.Slice(flavors, func(i, j int) bool {
 			return flavorCount[flavors[i]] > flavorCount[flavors[j]]
 		})
-		count := 0
-		topFlavors := []string{}
-		for _, flavor := range flavors {
-			if count >= 5 {
-				break
-			}
-			topFlavors = append(topFlavors, fmt.Sprintf("%s (%0.0f)", flavor, flavorCount[flavor]))
-			count++
+		chartData := BarChartData{
+			Name: cloudlet,
 		}
-		flavorOut = append(flavorOut, []string{cloudlet, strings.Join(topFlavors, "\n")})
+		for _, flavor := range flavors {
+			chartData.XValues = append(chartData.XValues, flavor)
+			chartData.YValues = append(chartData.YValues, flavorCount[flavor])
+		}
+		flavorOut[cloudlet] = chartData
 	}
 	return flavorOut, nil
 }
 
-func GetCloudletEvents(ctx context.Context, username string, report *ormapi.GenerateReport) ([][]string, error) {
+func GetCloudletEvents(ctx context.Context, username string, timezone *time.Location, report *ormapi.GenerateReport) (map[string][][]string, error) {
 	search := node.EventSearch{
 		Match: node.EventMatch{
 			Orgs:    []string{report.Org},
@@ -610,23 +641,27 @@ func GetCloudletEvents(ctx context.Context, username string, report *ormapi.Gene
 			EndTime:   report.EndTime,
 		},
 	}
-	if err := search.TimeRange.Resolve(48 * time.Hour); err != nil {
-		return nil, err
-	}
 
 	events, err := nodeMgr.ShowEvents(ctx, &search)
 	if err != nil {
 		return nil, err
 	}
-	eventsData := [][]string{}
+	eventsData := make(map[string][][]string)
 	for _, event := range events {
 		cloudlet, ok := event.Mtags["cloudlet"]
 		if !ok {
 			log.SpanLog(ctx, log.DebugLevelInfo, "missing cloudlet name in event, skipping", "event", event)
+			continue
 		}
-		timestamp := event.Timestamp.Format("Mon Jan 2 15:04:05")
-		entry := []string{timestamp, cloudlet, event.Name}
-		eventsData = append(eventsData, entry)
+		timestamp := event.Timestamp.Format(TimeFormatDayDateTime)
+		if timezone != nil {
+			timestamp = event.Timestamp.In(timezone).Format(TimeFormatDayDateTime)
+		}
+		entry := []string{timestamp, event.Name}
+		if _, ok := eventsData[cloudlet]; !ok {
+			eventsData[cloudlet] = [][]string{}
+		}
+		eventsData[cloudlet] = append(eventsData[cloudlet], entry)
 	}
 	return eventsData, nil
 }
@@ -641,8 +676,8 @@ func inTimeSpan(start, end, check time.Time) bool {
 	return !start.After(check) || !end.Before(check)
 }
 
-func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.GenerateReport) ([][]string, error) {
-	alertsData := [][]string{}
+func GetCloudletAlerts(ctx context.Context, username string, timezone *time.Location, report *ormapi.GenerateReport) (map[string][][]string, error) {
+	alertsData := make(map[string][][]string)
 	rc := &RegionContext{
 		region:    report.Region,
 		username:  username,
@@ -660,6 +695,9 @@ func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.Gene
 	}
 	for _, alert := range alerts {
 		alertTime := cloudcommon.TimestampToTime(alert.ActiveAt)
+		if timezone != nil {
+			alertTime = alertTime.In(timezone)
+		}
 		if !inTimeSpan(report.StartTime, report.EndTime, alertTime) {
 			continue
 		}
@@ -671,9 +709,12 @@ func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.Gene
 		if !ok {
 			log.SpanLog(ctx, log.DebugLevelInfo, "missing description in alert annotations, skipping", "annotations", alert.Annotations)
 		}
-		alertTimeStr := alertTime.Format("Mon Jan 2 15:04:05")
-		entry := []string{alertTimeStr, cloudlet, desc, alert.State}
-		alertsData = append(alertsData, entry)
+		alertTimeStr := alertTime.Format(TimeFormatDayDateTime)
+		entry := []string{alertTimeStr, desc, alert.State}
+		if _, ok := alertsData[cloudlet]; !ok {
+			alertsData[cloudlet] = [][]string{}
+		}
+		alertsData[cloudlet] = append(alertsData[cloudlet], entry)
 	}
 	return alertsData, nil
 }
@@ -686,87 +727,146 @@ func getReportFileName(report *ormapi.GenerateReport) string {
 }
 
 func GenerateCloudletReport(ctx context.Context, username string, regions []string, report *ormapi.GenerateReport) error {
-	pdf := NewReport()
+	// fetch logo path
+	logoPath := serverConfig.StaticDir + "/MobiledgeX_Logo.png"
+	if _, err := os.Stat(logoPath); os.IsNotExist(err) {
+		return fmt.Errorf("Missing logo")
+	}
+	pdfReport, err := NewReport(report)
+	if err != nil {
+		return err
+	}
 	for _, region := range regions {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Generate operator report for region", "region", region)
 		// start new page for every region
 		report.Region = region
-		pdf.AddPage()
+		pdfReport.AddPage()
 
-		AddPageTitle(pdf)
-		AddHeader(pdf, report)
-		AddFooter(pdf)
-		AddOperatorInfo(pdf, report)
-		AddHorizontalLine(pdf)
+		pdfReport.AddReportTitle(logoPath)
+		pdfReport.AddHeader(report, logoPath, NoCloudlet)
+		pdfReport.AddFooter()
+		pdfReport.AddOperatorInfo(report)
+		pdfReport.AddHorizontalLine()
 
+		// Step-1: Gather all data
+		// -------------------------
 		// Get list of cloudlets
-		header := []string{"Name", "Platform Type", "Last Known State", "Version"}
-		columnWidth := float64(40)
-		cloudlets, err := GetCloudletSummaryData(ctx, username, report)
+		cloudlets_summary, err := GetCloudletSummaryData(ctx, username, report)
 		if err != nil {
 			return fmt.Errorf("failed to get cloudlet summary: %v", err)
 		}
-		AddTable(pdf, "Cloudlets", header, cloudlets, columnWidth)
 
 		// Get list of cloudletpools
-		header = []string{"Name", "Associated Cloudlets", "Accepted Developers", "Pending Developers"}
-		columnWidth = float64(40)
 		cloudletpools, err := GetCloudletPoolSummaryData(ctx, username, report)
 		if err != nil {
 			return fmt.Errorf("failed to get cloudlet pool summary: %v", err)
 		}
-		AddTable(pdf, "CloudletPools", header, cloudletpools, columnWidth)
 
-		// Get top 5 flavors used per Cloudlet
-		header = []string{"Cloudlet", "Top 5 Flavors Used"}
-		columnWidth = float64(50)
-		pdf.Ln(10)
-		flavorData, err := GetCloudletFlavorUsageData(ctx, username, report)
-		if err != nil {
-			return fmt.Errorf("failed to get cloudlet flavor usage data: %v", err)
-		}
-		AddTable(pdf, "Flavor Usage", header, flavorData, columnWidth)
-
-		// Start new page
-		pdf.AddPage()
-
+		cloudlets := make(map[string]struct{})
 		// Get cloudlet resource usage metrics
 		resourceUsageCharts, err := GetCloudletResourceUsageData(ctx, username, report)
 		if err != nil {
 			return fmt.Errorf("failed to get cloudlet resource usage data: %v", err)
 		}
-		err = AddTimeCharts(pdf, "Resource Usage", resourceUsageCharts)
-		if err != nil {
-			return err
+		for cloudletName, _ := range resourceUsageCharts {
+			cloudlets[cloudletName] = struct{}{}
 		}
 
-		// Start new page
-		pdf.AddPage()
+		// Get top flavors used per Cloudlet
+		flavorData, err := GetCloudletFlavorUsageData(ctx, username, report)
+		if err != nil {
+			return fmt.Errorf("failed to get cloudlet flavor usage data: %v", err)
+		}
+		for cloudletName, _ := range flavorData {
+			cloudlets[cloudletName] = struct{}{}
+		}
 
 		// Get cloudlet events
-		header = []string{"Timestamp", "Cloudlet", "Description"}
-		columnWidth = float64(50)
-		eventsData, err := GetCloudletEvents(ctx, username, report)
+		eventsData, err := GetCloudletEvents(ctx, username, pdfReport.timezone, report)
 		if err != nil {
 			return fmt.Errorf("failed to get cloudlet events: %v", err)
 		}
-		AddTable(pdf, "Cloudlet Events", header, eventsData, columnWidth)
+		for cloudletName, _ := range eventsData {
+			cloudlets[cloudletName] = struct{}{}
+		}
 
 		// Get cloudlet alerts
-		header = []string{"Timestamp", "Cloudlet", "Description", "State"}
-		columnWidth = float64(40)
-		alertsData, err := GetCloudletAlerts(ctx, username, report)
+		alertsData, err := GetCloudletAlerts(ctx, username, pdfReport.timezone, report)
 		if err != nil {
 			return fmt.Errorf("failed to get cloudlet alerts: %v", err)
 		}
-		AddTable(pdf, "Cloudlet Alerts", header, alertsData, columnWidth)
+		for cloudletName, _ := range alertsData {
+			cloudlets[cloudletName] = struct{}{}
+		}
 
-		if pdf.Err() {
-			return fmt.Errorf("failed to create PDF report: %s\n", pdf.Error())
+		// Step-2: Render data
+		// -------------------------
+		// Get list of cloudlets
+		header := []string{"Name", "Platform Type", "Last Known State"}
+		columnsWidth := []float64{60, 30, 35}
+		pdfReport.AddTable("Cloudlets", header, cloudlets_summary, columnsWidth)
+
+		// Get list of cloudletpools
+		header = []string{"Name", "Associated Cloudlets", "Accepted Developers", "Pending Developers"}
+		columnsWidth = []float64{30, 60, 50, 50}
+		pdfReport.AddTable("CloudletPools", header, cloudletpools, columnsWidth)
+
+		// Sort cloudlet by name
+		cloudletNames := []string{}
+		for k := range cloudlets {
+			cloudletNames = append(cloudletNames, k)
+		}
+		sort.Strings(cloudletNames)
+
+		// Show per cloudlet reports
+		for _, cloudletName := range cloudletNames {
+			if !strings.HasPrefix(cloudletName, "automation") {
+				continue
+			}
+			// Start new page
+			pdfReport.AddHeader(report, logoPath, cloudletName)
+			pdfReport.AddPage()
+
+			pdfReport.AddPageTitle(cloudletName)
+
+			// Get cloudlet resource usage metrics
+			if data, ok := resourceUsageCharts[cloudletName]; ok {
+				err = pdfReport.AddTimeCharts(data)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Get top flavors used per Cloudlet
+			if data, ok := flavorData[cloudletName]; ok {
+				err = pdfReport.AddPieChart("Flavors Used", data)
+				if err != nil {
+					return err
+				}
+			}
+			// Get cloudlet events
+			if data, ok := eventsData[cloudletName]; ok {
+				header = []string{"Timestamp", "Description"}
+				columnsWidth = []float64{40, 100}
+				pdfReport.AddTable("Cloudlet Events", header, data, columnsWidth)
+			}
+
+			// Get cloudlet alerts
+			if data, ok := alertsData[cloudletName]; ok {
+				header = []string{"Timestamp", "Description", "State"}
+				columnsWidth = []float64{40, 100, 30}
+				pdfReport.AddTable("Cloudlet Alerts", header, data, columnsWidth)
+			}
+		}
+
+		pdfReport.AddHeader(report, logoPath, NoCloudlet)
+
+		if err = pdfReport.Err(); err != nil {
+			return fmt.Errorf("failed to create PDF report: %s\n", err.Error())
 		}
 		// TODO: Store in temporary location & then upload it to cloud
 		filename := getReportFileName(report)
-		err = pdf.OutputFileAndClose("/tmp/" + filename)
+		err = pdfReport.Save("/tmp/" + filename)
 		if err != nil {
 			return fmt.Errorf("cannot save PDF: %s", err)
 		}

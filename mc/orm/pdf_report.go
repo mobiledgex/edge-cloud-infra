@@ -4,28 +4,29 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/jung-kurt/gofpdf"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/wcharczuk/go-chart/v2"
 )
 
 const (
-	FontName     = "Arial"
-	LogoFilePath = "/Users/ashishjain/Desktop/MobiledgeX_Logo.png"
+	FontName              = "Arial"
+	TimeFormatDate        = "2006/01/02"
+	TimeFormatDateTime    = "01-02 15:04:05"
+	TimeFormatDayDateTime = "Mon Jan 2 15:04:05"
 
-	TimeFormatDate     = "2006/01/02"
-	TimeFormatDateTime = "2006-01-02T15:04:05Z"
-
-	DefaultFontSize    = float64(10)
-	TitleFontSize      = float64(20)
-	HeaderFontSize     = float64(8)
-	TitleLogoSize      = float64(60)
-	ChartWidth         = float64(150)
-	ChartHeight        = float64(60)
-	SectionGap         = float64(15)
-	DefaultColumnWidth = float64(50)
+	DefaultFontSize     = float64(10)
+	ReportTitleFontSize = float64(20)
+	PageTitleFontSize   = float64(15)
+	HeaderFontSize      = float64(8)
+	TitleLogoSize       = float64(60)
+	ChartWidth          = 150
+	ChartHeight         = 60
+	SectionGap          = float64(15)
 )
 
 type TimeChartData struct {
@@ -34,81 +35,126 @@ type TimeChartData struct {
 	YValues []float64
 }
 
+type BarChartData struct {
+	Name    string
+	XValues []string
+	YValues []float64
+}
+
 type CellInfo struct {
 	List   [][]byte
 	Height float64
 }
 
-func NewReport() *gofpdf.Fpdf {
+type PDFReport struct {
+	timezone *time.Location
+	pdf      *gofpdf.Fpdf
+}
+
+func NewReport(report *ormapi.GenerateReport) (*PDFReport, error) {
 	pdf := gofpdf.New(gofpdf.OrientationPortrait, "mm", "A4", "")
 	pdf.SetFont(FontName, "B", DefaultFontSize)
 	pdf.AliasNbPages("")
-	return pdf
+	location, err := time.LoadLocation(report.Timezone)
+	if err != nil {
+		return nil, err
+	}
+	pdfReport := &PDFReport{
+		pdf:      pdf,
+		timezone: location,
+	}
+	return pdfReport, nil
 }
 
-func AddPageTitle(pdf *gofpdf.Fpdf) {
-	pdf.SetFont(FontName, "B", TitleFontSize)
-	_, topMargin, rightMargin, _ := pdf.GetMargins()
-	pdf.Cell(100, 10, "Cloudlet Usage Report")
-	pageW, _ := pdf.GetPageSize()
+func (r *PDFReport) AddReportTitle(logoPath string) {
+	r.pdf.SetFont(FontName, "B", ReportTitleFontSize)
+	_, topMargin, rightMargin, _ := r.pdf.GetMargins()
+	r.pdf.Cell(100, 10, "Cloudlet Usage Report")
+	pageW, _ := r.pdf.GetPageSize()
 	// Logo aspect ratio is 6:1
-	pdf.ImageOptions(LogoFilePath, pageW-rightMargin-60, topMargin, TitleLogoSize, TitleLogoSize/6, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
-	pdf.Ln(-1)
+	r.pdf.ImageOptions(logoPath, pageW-rightMargin-60, topMargin, TitleLogoSize, TitleLogoSize/6, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+	r.pdf.Ln(-1)
 }
 
-func AddHeader(pdf *gofpdf.Fpdf, report *ormapi.GenerateReport) {
-	pdf.SetHeaderFuncMode(func() {
-		pdf.SetFont(FontName, "I", HeaderFontSize)
-		headerStr := fmt.Sprintf("Operator: %s | Region: %s", report.Org, report.Region)
-		_, topMargin, rightMargin, _ := pdf.GetMargins()
-		pdf.CellFormat(0, 0, headerStr, "", 0, "L", false, 0, "")
-		pageW, _ := pdf.GetPageSize()
+func (r *PDFReport) AddPageTitle(titleName string) {
+	r.pdf.SetFont(FontName, "B", PageTitleFontSize)
+	r.pdf.Cell(100, 10, titleName)
+	r.pdf.Ln(-1)
+}
+
+func (r *PDFReport) AddHeader(report *ormapi.GenerateReport, logoPath, cloudlet string) {
+	r.pdf.SetHeaderFuncMode(func() {
+		r.pdf.SetFont(FontName, "I", HeaderFontSize)
+		headerStr := ""
+		if cloudlet == "" {
+			headerStr = fmt.Sprintf("Operator: %s | Region: %s | Timezone: %s", report.Org, report.Region, report.Timezone)
+		} else {
+			headerStr = fmt.Sprintf("Operator: %s | Region: %s | Timezone: %s | Cloudlet: %s", report.Org, report.Region, report.Timezone, cloudlet)
+		}
+		_, topMargin, rightMargin, _ := r.pdf.GetMargins()
+		r.pdf.CellFormat(0, 0, headerStr, "", 0, "L", false, 0, "")
+		pageW, _ := r.pdf.GetPageSize()
 		// Logo aspect ratio is 6:1
-		pdf.ImageOptions(LogoFilePath, pageW-rightMargin-24, topMargin-2, 24, 4, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
-		pdf.Ln(5)
-		AddHorizontalLine(pdf)
-		pdf.Ln(5)
+		r.pdf.ImageOptions(logoPath, pageW-rightMargin-24, topMargin-2, 24, 4, false, gofpdf.ImageOptions{ImageType: "PNG", ReadDpi: true}, 0, "")
+		r.pdf.Ln(5)
+		r.AddHorizontalLine()
+		r.pdf.Ln(5)
 	}, false)
 }
 
-func AddFooter(pdf *gofpdf.Fpdf) {
-	pdf.SetFooterFunc(func() {
-		pdf.SetY(-15)
-		pdf.SetFont(FontName, "I", HeaderFontSize)
-		pdf.CellFormat(0, 10, fmt.Sprintf("Page %d/{nb}", pdf.PageNo()), "", 0, "C", false, 0, "")
+func (r *PDFReport) AddFooter() {
+	r.pdf.SetFooterFunc(func() {
+		r.pdf.SetY(-15)
+		r.pdf.SetFont(FontName, "I", HeaderFontSize)
+		r.pdf.CellFormat(0, 10, fmt.Sprintf("Page %d/{nb}", r.pdf.PageNo()), "", 0, "C", false, 0, "")
 	})
 }
 
-func AddOperatorInfo(pdf *gofpdf.Fpdf, report *ormapi.GenerateReport) {
-	pdf.SetFont(FontName, "B", HeaderFontSize)
-	pdf.Cell(40, 10, fmt.Sprintf("Operator: %s", report.Org))
-	pdf.Ln(5)
-	pdf.Cell(40, 10, fmt.Sprintf("Region: %s", report.Region))
-	pdf.Ln(5)
+func (r *PDFReport) AddOperatorInfo(report *ormapi.GenerateReport) {
+	r.pdf.SetFont(FontName, "B", HeaderFontSize)
+	r.pdf.Cell(40, 10, fmt.Sprintf("Operator: %s", report.Org))
+	r.pdf.Ln(5)
+	r.pdf.Cell(40, 10, fmt.Sprintf("Region: %s", report.Region))
+	r.pdf.Ln(5)
 	startDate := report.StartTime.Format(TimeFormatDate)
 	endDate := report.EndTime.Format(TimeFormatDate)
-	pdf.Cell(40, 10, fmt.Sprintf("Report Period: %s - %s", startDate, endDate))
-	pdf.Ln(-1)
+	r.pdf.Cell(40, 10, fmt.Sprintf("Report Period: %s - %s", startDate, endDate))
+	r.pdf.Ln(5)
+	r.pdf.Cell(40, 10, fmt.Sprintf("Timezone: %s", report.Timezone))
+	r.pdf.Ln(-1)
 }
 
-func AddHorizontalLine(pdf *gofpdf.Fpdf) {
-	pageW, _ := pdf.GetPageSize()
-	_, leftMargin, rightMargin, _ := pdf.GetMargins()
-	curY := pdf.GetY()
-	pdf.Line(leftMargin, curY, pageW-rightMargin, curY)
-	pdf.DrawPath("DF")
+func (r *PDFReport) AddHorizontalLine() {
+	pageW, _ := r.pdf.GetPageSize()
+	_, leftMargin, rightMargin, _ := r.pdf.GetMargins()
+	curY := r.pdf.GetY()
+	r.pdf.Line(leftMargin, curY, pageW-rightMargin, curY)
+	r.pdf.DrawPath("DF")
 }
 
-func AddTable(pdf *gofpdf.Fpdf, title string, hdr []string, tbl [][]string, colWidth float64) {
-	if colWidth <= 0 {
-		colWidth = DefaultColumnWidth
+func (r *PDFReport) AddPage() {
+	r.pdf.AddPage()
+}
+
+func (r *PDFReport) Err() error {
+	if r.pdf.Err() {
+		return r.pdf.Error()
 	}
+	return nil
+}
+
+func (r *PDFReport) Save(filepath string) error {
+	return r.pdf.OutputFileAndClose(filepath)
+}
+
+func (r *PDFReport) AddTable(title string, hdr []string, tbl [][]string, colsWidth []float64) {
 	rowHeight := float64(7)
 	cellGap := float64(2)
 
-	pdf.SetFont(FontName, "B", DefaultFontSize)
-	pdf.Cell(40, 10, title)
-	pdf.Ln(-1)
+	if len(tbl) == 0 {
+		// no data, skip adding table
+		return
+	}
 
 	// Center align all columns
 	alignCols := []string{}
@@ -116,27 +162,42 @@ func AddTable(pdf *gofpdf.Fpdf, title string, hdr []string, tbl [][]string, colW
 		alignCols = append(alignCols, "C")
 	}
 
-	// Table Header
-	pdf.SetFont(FontName, "B", DefaultFontSize)
-	pdf.SetFillColor(240, 240, 240)
-	for ii, str := range hdr {
-		pdf.CellFormat(colWidth, rowHeight, str, "1", 0, alignCols[ii], true, 0, "")
+	leftMargin, topMargin, _, bottomMargin := r.pdf.GetMargins()
+	_, pageH := r.pdf.GetPageSize()
+	pageBreakTrigger := pageH - bottomMargin
+	maxRowHeight := rowHeight
+
+	curY := r.pdf.GetY()
+	if curY+maxRowHeight+rowHeight+cellGap+cellGap+10 > pageBreakTrigger {
+		// break, go to new page
+		r.pdf.AddPage()
+		curY = topMargin + 10
 	}
-	pdf.Ln(-1)
+
+	// Title
+	r.pdf.SetFont(FontName, "B", DefaultFontSize)
+	r.pdf.Cell(40, 10, title)
+	r.pdf.Ln(-1)
+
+	// Table Header
+	r.pdf.SetFont(FontName, "B", DefaultFontSize)
+	r.pdf.SetFillColor(240, 240, 240)
+	for ii, str := range hdr {
+		r.pdf.CellFormat(colsWidth[ii], rowHeight, str, "1", 0, alignCols[ii], true, 0, "")
+	}
+	r.pdf.Ln(-1)
 
 	// Table Content
-	pdf.SetFont(FontName, "", DefaultFontSize)
-	pdf.SetFillColor(255, 255, 255)
+	r.pdf.SetFont(FontName, "", DefaultFontSize)
+	r.pdf.SetFillColor(255, 255, 255)
 
-	maxRowHeight := rowHeight
-	_, leftMargin, _, _ := pdf.GetMargins()
-	curY := pdf.GetY()
+	curY = r.pdf.GetY()
 	for _, line := range tbl {
 		// Cell height calculation loop
 		cellList := []CellInfo{}
-		for _, colStr := range line {
+		for colIndex, colStr := range line {
 			cell := CellInfo{}
-			cell.List = pdf.SplitLines([]byte(colStr), colWidth-cellGap-cellGap)
+			cell.List = r.pdf.SplitLines([]byte(colStr), colsWidth[colIndex]-cellGap-cellGap)
 			cell.Height = float64(len(cell.List)) * rowHeight
 			cellList = append(cellList, cell)
 			if cell.Height > maxRowHeight {
@@ -145,39 +206,58 @@ func AddTable(pdf *gofpdf.Fpdf, title string, hdr []string, tbl [][]string, colW
 		}
 		// Cell render loop
 		curX := leftMargin
-		for colNo, _ := range line {
-			pdf.Rect(curX, curY, colWidth, maxRowHeight+cellGap+cellGap, "D")
-			cell := cellList[colNo]
+		if curY+maxRowHeight+cellGap+cellGap > pageBreakTrigger {
+			// break, go to new page
+			r.pdf.AddPage()
+			curY = topMargin + 10
+		}
+		for colIndex, _ := range line {
+			r.pdf.Rect(curX, curY, colsWidth[colIndex], maxRowHeight+cellGap+cellGap, "D")
+			cell := cellList[colIndex]
 			cellY := curY + cellGap + (maxRowHeight-cell.Height)/2
 			for splitNo := 0; splitNo < len(cell.List); splitNo++ {
-				pdf.SetXY(curX+cellGap, cellY)
-				pdf.CellFormat(colWidth-cellGap-cellGap, rowHeight, string(cell.List[splitNo]), "", 0, alignCols[colNo], false, 0, "")
+				r.pdf.SetXY(curX+cellGap, cellY)
+				r.pdf.CellFormat(colsWidth[colIndex]-cellGap-cellGap, rowHeight, string(cell.List[splitNo]), "", 0, alignCols[colIndex], false, 0, "")
 				cellY += rowHeight
 			}
-			curX += colWidth
+			curX += colsWidth[colIndex]
 		}
 		curY += maxRowHeight + cellGap + cellGap
 	}
-	pdf.Ln(SectionGap)
+	r.pdf.Ln(SectionGap)
 }
 
-func AddTimeCharts(pdf *gofpdf.Fpdf, title string, charts map[string][]TimeChartData) error {
-	pdf.SetFont(FontName, "B", DefaultFontSize)
-	pdf.Cell(40, 10, title)
-	pdf.Ln(-1)
-	// sort chart data
+func (r *PDFReport) AddTimeCharts(charts map[string]TimeChartData) error {
 	keys := []string{}
 	for k := range charts {
+		chartData := charts[k]
+		if len(chartData.XValues) < 2 {
+			// there should be atleast 2 points, skip chart
+			continue
+		}
+		allZeroes := true
+		for _, yVal := range chartData.YValues {
+			if yVal != 0 {
+				allZeroes = false
+				break
+			}
+		}
+		if allZeroes {
+			// no data to render, skip chart
+			continue
+		}
 		keys = append(keys, k)
 	}
+
+	if len(keys) == 0 {
+		return nil
+	}
+
+	// sort chart data
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		chart := charts[key]
-		sort.Slice(chart[:], func(i, j int) bool {
-			return chart[i].Name < chart[j].Name
-		})
-		err := AddTimeChart(pdf, key, chart)
+		err := r.AddTimeChart(key, charts[key])
 		if err != nil {
 			return err
 		}
@@ -185,85 +265,225 @@ func AddTimeCharts(pdf *gofpdf.Fpdf, title string, charts map[string][]TimeChart
 	return nil
 }
 
-func AddTimeChart(pdf *gofpdf.Fpdf, title string, data []TimeChartData) error {
-	chartSeries := []chart.Series{}
-	xGridLines := []chart.GridLine{}
-	yGridLines := []chart.GridLine{}
+func (r *PDFReport) AddPieChart(title string, data BarChartData) error {
+	chartValues := []chart.Value{}
 	allZeroes := true
-	for _, chartData := range data {
-		cloudletSeries := chart.TimeSeries{
-			Name:    chartData.Name,
-			XValues: chartData.XValues,
-			YValues: chartData.YValues,
+	maxVal := float64(10)
+	for ii, _ := range data.XValues {
+		yVal := data.YValues[ii]
+		xVal := data.XValues[ii]
+		chartValues = append(chartValues, chart.Value{
+			Value: yVal,
+			Label: fmt.Sprintf("%s (%.0f)", xVal, yVal),
+		})
+		if yVal != 0 {
+			allZeroes = false
 		}
-		chartSeries = append(chartSeries, cloudletSeries)
-		for _, yval := range chartData.YValues {
-			if yval != float64(0) {
-				allZeroes = false
-				break
-			}
-			yGridLines = append(yGridLines, chart.GridLine{Value: yval})
-		}
-		for _, xval := range chartData.XValues {
-			xGridLines = append(xGridLines, chart.GridLine{Value: chart.TimeToFloat64(xval)})
+		if yVal > maxVal {
+			maxVal = yVal
 		}
 	}
 	if allZeroes {
-		// Skip chart
 		return nil
 	}
 
-	graph := chart.Chart{
-		YAxis: chart.YAxis{
-			ValueFormatter: func(v interface{}) string {
-				if vf, isFloat := v.(float64); isFloat {
-					return fmt.Sprintf("%0.0f", vf)
-				}
-				return ""
-			},
-			GridMajorStyle: chart.Style{
-				StrokeColor: chart.ColorAlternateGray,
-				StrokeWidth: 0.2,
-			},
-			GridLines: yGridLines,
-		},
-		XAxis: chart.XAxis{
-			ValueFormatter: chart.TimeValueFormatterWithFormat(TimeFormatDateTime),
-			GridMajorStyle: chart.Style{
-				StrokeColor: chart.ColorAlternateGray,
-				StrokeWidth: 0.2,
-			},
-			GridLines: xGridLines,
-		},
+	chartWidth := 80
+	chartHeight := chartWidth
+	r.setChartPageBreak(float64(chartHeight))
+
+	r.pdf.SetFont(FontName, "B", DefaultFontSize)
+	r.pdf.Cell(40, 10, title)
+	r.pdf.Ln(-1)
+
+	graph := chart.PieChart{
+		Values: chartValues,
 		Background: chart.Style{
 			Padding: chart.Box{
-				Top:  40,
-				Left: 100,
+				Left:  30,
+				Right: 30,
 			},
 		},
-		Series: chartSeries,
-		Title:  title,
+		SliceStyle: chart.Style{
+			FontSize: 20,
+		},
 	}
 
-	// note: we have to do this as a separate step because we need a reference to graph
-	graph.Elements = []chart.Renderable{chart.LegendLeft(&graph)}
-	return DrawChart(pdf, title, &graph)
-}
-
-func DrawChart(pdf *gofpdf.Fpdf, imgName string, graph *chart.Chart) error {
 	buffer := bytes.NewBuffer([]byte{})
 	err := graph.Render(chart.PNG, buffer)
 	if err != nil {
 		return fmt.Errorf("failed rendering graph: %s", err.Error())
 	}
+	return r.DrawChart(data.Name, chartWidth, chartHeight, buffer)
+}
 
+func (r *PDFReport) setChartPageBreak(chartHeight float64) {
+	_, topMargin, _, bottomMargin := r.pdf.GetMargins()
+	_, pageH := r.pdf.GetPageSize()
+	pageBreakTrigger := pageH - bottomMargin
+
+	curY := r.pdf.GetY()
+	if curY+chartHeight+10 > pageBreakTrigger {
+		// break, go to new page
+		r.pdf.AddPage()
+		curY = topMargin + 10
+	}
+}
+
+// TimeValueFormatterWithFormatTZ returns a time formatter with a
+// given format along with timezone
+func TimeValueFormatterWithFormatTZ(dateFormat string, timezone *time.Location) chart.ValueFormatter {
+	return func(v interface{}) string {
+		if timezone == nil {
+			return ""
+		}
+		if typed, isTyped := v.(time.Time); isTyped {
+			return typed.In(timezone).Format(dateFormat)
+		}
+		if typed, isTyped := v.(int64); isTyped {
+			return time.Unix(0, typed).In(timezone).Format(dateFormat)
+		}
+		if typed, isTyped := v.(float64); isTyped {
+			return time.Unix(0, int64(typed)).In(timezone).Format(dateFormat)
+		}
+		return ""
+	}
+}
+
+func (r *PDFReport) AddTimeChart(title string, chartData TimeChartData) error {
+	maxVal := float64(10)
+	for ii, _ := range chartData.XValues {
+		xVal := chartData.XValues[ii]
+		yVal := chartData.YValues[ii]
+		if yVal > maxVal {
+			maxVal = yVal
+		}
+	}
+
+	chartSeries := CustomTimeSeries{
+		chart.TimeSeries{
+			Style: chart.Style{
+				StrokeColor: chart.ColorBlue,
+				FillColor:   chart.ColorBlue.WithAlpha(100),
+			},
+			XValues: chartData.XValues,
+			YValues: chartData.YValues,
+		},
+	}
+
+	maxSeries := &chart.MaxSeries{
+		Style: chart.Style{
+			StrokeColor:     chart.ColorAlternateGray,
+			StrokeDashArray: []float64{5.0, 5.0},
+		},
+		InnerSeries: chartSeries,
+	}
+
+	r.setChartPageBreak(float64(ChartHeight))
+
+	r.pdf.SetFont(FontName, "B", DefaultFontSize)
+	titleWords := util.SplitCamelCase(title)
+	title = strings.Title(strings.Join(titleWords, " "))
+	r.pdf.Cell(40, 10, title)
+	r.pdf.Ln(-1)
+
+	graph := chart.Chart{
+		YAxis: chart.YAxis{
+			ValueFormatter: chart.IntValueFormatter,
+			Range: &chart.ContinuousRange{
+				Max: maxVal,
+			},
+		},
+		XAxis: chart.XAxis{
+			ValueFormatter: TimeValueFormatterWithFormatTZ(TimeFormatDateTime, r.timezone),
+		},
+		Series: []chart.Series{
+			chartSeries,
+			maxSeries,
+		},
+	}
+
+	buffer := bytes.NewBuffer([]byte{})
+	err := graph.Render(chart.PNG, buffer)
+	if err != nil {
+		return fmt.Errorf("failed rendering graph: %s", err.Error())
+	}
+	imgName := title + chartData.Name
+	return r.DrawChart(imgName, ChartWidth, ChartHeight, buffer)
+}
+
+func (r *PDFReport) DrawChart(imgName string, chartWidth, chartHeight int, buffer *bytes.Buffer) error {
 	imgOpts := gofpdf.ImageOptions{
 		ReadDpi:   false,
 		ImageType: "PNG",
 	}
-	pdf.RegisterImageOptionsReader(imgName, imgOpts, buffer)
-	curX, curY := pdf.GetXY()
-	pdf.ImageOptions(imgName, curX, curY, ChartWidth, ChartHeight, true, imgOpts, 0, "")
-	pdf.Ln(SectionGap)
+	r.pdf.RegisterImageOptionsReader(imgName, imgOpts, buffer)
+	curX, curY := r.pdf.GetXY()
+	r.pdf.ImageOptions(imgName, curX, curY, float64(chartWidth), float64(chartHeight), true, imgOpts, 0, "")
+	r.pdf.Ln(SectionGap)
 	return nil
+}
+
+// CustomTimeSeries implements new Render function to add
+// a step based interpolation for accurate usage representation
+type CustomTimeSeries struct {
+	chart.TimeSeries
+}
+
+// Render renders the series.
+func (ts CustomTimeSeries) Render(r chart.Renderer, canvasBox chart.Box, xrange, yrange chart.Range, defaults chart.Style) {
+	style := ts.Style.InheritFrom(defaults)
+	LineSeries(r, canvasBox, xrange, yrange, style, ts)
+}
+
+// LineSeries draws a line series with a step based interpolation.
+func LineSeries(r chart.Renderer, canvasBox chart.Box, xrange, yrange chart.Range, style chart.Style, vs chart.ValuesProvider) {
+	if vs.Len() == 0 {
+		return
+	}
+
+	cb := canvasBox.Bottom
+	cl := canvasBox.Left
+
+	v0x, v0y := vs.GetValues(0)
+	x0 := cl + xrange.Translate(v0x)
+	y0 := cb - yrange.Translate(v0y)
+
+	yv0 := yrange.Translate(0)
+
+	var curVy, newVx, newVy float64
+	var curY, newX, newY int
+
+	if style.ShouldDrawStroke() && style.ShouldDrawFill() {
+		style.GetFillOptions().WriteDrawingOptionsToRenderer(r)
+		r.MoveTo(x0, y0)
+		for i := 1; i < vs.Len(); i++ {
+			_, curVy = vs.GetValues(i - 1)
+			newVx, newVy = vs.GetValues(i)
+			curY = cb - yrange.Translate(curVy)
+			newX = cl + xrange.Translate(newVx)
+			newY = cb - yrange.Translate(newVy)
+			r.LineTo(newX, curY)
+			r.LineTo(newX, newY)
+		}
+		r.LineTo(newX, chart.MinInt(cb, cb-yv0))
+		r.LineTo(x0, chart.MinInt(cb, cb-yv0))
+		r.LineTo(x0, y0)
+		r.Fill()
+	}
+
+	if style.ShouldDrawStroke() {
+		style.GetStrokeOptions().WriteDrawingOptionsToRenderer(r)
+
+		r.MoveTo(x0, y0)
+		for i := 1; i < vs.Len(); i++ {
+			_, curVy = vs.GetValues(i - 1)
+			newVx, newVy = vs.GetValues(i)
+			curY = cb - yrange.Translate(curVy)
+			newX = cl + xrange.Translate(newVx)
+			newY = cb - yrange.Translate(newVy)
+			r.LineTo(newX, curY)
+			r.LineTo(newX, newY)
+		}
+		r.Stroke()
+	}
 }

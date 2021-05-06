@@ -46,6 +46,7 @@ func GetReportCommand() *cobra.Command {
 		Use:          "generate",
 		Short:        "Generate new report for an org of all regions",
 		RequiredArgs: "org starttime endtime",
+		OptionalArgs: "timezone",
 		ReqData:      &ormapi.GenerateReport{},
 		Comments:     GenerateReportComments,
 		Run:          runRest("/auth/report/generate"),
@@ -69,6 +70,7 @@ var ReporterComments = map[string]string{
 
 var GenerateReportComments = map[string]string{
 	"org":       `Org name`,
-	"starttime": `absolute time to start report capture`,
-	"endtime":   `absolute time to end report capture`,
+	"starttime": `Absolute time to start report capture in UTC`,
+	"endtime":   `Absolute time to end report capture in UTC`,
+	"timezone":  `Timezone in which to show the reports, defaults to either user setting or UTC`,
 }

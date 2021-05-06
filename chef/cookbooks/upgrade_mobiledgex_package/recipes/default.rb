@@ -18,6 +18,13 @@ if node.normal['tags'].include?('vmtype/rootlb')
     file "/etc/apt/sources.list" do
       content ""
     end
+    # Make sure the apt sources directory is present
+    directory "/etc/apt/sources.list.d" do
+      owner "root"
+      group "root"
+      mode "0755"
+      action :create
+    end
     apt_repository 'bionic' do
       uri 'https://apt.mobiledgex.net/cirrus/2021-02-01'
       distribution 'bionic'
@@ -27,6 +34,11 @@ if node.normal['tags'].include?('vmtype/rootlb')
       uri 'https://artifactory.mobiledgex.net/artifactory/packages'
       distribution 'cirrus'
       components ['main']
+    end
+    execute('Unhold the mobiledgex package, if held') do
+      action "run"
+      command "apt-mark unhold mobiledgex"
+      returns 0
     end
     apt_update
     apt_package 'mobiledgex' do

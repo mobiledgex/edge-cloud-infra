@@ -618,6 +618,20 @@ func ShowPaymentInfo(c echo.Context) error {
 }
 
 func ShowPaymentInfoObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) ([]billing.PaymentProfile, error) {
+	// TODO: remove this later, for now only mexadmin has the permission to manipulate payment info
+	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	if err != nil {
+		return nil, fmt.Errorf("Unable to discover user roles: %v", err)
+	}
+	isAdmin := false
+	for _, role := range roles {
+		if isAdminRole(role.Role) {
+			isAdmin = true
+		}
+	}
+	if !isAdmin && billingEnabled(ctx) {
+		return nil, fmt.Errorf("Currently only admins may create and commit billingOrgs")
+	}
 	if err := authorized(ctx, claims.Username, org.Name, ResourceBilling, ActionView); err != nil {
 		return nil, err
 	}
@@ -644,6 +658,20 @@ func DeletePaymentInfo(c echo.Context) error {
 }
 
 func deletePaymentProfileObj(ctx context.Context, claims *UserClaims, profile *ormapi.PaymentProfileDeletion) error {
+	// TODO: remove this later, for now only mexadmin has the permission to manipulare payment info
+	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	if err != nil {
+		return fmt.Errorf("Unable to discover user roles: %v", err)
+	}
+	isAdmin := false
+	for _, role := range roles {
+		if isAdminRole(role.Role) {
+			isAdmin = true
+		}
+	}
+	if !isAdmin && billingEnabled(ctx) {
+		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
+	}
 	if err := authorized(ctx, claims.Username, profile.Org, ResourceBilling, ActionManage); err != nil {
 		return err
 	}

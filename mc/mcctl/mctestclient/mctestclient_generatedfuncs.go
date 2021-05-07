@@ -618,17 +618,6 @@ func (s *Client) CreateBillingOrg(uri string, token string, in *ormapi.BillingOr
 	return rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) SetAccountInfo(uri string, token string, in *ormapi.AccountInfo) (int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	rundata.In = in
-
-	apiCmd := ormctl.MustGetCommand("SetAccountInfo")
-	s.ClientRun.Run(apiCmd, &rundata)
-	return rundata.RetStatus, rundata.RetError
-}
-
 func (s *Client) UpdateBillingOrg(uri string, token string, in map[string]interface{}) (int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
@@ -686,6 +675,48 @@ func (s *Client) ShowBillingOrg(uri string, token string) ([]ormapi.BillingOrgan
 		return nil, rundata.RetStatus, rundata.RetError
 	}
 	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowAccountInfo(uri string, token string) ([]ormapi.AccountInfo, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	var out []ormapi.AccountInfo
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowAccountInfo")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowPaymentProfiles(uri string, token string, in *ormapi.BillingOrganization) ([]billing.PaymentProfile, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []billing.PaymentProfile
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowPaymentProfiles")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeletePaymentProfile(uri string, token string, in *ormapi.PaymentProfileDeletion) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("DeletePaymentProfile")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
 }
 
 func (s *Client) GetInvoice(uri string, token string, in *ormapi.InvoiceRequest) ([]billing.InvoiceData, int, error) {

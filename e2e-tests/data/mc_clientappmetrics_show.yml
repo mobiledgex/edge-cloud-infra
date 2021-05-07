@@ -6,7 +6,7 @@
     cloudletorg: tmus
     cluster: SmallCluster
     clusterorg: AcmeAppCo
-    locationtile: 2-1713,5065-2
+    locationtile: -90.998922,30.984896_-91.016888,31.002985_2
   values:
     0s: 4
     5ms: 1
@@ -29,6 +29,7 @@
     cloudletorg: tmus
     cluster: SmallCluster
     clusterorg: AcmeAppCo
+    devicecarrier: tmus
     devicemodel: SM-G920F
     deviceos: Android
   values:

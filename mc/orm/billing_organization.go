@@ -520,7 +520,6 @@ func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Billin
 	} else {
 		// show orgs for current user
 		for orgName, _ := range authOrgs {
-			fmt.Printf("asdshowbillingorg: %s\n", orgName)
 			org := ormapi.BillingOrganization{}
 			org.Name = orgName
 			err := db.Where(&org).First(&org).Error

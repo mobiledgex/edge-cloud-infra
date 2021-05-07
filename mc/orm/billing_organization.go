@@ -506,7 +506,7 @@ func ShowBillingOrg(c echo.Context) error {
 func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.BillingOrganization, error) {
 	orgs := []ormapi.BillingOrganization{}
 	db := loggedDB(ctx)
-	err := authorized(ctx, claims.Username, "", ResourceUsers, ActionView)
+	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceBilling, ActionView)
 	if err == nil {
 		// super user, show all orgs
 		err := db.Find(&orgs).Error
@@ -515,34 +515,14 @@ func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Billin
 		}
 	} else {
 		// show orgs for current user
-		groupings, err := enforcer.GetGroupingPolicy()
-		if err != nil {
-			return nil, dbErr(err)
-		}
-		for _, grp := range groupings {
-			if len(grp) < 2 {
-				continue
+		for orgName, _ := range authOrgs {
+			org := ormapi.BillingOrganization{}
+			org.Name = orgName
+			err := db.Where(&org).First(&org).Error
+			if err != nil {
+				return nil, dbErr(err)
 			}
-			orguser := strings.Split(grp[0], "::")
-			if len(orguser) > 1 && orguser[1] == claims.Username {
-				org := ormapi.BillingOrganization{}
-				org.Name = orguser[0]
-				err := db.Where(&org).First(&org).Error
-				show := true
-				if err != nil {
-					// check to make sure it wasnt a regular org before throwing an error
-					regOrg := ormapi.Organization{Name: orguser[0]}
-					regErr := db.Where(&regOrg).First(&regOrg).Error
-					if regErr == nil {
-						show = false
-					} else {
-						return nil, dbErr(err)
-					}
-				}
-				if show {
-					orgs = append(orgs, org)
-				}
-			}
+			orgs = append(orgs, org)
 		}
 	}
 	return orgs, nil
@@ -561,7 +541,7 @@ func ShowAccountInfo(c echo.Context) error {
 func ShowAccountInfoObj(ctx context.Context, claims *UserClaims) ([]ormapi.AccountInfo, error) {
 	accs := []ormapi.AccountInfo{}
 	db := loggedDB(ctx)
-	err := authorized(ctx, claims.Username, "", ResourceUsers, ActionView)
+	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceBilling, ActionManage)
 	if err == nil {
 		// super user, show all accs
 		err := db.Find(&accs).Error
@@ -570,34 +550,14 @@ func ShowAccountInfoObj(ctx context.Context, claims *UserClaims) ([]ormapi.Accou
 		}
 	} else {
 		// show accs for current user
-		groupings, err := enforcer.GetGroupingPolicy()
-		if err != nil {
-			return nil, dbErr(err)
-		}
-		for _, grp := range groupings {
-			if len(grp) < 2 {
-				continue
+		for org, _ := range authOrgs {
+			acc := ormapi.AccountInfo{}
+			acc.OrgName = org
+			err = db.Where(&acc).First(&acc).Error
+			if err != nil {
+				return nil, dbErr(err)
 			}
-			accuser := strings.Split(grp[0], "::")
-			if len(accuser) > 1 && accuser[1] == claims.Username {
-				acc := ormapi.AccountInfo{}
-				acc.OrgName = accuser[0]
-				err := db.Where(&acc).First(&acc).Error
-				show := true
-				if err != nil {
-					// check to make sure it wasnt a regular org before throwing an error
-					regOrg := ormapi.Organization{Name: accuser[0]}
-					regErr := db.Where(&regOrg).First(&regOrg).Error
-					if regErr == nil {
-						show = false
-					} else {
-						return nil, dbErr(err)
-					}
-				}
-				if show {
-					accs = append(accs, acc)
-				}
-			}
+			accs = append(accs, acc)
 		}
 	}
 	return accs, nil
@@ -619,15 +579,9 @@ func ShowPaymentInfo(c echo.Context) error {
 
 func ShowPaymentInfoObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) ([]billing.PaymentProfile, error) {
 	// TODO: remove this later, for now only mexadmin has the permission to manipulate payment info
-	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	isAdmin, err := isUserAdmin(ctx, claims.Username)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to discover user roles: %v", err)
-	}
-	isAdmin := false
-	for _, role := range roles {
-		if isAdminRole(role.Role) {
-			isAdmin = true
-		}
+		return nil, err
 	}
 	if !isAdmin && billingEnabled(ctx) {
 		return nil, fmt.Errorf("Currently only admins may create and commit billingOrgs")
@@ -659,15 +613,9 @@ func DeletePaymentInfo(c echo.Context) error {
 
 func deletePaymentProfileObj(ctx context.Context, claims *UserClaims, profile *ormapi.PaymentProfileDeletion) error {
 	// TODO: remove this later, for now only mexadmin has the permission to manipulare payment info
-	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	isAdmin, err := isUserAdmin(ctx, claims.Username)
 	if err != nil {
-		return fmt.Errorf("Unable to discover user roles: %v", err)
-	}
-	isAdmin := false
-	for _, role := range roles {
-		if isAdminRole(role.Role) {
-			isAdmin = true
-		}
+		return err
 	}
 	if !isAdmin && billingEnabled(ctx) {
 		return fmt.Errorf("Currently only admins may create and commit billingOrgs")

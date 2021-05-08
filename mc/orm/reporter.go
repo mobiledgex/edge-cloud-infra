@@ -369,6 +369,7 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 		},
 	}
 	cloudlets := [][]string{}
+	cloudletsPresent := make(map[string]struct{})
 	err := ShowCloudletStream(ctx, rc, &obj, func(res *edgeproto.Cloudlet) {
 		platformTypeStr := edgeproto.PlatformType_CamelName[int32(res.PlatformType)]
 		platformTypeStr = strings.TrimPrefix(platformTypeStr, "PlatformType")
@@ -379,6 +380,7 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 		cloudletData := []string{res.Key.Name, platformTypeStr, stateStr}
 
 		cloudlets = append(cloudlets, cloudletData)
+		cloudletsPresent[res.Key.Name] = struct{}{}
 	})
 	if err != nil {
 		return nil, err
@@ -469,7 +471,7 @@ func GetCloudletPoolSummaryData(ctx context.Context, username string, report *or
 	return cloudletpools, nil
 }
 
-func GetCloudletResourceUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]map[string]TimeChartData, error) {
+func GetCloudletResourceUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]TimeChartDataMap, error) {
 	rc := &InfluxDBContext{}
 	dbNames := []string{cloudcommon.CloudletResourceUsageDbName}
 	in := ormapi.RegionCloudletMetrics{
@@ -484,7 +486,7 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 	rc.region = in.Region
 	cmd := CloudletUsageMetricsQuery(&in)
 
-	chartMap := make(map[string]map[string]TimeChartData)
+	chartMap := make(map[string]TimeChartDataMap)
 	err := influxStream(ctx, rc, dbNames, cmd, func(res interface{}) {
 		results, ok := res.([]influxdb.Result)
 		if !ok {
@@ -513,14 +515,14 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[1])
 					}
 					if _, ok := chartMap[cloudlet]; !ok {
-						chartMap[cloudlet] = make(map[string]TimeChartData)
+						chartMap[cloudlet] = make(TimeChartDataMap)
 					}
 					for resIndex := 3; resIndex < len(val); resIndex++ {
 						resName := row.Columns[resIndex]
 						if _, ok := chartMap[cloudlet][resName]; !ok {
-							chartMap[cloudlet][resName] = TimeChartData{Name: cloudlet}
+							chartMap[cloudlet][resName] = []TimeChartData{TimeChartData{}}
 						}
-						clData := chartMap[cloudlet][resName]
+						clData := chartMap[cloudlet][resName][0]
 
 						if val[resIndex] == nil {
 							continue
@@ -533,7 +535,7 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 
 						clData.XValues = append(clData.XValues, time)
 						clData.YValues = append(clData.YValues, float64(resVal))
-						chartMap[cloudlet][resName] = clData
+						chartMap[cloudlet][resName][0] = clData
 					}
 				}
 			}
@@ -545,7 +547,7 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 	return chartMap, nil
 }
 
-func GetCloudletFlavorUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]BarChartData, error) {
+func GetCloudletFlavorUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]PieChartDataMap, error) {
 	rc := &InfluxDBContext{}
 	dbNames := []string{cloudcommon.CloudletResourceUsageDbName}
 	in := ormapi.RegionCloudletMetrics{
@@ -560,7 +562,7 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 	rc.region = in.Region
 	cmd := CloudletUsageMetricsQuery(&in)
 
-	flavorMap := make(map[string]map[string]float64)
+	flavorMap := make(map[string]PieChartDataMap)
 	err := influxStream(ctx, rc, dbNames, cmd, func(res interface{}) {
 		results, ok := res.([]influxdb.Result)
 		if !ok {
@@ -593,7 +595,7 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch flavor name", "flavor", val[4])
 					}
 					if _, ok := flavorMap[cloudlet]; !ok {
-						flavorMap[cloudlet] = make(map[string]float64)
+						flavorMap[cloudlet] = make(PieChartDataMap)
 					}
 					if curVal, ok := flavorMap[cloudlet][flavor]; ok {
 						if countVal <= curVal {
@@ -608,25 +610,7 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 	if err != nil {
 		return nil, err
 	}
-	flavorOut := make(map[string]BarChartData)
-	for cloudlet, flavorCount := range flavorMap {
-		flavors := []string{}
-		for flavor, _ := range flavorCount {
-			flavors = append(flavors, flavor)
-		}
-		sort.Slice(flavors, func(i, j int) bool {
-			return flavorCount[flavors[i]] > flavorCount[flavors[j]]
-		})
-		chartData := BarChartData{
-			Name: cloudlet,
-		}
-		for _, flavor := range flavors {
-			chartData.XValues = append(chartData.XValues, flavor)
-			chartData.YValues = append(chartData.YValues, flavorCount[flavor])
-		}
-		flavorOut[cloudlet] = chartData
-	}
-	return flavorOut, nil
+	return flavorMap, nil
 }
 
 func GetCloudletEvents(ctx context.Context, username string, timezone *time.Location, report *ormapi.GenerateReport) (map[string][][]string, error) {
@@ -719,6 +703,267 @@ func GetCloudletAlerts(ctx context.Context, username string, timezone *time.Loca
 	return alertsData, nil
 }
 
+func GetCloudletAppUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]PieChartDataMap, error) {
+	rc := &RegionContext{
+		region:    report.Region,
+		username:  username,
+		skipAuthz: true,
+	}
+	obj := &edgeproto.AppInst{
+		Key: edgeproto.AppInstKey{
+			ClusterInstKey: edgeproto.VirtualClusterInstKey{
+				CloudletKey: edgeproto.CloudletKey{
+					Organization: report.Org,
+				},
+			},
+		},
+		State: edgeproto.TrackedState_READY,
+	}
+	appInsts, err := ShowAppInstObj(ctx, rc, obj)
+	if err != nil {
+		return nil, err
+	}
+	appsCount := make(map[string]PieChartDataMap)
+	for _, appInst := range appInsts {
+		cloudletName := appInst.Key.ClusterInstKey.CloudletKey.Name
+		appOrg := appInst.Key.AppKey.Organization
+		if _, ok := appsCount[cloudletName]; !ok {
+			appsCount[cloudletName] = make(PieChartDataMap)
+		}
+		if _, ok := appsCount[cloudletName][appOrg]; ok {
+			appsCount[cloudletName][appOrg]++
+		} else {
+			appsCount[cloudletName][appOrg] = 1
+		}
+	}
+	return appsCount, nil
+}
+
+func GetAppResourceUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]map[string]TimeChartDataMap, error) {
+	rc := &InfluxDBContext{}
+	dbNames := []string{cloudcommon.DeveloperMetricsDbName}
+	in := ormapi.RegionAppInstMetrics{
+		Region: report.Region,
+		AppInst: edgeproto.AppInstKey{
+			ClusterInstKey: edgeproto.VirtualClusterInstKey{
+				CloudletKey: edgeproto.CloudletKey{
+					Organization: report.Org,
+				},
+			},
+		},
+		Selector:  "cpu,mem,disk,network",
+		StartTime: report.StartTime,
+		EndTime:   report.EndTime,
+	}
+	rc.region = in.Region
+	cmd := AppInstMetricsQuery(&in, nil)
+
+	/*
+	 * map structure:
+	 *     cloudlet:
+	 *         apporg:
+	 *             cpu: resourcedata
+	 *             mem: resourcedata
+	 *             disk: resourcedata
+	 */
+	cpuKey := "cpu"
+	memKey := "mem"
+	diskKey := "disk"
+	sendBytesKey := "sendBytes"
+	recvBytesKey := "recvBytes"
+	resIndexMap := map[string]int{
+		cpuKey:       9,
+		memKey:       10,
+		diskKey:      11,
+		sendBytesKey: 12,
+		recvBytesKey: 13,
+	}
+	appMap := make(map[edgeproto.AppInstKey]map[string]TimeChartData)
+	err := influxStream(ctx, rc, dbNames, cmd, func(res interface{}) {
+		results, ok := res.([]influxdb.Result)
+		if !ok {
+			return
+		}
+		for _, result := range results {
+			for _, row := range result.Series {
+				/*
+					columns[0] -> time
+					columns[1] -> appname
+					columns[2] -> appvers
+					columns[3] -> clustername
+					columns[4] -> clusterorg
+					columns[5] -> cloudlet
+					columns[6] -> cloudletorg
+					columns[7] -> apporg
+					columns[8] -> pod
+					columns[9:] -> cpu,mem,disk,sendBytes,recvBytes
+				*/
+				for _, val := range row.Values {
+					timeStr, ok := val[0].(string)
+					if !ok {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch resource time", "time", val[0])
+					}
+					time, err := time.Parse("2006-01-02T15:04:05Z", timeStr)
+					if err != nil {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to parse resource time", "time", timeStr)
+						continue
+					}
+					appname, ok := val[1].(string)
+					if !ok {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch app name", "app", val[1])
+					}
+					appvers, ok := val[2].(string)
+					if !ok {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch app version", "appvers", val[2])
+					}
+					apporg, ok := val[7].(string)
+					if !ok {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch app org", "apporg", val[7])
+					}
+					clustername, ok := val[3].(string)
+					if !ok {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cluster name", "clustername", val[3])
+					}
+					clusterorg, ok := val[4].(string)
+					if !ok {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cluster org", "clusterorg", val[4])
+					}
+					cloudlet, ok := val[5].(string)
+					if !ok {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[5])
+					}
+					appInstKey := edgeproto.AppInstKey{
+						AppKey: edgeproto.AppKey{
+							Name:         appname,
+							Organization: apporg,
+							Version:      appvers,
+						},
+						ClusterInstKey: edgeproto.VirtualClusterInstKey{
+							ClusterKey: edgeproto.ClusterKey{
+								Name: clustername,
+							},
+							Organization: clusterorg,
+							CloudletKey: edgeproto.CloudletKey{
+								Name:         cloudlet,
+								Organization: report.Org,
+							},
+						},
+					}
+					appId := fmt.Sprintf("%s|%s|%s|%s", appname, appvers, clustername, clusterorg)
+					if _, ok := appMap[appInstKey]; !ok {
+						appMap[appInstKey] = make(map[string]TimeChartData)
+						for resName, _ := range resIndexMap {
+							appMap[appInstKey][resName] = TimeChartData{Name: appId}
+						}
+					}
+					// parse resource fields
+					for resName, resIndex := range resIndexMap {
+						if val[resIndex] != nil {
+							resVal, err := val[resIndex].(json.Number).Float64()
+							if err != nil {
+								log.SpanLog(ctx, log.DebugLevelInfo, "failed to parse resource value", "resource", resName, "value", val[resIndex])
+								continue
+							}
+
+							clData := appMap[appInstKey][resName]
+							clData.XValues = append(clData.XValues, time)
+							clData.YValues = append(clData.YValues, float64(resVal))
+							appMap[appInstKey][resName] = clData
+						}
+					}
+				}
+			}
+		}
+	})
+	if err != nil {
+		return nil, err
+	}
+	chartMap := make(map[string]map[string]TimeChartDataMap)
+
+	for appInstKey, resChartData := range appMap {
+		cloudlet := appInstKey.ClusterInstKey.CloudletKey.Name
+		apporg := appInstKey.AppKey.Organization
+		for resName, resData := range resChartData {
+			if _, ok := chartMap[cloudlet]; !ok {
+				chartMap[cloudlet] = make(map[string]TimeChartDataMap)
+			}
+			if _, ok := chartMap[cloudlet][apporg]; !ok {
+				chartMap[cloudlet][apporg] = make(TimeChartDataMap)
+			}
+			resTitle := apporg + " " + resName
+			if _, ok := chartMap[cloudlet][apporg][resTitle]; !ok {
+				chartMap[cloudlet][apporg][resTitle] = []TimeChartData{}
+			}
+			chartMap[cloudlet][apporg][resTitle] = append(chartMap[cloudlet][apporg][resTitle], resData)
+		}
+	}
+	return chartMap, nil
+}
+
+func GetAppStateEvents(ctx context.Context, username string, timezone *time.Location, report *ormapi.GenerateReport) (map[string][][]string, error) {
+	search := node.EventSearch{
+		Match: node.EventMatch{
+			Names:   []string{"AppInst online", "AppInst offline"},
+			Types:   []string{node.EventType},
+			Regions: []string{report.Region},
+			Tags: map[string]string{
+				"cloudletorg": report.Org,
+			},
+		},
+		TimeRange: util.TimeRange{
+			StartTime: report.StartTime,
+			EndTime:   report.EndTime,
+		},
+	}
+
+	events, err := nodeMgr.ShowEvents(ctx, &search)
+	if err != nil {
+		return nil, err
+	}
+	reqdTags := map[string]string{
+		"app":        "",
+		"apporg":     "",
+		"appver":     "",
+		"cloudlet":   "",
+		"cluster":    "",
+		"clusterorg": "",
+	}
+	eventsData := make(map[string][][]string)
+	for _, event := range events {
+		found := true
+		for tag, _ := range reqdTags {
+			tagVal, ok := event.Mtags[tag]
+			if !ok {
+				log.SpanLog(ctx, log.DebugLevelInfo, "missing tag in event, skipping", "tag", tag, "event", event)
+				found = false
+				break
+			}
+			reqdTags[tag] = tagVal
+		}
+		if !found {
+			continue
+		}
+		timestamp := event.Timestamp.Format(TimeFormatDayDateTime)
+		if timezone != nil {
+			timestamp = event.Timestamp.In(timezone).Format(TimeFormatDayDateTime)
+		}
+
+		entry := []string{
+			timestamp,
+			reqdTags["app"] + " | " + reqdTags["appver"],         // App Identifier
+			reqdTags["apporg"],                                   // Developer Org
+			reqdTags["cluster"] + " | " + reqdTags["clusterorg"], // Cluster Identifier
+			event.Name, // Event name
+		}
+		cloudlet := reqdTags["cloudlet"]
+		if _, ok := eventsData[cloudlet]; !ok {
+			eventsData[cloudlet] = [][]string{}
+		}
+		eventsData[cloudlet] = append(eventsData[cloudlet], entry)
+	}
+	return eventsData, nil
+}
+
 func getReportFileName(report *ormapi.GenerateReport) string {
 	// File name should be of this format: "<orgname>_<startdate>_<enddate>_report.pdf"
 	startDate := report.StartTime.Format("20060102") // YYYYMMDD
@@ -750,7 +995,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 
 		// Step-1: Gather all data
 		// -------------------------
-		// Get list of cloudlets
+		// Get cloudlet summary
 		cloudlets_summary, err := GetCloudletSummaryData(ctx, username, report)
 		if err != nil {
 			return fmt.Errorf("failed to get cloudlet summary: %v", err)
@@ -799,6 +1044,24 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 			cloudlets[cloudletName] = struct{}{}
 		}
 
+		// Get app count by developer on cloudlet
+		appCountData, err := GetCloudletAppUsageData(ctx, username, report)
+		if err != nil {
+			return fmt.Errorf("failed to get cloudlet app count data: %v", err)
+		}
+		for cloudletName, _ := range appCountData {
+			cloudlets[cloudletName] = struct{}{}
+		}
+
+		// Get app state events
+		appEventsData, err := GetAppStateEvents(ctx, username, pdfReport.timezone, report)
+		if err != nil {
+			return fmt.Errorf("failed to get app events: %v", err)
+		}
+		for cloudletName, _ := range appEventsData {
+			cloudlets[cloudletName] = struct{}{}
+		}
+
 		// Step-2: Render data
 		// -------------------------
 		// Get list of cloudlets
@@ -831,7 +1094,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 
 			// Get cloudlet resource usage metrics
 			if data, ok := resourceUsageCharts[cloudletName]; ok {
-				err = pdfReport.AddTimeCharts(data)
+				err = pdfReport.AddResourceTimeCharts(cloudletName, data, ChartSpec{FillColor: true})
 				if err != nil {
 					return err
 				}
@@ -839,7 +1102,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 
 			// Get top flavors used per Cloudlet
 			if data, ok := flavorData[cloudletName]; ok {
-				err = pdfReport.AddPieChart("Flavors Used", data)
+				err = pdfReport.AddPieChart(cloudletName, "Flavors Used", data)
 				if err != nil {
 					return err
 				}
@@ -856,6 +1119,21 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 				header = []string{"Timestamp", "Description", "State"}
 				columnsWidth = []float64{40, 100, 30}
 				pdfReport.AddTable("Cloudlet Alerts", header, data, columnsWidth)
+			}
+
+			// Get app count by developer on cloudlet
+			if data, ok := appCountData[cloudletName]; ok {
+				err = pdfReport.AddPieChart(cloudletName, "App Count By Developer", data)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Get app state events
+			if data, ok := appEventsData[cloudletName]; ok {
+				header = []string{"Timestamp", "App Info", "Developer", "Cluster Info", "State"}
+				columnsWidth = []float64{30, 40, 40, 40, 30}
+				pdfReport.AddTable("Developer App State", header, data, columnsWidth)
 			}
 		}
 

@@ -29,17 +29,27 @@ const (
 	SectionGap          = float64(15)
 )
 
+type AxisValueFormat int
+
+const (
+	AxisValueFormatInt AxisValueFormat = iota
+	AxisValueFormatFloat
+)
+
+type ChartSpec struct {
+	FillColor        bool
+	ShowLegend       bool
+	YAxisValueFormat AxisValueFormat
+}
+
 type TimeChartData struct {
 	Name    string
 	XValues []time.Time
 	YValues []float64
 }
+type TimeChartDataMap map[string][]TimeChartData
 
-type BarChartData struct {
-	Name    string
-	XValues []string
-	YValues []float64
-}
+type PieChartDataMap map[string]float64
 
 type CellInfo struct {
 	List   [][]byte
@@ -87,9 +97,9 @@ func (r *PDFReport) AddHeader(report *ormapi.GenerateReport, logoPath, cloudlet 
 		r.pdf.SetFont(FontName, "I", HeaderFontSize)
 		headerStr := ""
 		if cloudlet == "" {
-			headerStr = fmt.Sprintf("Operator: %s | Region: %s | Timezone: %s", report.Org, report.Region, report.Timezone)
+			headerStr = fmt.Sprintf("Operator: %s | Region: %s", report.Org, report.Region)
 		} else {
-			headerStr = fmt.Sprintf("Operator: %s | Region: %s | Timezone: %s | Cloudlet: %s", report.Org, report.Region, report.Timezone, cloudlet)
+			headerStr = fmt.Sprintf("Operator: %s | Region: %s | Cloudlet: %s", report.Org, report.Region, cloudlet)
 		}
 		_, topMargin, rightMargin, _ := r.pdf.GetMargins()
 		r.pdf.CellFormat(0, 0, headerStr, "", 0, "L", false, 0, "")
@@ -227,93 +237,47 @@ func (r *PDFReport) AddTable(title string, hdr []string, tbl [][]string, colsWid
 	r.pdf.Ln(SectionGap)
 }
 
-func (r *PDFReport) AddTimeCharts(charts map[string]TimeChartData) error {
+// Adds TimeCharts for resource data in the format: map<resource>[]resourcedata
+func (r *PDFReport) AddResourceTimeCharts(chartPrefix string, charts TimeChartDataMap, spec ChartSpec) error {
 	keys := []string{}
 	for k := range charts {
-		chartData := charts[k]
-		if len(chartData.XValues) < 2 {
-			// there should be atleast 2 points, skip chart
-			continue
-		}
-		allZeroes := true
-		for _, yVal := range chartData.YValues {
-			if yVal != 0 {
-				allZeroes = false
-				break
-			}
-		}
-		if allZeroes {
-			// no data to render, skip chart
-			continue
-		}
 		keys = append(keys, k)
 	}
-
-	if len(keys) == 0 {
-		return nil
-	}
-
 	// sort chart data
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		err := r.AddTimeChart(key, charts[key])
+		multiChartData := charts[key]
+		render := false
+		for _, chartData := range multiChartData {
+			if len(chartData.XValues) < 2 {
+				// there should be atleast 2 points, skip chart
+				// continue
+			}
+			allZeroes := true
+			for _, yVal := range chartData.YValues {
+				if yVal != 0 {
+					allZeroes = false
+					break
+				}
+			}
+			if allZeroes {
+				// no data to render, skip chart
+				continue
+			}
+			render = true
+		}
+		if !render {
+			continue
+		}
+
+		err := r.AddTimeChart(chartPrefix, key, charts[key], spec)
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
-}
-
-func (r *PDFReport) AddPieChart(title string, data BarChartData) error {
-	chartValues := []chart.Value{}
-	allZeroes := true
-	maxVal := float64(10)
-	for ii, _ := range data.XValues {
-		yVal := data.YValues[ii]
-		xVal := data.XValues[ii]
-		chartValues = append(chartValues, chart.Value{
-			Value: yVal,
-			Label: fmt.Sprintf("%s (%.0f)", xVal, yVal),
-		})
-		if yVal != 0 {
-			allZeroes = false
-		}
-		if yVal > maxVal {
-			maxVal = yVal
-		}
-	}
-	if allZeroes {
-		return nil
-	}
-
-	chartWidth := 80
-	chartHeight := chartWidth
-	r.setChartPageBreak(float64(chartHeight))
-
-	r.pdf.SetFont(FontName, "B", DefaultFontSize)
-	r.pdf.Cell(40, 10, title)
-	r.pdf.Ln(-1)
-
-	graph := chart.PieChart{
-		Values: chartValues,
-		Background: chart.Style{
-			Padding: chart.Box{
-				Left:  30,
-				Right: 30,
-			},
-		},
-		SliceStyle: chart.Style{
-			FontSize: 20,
-		},
-	}
-
-	buffer := bytes.NewBuffer([]byte{})
-	err := graph.Render(chart.PNG, buffer)
-	if err != nil {
-		return fmt.Errorf("failed rendering graph: %s", err.Error())
-	}
-	return r.DrawChart(data.Name, chartWidth, chartHeight, buffer)
 }
 
 func (r *PDFReport) setChartPageBreak(chartHeight float64) {
@@ -349,33 +313,37 @@ func TimeValueFormatterWithFormatTZ(dateFormat string, timezone *time.Location) 
 	}
 }
 
-func (r *PDFReport) AddTimeChart(title string, chartData TimeChartData) error {
+func (r *PDFReport) AddTimeChart(chartPrefix, title string, multiChartData []TimeChartData, spec ChartSpec) error {
+	allChartSeries := []chart.Series{}
 	maxVal := float64(10)
-	for ii, _ := range chartData.XValues {
-		xVal := chartData.XValues[ii]
-		yVal := chartData.YValues[ii]
-		if yVal > maxVal {
-			maxVal = yVal
+	for _, chartData := range multiChartData {
+		for _, yVal := range chartData.YValues {
+			if yVal > maxVal {
+				maxVal = yVal
+			}
 		}
-	}
 
-	chartSeries := CustomTimeSeries{
-		chart.TimeSeries{
-			Style: chart.Style{
-				StrokeColor: chart.ColorBlue,
-				FillColor:   chart.ColorBlue.WithAlpha(100),
+		chartSeries := CustomTimeSeries{
+			chart.TimeSeries{
+				Name:    chartData.Name,
+				XValues: chartData.XValues,
+				YValues: chartData.YValues,
 			},
-			XValues: chartData.XValues,
-			YValues: chartData.YValues,
-		},
-	}
+		}
+		if spec.FillColor {
+			chartSeries.Style.FillColor = chart.ColorBlue.WithAlpha(100)
+			chartSeries.Style.StrokeColor = chart.ColorBlue
+		}
 
-	maxSeries := &chart.MaxSeries{
-		Style: chart.Style{
-			StrokeColor:     chart.ColorAlternateGray,
-			StrokeDashArray: []float64{5.0, 5.0},
-		},
-		InnerSeries: chartSeries,
+		maxSeries := &chart.MaxSeries{
+			Style: chart.Style{
+				StrokeColor:     chart.ColorAlternateGray,
+				StrokeDashArray: []float64{5.0, 5.0},
+			},
+			InnerSeries: chartSeries,
+		}
+		allChartSeries = append(allChartSeries, chartSeries)
+		allChartSeries = append(allChartSeries, maxSeries)
 	}
 
 	r.setChartPageBreak(float64(ChartHeight))
@@ -388,18 +356,28 @@ func (r *PDFReport) AddTimeChart(title string, chartData TimeChartData) error {
 
 	graph := chart.Chart{
 		YAxis: chart.YAxis{
-			ValueFormatter: chart.IntValueFormatter,
 			Range: &chart.ContinuousRange{
-				Max: maxVal,
+				Min: 0,
 			},
 		},
 		XAxis: chart.XAxis{
 			ValueFormatter: TimeValueFormatterWithFormatTZ(TimeFormatDateTime, r.timezone),
 		},
-		Series: []chart.Series{
-			chartSeries,
-			maxSeries,
-		},
+		Series: allChartSeries,
+	}
+
+	if spec.YAxisValueFormat == AxisValueFormatInt {
+		graph.YAxis.ValueFormatter = chart.IntValueFormatter
+		graph.YAxis.Range = &chart.ContinuousRange{
+			Max: maxVal,
+		}
+	}
+
+	if spec.ShowLegend {
+		//note we have to do this as a separate step because we need a reference to graph
+		graph.Elements = []chart.Renderable{
+			chart.Legend(&graph),
+		}
 	}
 
 	buffer := bytes.NewBuffer([]byte{})
@@ -407,8 +385,71 @@ func (r *PDFReport) AddTimeChart(title string, chartData TimeChartData) error {
 	if err != nil {
 		return fmt.Errorf("failed rendering graph: %s", err.Error())
 	}
-	imgName := title + chartData.Name
+	// unique for the chart image
+	imgName := chartPrefix + title
 	return r.DrawChart(imgName, ChartWidth, ChartHeight, buffer)
+}
+
+func (r *PDFReport) AddPieChart(cloudletName, title string, data PieChartDataMap) error {
+	chartValues := []chart.Value{}
+
+	keys := []string{}
+	for key, _ := range data {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	allZeroes := true
+	maxVal := float64(10)
+	for _, label := range keys {
+		value := data[label]
+		chartValues = append(chartValues, chart.Value{
+			Value: value,
+			Label: fmt.Sprintf("%s (%.0f)", label, value),
+		})
+		if value != 0 {
+			allZeroes = false
+		}
+		if value > maxVal {
+			maxVal = value
+		}
+	}
+
+	if allZeroes {
+		return nil
+	}
+
+	chartWidth := 80
+	chartHeight := chartWidth
+	r.setChartPageBreak(float64(chartHeight))
+
+	r.pdf.SetFont(FontName, "B", DefaultFontSize)
+	r.pdf.Cell(40, 10, title)
+	r.pdf.Ln(-1)
+
+	graph := chart.PieChart{
+		Values: chartValues,
+		Background: chart.Style{
+			Padding: chart.Box{
+				Left:  30,
+				Right: 30,
+			},
+		},
+		SliceStyle: chart.Style{
+			FontSize: 20,
+		},
+	}
+	if len(chartValues) == 1 {
+		graph.SliceStyle.FontColor = chart.ColorAlternateBlue
+	}
+
+	buffer := bytes.NewBuffer([]byte{})
+	err := graph.Render(chart.PNG, buffer)
+	if err != nil {
+		return fmt.Errorf("failed rendering graph: %s", err.Error())
+	}
+	imgName := cloudletName + strings.Replace(title, " ", "_", -1)
+	return r.DrawChart(imgName, chartWidth, chartHeight, buffer)
 }
 
 func (r *PDFReport) DrawChart(imgName string, chartWidth, chartHeight int, buffer *bytes.Buffer) error {

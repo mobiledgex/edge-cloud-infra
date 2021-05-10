@@ -1,0 +1,6 @@
+- name: Look up harbor creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', harbot_account_path) }}"
+
+- set_fact:
+    harbor_db_root_password: "{{ vault_lookup.harbor.data.db_root_password }}"

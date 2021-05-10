@@ -34,18 +34,28 @@ func (a *AppInsts) add(key edgeproto.AppInstKey, clients *Clients) {
 	a.AppInstsMap[key] = clients
 }
 
-// Utility function that removes an AppInstKey from AppInstsMap safely
-func (a *AppInsts) remove(key edgeproto.AppInstKey) error {
+// Utility function that gets the value of the specified AppInstKey or adds a new AppInstKey to AppInstsMap safely
+func (a *AppInsts) getOrAdd(key edgeproto.AppInstKey) *Clients {
 	a.mux.Lock()
 	defer a.mux.Unlock()
-	// Check to see if appinst exists
-	_, ok := a.AppInstsMap[key]
+	// Get clients for specified AppInstKey
+	clients, ok := a.AppInstsMap[key]
 	if !ok {
-		return fmt.Errorf("Unable to find appinst to remove - appInstKey: %v", key)
+		// add first client for appinst
+		newClients := new(Clients)
+		newClients.ClientsMap = make(map[Client]*ClientInfo)
+		clients = newClients
+		a.AppInstsMap[key] = clients
 	}
+	return clients
+}
+
+// Utility function that removes an AppInstKey from AppInstsMap safely
+func (a *AppInsts) remove(key edgeproto.AppInstKey) {
+	a.mux.Lock()
+	defer a.mux.Unlock()
 	// Remove appinst from map of appinsts
 	delete(a.AppInstsMap, key)
-	return nil
 }
 
 // Utility function that grabs the ClientInfo for the specified Client safely
@@ -69,17 +79,11 @@ func (c *Clients) add(client Client, clientInfo *ClientInfo) {
 }
 
 // Utility function that removes a Client from ClientsMap safely
-func (c *Clients) remove(client Client) error {
+func (c *Clients) remove(client Client) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
-	// Check to see if client exists
-	_, ok := c.ClientsMap[client]
-	if !ok {
-		return fmt.Errorf("Unable to find client to remove - Client: %v", client)
-	}
 	// Remove client from map of clients
 	delete(c.ClientsMap, client)
-	return nil
 }
 
 // Utility function that grabs the last location from ClientInfo safely

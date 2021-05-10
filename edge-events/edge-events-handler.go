@@ -49,15 +49,7 @@ type ClientInfo struct {
 // Add Client connected to specified AppInst to Map
 func (e *EdgeEventsHandlerPlugin) AddClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, lastLoc *dme.Loc, carrier string, sendFunc func(event *dme.ServerEdgeEvent)) {
 	// Get clients on specified appinst
-	clients, err := e.AppInstsStruct.get(appInstKey)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AppInstKey does not exist in AppInstsMap yet. Adding key to AppInstsMap", "error", err)
-		// add first client for appinst
-		newClients := new(Clients)
-		newClients.ClientsMap = make(map[Client]*ClientInfo)
-		clients = newClients
-		e.AppInstsStruct.add(appInstKey, clients)
-	}
+	clients := e.AppInstsStruct.getOrAdd(appInstKey)
 	// Initialize client and clientinfo for new client
 	client := Client{cookieKey: cookieKey}
 	clientinfo := &ClientInfo{
@@ -79,24 +71,13 @@ func (e *EdgeEventsHandlerPlugin) RemoveClientKey(ctx context.Context, appInstKe
 	// Remove specified client
 	client := Client{cookieKey}
 	clients.remove(client)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Error removing client from ClientsMaps", "error", err)
-	}
 }
 
 // Update Client's last location
 func (e *EdgeEventsHandlerPlugin) UpdateClientLastLocation(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, lastLoc *dme.Loc) {
-	// Get clients on specified appinst
-	clients, err := e.AppInstsStruct.get(appInstKey)
+	clientinfo, err := e.getClientInfo(appInstKey, cookieKey)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Error getting appInstKey from AppInstsMap", "error", err)
-		return
-	}
-	// Get clientinfo for specified client
-	client := Client{cookieKey}
-	clientinfo, err := clients.get(client)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Error getting client from ClientsMap", "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get clientinfo", "appInstKey", appInstKey, "client", cookieKey, "error", err)
 		return
 	}
 	// Update lastLoc in clientinfo for specified client
@@ -106,27 +87,16 @@ func (e *EdgeEventsHandlerPlugin) UpdateClientLastLocation(ctx context.Context, 
 // Remove AppInst from Map of AppInsts
 func (e *EdgeEventsHandlerPlugin) RemoveAppInstKey(ctx context.Context, appInstKey edgeproto.AppInstKey) {
 	// Remove appInstKey
-	err := e.AppInstsStruct.remove(appInstKey)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Error removing appInstKey from AppInstsMap", "error", err)
-	}
+	e.AppInstsStruct.remove(appInstKey)
 }
 
 // Handle processing of latency samples and then send back to client
 // For now: Avg, Min, Max, StdDev
 func (e *EdgeEventsHandlerPlugin) ProcessLatencySamples(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, samples []*dme.Sample) (*dme.Statistics, error) {
-	// Get clients on specified appinst
-	clients, err := e.AppInstsStruct.get(appInstKey)
+	clientinfo, err := e.getClientInfo(appInstKey, cookieKey)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find appinst, no clients connected to appinst have edge events connection", "appInstKey", appInstKey, "err", err)
-		return nil, fmt.Errorf("Cannot find specified appinst %v. No clients connected to appinst have edge events connection. Error is %s.", appInstKey, err)
-	}
-	// Check to see if client is on appinst
-	client := Client{cookieKey}
-	clientinfo, err := clients.get(client)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find client connected to appinst", "appInstKey", appInstKey, "client", client, "err", err)
-		return nil, fmt.Errorf("Cannot find client connected to appinst %v. Error is %s.", appInstKey, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get clientinfo", "appInstKey", appInstKey, "client", cookieKey, "err", err)
+		return nil, fmt.Errorf("Unable to get clientinfo for client %v on appInst %v. Error is %s.", cookieKey, appInstKey, err)
 	}
 	// Create latencyEdgeEvent with processed stats
 	latencyEdgeEvent := new(dme.ServerEdgeEvent)
@@ -150,6 +120,8 @@ func (e *EdgeEventsHandlerPlugin) SendLatencyRequestEdgeEvent(ctx context.Contex
 		return
 	}
 	// Send latency request to each client on appinst
+	clients.mux.RLock()
+	defer clients.mux.RUnlock()
 	for _, clientinfo := range clients.ClientsMap {
 		go func(clientinfo *ClientInfo) {
 			latencyRequestEdgeEvent := new(dme.ServerEdgeEvent)
@@ -170,8 +142,10 @@ func (e *EdgeEventsHandlerPlugin) SendAppInstStateEvent(ctx context.Context, app
 	// Check if appinst is usable. If not do a FindCloudlet for each client
 	appInstUsable := dmecommon.IsAppInstUsable(appInst)
 	// Send appinst state event to each client on affected appinst
-	for client, clientinfo := range clients.ClientsMap {
-		go func(client Client, clientinfo *ClientInfo) {
+	clients.mux.RLock()
+	defer clients.mux.RUnlock()
+	for _, clientinfo := range clients.ClientsMap {
+		go func(clientinfo *ClientInfo) {
 			// Look for a new cloudlet if the appinst is not usable
 			newCloudlet := new(dme.FindCloudletReply)
 			var err error
@@ -193,23 +167,15 @@ func (e *EdgeEventsHandlerPlugin) SendAppInstStateEvent(ctx context.Context, app
 				updateServerEdgeEvent.ErrorMsg = err.Error()
 			}
 			clientinfo.send(updateServerEdgeEvent)
-		}(client, clientinfo)
+		}(clientinfo)
 	}
 }
 
 // Send ServerEdgeEvent to specified client via persistent grpc stream
 func (e *EdgeEventsHandlerPlugin) SendEdgeEventToClient(ctx context.Context, serverEdgeEvent *dme.ServerEdgeEvent, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) {
-	// Get clients on specified appinst
-	clients, err := e.AppInstsStruct.get(appInstKey)
+	clientinfo, err := e.getClientInfo(appInstKey, cookieKey)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find appinst, no clients connected to appinst have edge events connection", "appInstKey", appInstKey, "err", err)
-		return
-	}
-	// Check to see if client is on appinst
-	client := Client{cookieKey}
-	clientinfo, err := clients.get(client)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "cannot find client connected to appinst", "appInstKey", appInstKey, "client", client, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get clientinfo", "appInstKey", appInstKey, "client", cookieKey, "err", err)
 		return
 	}
 	clientinfo.send(serverEdgeEvent)
@@ -231,6 +197,22 @@ func createAppInstStateEvent(ctx context.Context, appInst *dmecommon.DmeAppInst,
 	default:
 	}
 	return updateServerEdgeEvent
+}
+
+// Helper function that gets the clientinfo of the specified client on the specified appinst
+func (e *EdgeEventsHandlerPlugin) getClientInfo(appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) (*ClientInfo, error) {
+	// Get clients on specified appinst
+	clients, err := e.AppInstsStruct.get(appInstKey)
+	if err != nil {
+		return nil, fmt.Errorf("error getting appInstKey from AppInstsMap - %v", err)
+	}
+	// Get clientinfo for specified client
+	client := Client{cookieKey}
+	clientinfo, err := clients.get(client)
+	if err != nil {
+		return nil, fmt.Errorf("error getting client from ClientsMap - %v", err)
+	}
+	return clientinfo, nil
 }
 
 func (e *EdgeEventsHandlerPlugin) GetVersionProperties() map[string]string {

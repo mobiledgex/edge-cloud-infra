@@ -42,7 +42,6 @@ func runLogin(path string) func(c *cli.Command, args []string) error {
 
 		if cli.Parsable {
 			c.WriteOutput(out, cli.OutputFormat)
-			//fmt.Printf("%s\n", token)
 			return nil
 		}
 

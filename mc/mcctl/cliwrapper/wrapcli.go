@@ -40,7 +40,7 @@ func NewClient() *Client {
 
 func (s *Client) addCliPaths(cmd *cobra.Command, parent []string) {
 	// In order for the wrapper to know what the organization
-	// of the cobra commands are, we walk nested commands a build
+	// of the cobra commands are, we walk nested commands and build
 	// a lookup map. This lets us find the path based on the api
 	// command's name.
 	for _, c := range cmd.Commands() {

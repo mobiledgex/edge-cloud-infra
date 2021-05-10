@@ -1,11 +1,14 @@
 package orm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -13,6 +16,7 @@ import (
 
 	influxdb "github.com/influxdata/influxdb/client/v2"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/gcs"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
@@ -95,7 +99,6 @@ func GenerateReports() {
 		err := db.Find(&reporters).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get list of reporters", "err", err)
-			// TODO: Generate alert?
 			reportTime = getNextReportTime(reportTime)
 			span.Finish()
 			continue
@@ -103,6 +106,12 @@ func GenerateReports() {
 		regions, err := getAllRegions(ctx)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get regions", "err", err)
+			continue
+		}
+
+		storageClient, err := gcs.NewClient(ctx, serverConfig.vaultConfig, serverConfig.DeploymentTag)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to setup GCS storage client", "err", err)
 			continue
 		}
 
@@ -137,22 +146,32 @@ func GenerateReports() {
 				Org:       reporter.Org,
 				StartTime: startTime,
 				EndTime:   endTime,
+				Timezone:  reporter.Timezone,
 			}
 			wg.Add(1)
 			go func(username string, genReport *ormapi.GenerateReport, wg *sync.WaitGroup) {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Generate operator report", "args", genReport)
-				err = GenerateCloudletReport(ctx, username, regions, genReport)
+				tags := map[string]string{"cloudletorg": genReport.Org}
+				var output bytes.Buffer
+				err = GenerateCloudletReport(ctx, username, regions, genReport, &output)
 				if err == nil {
+					// Upload PDF report to cloudlet
+					filename := ormapi.GetReportFileName(genReport)
+					err = storageClient.UploadObject(ctx, filename, &output)
+					if err != nil {
+						nodeMgr.Event(ctx, "Cloudlet report upload failure", genReport.Org, tags, err)
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to upload cloudlet report to cloudlet", "org", genReport.Org, "err", err)
+					}
 					// Update next schedule date
 					newDate := StripTime(genReport.EndTime.AddDate(0, 0, dayUnit))
 					err = updateScheduleDate(ctx, genReport.Org, newDate)
 					if err != nil {
-						// TODO: Generate alert & retry
+						nodeMgr.Event(ctx, "Cloudlet report schedule update failure", genReport.Org, tags, err)
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule date for reporter", "org", genReport.Org, "err", err)
 					}
 				} else {
-					// TODO: Generate alert & retry
-					log.SpanLog(ctx, log.DebugLevelInfo, "failed to generate operator report", "org", genReport.Org, "err", err)
+					log.SpanLog(ctx, log.DebugLevelInfo, "failed to generate cloudlet report", "org", genReport.Org, "err", err)
+					nodeMgr.Event(ctx, "Cloudlet report generation failure", genReport.Org, tags, err)
 				}
 				wg.Done()
 			}(reporter.Username, &genReport, &wg)
@@ -166,7 +185,7 @@ func GenerateReports() {
 		case <-wgDone:
 			log.SpanLog(ctx, log.DebugLevelInfo, "Done Generating operator reports")
 		case <-time.After(ReportTimeout):
-			// TODO: log & generate alert
+			log.SpanLog(ctx, log.DebugLevelInfo, "Timedout generating operator reports")
 		}
 		reportTime = getNextReportTime(reportTime)
 		span.Finish()
@@ -186,7 +205,6 @@ func triggerReporter() {
 
 // Create reporter to generate usage reports
 func CreateReporter(c echo.Context) error {
-	// TODO: add user validation
 	ctx := GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -208,6 +226,12 @@ func CreateReporter(c echo.Context) error {
 	if orgCheck.Type != OrgTypeOperator {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter can only be created for Operator org"))
 	}
+
+	// check if user is authorized to create reporter
+	if err := authorized(ctx, claims.Username, reporter.Org, ResourceCloudlets, ActionManage); err != nil {
+		return setReply(c, err, nil)
+	}
+
 	// if an email is not specified send to an email on file
 	if reporter.Email == "" {
 		reporter.Email = claims.Email
@@ -224,6 +248,16 @@ func CreateReporter(c echo.Context) error {
 	// ScheduleDate defaults to now
 	if reporter.ScheduleDate.IsZero() {
 		reporter.ScheduleDate = time.Now()
+	}
+
+	if reporter.Timezone == "" {
+		// check if timezone is present as part of user's setting
+		// this is set from console UI
+		reporter.Timezone, _ = GetUserTimezone(ctx, claims.Username)
+	}
+	if reporter.Timezone == "" {
+		// defaults to UTC
+		reporter.Timezone = "UTC"
 	}
 
 	// Schedule date should only be date with no time value
@@ -247,20 +281,95 @@ func CreateReporter(c echo.Context) error {
 }
 
 func UpdateReporter(c echo.Context) error {
-	// TODO: add code
-	// TODO: add user validation
-	return c.JSON(http.StatusOK, Msg("reporter updated"))
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	// Pull json directly so we can unmarshal twice.
+	// First time is to do lookup, second time is to apply
+	// modified fields.
+	body, err := ioutil.ReadAll(c.Request().Body)
+	in := ormapi.Reporter{}
+	err = json.Unmarshal(body, &in)
+	if err != nil {
+		return bindErr(c, err)
+	}
+	if in.Org == "" {
+		return c.JSON(http.StatusBadRequest, Msg("Organization name not specified"))
+	}
+	lookup := ormapi.Reporter{
+		Org: in.Org,
+	}
+	reporter := ormapi.Reporter{}
+	db := loggedDB(ctx)
+	res := db.Where(&lookup).First(&reporter)
+	if res.RecordNotFound() {
+		return c.JSON(http.StatusBadRequest, Msg("Reporter not found"))
+	}
+	if res.Error != nil {
+		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(res.Error)))
+	}
+
+	// check if user is authorized to update reporter
+	if err := authorized(ctx, claims.Username, reporter.Org, ResourceCloudlets, ActionManage); err != nil {
+		return setReply(c, err, nil)
+	}
+
+	oldEmail := reporter.Email
+	oldUsername := reporter.Username
+	oldSchedule := reporter.Schedule
+	oldScheduleDate := reporter.ScheduleDate
+	// apply specified fields
+	err = json.Unmarshal(body, &reporter)
+	if err != nil {
+		return bindErr(c, err)
+	}
+	if reporter.Email != oldEmail {
+		// validate email
+		if !util.ValidEmail(reporter.Email) {
+			return setReply(c, fmt.Errorf("Reporter email is invalid"), nil)
+		}
+	}
+
+	if reporter.Username != oldUsername {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change username"))
+	}
+
+	if reporter.Schedule != oldSchedule {
+		// validate report schedule
+		if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
+			return setReply(c, fmt.Errorf("invalid schedule"), nil)
+		}
+	}
+
+	if reporter.ScheduleDate != oldScheduleDate {
+		// Schedule date should only be date with no time value
+		reporter.ScheduleDate = StripTime(reporter.ScheduleDate)
+	}
+	err = db.Save(&reporter).Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
+	}
+	return nil
 }
 
 func DeleteReporter(c echo.Context) error {
-	// TODO: add user validation
 	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
 	reporter := ormapi.Reporter{}
 	if err := c.Bind(&reporter); err != nil {
 		return bindErr(c, err)
 	}
+	// check if user is authorized to delete reporter
+	if err := authorized(ctx, claims.Username, reporter.Org, ResourceCloudlets, ActionManage); err != nil {
+		return setReply(c, err, nil)
+	}
 	db := loggedDB(ctx)
-	err := db.Delete(&reporter).Error
+	err = db.Delete(&reporter).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
@@ -268,16 +377,58 @@ func DeleteReporter(c echo.Context) error {
 }
 
 func ShowReporter(c echo.Context) error {
-	// TODO: add validation + filter
 	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
 	db := loggedDB(ctx)
-	lookup := ormapi.Reporter{}
+
+	filter := ormapi.Reporter{}
+	if c.Request().ContentLength > 0 {
+		if err := c.Bind(&filter); err != nil {
+			return bindErr(c, err)
+		}
+	}
+	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceCloudlets, ActionView)
+	if err != nil {
+		return err
+	}
+	_, admin := authOrgs[""]
+	_, orgFound := authOrgs[filter.Org]
+	if filter.Org != "" && !admin && !orgFound {
+		// no perms for specified org
+		return echo.ErrForbidden
+	}
+
 	reporters := []ormapi.Reporter{}
-	err := db.Where(&lookup).Find(&reporters).Error
+	err = db.Where(&filter.Org).Find(&reporters).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
 	}
 	return c.JSON(http.StatusOK, reporters)
+}
+
+func GetUserTimezone(ctx context.Context, username string) (string, error) {
+	// check if timezone is present as part of user's setting
+	// this is set from console UI
+	user := ormapi.User{Name: username}
+	db := loggedDB(ctx)
+	err := db.Where(&user).First(&user).Error
+	if err != nil {
+		return "", dbErr(err)
+	}
+	if user.Metadata != "" {
+		metadata := make(map[string]string)
+		err = json.Unmarshal([]byte(user.Metadata), &metadata)
+		if err != nil {
+			return "", fmt.Errorf("Invalid user metadata: %v, %v", user.Metadata, err)
+		}
+		if timezone, ok := metadata["Timezone"]; ok {
+			return timezone, nil
+		}
+	}
+	return "", nil
 }
 
 func GenerateReport(c echo.Context) error {
@@ -294,35 +445,25 @@ func GenerateReport(c echo.Context) error {
 	if org == "" {
 		return c.JSON(http.StatusBadRequest, Msg("org not specified"))
 	}
-	// TODO: Add auth for Operator access only
+	// auth for Operator access only
 	// get org details
 	orgCheck, err := orgExists(ctx, org)
 	if err != nil {
-		return err
+		return setReply(c, err, nil)
 	}
 	if orgCheck.Type != OrgTypeOperator {
 		return c.JSON(http.StatusBadRequest, Msg("report can only be generated for Operator org"))
 	}
 
+	// check if user is authorized to generate cloudlet reports
+	if err := authorized(ctx, claims.Username, report.Org, ResourceCloudlets, ActionManage); err != nil {
+		return setReply(c, err, nil)
+	}
+
 	if report.Timezone == "" {
 		// check if timezone is present as part of user's setting
 		// this is set from console UI
-		user := ormapi.User{Name: claims.Username}
-		db := loggedDB(ctx)
-		err := db.Where(&user).First(&user).Error
-		if err != nil {
-			return setReply(c, dbErr(err), nil)
-		}
-		if user.Metadata != "" {
-			metadata := make(map[string]string)
-			err = json.Unmarshal([]byte(user.Metadata), &metadata)
-			if err != nil {
-				return bindErr(c, err)
-			}
-			if timezone, ok := metadata["Timezone"]; ok {
-				report.Timezone = timezone
-			}
-		}
+		report.Timezone, _ = GetUserTimezone(ctx, claims.Username)
 	}
 	if report.Timezone == "" {
 		// defaults to UTC
@@ -337,11 +478,9 @@ func GenerateReport(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("end time must be historical time"))
 	}
 
-	/*
-		if report.EndTime.Sub(report.StartTime).Hours() < (7 * 24) {
-			return c.JSON(http.StatusBadRequest, Msg("time range must be atleast 7 days"))
-		}
-	*/
+	if report.EndTime.Sub(report.StartTime).Hours() < (7 * 24) {
+		return c.JSON(http.StatusBadRequest, Msg("time range must be atleast 7 days"))
+	}
 
 	if report.EndTime.Sub(report.StartTime).Hours() > (31 * 24) {
 		return c.JSON(http.StatusBadRequest, Msg("time range must not be more than 31 days"))
@@ -352,17 +491,20 @@ func GenerateReport(c echo.Context) error {
 		return setReply(c, err, nil)
 	}
 
-	err = GenerateCloudletReport(ctx, claims.Username, regions, &report)
+	var output bytes.Buffer
+	err = GenerateCloudletReport(ctx, claims.Username, regions, &report, &output)
 	if err != nil {
 		return setReply(c, err, nil)
 	}
-	return nil
+
+	return c.HTMLBlob(http.StatusOK, output.Bytes())
 }
 
 func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi.GenerateReport) ([][]string, error) {
-	rc := &RegionContext{}
-	rc.username = username
-	rc.region = report.Region
+	rc := &RegionContext{
+		region:   report.Region,
+		username: username,
+	}
 	obj := edgeproto.Cloudlet{
 		Key: edgeproto.CloudletKey{
 			Organization: report.Org,
@@ -374,9 +516,6 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 		platformTypeStr := edgeproto.PlatformType_CamelName[int32(res.PlatformType)]
 		platformTypeStr = strings.TrimPrefix(platformTypeStr, "PlatformType")
 		stateStr := edgeproto.TrackedState_CamelName[int32(res.State)]
-		if !strings.HasPrefix(res.Key.Name, "automation") {
-			return
-		}
 		cloudletData := []string{res.Key.Name, platformTypeStr, stateStr}
 
 		cloudlets = append(cloudlets, cloudletData)
@@ -393,20 +532,20 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 
 func GetCloudletPoolSummaryData(ctx context.Context, username string, report *ormapi.GenerateReport) ([][]string, error) {
 	// get pools associated with orgs
-	db := loggedDB(ctx)
 	op := ormapi.OrgCloudletPool{
 		Region:          report.Region,
 		CloudletPoolOrg: report.Org,
 	}
-	ops := []ormapi.OrgCloudletPool{}
-	err := db.Where(&op).Find(&ops).Error
+	poolAcceptedDevelopers := make(map[string][]string)
+	poolPendingDevelopers := make(map[string][]string)
+	acceptedOps, err := showCloudletPoolAccessObj(ctx, username, &op, accessTypeGranted)
 	if err != nil {
 		return nil, err
 	}
-	poolAcceptedDevelopers := make(map[string][]string)
-	poolPendingDevelopers := make(map[string][]string)
-	acceptedOps := getAccessGranted(ops)
-	pendingOps := getAccessPending(ops)
+	pendingOps, err := showCloudletPoolAccessObj(ctx, username, &op, accessTypePending)
+	if err != nil {
+		return nil, err
+	}
 	for _, op := range acceptedOps {
 		if poolDevs, ok := poolAcceptedDevelopers[op.CloudletPool]; ok {
 			poolDevs = append(poolDevs, op.Org)
@@ -424,9 +563,8 @@ func GetCloudletPoolSummaryData(ctx context.Context, username string, report *or
 		}
 	}
 	rc := RegionContext{
-		region:    report.Region,
-		username:  username,
-		skipAuthz: true,
+		region:   report.Region,
+		username: username,
 	}
 	poolKey := edgeproto.CloudletPoolKey{Organization: report.Org}
 	poolCloudlets := make(map[string][]string)
@@ -440,17 +578,6 @@ func GetCloudletPoolSummaryData(ctx context.Context, username string, report *or
 			}
 		}
 	})
-
-	/*
-		// TODO: Remove me
-		// Add dummy data
-		poolCloudlets["enterprise-pool"] = []string{"cloudlet1", "cloudlet2"}
-		poolAcceptedDevelopers["enterprise-pool"] = []string{"user0org", "user1org", "user2org", "user3org"}
-		poolPendingDevelopers["enterprise-pool"] = []string{"user4org", "user5org"}
-		poolCloudlets["enterprise-pool1"] = []string{"cloudlet1", "cloudlet2", "cloudlet3"}
-		poolAcceptedDevelopers["enterprise-pool1"] = []string{"user0org", "user1org", "user2org", "user3org"}
-		poolPendingDevelopers["enterprise-pool1"] = []string{"user4org", "user5org"}
-	*/
 
 	cloudletpools := [][]string{}
 	for poolName, poolCloudlets := range poolCloudlets {
@@ -486,6 +613,11 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 	rc.region = in.Region
 	cmd := CloudletUsageMetricsQuery(&in)
 
+	// Check the operator against the username
+	if err := authorized(ctx, username, report.Org, ResourceCloudletAnalytics, ActionView); err != nil {
+		return nil, err
+	}
+
 	chartMap := make(map[string]TimeChartDataMap)
 	err := influxStream(ctx, rc, dbNames, cmd, func(res interface{}) {
 		results, ok := res.([]influxdb.Result)
@@ -501,6 +633,10 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 					columns[3:] -> resources
 				*/
 				for _, val := range row.Values {
+					if len(val) < 4 {
+						// not enough data
+						continue
+					}
 					timeStr, ok := val[0].(string)
 					if !ok {
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch resource time", "time", val[0])
@@ -562,6 +698,11 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 	rc.region = in.Region
 	cmd := CloudletUsageMetricsQuery(&in)
 
+	// Check the operator against the username
+	if err := authorized(ctx, username, report.Org, ResourceCloudletAnalytics, ActionView); err != nil {
+		return nil, err
+	}
+
 	flavorMap := make(map[string]PieChartDataMap)
 	err := influxStream(ctx, rc, dbNames, cmd, func(res interface{}) {
 		results, ok := res.([]influxdb.Result)
@@ -578,6 +719,10 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 					columns[4] -> flavor
 				*/
 				for _, val := range row.Values {
+					if len(val) < 5 {
+						// not enough data
+						continue
+					}
 					cloudlet, ok := val[1].(string)
 					if !ok {
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[1])
@@ -663,9 +808,8 @@ func inTimeSpan(start, end, check time.Time) bool {
 func GetCloudletAlerts(ctx context.Context, username string, timezone *time.Location, report *ormapi.GenerateReport) (map[string][][]string, error) {
 	alertsData := make(map[string][][]string)
 	rc := &RegionContext{
-		region:    report.Region,
-		username:  username,
-		skipAuthz: true,
+		region:   report.Region,
+		username: username,
 	}
 	obj := &edgeproto.Alert{
 		Labels: map[string]string{
@@ -705,9 +849,8 @@ func GetCloudletAlerts(ctx context.Context, username string, timezone *time.Loca
 
 func GetCloudletAppUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]PieChartDataMap, error) {
 	rc := &RegionContext{
-		region:    report.Region,
-		username:  username,
-		skipAuthz: true,
+		region:   report.Region,
+		username: username,
 	}
 	obj := &edgeproto.AppInst{
 		Key: edgeproto.AppInstKey{
@@ -756,7 +899,12 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 		EndTime:   report.EndTime,
 	}
 	rc.region = in.Region
-	cmd := AppInstMetricsQuery(&in, nil)
+	claims := &UserClaims{Username: username}
+	cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.AppInst.AppKey.Organization, ResourceAppAnalytics, in.AppInst.ClusterInstKey.CloudletKey)
+	if err != nil {
+		return nil, err
+	}
+	cmd := AppInstMetricsQuery(&in, cloudletList)
 
 	/*
 	 * map structure:
@@ -779,7 +927,7 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 		recvBytesKey: 13,
 	}
 	appMap := make(map[edgeproto.AppInstKey]map[string]TimeChartData)
-	err := influxStream(ctx, rc, dbNames, cmd, func(res interface{}) {
+	err = influxStream(ctx, rc, dbNames, cmd, func(res interface{}) {
 		results, ok := res.([]influxdb.Result)
 		if !ok {
 			return
@@ -799,6 +947,10 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 					columns[9:] -> cpu,mem,disk,sendBytes,recvBytes
 				*/
 				for _, val := range row.Values {
+					if len(val) < 10 {
+						// not enough data
+						continue
+					}
 					timeStr, ok := val[0].(string)
 					if !ok {
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch resource time", "time", val[0])
@@ -858,6 +1010,9 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 					}
 					// parse resource fields
 					for resName, resIndex := range resIndexMap {
+						if resIndex >= len(val) {
+							break
+						}
 						if val[resIndex] != nil {
 							resVal, err := val[resIndex].(json.Number).Float64()
 							if err != nil {
@@ -964,14 +1119,7 @@ func GetAppStateEvents(ctx context.Context, username string, timezone *time.Loca
 	return eventsData, nil
 }
 
-func getReportFileName(report *ormapi.GenerateReport) string {
-	// File name should be of this format: "<orgname>_<startdate>_<enddate>_report.pdf"
-	startDate := report.StartTime.Format("20060102") // YYYYMMDD
-	endDate := report.EndTime.Format("20060102")
-	return report.Org + "_" + startDate + "_" + endDate + "_report.pdf"
-}
-
-func GenerateCloudletReport(ctx context.Context, username string, regions []string, report *ormapi.GenerateReport) error {
+func GenerateCloudletReport(ctx context.Context, username string, regions []string, report *ormapi.GenerateReport, pdfOut *bytes.Buffer) error {
 	// fetch logo path
 	logoPath := serverConfig.StaticDir + "/MobiledgeX_Logo.png"
 	if _, err := os.Stat(logoPath); os.IsNotExist(err) {
@@ -1083,9 +1231,6 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 
 		// Show per cloudlet reports
 		for _, cloudletName := range cloudletNames {
-			if !strings.HasPrefix(cloudletName, "automation") {
-				continue
-			}
 			// Start new page
 			pdfReport.AddHeader(report, logoPath, cloudletName)
 			pdfReport.AddPage()
@@ -1142,17 +1287,113 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		if err = pdfReport.Err(); err != nil {
 			return fmt.Errorf("failed to create PDF report: %s\n", err.Error())
 		}
-		// TODO: Store in temporary location & then upload it to cloud
-		filename := getReportFileName(report)
-		err = pdfReport.Save("/tmp/" + filename)
+		err = pdfReport.Output(pdfOut)
 		if err != nil {
-			return fmt.Errorf("cannot save PDF: %s", err)
+			return fmt.Errorf("cannot get PDF output: %v", err)
 		}
 	}
 	return nil
 }
 
 func ShowReport(c echo.Context) error {
-	// TODO: get list of generated reports from cloudlet & show their downloadable links here
-	return nil
+	// get list of generated reports from cloud
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	reportQuery := ormapi.DownloadReport{}
+	if err := c.Bind(&reportQuery); err != nil {
+		return bindErr(c, err)
+	}
+	// sanity check
+	if reportQuery.Org == "" {
+		return setReply(c, fmt.Errorf("Org name has to be specified"), nil)
+	}
+	// check if user is authorized to view reports
+	if err := authorized(ctx, claims.Username, reportQuery.Org, ResourceCloudlets, ActionManage); err != nil {
+		return setReply(c, err, nil)
+	}
+
+	storageClient, err := gcs.NewClient(ctx, serverConfig.vaultConfig, serverConfig.DeploymentTag)
+	if err != nil {
+		return setReply(c, fmt.Errorf("Unable to setup GCS client: %v", err), nil)
+	}
+	objs, err := storageClient.ListObjects(ctx)
+	if err != nil {
+		return setReply(c, fmt.Errorf("Unable to get reports from GCS: %v", err), nil)
+	}
+	pattern := ormapi.GetReportFileNameRE()
+	out := []string{}
+	for _, obj := range objs {
+		allStrs := regexp.MustCompile(pattern).Split(obj, -1)
+		if len(allStrs) < 2 {
+			continue
+		}
+		fileOrgPrefix := allStrs[0]
+		if fileOrgPrefix != reportQuery.Org &&
+			fileOrgPrefix != strings.ToLower(reportQuery.Org) {
+			continue
+		}
+		out = append(out, obj)
+	}
+	return c.JSON(http.StatusOK, out)
+}
+
+func DownloadReport(c echo.Context) error {
+	// download report from cloud with given filename
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	reportQuery := ormapi.DownloadReport{}
+	if err := c.Bind(&reportQuery); err != nil {
+		return bindErr(c, err)
+	}
+	// sanity check
+	if reportQuery.Org == "" {
+		return setReply(c, fmt.Errorf("Org name has to be specified"), nil)
+	}
+	if reportQuery.Filename == "" {
+		return setReply(c, fmt.Errorf("Report filename has to be specified"), nil)
+	}
+	pattern := ormapi.GetReportFileNameRE()
+	allStrs := regexp.MustCompile(pattern).Split(reportQuery.Filename, -1)
+	if len(allStrs) < 2 {
+		return setReply(c, fmt.Errorf("Unable to get org name from filename: %s", reportQuery.Filename), nil)
+	}
+	fileOrgPrefix := allStrs[0]
+	if fileOrgPrefix != reportQuery.Org &&
+		fileOrgPrefix != strings.ToLower(reportQuery.Org) {
+		return setReply(c, fmt.Errorf("Only org %s related reports can be accessed", reportQuery.Org), nil)
+	}
+	// check if user is authorized to view reports
+	if err := authorized(ctx, claims.Username, reportQuery.Org, ResourceCloudlets, ActionManage); err != nil {
+		return setReply(c, err, nil)
+	}
+
+	storageClient, err := gcs.NewClient(ctx, serverConfig.vaultConfig, serverConfig.DeploymentTag)
+	if err != nil {
+		return setReply(c, fmt.Errorf("Unable to setup GCS client: %v", err), nil)
+	}
+	objs, err := storageClient.ListObjects(ctx)
+	if err != nil {
+		return setReply(c, fmt.Errorf("Unable to get reports from GCS: %v", err), nil)
+	}
+	found := false
+	for _, obj := range objs {
+		if reportQuery.Filename == obj {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return setReply(c, fmt.Errorf("Report with name %s does not exist", reportQuery.Filename), nil)
+	}
+	outBytes, err := storageClient.DownloadObject(ctx, reportQuery.Filename)
+	if err != nil {
+		return setReply(c, fmt.Errorf("Unable to download report %s: %v", reportQuery.Filename, err), nil)
+	}
+	return c.HTMLBlob(http.StatusOK, outBytes)
 }

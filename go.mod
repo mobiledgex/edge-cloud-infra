@@ -3,6 +3,7 @@ module github.com/mobiledgex/edge-cloud-infra
 go 1.15
 
 require (
+	cloud.google.com/go v0.39.0
 	github.com/AsGz/geo v0.0.0-20170331085501-324ae0e80045
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535
@@ -62,6 +63,7 @@ require (
 	github.com/xanzy/go-gitlab v0.16.0
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	golang.org/x/net v0.0.0-20201010224723-4f7140c49acb
+	google.golang.org/api v0.14.0
 	google.golang.org/grpc v1.29.1
 	gopkg.in/ldap.v3 v3.0.3
 	gopkg.in/yaml.v2 v2.3.0

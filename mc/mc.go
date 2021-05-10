@@ -79,6 +79,7 @@ func main() {
 		UsageCheckpointInterval: *usageCheckpointInterval,
 		DomainName:              nodeMgr.CommonName(),
 		StaticDir:               *staticDir,
+		DeploymentTag:           nodeMgr.DeploymentTag,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {

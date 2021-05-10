@@ -153,8 +153,11 @@ func (r *PDFReport) Err() error {
 	return nil
 }
 
-func (r *PDFReport) Save(filepath string) error {
-	return r.pdf.OutputFileAndClose(filepath)
+func (r *PDFReport) Output(buf *bytes.Buffer) error {
+	if buf == nil {
+		return fmt.Errorf("Empty buffer")
+	}
+	return r.pdf.Output(buf)
 }
 
 func (r *PDFReport) AddTable(title string, hdr []string, tbl [][]string, colsWidth []float64) {
@@ -252,7 +255,7 @@ func (r *PDFReport) AddResourceTimeCharts(chartPrefix string, charts TimeChartDa
 		for _, chartData := range multiChartData {
 			if len(chartData.XValues) < 2 {
 				// there should be atleast 2 points, skip chart
-				// continue
+				continue
 			}
 			allZeroes := true
 			for _, yVal := range chartData.YValues {

@@ -154,13 +154,19 @@ var AlertReceiverComments = map[string]string{
 }
 
 var ReporterComments = map[string]string{
-	"org":      `Org name`,
+	"org":      `Organization name`,
 	"email":    `Email to send generated reports`,
+	"timezone": `Timezone`,
 	"username": `User name (for internal use only)`,
 }
 
+var DownloadReportComments = map[string]string{
+	"org":      `Organization name`,
+	"filename": `Report file name`,
+}
+
 var GenerateReportComments = map[string]string{
-	"org":      `Org name`,
+	"org":      `Organization name`,
 	"region":   `Region name (for internal use only)`,
 	"timezone": `Timezone`,
 }

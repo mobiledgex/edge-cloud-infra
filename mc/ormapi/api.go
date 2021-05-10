@@ -554,7 +554,8 @@ type AlertReceiver struct {
 
 // Reporter to generate period reports
 type Reporter struct {
-	// Org name
+	// Organization name
+	// required: true
 	Org string `gorm:"primary_key;type:citext"`
 	// Email to send generated reports
 	Email string `json:",omitempty"`
@@ -562,19 +563,46 @@ type Reporter struct {
 	Schedule edgeproto.ReportSchedule `json:",omitempty"`
 	// Date when the next report is scheduled to be generated (Default: Now)
 	ScheduleDate time.Time `json:",omitempty"`
+	// Timezone
+	Timezone string
 	// User name (for internal use only)
+	// read only: true
 	Username string
 }
 
+type DownloadReport struct {
+	// Organization name
+	// required: true
+	Org string
+	// Report file name
+	// required: true
+	Filename string
+}
+
 type GenerateReport struct {
-	// Org name
+	// Organization name
+	// required: true
 	Org string
 	// Start time
+	// required: true
 	StartTime time.Time `json:",omitempty"`
 	// End time
+	// required: true
 	EndTime time.Time `json:",omitempty"`
 	// Region name (for internal use only)
+	// read only: true
 	Region string
 	// Timezone
 	Timezone string
+}
+
+func GetReportFileName(report *GenerateReport) string {
+	// File name should be of this format: "<orgname>_<startdate>_<enddate>_report.pdf"
+	startDate := report.StartTime.Format("20060102") // YYYYMMDD
+	endDate := report.EndTime.Format("20060102")
+	return report.Org + "_" + startDate + "_" + endDate + "_report.pdf"
+}
+
+func GetReportFileNameRE() string {
+	return `_\d{8}_\d{8}_report.pdf`
 }

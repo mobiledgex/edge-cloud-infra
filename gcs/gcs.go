@@ -63,7 +63,7 @@ func (gc *GCSClient) Close() {
 }
 
 func (gc *GCSClient) ListObjects(ctx context.Context) ([]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
 	objs := []string{}
@@ -83,7 +83,7 @@ func (gc *GCSClient) ListObjects(ctx context.Context) ([]string, error) {
 
 // uploadFile uploads an object.
 func (gc *GCSClient) UploadObject(ctx context.Context, objectName string, buf *bytes.Buffer) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
 	// Upload an object with storage.Writer.
@@ -98,7 +98,7 @@ func (gc *GCSClient) UploadObject(ctx context.Context, objectName string, buf *b
 }
 
 func (gc *GCSClient) DownloadObject(ctx context.Context, objectName string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*50)
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
 
 	rc, err := gc.Client.Bucket(gc.BucketName).Object(objectName).NewReader(ctx)
@@ -115,7 +115,7 @@ func (gc *GCSClient) DownloadObject(ctx context.Context, objectName string) ([]b
 }
 
 func (gc *GCSClient) DeleteObject(ctx context.Context, objectName string) error {
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 
 	o := gc.Client.Bucket(gc.BucketName).Object(objectName)

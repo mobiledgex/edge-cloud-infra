@@ -152,28 +152,30 @@ func GenerateReports() {
 			go func(username string, genReport *ormapi.GenerateReport, wg *sync.WaitGroup) {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Generate operator report", "args", genReport)
 				tags := map[string]string{"cloudletorg": genReport.Org}
+				defer wg.Done()
 				var output bytes.Buffer
 				err = GenerateCloudletReport(ctx, username, regions, genReport, &output)
-				if err == nil {
-					// Upload PDF report to cloudlet
-					filename := ormapi.GetReportFileName(genReport)
-					err = storageClient.UploadObject(ctx, filename, &output)
-					if err != nil {
-						nodeMgr.Event(ctx, "Cloudlet report upload failure", genReport.Org, tags, err)
-						log.SpanLog(ctx, log.DebugLevelInfo, "failed to upload cloudlet report to cloudlet", "org", genReport.Org, "err", err)
-					}
-					// Update next schedule date
-					newDate := StripTime(genReport.EndTime.AddDate(0, 0, dayUnit))
-					err = updateScheduleDate(ctx, genReport.Org, newDate)
-					if err != nil {
-						nodeMgr.Event(ctx, "Cloudlet report schedule update failure", genReport.Org, tags, err)
-						log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule date for reporter", "org", genReport.Org, "err", err)
-					}
-				} else {
+				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to generate cloudlet report", "org", genReport.Org, "err", err)
 					nodeMgr.Event(ctx, "Cloudlet report generation failure", genReport.Org, tags, err)
+					return
 				}
-				wg.Done()
+				// Upload PDF report to cloudlet
+				filename := ormapi.GetReportFileName(genReport)
+				err = storageClient.UploadObject(ctx, filename, &output)
+				if err != nil {
+					nodeMgr.Event(ctx, "Cloudlet report upload failure", genReport.Org, tags, err)
+					log.SpanLog(ctx, log.DebugLevelInfo, "failed to upload cloudlet report to cloudlet", "org", genReport.Org, "err", err)
+					return
+				}
+				// Update next schedule date
+				newDate := StripTime(genReport.EndTime.AddDate(0, 0, dayUnit))
+				err = updateScheduleDate(ctx, genReport.Org, newDate)
+				if err != nil {
+					nodeMgr.Event(ctx, "Cloudlet report schedule update failure", genReport.Org, tags, err)
+					log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule date for reporter", "org", genReport.Org, "err", err)
+					return
+				}
 			}(reporter.Username, &genReport, &wg)
 		}
 		go func() {
@@ -187,6 +189,7 @@ func GenerateReports() {
 		case <-time.After(ReportTimeout):
 			log.SpanLog(ctx, log.DebugLevelInfo, "Timedout generating operator reports")
 		}
+		storageClient.Close()
 		reportTime = getNextReportTime(reportTime)
 		span.Finish()
 	}
@@ -1319,6 +1322,7 @@ func ShowReport(c echo.Context) error {
 	if err != nil {
 		return setReply(c, fmt.Errorf("Unable to setup GCS client: %v", err), nil)
 	}
+	defer storageClient.Close()
 	objs, err := storageClient.ListObjects(ctx)
 	if err != nil {
 		return setReply(c, fmt.Errorf("Unable to get reports from GCS: %v", err), nil)
@@ -1377,6 +1381,7 @@ func DownloadReport(c echo.Context) error {
 	if err != nil {
 		return setReply(c, fmt.Errorf("Unable to setup GCS client: %v", err), nil)
 	}
+	defer storageClient.Close()
 	objs, err := storageClient.ListObjects(ctx)
 	if err != nil {
 		return setReply(c, fmt.Errorf("Unable to get reports from GCS: %v", err), nil)

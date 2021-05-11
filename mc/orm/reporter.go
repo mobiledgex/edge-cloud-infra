@@ -319,34 +319,31 @@ func UpdateReporter(c echo.Context) error {
 		return setReply(c, err, nil)
 	}
 
-	oldEmail := reporter.Email
-	oldUsername := reporter.Username
-	oldSchedule := reporter.Schedule
-	oldScheduleDate := reporter.ScheduleDate
+	oldReporter := reporter
 	// apply specified fields
 	err = json.Unmarshal(body, &reporter)
 	if err != nil {
 		return bindErr(c, err)
 	}
-	if reporter.Email != oldEmail {
+	if reporter.Email != oldReporter.Email {
 		// validate email
 		if !util.ValidEmail(reporter.Email) {
 			return setReply(c, fmt.Errorf("Reporter email is invalid"), nil)
 		}
 	}
 
-	if reporter.Username != oldUsername {
+	if reporter.Username != oldReporter.Username {
 		return c.JSON(http.StatusBadRequest, Msg("Cannot change username"))
 	}
 
-	if reporter.Schedule != oldSchedule {
+	if reporter.Schedule != oldReporter.Schedule {
 		// validate report schedule
 		if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
 			return setReply(c, fmt.Errorf("invalid schedule"), nil)
 		}
 	}
 
-	if reporter.ScheduleDate != oldScheduleDate {
+	if reporter.ScheduleDate != oldReporter.ScheduleDate {
 		// Schedule date should only be date with no time value
 		reporter.ScheduleDate = StripTime(reporter.ScheduleDate)
 	}
@@ -482,7 +479,7 @@ func GenerateReport(c echo.Context) error {
 	}
 
 	if report.EndTime.Sub(report.StartTime).Hours() < (7 * 24) {
-		return c.JSON(http.StatusBadRequest, Msg("time range must be atleast 7 days"))
+		return c.JSON(http.StatusBadRequest, Msg("time range must be at least 7 days"))
 	}
 
 	if report.EndTime.Sub(report.StartTime).Hours() > (31 * 24) {

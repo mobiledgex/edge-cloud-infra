@@ -13,7 +13,6 @@ var UserComments = map[string]string{
 }
 
 var CreateUserApiKeyComments = map[string]string{
-	"userapikey.id":          `API key ID used as an identifier for API keys`,
 	"userapikey.description": `Description of the purpose of this API key`,
 	"userapikey.org":         `Org to which API key has permissions to access its objects`,
 	"apikey":                 `API key`,
@@ -23,7 +22,6 @@ var CreateUserApiKeyComments = map[string]string{
 }
 
 var UserApiKeyComments = map[string]string{
-	"id":          `API key ID used as an identifier for API keys`,
 	"description": `Description of the purpose of this API key`,
 	"org":         `Org to which API key has permissions to access its objects`,
 }
@@ -159,19 +157,21 @@ var AlertReceiverComments = map[string]string{
 }
 
 var ReporterComments = map[string]string{
-	"org":      `Organization name`,
-	"email":    `Email to send generated reports`,
-	"timezone": `Timezone`,
-	"username": `User name (for internal use only)`,
+	"org":          `Organization name`,
+	"email":        `Email to send generated reports`,
+	"schedule":     `Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days`,
+	"scheduledate": `Date when the next report is scheduled to be generated (Default: Now)`,
+	"timezone":     `Timezone in which to show the reports, defaults to either user setting or UTC`,
 }
 
 var DownloadReportComments = map[string]string{
 	"org":      `Organization name`,
-	"filename": `Report file name`,
+	"filename": `Name of the report file to be downloaded`,
 }
 
 var GenerateReportComments = map[string]string{
-	"org":      `Organization name`,
-	"region":   `Region name (for internal use only)`,
-	"timezone": `Timezone`,
+	"org":       `Organization name`,
+	"starttime": `Absolute time to start report capture in UTC`,
+	"endtime":   `Absolute time to end report capture in UTC`,
+	"timezone":  `Timezone in which to show the reports, defaults to either user setting or UTC`,
 }

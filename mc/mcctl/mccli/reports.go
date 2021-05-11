@@ -58,8 +58,7 @@ func runGenerateReport(path string) func(c *cli.Command, args []string) error {
 		if resp.StatusCode == http.StatusOK {
 			err = downloadPDF(filename, resp)
 		}
-		c.ReplyData = &ormapi.Result{}
-		return check(c, resp.StatusCode, err, c.ReplyData)
+		return check(c, resp.StatusCode, err, nil)
 	}
 }
 
@@ -91,7 +90,7 @@ func runDownloadReport(path string) func(c *cli.Command, args []string) error {
 			err = downloadPDF(report.Filename, resp)
 		}
 		c.ReplyData = &ormapi.Result{}
-		return check(c, resp.StatusCode, err, c.ReplyData)
+		return check(c, resp.StatusCode, err, nil)
 	}
 }
 

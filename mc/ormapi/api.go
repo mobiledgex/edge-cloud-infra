@@ -560,14 +560,14 @@ type AlertReceiver struct {
 type Reporter struct {
 	// Organization name
 	// required: true
-	Org string `gorm:"primary_key;type:citext"`
+	Org string `gorm:"primary_key;type:citext REFERENCES organizations(name)"`
 	// Email to send generated reports
 	Email string `json:",omitempty"`
-	// Indicates how often a report should be generated: EveryWeek, Every15Days, Every30Days
+	// Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days
 	Schedule edgeproto.ReportSchedule `json:",omitempty"`
 	// Date when the next report is scheduled to be generated (Default: Now)
 	ScheduleDate time.Time `json:",omitempty"`
-	// Timezone
+	// Timezone in which to show the reports, defaults to either user setting or UTC
 	Timezone string
 	// User name (for internal use only)
 	// read only: true
@@ -578,7 +578,7 @@ type DownloadReport struct {
 	// Organization name
 	// required: true
 	Org string
-	// Report file name
+	// Name of the report file to be downloaded
 	// required: true
 	Filename string
 }
@@ -587,16 +587,16 @@ type GenerateReport struct {
 	// Organization name
 	// required: true
 	Org string
-	// Start time
+	// Absolute time to start report capture in UTC
 	// required: true
 	StartTime time.Time `json:",omitempty"`
-	// End time
+	// Absolute time to end report capture in UTC
 	// required: true
 	EndTime time.Time `json:",omitempty"`
 	// Region name (for internal use only)
 	// read only: true
 	Region string
-	// Timezone
+	// Timezone in which to show the reports, defaults to either user setting or UTC
 	Timezone string
 }
 

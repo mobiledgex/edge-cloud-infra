@@ -15,7 +15,7 @@ func init() {
 		RequiredArgs: "org",
 		OptionalArgs: "email schedule scheduledate",
 		ReqData:      &ormapi.Reporter{},
-		Comments:     ReporterComments,
+		Comments:     ormapi.ReporterComments,
 		Path:         "/auth/reporter/create",
 	}, &ApiCommand{
 		Name:         "UpdateReporter",
@@ -24,7 +24,7 @@ func init() {
 		RequiredArgs: "org",
 		OptionalArgs: "email schedule scheduledate",
 		ReqData:      &ormapi.Reporter{},
-		Comments:     ReporterComments,
+		Comments:     ormapi.ReporterComments,
 		Path:         "/auth/reporter/update",
 	}, &ApiCommand{
 		Name:         "DeleteReporter",
@@ -32,7 +32,7 @@ func init() {
 		Short:        "Delete reporter",
 		RequiredArgs: "org",
 		ReqData:      &ormapi.Reporter{},
-		Comments:     ReporterComments,
+		Comments:     ormapi.ReporterComments,
 		Path:         "/auth/reporter/delete",
 	}, &ApiCommand{
 		Name:         "ShowReporter",
@@ -40,7 +40,7 @@ func init() {
 		Short:        "Show reporters",
 		RequiredArgs: "org",
 		ReqData:      &ormapi.Reporter{},
-		Comments:     ReporterComments,
+		Comments:     ormapi.ReporterComments,
 		Path:         "/auth/reporter/show",
 	}}
 	AllApis.AddGroup(ReporterGroup, "Manage report schedule", cmds)
@@ -52,7 +52,7 @@ func init() {
 		RequiredArgs: "org starttime endtime",
 		OptionalArgs: "timezone",
 		ReqData:      &ormapi.GenerateReport{},
-		Comments:     GenerateReportComments,
+		Comments:     ormapi.GenerateReportComments,
 		Path:         "/auth/report/generate",
 	}, &ApiCommand{
 		Name:         "ShowReport",
@@ -61,7 +61,7 @@ func init() {
 		RequiredArgs: "org",
 		ReqData:      &ormapi.DownloadReport{},
 		ReplyData:    &[]string{},
-		Comments:     GenerateReportComments,
+		Comments:     ormapi.GenerateReportComments,
 		Path:         "/auth/report/show",
 	}, &ApiCommand{
 		Name:         "DownloadReport",
@@ -69,27 +69,8 @@ func init() {
 		Short:        "Download generated report",
 		RequiredArgs: "org filename",
 		ReqData:      &ormapi.DownloadReport{},
-		Comments:     DownloadReportComments,
+		Comments:     ormapi.DownloadReportComments,
 		Path:         "/auth/report/download",
 	}}
 	AllApis.AddGroup(ReportGroup, "Manage report schedule", cmds)
-}
-
-var ReporterComments = map[string]string{
-	"org":          `Org name`,
-	"email":        `Email to send generated reports`,
-	"schedule":     `Report schedule, one of EveryWeek, Every15Days, Every30Days`,
-	"scheduledate": `Date when the next report is scheduled to be generated (default: now)`,
-}
-
-var DownloadReportComments = map[string]string{
-	"org":      `Org name`,
-	"filename": `Name of the report file to be downloaded`,
-}
-
-var GenerateReportComments = map[string]string{
-	"org":       `Org name`,
-	"starttime": `Absolute time to start report capture in UTC`,
-	"endtime":   `Absolute time to end report capture in UTC`,
-	"timezone":  `Timezone in which to show the reports, defaults to either user setting or UTC`,
 }

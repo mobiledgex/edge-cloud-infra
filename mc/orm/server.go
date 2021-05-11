@@ -412,7 +412,6 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/org/delete", DeleteOrg)
 
 	auth.POST("/billingorg/create", CreateBillingOrg)
-	auth.POST("/billingorg/updateaccount", UpdateAccountInfo)
 	// swagger:route POST /auth/billingorg/update BillingOrganization UpdateBillingOrg
 	// Update BillingOrganization.
 	// API to update an existing BillingOrganization.
@@ -469,6 +468,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/billingorg/delete", DeleteBillingOrg)
 	auth.POST("/billingorg/invoice", GetInvoice)
+	auth.POST("/billingorg/showaccount", ShowAccountInfo)
+	auth.POST("/billingorg/showpaymentprofiles", ShowPaymentInfo)
+	auth.POST("/billingorg/deletepaymentprofile", DeletePaymentInfo)
 
 	auth.POST("/controller/create", CreateController)
 	auth.POST("/controller/delete", DeleteController)

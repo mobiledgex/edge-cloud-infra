@@ -62,10 +62,11 @@
   template:
     src: harbor.yml.j2
     dest: "{{ harbor_install_dir }}/harbor.yml"
+  notify: Initial password notice
 
 - name: Run the installer
   command:
-    cmd: ./install.sh
+    cmd: ./install.sh --with-trivy --with-chartmuseum
     chdir: "{{ harbor_install_dir }}"
     creates: /data/registry
   become: yes

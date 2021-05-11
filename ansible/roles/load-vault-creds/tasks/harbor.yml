@@ -4,3 +4,4 @@
 
 - set_fact:
     harbor_db_root_password: "{{ vault_lookup.harbor.data.db_root_password }}"
+    harbor_initial_password: "{{ vaukt_lookup.harbor.data.initial_admin_password }}"

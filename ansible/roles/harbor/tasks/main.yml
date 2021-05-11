@@ -8,7 +8,17 @@
       - hook_name: harbor_reload_hook
         hook_content: |
           #!/bin/bash
-          true
+          cd /home/ansible/harbor
+          ./prepare --with-trivy --with-chartmuseum
+          docker-compose restart
+          START=$( date +'%s' )
+          while (( $( date +'%s' ) - START < 180 )); do
+                  docker-compose ps | tail +3 | grep -v 'Up (healthy)'
+                  [[ $? -ne 0 ]] && break
+                  echo "Some services not up yet"
+                  sleep 5
+                  docker-compose start
+          done
   tags: setup
 
 - name: Configure the docker daemon
@@ -18,55 +28,66 @@
   become: yes
   notify: Restart docker daemon
 
-- name: "Download harbor installer v{{ harbor_release }}"
-  get_url:
-    url: "https://github.com/goharbor/harbor/releases/download/v{{ harbor_release }}/harbor-offline-installer-v{{ harbor_release }}.tgz"
-    dest: "{{ ansible_env.HOME }}/harbor-offline-installer-v{{ harbor_release }}.tgz"
-    checksum: "{{ harbor_installer_checksum }}"
-  register: harbor_download
-  tags: setup
+- name: Check if harbor is already installed
+  stat:
+    path: "{{ harbor_install_dir }}/harbor.yml"
+  register: harbor_config_file
 
-- name: Create the installer directory
-  file:
-    path: "{{ harbor_install_dir | dirname }}"
-    state: directory
-  tags: setup
+- block:
 
-- name: Extract harbor
-  unarchive:
-    src: "{{ harbor_download.dest }}"
-    dest: "{{ harbor_install_dir | dirname }}"
-    remote_src: yes
-  tags: setup
+  - pause:
 
-- name: Load harbor creds from vault
-  import_role:
-    name: load-vault-creds
-    tasks_from: harbor
+  - name: "Download harbor installer v{{ harbor_release }}"
+    get_url:
+      url: "https://github.com/goharbor/harbor/releases/download/v{{ harbor_release }}/harbor-offline-installer-v{{ harbor_release }}.tgz"
+      dest: "{{ ansible_env.HOME }}/harbor-offline-installer-v{{ harbor_release }}.tgz"
+      checksum: "{{ harbor_installer_checksum }}"
+    register: harbor_download
+    tags: setup
 
-- name: Load GCP storage bucket credentials from vault
-  set_fact:
-    vault_lookup: "{{ lookup('vault', gcp_service_account_vault_path) }}"
-  register: result
+  - name: Create the installer directory
+    file:
+      path: "{{ harbor_install_dir | dirname }}"
+      state: directory
+    tags: setup
 
-- name: Set up GCP service account credentials
-  copy:
-    dest: "{{ gcp_service_account_path }}"
-    content: "{{ vault_lookup.harbor_storage.data }}"
-    owner: "10000"
-    group: root
-    mode: "0400"
-  become: yes
+  - name: Extract harbor
+    unarchive:
+      src: "{{ harbor_download.dest }}"
+      dest: "{{ harbor_install_dir | dirname }}"
+      remote_src: yes
+    tags: setup
 
-- name: Set up config file
-  template:
-    src: harbor.yml.j2
-    dest: "{{ harbor_install_dir }}/harbor.yml"
-  notify: Initial password notice
+  - name: Load harbor creds from vault
+    import_role:
+      name: load-vault-creds
+      tasks_from: harbor
 
-- name: Run the installer
-  command:
-    cmd: ./install.sh --with-trivy --with-chartmuseum
-    chdir: "{{ harbor_install_dir }}"
-    creates: /data/registry
-  become: yes
+  - name: Load GCP storage bucket credentials from vault
+    set_fact:
+      vault_lookup: "{{ lookup('vault', gcp_service_account_vault_path) }}"
+    register: result
+
+  - name: Set up GCP service account credentials
+    copy:
+      dest: "{{ gcp_service_account_path }}"
+      content: "{{ vault_lookup.harbor_storage.data }}"
+      owner: "10000"
+      group: root
+      mode: "0400"
+    become: yes
+
+  - name: Set up config file
+    template:
+      src: harbor.yml.j2
+      dest: "{{ harbor_install_dir }}/harbor.yml"
+    notify: Initial password notice
+
+  - name: Run the installer
+    command:
+      cmd: ./install.sh --with-trivy --with-chartmuseum
+      chdir: "{{ harbor_install_dir }}"
+      creates: /data/registry
+    become: yes
+
+  when: not harbor_config_file.stat.exists

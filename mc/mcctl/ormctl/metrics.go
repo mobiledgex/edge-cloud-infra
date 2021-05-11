@@ -4,14 +4,14 @@ import (
 	fmt "fmt"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud/cli"
-	"github.com/spf13/cobra"
 )
 
-func GetMetricsCommand() *cobra.Command {
-	cmds := []*cli.Command{&cli.Command{
+const MetricsGroup = "Metrics"
+
+func init() {
+	cmds := []*ApiCommand{&ApiCommand{
+		Name:         "ShowAppMetrics",
 		Use:          "app",
 		Short:        "View App metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricRequiredArgs...), " "),
@@ -20,8 +20,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
 		ReqData:      &ormapi.RegionAppInstMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/app"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/app",
+	}, &ApiCommand{
+		Name:         "ShowClusterMetrics",
 		Use:          "cluster",
 		Short:        "View ClusterInst metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClusterMetricRequiredArgs...), " "),
@@ -30,8 +31,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), ClusterMetricComments),
 		ReqData:      &ormapi.RegionClusterInstMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/cluster"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/cluster",
+	}, &ApiCommand{
+		Name:         "ShowCloudletMetrics",
 		Use:          "cloudlet",
 		Short:        "View Cloudlet metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
@@ -40,8 +42,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletMetricComments),
 		ReqData:      &ormapi.RegionCloudletMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/cloudlet"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/cloudlet",
+	}, &ApiCommand{
+		Name:         "ShowCloudletUsage",
 		Use:          "cloudletusage",
 		Short:        "View Cloudlet usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
@@ -50,8 +53,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletUsageMetricComments),
 		ReqData:      &ormapi.RegionCloudletMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/cloudlet/usage"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/cloudlet/usage",
+	}, &ApiCommand{
+		Name:         "ShowClientApiUsageMetrics",
 		Use:          "clientapiusage",
 		Short:        "View client API usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientApiUsageMetricRequiredArgs...), " "),
@@ -60,8 +64,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), ClientApiUsageMetricComments),
 		ReqData:      &ormapi.RegionClientApiUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/clientapiusage"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/clientapiusage",
+	}, &ApiCommand{
+		Name:         "ShowClientAppUsageMetrics",
 		Use:          "clientappusage",
 		Short:        "View client App usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientAppUsageMetricRequiredArgs...), " "),
@@ -70,17 +75,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), getClientTypeUsageMetricComments("app")),
 		ReqData:      &ormapi.RegionClientAppUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/clientappusage"),
-	}, &cli.Command{
-		Use:          "appv2",
-		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricV2RequiredArgs...), " "),
-		OptionalArgs: strings.Join(AppMetricOptionalArgs, " "),
-		AliasArgs:    strings.Join(AppMetricV2AliasArgs, " "),
-		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
-		ReqData:      &ormapi.RegionAppInstMetricsV2{},
-		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/v2/app"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/clientappusage",
+	}, &ApiCommand{
+		Name:         "ShowClientCloudletUsageMetrics",
 		Use:          "clientcloudletusage",
 		Short:        "View client Cloudlet usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientCloudletUsageMetricRequiredArgs...), " "),
@@ -89,9 +86,20 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), getClientTypeUsageMetricComments("cloudlet")),
 		ReqData:      &ormapi.RegionClientCloudletUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/clientcloudletusage"),
+		Path:         "/auth/metrics/clientcloudletusage",
+	}, &ApiCommand{
+		Name:         "ShowAppMetricsV2",
+		Use:          "appv2",
+		Short:        "View App metrics",
+		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricV2RequiredArgs...), " "),
+		OptionalArgs: strings.Join(AppMetricOptionalArgs, " "),
+		AliasArgs:    strings.Join(AppMetricV2AliasArgs, " "),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
+		ReqData:      &ormapi.RegionAppInstMetricsV2{},
+		ReplyData:    &ormapi.AllMetrics{},
+		Path:         "/auth/metrics/v2/app",
 	}}
-	return cli.GenGroup("metrics", "View metrics", cmds)
+	AllApis.AddGroup(MetricsGroup, "View metrics", cmds)
 }
 
 var AppMetricRequiredArgs = []string{
@@ -136,7 +144,7 @@ var AppMetricV2AliasArgs = []string{
 }
 
 var AppMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.AppSelectors, "\", \"") + "\"",
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.AppSelectors, "\", \"") + "\"",
 }
 
 var ClusterMetricRequiredArgs = []string{
@@ -161,7 +169,7 @@ var ClusterMetricAliasArgs = []string{
 }
 
 var ClusterMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClusterSelectors, "\", \"") + "\"",
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.ClusterSelectors, "\", \"") + "\"",
 }
 
 var CloudletMetricRequiredArgs = []string{
@@ -182,11 +190,11 @@ var CloudletMetricAliasArgs = []string{
 }
 
 var CloudletMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.CloudletSelectors, "\", \"") + "\"",
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.CloudletSelectors, "\", \"") + "\"",
 }
 
 var CloudletUsageMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.CloudletUsageSelectors, "\", \"") + "\"",
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.CloudletUsageSelectors, "\", \"") + "\"",
 }
 
 var ClientApiUsageMetricRequiredArgs = []string{
@@ -319,13 +327,13 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 		deviceosSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		datanetworktypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
-		availableMetrics = strings.Join(orm.ClientAppUsageSelectors, "\", \"")
+		availableMetrics = strings.Join(ormapi.ClientAppUsageSelectors, "\", \"")
 	case "cloudlet":
 		locationtileSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency, deviceinfo")
 		deviceosSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		datanetworktypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
-		availableMetrics = strings.Join(orm.ClientCloudletUsageSelectors, "\", \"")
+		availableMetrics = strings.Join(ormapi.ClientCloudletUsageSelectors, "\", \"")
 	default:
 		return map[string]string{}
 	}

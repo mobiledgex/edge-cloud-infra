@@ -6,13 +6,13 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/stretchr/testify/require"
 )
 
-func testImagePaths(t *testing.T, ctx context.Context, mcClient *ormclient.Client, uri, tokenAd string) {
+func testImagePaths(t *testing.T, ctx context.Context, mcClient *mctestclient.Client, uri, tokenAd string) {
 	org1 := ormapi.Organization{
 		Type: "developer",
 		Name: "org1",
@@ -76,15 +76,10 @@ func testImagePaths(t *testing.T, ctx context.Context, mcClient *ormclient.Clien
 	// test publicimages enabled org
 	testImagePath(t, ctx, "DeveloperOrg", "docker.mobiledgex.net/mobiledgex/mobiledgex_public/mobiledgexsdkdemo", true)
 
-	status, err = mcClient.DeleteOrg(uri, tokenAd, &org1)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-	status, err = mcClient.DeleteOrg(uri, tokenAd, &org2)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-	status, err = mcClient.DeleteOrg(uri, tokenAd, &org3)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
+	testDeleteOrg(t, mcClient, uri, tokenAd, org1.Name)
+	testDeleteOrg(t, mcClient, uri, tokenAd, org2.Name)
+	testDeleteOrg(t, mcClient, uri, tokenAd, org3.Name)
+	testDeleteOrg(t, mcClient, uri, tokenAd, mobiledgexOrg.Name)
 }
 
 func testImagePath(t *testing.T, ctx context.Context, org, imagepath string, ok bool) {

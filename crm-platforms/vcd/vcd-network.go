@@ -271,7 +271,7 @@ func (v *VcdPlatform) AttachPortToServer(ctx context.Context, serverName, subnet
 		log.SpanLog(ctx, log.DebugLevelInfra, "unable to retrieve current vdc", "err", err)
 		return err
 	}
-	vapp, err := v.FindVApp(ctx, vappName, vcdClient)
+	vapp, err := v.FindVApp(ctx, vappName, vcdClient, vdc)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer server not found", "vapp", vappName, "for server", serverName)
 		return err
@@ -375,7 +375,7 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 		return err
 	}
 	vappName := serverName + v.GetVappServerSuffix()
-	vapp, err := v.FindVApp(ctx, vappName, vcdClient)
+	vapp, err := v.FindVApp(ctx, vappName, vcdClient, vdc)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer server not found", "vapp", vappName, "for server", serverName)
 		return err
@@ -759,7 +759,7 @@ func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string
 	// We'll incr the netSpec.DelimiterOctet of this start addr, if it's not in our
 	// All VApps map, it's available
 	curAddr := startAddr
-	vappMap, err := v.GetAllVAppsForVdcByIntAddr(ctx, vcdClient)
+	vappMap, err := v.GetVappToNetworkMap(ctx, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet return", "curAddr", curAddr)
 		return curAddr, false, err
@@ -1104,7 +1104,7 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB find fail", "err", err)
 	} else {
-		lbVm, err := v.FindVMByName(ctx, v.vmProperties.SharedRootLBName, vcdClient)
+		lbVm, err := v.FindVMByName(ctx, v.vmProperties.SharedRootLBName, vcdClient, vdc)
 		if err != nil {
 			return fmt.Errorf("Cannot find rootlb vm -- %v", err)
 		}

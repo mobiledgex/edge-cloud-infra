@@ -167,8 +167,8 @@ var ConnectionsFields = []string{
 	"P90",
 	"P95",
 	"P99",
-	"P99.5",
-	"P99.9",
+	"\"P99.5\"",
+	"\"P99.9\"",
 	"P100",
 }
 
@@ -603,7 +603,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, []string{in.AppInst.AppKey.Organization},
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
 			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
 		if err != nil {
 			return setReply(c, err, nil)
@@ -620,7 +620,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, []string{in.ClusterInst.Organization},
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.ClusterInst.Organization},
 			ResourceClusterAnalytics, []edgeproto.CloudletKey{in.ClusterInst.CloudletKey})
 		if err != nil {
 			return setReply(c, err, nil)
@@ -659,7 +659,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, []string{in.AppInst.AppKey.Organization},
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
 			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
 		if err != nil {
 			return setReply(c, err, nil)
@@ -724,7 +724,7 @@ func GetMetricsCommon(c echo.Context) error {
 			dbNames = append(dbNames, cloudcommon.DownsampledMetricsDbName)
 		}
 		rc.region = in.Region
-		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, []string{in.AppInst.AppKey.Organization},
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
 			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
 		if err != nil {
 			return setReply(c, err, nil)
@@ -788,9 +788,9 @@ func checkForTimeError(errStr string) string {
 	return errStr
 }
 
-func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims, region string, devOrgs []string, devResource string, cloudletKeys []edgeproto.CloudletKey) ([]string, error) {
+func checkPermissionsAndGetCloudletList(ctx context.Context, username, region string, devOrgs []string, devResource string, cloudletKeys []edgeproto.CloudletKey) ([]string, error) {
 	regionRc := &RegionContext{}
-	regionRc.username = claims.Username
+	regionRc.username = username
 	regionRc.region = region
 	uniqueCloudlets := make(map[string]struct{})
 	devOrgPermOk := false
@@ -799,7 +799,7 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 	if len(devOrgs) == 0 && len(cloudletKeys) == 0 {
 		return []string{}, fmt.Errorf("Must provide either App organization or Cloudlet organization")
 	}
-	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, devResource, ActionView)
+	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, devResource, ActionView)
 	if err != nil {
 		return []string{}, err
 	}
@@ -807,15 +807,17 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 		// admin
 		devOrgPermOk = true
 	} else {
+		devOrgPermOk = true
 		for _, devOrg := range devOrgs {
 			_, devOrgPermOk = authDevOrgs[devOrg]
 			if !devOrgPermOk {
 				// in case we find that any of the orgs passed are not authorized, break
+				devOrgPermOk = false
 				break
 			}
 		}
 	}
-	authOperOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceCloudletAnalytics, ActionView)
+	authOperOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceCloudletAnalytics, ActionView)
 	if err != nil {
 		return []string{}, err
 	}
@@ -823,9 +825,11 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 		// admin
 		operOrgPermOk = true
 	} else {
+		operOrgPermOk = true
 		for _, cloudletKey := range cloudletKeys {
 			_, operOrgPermOk = authOperOrgs[cloudletKey.Organization]
 			if !operOrgPermOk {
+				operOrgPermOk = false
 				break
 			}
 		}
@@ -846,10 +850,14 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 			return []string{}, echo.ErrForbidden
 		}
 	}
+	cloudletOrgs := map[string]struct{}{}
 	// append to the list the specified cloudlets
 	for _, cloudletKey := range cloudletKeys {
 		if cloudletKey.Name != "" {
 			uniqueCloudlets[cloudletKey.Name] = struct{}{}
+		}
+		if cloudletKey.Organization != "" {
+			cloudletOrgs[cloudletKey.Organization] = struct{}{}
 		}
 	}
 
@@ -864,18 +872,19 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, claims *UserClaims,
 		}
 	}
 	if getPools {
-		// If we are getting a cloudlet pool, assume all the coudlets specified in the argument is from the same pool
-		cloudletpoolQuery := edgeproto.CloudletPool{Key: edgeproto.CloudletPoolKey{Organization: cloudletKeys[0].Organization}}
-		cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
-		if err != nil {
-			return []string{}, err
-		}
-		for _, pool := range cloudletPools {
-			for _, cloudlet := range pool.Cloudlets {
-				uniqueCloudlets[cloudlet] = struct{}{}
+		for cloudletOrg := range cloudletOrgs {
+			cloudletpoolQuery := edgeproto.CloudletPool{Key: edgeproto.CloudletPoolKey{Organization: cloudletOrg}}
+			cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
+			if err != nil {
+				return []string{}, err
+			}
+			for _, pool := range cloudletPools {
+				for _, cloudlet := range pool.Cloudlets {
+					uniqueCloudlets[cloudlet] = struct{}{}
+				}
 			}
 		}
-	} else if len(uniqueCloudlets) == 1 {
+	} else if len(uniqueCloudlets) >= 1 {
 		//make sure the cloudlet is in a pool
 		if operOrgPermOk && !devOrgPermOk {
 			for _, cloudletKey := range cloudletKeys {

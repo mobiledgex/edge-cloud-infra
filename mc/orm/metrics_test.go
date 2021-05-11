@@ -193,14 +193,17 @@ func TestGetSelectorForMeasurement(t *testing.T) {
 	require.Equal(t, "sendBytes,recvBytes", getSelectorForMeasurement("network", ""))
 	require.Equal(t, "last(sendBytes) as sendBytes,last(recvBytes) as recvBytes",
 		getSelectorForMeasurement("network", "last"))
-	require.Equal(t, "port,active,handled,accepts,bytesSent,bytesRecvd,P0,P25,P50,P75,P90,P95,P99,P99.5,P99.9,P100",
+	require.Equal(t, "port,active,handled,accepts,bytesSent,bytesRecvd,P0,P25,P50,P75,P90,P95,P99,\"P99.5\",\"P99.9\",P100",
 		getSelectorForMeasurement("connections", ""))
-	require.Equal(t, "last(port) as port,last(active) as active,last(handled) as handled,last(accepts) as accepts,last(bytesSent) as bytesSent,last(bytesRecvd) as bytesRecvd,last(P0) as P0,last(P25) as P25,last(P50) as P50,last(P75) as P75,last(P90) as P90,last(P95) as P95,last(P99) as P99,last(P99.5) as P99.5,last(P99.9) as P99.9,last(P100) as P100",
+	require.Equal(t, "last(port) as port,last(active) as active,last(handled) as handled,last(accepts) as accepts,last(bytesSent) as bytesSent,last(bytesRecvd) as bytesRecvd,last(P0) as P0,last(P25) as P25,last(P50) as P50,last(P75) as P75,last(P90) as P90,last(P95) as P95,last(P99) as P99,last(\"P99.5\") as \"P99.5\",last(\"P99.9\") as \"P99.9\",last(P100) as P100",
 		getSelectorForMeasurement("connections", "last"))
 }
 
 func TestGetTimeDefinition(t *testing.T) {
 	// With nothing set in testApps we look back 12hrs, so time definition will be 12hr/100 ~7m12s
+	testApps.StartTime = time.Time{}
+	testApps.EndTime = time.Time{}
+	testApps.Last = 0
 	require.Equal(t, "7m12s", getTimeDefinition(&testApps))
 	require.Equal(t, MaxTimeDefinition, testApps.Last)
 	// Reset time and set Last and nothing else

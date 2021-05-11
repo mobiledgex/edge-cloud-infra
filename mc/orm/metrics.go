@@ -78,7 +78,7 @@ func GetAppMetrics(c echo.Context) error {
 		orgsToCheck = append(orgsToCheck, org)
 		cloudletsToCheck = append(cloudletsToCheck, app.ClusterInstKey.CloudletKey)
 	}
-	cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, orgsToCheck,
+	cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, orgsToCheck,
 		ResourceAppAnalytics, cloudletsToCheck)
 	if err != nil {
 		return setReply(c, err, nil)

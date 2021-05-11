@@ -151,7 +151,7 @@ func TestController(t *testing.T) {
 	// create an operator
 	org3 := "org3"
 	org4 := "org4"
-	_, _, tokenOper := testCreateUserOrg(t, mcClient, uri, "oper", "operator", org3)
+	oper, _, tokenOper := testCreateUserOrg(t, mcClient, uri, "oper", "operator", org3)
 	_, _, tokenOper2 := testCreateUserOrg(t, mcClient, uri, "oper2", "operator", org4)
 	oper3, tokenOper3, _ := testCreateUser(t, mcClient, uri, "oper3")
 	oper4, tokenOper4, _ := testCreateUser(t, mcClient, uri, "oper4")
@@ -500,11 +500,42 @@ func TestController(t *testing.T) {
 		require.Equal(t, http.StatusOK, status)
 	}
 
+	{ // test cloudlet list for metrics
+		emptyKey := edgeproto.CloudletKey{}
+		// dev has access to org1 apps/cluster, on any cloudlet
+		testPassCheckPermissionsAndGetCloudletList(t, ctx, dev.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
+			[]edgeproto.CloudletKey{org3Cloudlet.Key}, []string{org3Cloudlet.Key.Name})
+		testPassCheckPermissionsAndGetCloudletList(t, ctx, dev.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
+			[]edgeproto.CloudletKey{}, []string{})
+		testPassCheckPermissionsAndGetCloudletList(t, ctx, dev.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
+			[]edgeproto.CloudletKey{emptyKey}, []string{})
+		// test multiple apps looking at multiple cloudlets(dev is part of org1 and org3)
+		org4CloudletKey := edgeproto.CloudletKey{Name: "1", Organization: org4}
+		testPassCheckPermissionsAndGetCloudletList(t, ctx, dev.Name, ctrl.Region, []string{org1, org1}, ResourceAppAnalytics,
+			[]edgeproto.CloudletKey{org3Cloudlet.Key, org4CloudletKey}, []string{org3Cloudlet.Key.Name, org4CloudletKey.Name})
+		// admin can see everything
+		testPassCheckPermissionsAndGetCloudletList(t, ctx, admin.Name, ctrl.Region, []string{org1, org2, org3}, ResourceAppAnalytics,
+			[]edgeproto.CloudletKey{org3Cloudlet.Key, org4CloudletKey}, []string{org3Cloudlet.Key.Name, org4CloudletKey.Name})
+		// dev3 is part of org1
+		testPassCheckPermissionsAndGetCloudletList(t, ctx, dev3.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
+			[]edgeproto.CloudletKey{org3Cloudlet.Key}, []string{org3Cloudlet.Key.Name})
+
+		// trying to see apps of org that you are not a part of
+		testFailCheckPermissionsAndGetCloudletList(t, ctx, dev.Name, ctrl.Region, []string{org2}, ResourceAppAnalytics,
+			[]edgeproto.CloudletKey{org3Cloudlet.Key}, "Forbidden")
+		// dev org is an operator for org4 - this should not be allowed
+		testFailCheckPermissionsAndGetCloudletList(t, ctx, dev.Name, ctrl.Region, []string{org1, org3}, ResourceAppAnalytics,
+			[]edgeproto.CloudletKey{org3Cloudlet.Key, org4CloudletKey}, "Forbidden")
+
+	}
+
 	// remove users from roles, test that they can't modify anything anymore
 	testRemoveUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperContributor", dev3.Name, Success)
 	badPermTestApp(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	badPermTestAppInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3)
 	badPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3)
+	testFailCheckPermissionsAndGetCloudletList(t, ctx, dev3.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
+		[]edgeproto.CloudletKey{org3Cloudlet.Key}, "Forbidden")
 	testRemoveUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", oper3.Name, Success)
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3)
 
@@ -670,6 +701,26 @@ func TestController(t *testing.T) {
 	// operator should not able able to access appinsts/clusterinsts of developer who has not confirmed invitation
 	badPermTestShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org2)
 	badPermTestShowClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org2)
+
+	// Prior to testing cloudletPool metrics permissions, need to fake-populate allregioncache
+	list, _, err := ormtestutil.TestPermShowCloudletPool(mcClient, uri, tokenAd, ctrl.Region, "")
+	require.Nil(t, err)
+	poolCache := allRegionCaches.GetCloudletPoolCache(ctrl.Region)
+	require.NotNil(t, poolCache)
+	for ii := range list {
+		poolCache.Update(ctx, &list[ii], 0)
+	}
+	// make sure there is at least one cloudletKey org is specified here
+	testFailCheckPermissionsAndGetCloudletList(t, ctx, oper.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
+		[]edgeproto.CloudletKey{}, "No non-empty CloudletPools to show")
+
+	// operator can see dev resources on cloudlet pool(returned list contains all cloudlets that operator is allowed to see)
+	// NOTE: there is a generated pool with three cloudlets - cloudlet1,cloudlet2,cloudlet3
+	testPassCheckPermissionsAndGetCloudletList(t, ctx, oper.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
+		[]edgeproto.CloudletKey{{Organization: tc3.Organization}}, []string{tc3.Name, "cloudlet1", "cloudlet2", "cloudlet3"})
+	// cloudlet pool operator wants to see metrics on one of the pool members
+	testPassCheckPermissionsAndGetCloudletList(t, ctx, oper.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
+		[]edgeproto.CloudletKey{*tc3}, []string{tc3.Name})
 
 	// developer2 confirms invitation
 	op2accept := op2

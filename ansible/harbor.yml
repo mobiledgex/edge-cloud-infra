@@ -1,11 +1,11 @@
 ---
 - hosts: harbor
   tasks:
-    #    - import_role:
-    #        name: telegraf
-    #      tags:
-    #        - monitoring
-    #        - setup
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
     - import_role:
         name: docker
       vars:

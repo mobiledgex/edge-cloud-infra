@@ -162,15 +162,15 @@ func (e *EdgeEventsHandlerPlugin) SendLatencyRequestEdgeEvent(ctx context.Contex
 		return
 	}
 	// Send latency request to each client on appinst
-	for _, clientinfo := range clients.ClientsMap {
-		go func(clientinfo *ClientInfo) {
-			e.mux.Lock()
-			defer e.mux.Unlock()
+	go func() {
+		e.mux.Lock()
+		defer e.mux.Unlock()
+		for _, clientinfo := range clients.ClientsMap {
 			latencyRequestEdgeEvent := new(dme.ServerEdgeEvent)
 			latencyRequestEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_LATENCY_REQUEST
 			clientinfo.sendFunc(latencyRequestEdgeEvent)
-		}(clientinfo)
-	}
+		}
+	}()
 }
 
 // Send a ServerEdgeEvent with specified Event to all clients connected to specified AppInst (and also have initiated persistent connection)
@@ -186,10 +186,10 @@ func (e *EdgeEventsHandlerPlugin) SendAppInstStateEvent(ctx context.Context, app
 	// Check if appinst is usable. If not do a FindCloudlet for each client
 	appInstUsable := dmecommon.IsAppInstUsable(appInst)
 	// Send appinst state event to each client on affected appinst
-	for client, clientinfo := range clients.ClientsMap {
-		go func(client Client, clientinfo *ClientInfo) {
-			e.mux.Lock()
-			defer e.mux.Unlock()
+	go func() {
+		e.mux.Lock()
+		defer e.mux.Unlock()
+		for _, clientinfo := range clients.ClientsMap {
 			// Look for a new cloudlet if the appinst is not usable
 			newCloudlet := new(dme.FindCloudletReply)
 			var err error
@@ -211,8 +211,8 @@ func (e *EdgeEventsHandlerPlugin) SendAppInstStateEvent(ctx context.Context, app
 				updateServerEdgeEvent.ErrorMsg = err.Error()
 			}
 			clientinfo.sendFunc(updateServerEdgeEvent)
-		}(client, clientinfo)
-	}
+		}
+	}()
 }
 
 // Send ServerEdgeEvent to specified client via persistent grpc stream

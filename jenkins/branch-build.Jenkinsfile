@@ -70,9 +70,9 @@ pipeline {
         stage('Docker Image') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    sh label: 'make build-docker', script: '''#!/bin/bash
+                    sh label: 'make build-nightly', script: '''#!/bin/bash
 [ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
-TAG="${DOCKER_BUILD_TAG}" make build-docker
+TAG="${DOCKER_BUILD_TAG}" make build-nightly
                     '''
                 }
                 script {

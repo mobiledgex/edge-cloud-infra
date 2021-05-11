@@ -64,8 +64,8 @@ make edge-cloud-version-set
         stage('Docker Image') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    sh label: 'make build-docker', script: '''#!/bin/bash
-TAG="${DOCKER_BUILD_TAG}" make build-docker
+                    sh label: 'make build-nightly', script: '''#!/bin/bash
+TAG="${DOCKER_BUILD_TAG}" make build-nightly
                     '''
                 }
                 script {

@@ -70,14 +70,14 @@ TAG="${DOCKER_BUILD_TAG}" make build-docker
                 }
                 script {
                     currentBuild.displayName = sh(returnStdout: true,
-                        script: "docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version")
+                        script: "docker run --rm harbor.mobiledgex.net/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version")
                 }
             }
         }
         stage('Swagger Upload') {
             steps {
-                sh 'docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs internal >internal.json'
-                sh 'docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs external >external.json'
+                sh 'docker run --rm harbor.mobiledgex.net/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs internal >internal.json'
+                sh 'docker run --rm harbor.mobiledgex.net/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs external >external.json'
                 rtUpload (
                     serverId: "artifactory",
                     spec:

@@ -79,7 +79,7 @@ TAG="${DOCKER_BUILD_TAG}" make build-docker
                     currentBuild.displayName = sh returnStdout: true,
                         script: '''#!/bin/bash
 [ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
-docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version
+docker run --rm harbor.mobiledgex.net/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version
                     '''
                 }
             }

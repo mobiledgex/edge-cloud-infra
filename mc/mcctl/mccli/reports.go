@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/ormctl"
@@ -54,7 +53,7 @@ func runGenerateReport(path string) func(c *cli.Command, args []string) error {
 			return fmt.Errorf("post %s client do failed, %s", uri, err.Error())
 		}
 		defer resp.Body.Close()
-		filename := ormapi.GetReportFileName(report)
+		filename := ormapi.GetReportFileName("", report)
 		if resp.StatusCode == http.StatusOK {
 			err = downloadPDF(filename, resp)
 		}
@@ -100,13 +99,9 @@ func downloadPDF(filename string, resp *http.Response) error {
 		return err
 	}
 	// Save blob to file
-	pdfFile, err := os.Create(filename)
+	err = ioutil.WriteFile(filename, body, 0666)
 	if err != nil {
 		return fmt.Errorf("failed to created file %s, %v", filename, err)
-	}
-	defer pdfFile.Close()
-	if _, err = pdfFile.Write(body); err != nil {
-		return fmt.Errorf("failed to write data to file %s, %v", filename, err)
 	}
 	fmt.Printf("Saved PDF report to %s\n", filename)
 	return nil

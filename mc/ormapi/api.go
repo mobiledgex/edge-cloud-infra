@@ -558,15 +558,21 @@ type AlertReceiver struct {
 
 // Reporter to generate period reports
 type Reporter struct {
+	// Reporter name. Can only contain letters, digits, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
+	// required: true
+	Name string `gorm:"primary_key;type:citext"`
 	// Organization name
 	// required: true
 	Org string `gorm:"primary_key;type:citext REFERENCES organizations(name)"`
 	// Email to send generated reports
 	Email string `json:",omitempty"`
-	// Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days
+	// Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days, EveryMonth
 	Schedule edgeproto.ReportSchedule `json:",omitempty"`
-	// Date when the next report is scheduled to be generated (Default: Now)
-	ScheduleDate time.Time `json:",omitempty"`
+	// Start date (UTC)  when the report is scheduled to be generated (Default: Now)
+	StartScheduleDateUTC time.Time `json:",omitempty"`
+	// Date (UTC) when the next report is scheduled to be generated (for internal use only)
+	// read only: true
+	NextScheduleDateUTC time.Time `json:",omitempty"`
 	// Timezone in which to show the reports, defaults to either user setting or UTC
 	Timezone string
 	// User name (for internal use only)
@@ -589,10 +595,10 @@ type GenerateReport struct {
 	Org string
 	// Absolute time to start report capture in UTC
 	// required: true
-	StartTime time.Time `json:",omitempty"`
+	StartTimeUTC time.Time `json:",omitempty"`
 	// Absolute time to end report capture in UTC
 	// required: true
-	EndTime time.Time `json:",omitempty"`
+	EndTimeUTC time.Time `json:",omitempty"`
 	// Region name (for internal use only)
 	// read only: true
 	Region string
@@ -600,13 +606,17 @@ type GenerateReport struct {
 	Timezone string
 }
 
-func GetReportFileName(report *GenerateReport) string {
-	// File name should be of this format: "<orgname>_<startdate>_<enddate>_report.pdf"
-	startDate := report.StartTime.Format("20060102") // YYYYMMDD
-	endDate := report.EndTime.Format("20060102")
-	return report.Org + "_" + startDate + "_" + endDate + "_report.pdf"
+func GetReportFileName(reporterName string, report *GenerateReport) string {
+	// File name should be of this format: "<orgname>_<startdate>_<enddate>_<reportername>_report.pdf"
+	startDate := report.StartTimeUTC.Format("20060102") // YYYYMMDD
+	endDate := report.EndTimeUTC.Format("20060102")
+	subStr := ""
+	if reporterName != "" {
+		subStr = "_" + reporterName
+	}
+	return report.Org + "_" + startDate + "_" + endDate + subStr + "_report.pdf"
 }
 
 func GetReportFileNameRE() string {
-	return `_\d{8}_\d{8}_report.pdf`
+	return `_\d{8}_\d{8}_[a-zA-Z0-9\\-.]*_report.pdf`
 }

@@ -14,11 +14,7 @@ import (
 )
 
 const (
-	FontName              = "Arial"
-	TimeFormatDate        = "2006/01/02"
-	TimeFormatDateTime    = "01-02 15:04:05"
-	TimeFormatDayDateTime = "Mon Jan 2 15:04:05"
-
+	FontName            = "Arial"
 	DefaultFontSize     = float64(10)
 	ReportTitleFontSize = float64(20)
 	PageTitleFontSize   = float64(15)
@@ -126,8 +122,8 @@ func (r *PDFReport) AddOperatorInfo(report *ormapi.GenerateReport) {
 	r.pdf.Ln(5)
 	r.pdf.Cell(40, 10, fmt.Sprintf("Region: %s", report.Region))
 	r.pdf.Ln(5)
-	startDate := report.StartTime.Format(TimeFormatDate)
-	endDate := report.EndTime.Format(TimeFormatDate)
+	startDate := report.StartTimeUTC.Format(ormapi.TimeFormatDate)
+	endDate := report.EndTimeUTC.Format(ormapi.TimeFormatDate)
 	r.pdf.Cell(40, 10, fmt.Sprintf("Report Period: %s - %s", startDate, endDate))
 	r.pdf.Ln(5)
 	r.pdf.Cell(40, 10, fmt.Sprintf("Timezone: %s", report.Timezone))
@@ -364,7 +360,7 @@ func (r *PDFReport) AddTimeChart(chartPrefix, title string, multiChartData []Tim
 			},
 		},
 		XAxis: chart.XAxis{
-			ValueFormatter: TimeValueFormatterWithFormatTZ(TimeFormatDateTime, r.timezone),
+			ValueFormatter: TimeValueFormatterWithFormatTZ(ormapi.TimeFormatDateTime, r.timezone),
 		},
 		Series: allChartSeries,
 	}

@@ -20,7 +20,7 @@ var (
 		testSingleAppFilter + ") " +
 		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 1"
-	testSingleApp = ormapi.RegionAppInstMetricsV2{
+	testSingleApp = ormapi.RegionAppInstMetrics{
 		Region: "test",
 		AppInsts: []edgeproto.AppInstKey{
 			edgeproto.AppInstKey{
@@ -49,7 +49,7 @@ var (
 		testAppsFilter + ") " +
 		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 1"
-	testApps = ormapi.RegionAppInstMetricsV2{
+	testApps = ormapi.RegionAppInstMetrics{
 		Region: "test",
 		AppInsts: []edgeproto.AppInstKey{
 			edgeproto.AppInstKey{ // 0
@@ -90,7 +90,7 @@ var (
 	}
 )
 
-func getCloudletsFromAppInsts(apps *ormapi.RegionAppInstMetricsV2) []string {
+func getCloudletsFromAppInsts(apps *ormapi.RegionAppInstMetrics) []string {
 	cloudlets := []string{}
 	for _, app := range apps.AppInsts {
 		cloudlets = append(cloudlets, app.ClusterInstKey.CloudletKey.Name)

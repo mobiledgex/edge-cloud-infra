@@ -36,7 +36,7 @@ func init() {
 }
 
 // Common method to handle both app and cluster metrics
-func GetAppMetrics(c echo.Context) error {
+func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
 	var cmd, org string
 
 	rc := &InfluxDBContext{}
@@ -51,12 +51,8 @@ func GetAppMetrics(c echo.Context) error {
 	if err == nil {
 		maxEntriesFromInfluxDb = config.MaxMetricsDataPoints
 	}
-	in := ormapi.RegionAppInstMetricsV2{}
-	success, err := ReadConn(c, &in)
-	if !success {
-		return err
-	}
-	// At least on AppInst org has to be specified
+
+	// At least one AppInst org has to be specified
 	if len(in.AppInsts) == 0 {
 		return setReply(c, fmt.Errorf("At least one app org has to be specified"), nil)
 	}
@@ -73,7 +69,7 @@ func GetAppMetrics(c echo.Context) error {
 		org = app.AppKey.Organization
 		// Developer name has to be specified
 		if org == "" {
-			return setReply(c, fmt.Errorf("App org must be present details must be present"), nil)
+			return setReply(c, fmt.Errorf("App org must be present"), nil)
 		}
 		orgsToCheck = append(orgsToCheck, org)
 		cloudletsToCheck = append(cloudletsToCheck, app.ClusterInstKey.CloudletKey)
@@ -83,7 +79,7 @@ func GetAppMetrics(c echo.Context) error {
 	if err != nil {
 		return setReply(c, err, nil)
 	}
-	cmd = GetAppInstsGroupQuery(ctx, &in, cloudletList)
+	cmd = GetAppInstsGroupQuery(ctx, in, cloudletList)
 
 	err = influxStream(ctx, rc, []string{cloudcommon.DeveloperMetricsDbName}, cmd, func(res interface{}) {
 		payload := ormapi.StreamPayload{}
@@ -96,7 +92,7 @@ func GetAppMetrics(c echo.Context) error {
 	return nil
 }
 
-func getTimeDefinition(apps *ormapi.RegionAppInstMetricsV2) string {
+func getTimeDefinition(apps *ormapi.RegionAppInstMetrics) string {
 	// In case we are requesting last n number of entries and don't provide time window
 	// we should skip the function and time-based grouping
 	if apps.StartTime.IsZero() && apps.EndTime.IsZero() && apps.Last != 0 {
@@ -127,7 +123,7 @@ func getTimeDefinition(apps *ormapi.RegionAppInstMetricsV2) string {
 	return timeWindow.String()
 }
 
-func GetAppInstsGroupQuery(ctx context.Context, apps *ormapi.RegionAppInstMetricsV2, cloudletList []string) string {
+func GetAppInstsGroupQuery(ctx context.Context, apps *ormapi.RegionAppInstMetrics, cloudletList []string) string {
 	timeDef := getTimeDefinition(apps)
 	selectorFunction := getFuncForSelector(apps.Selector, timeDef)
 	args := influxQueryArgs{
@@ -144,7 +140,7 @@ func GetAppInstsGroupQuery(ctx context.Context, apps *ormapi.RegionAppInstMetric
 // Example: app1/v1.0/appOrg1/cluster1/cloudlet1,app2/v1.1/appOrg2/cluster2/cloudlet1
 // string: ("apporg"='appOrg1' AND "app"='app1' AND "ver"='v10' AND "cluster"='cluster1' AND "cloudlet"='cloudlet1') OR
 //           ("apporg"='appOrg2' AND "app"='app2' AND "ver"='v11' AND "cluster"='cluster2' AND "cloudlet"='cloudlet1')
-func getAppInstQueryFilter(apps *ormapi.RegionAppInstMetricsV2, cloudletList []string) string {
+func getAppInstQueryFilter(apps *ormapi.RegionAppInstMetrics, cloudletList []string) string {
 	filterStr := ``
 	for ii, app := range apps.AppInsts {
 		filterStr += `("apporg"='` + app.AppKey.Organization + `'`

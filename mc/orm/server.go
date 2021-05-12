@@ -581,18 +581,6 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/metrics/clientcloudletusage", GetMetricsCommon)
 
-	// swagger:route POST /auth/metrics/v2/app DeveloperMetrics AppMetrics
-	// App related metrics.
-	// Display app related metrics.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	auth.POST("/metrics/v2/app", GetAppMetrics)
-
 	auth.POST("/events/app", GetEventsCommon)
 	auth.POST("/events/cluster", GetEventsCommon)
 	auth.POST("/events/cloudlet", GetEventsCommon)

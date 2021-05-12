@@ -552,12 +552,16 @@ func GetMetricsCommon(c echo.Context) error {
 	}
 	dbNames := []string{}
 	if strings.HasSuffix(c.Path(), "metrics/app") {
-		dbNames = append(dbNames, cloudcommon.DeveloperMetricsDbName)
 		in := ormapi.RegionAppInstMetrics{}
 		success, err := ReadConn(c, &in)
 		if !success {
 			return err
 		}
+		// New metrics api request
+		if len(in.AppInsts) > 0 {
+			return GetAppMetrics(c, &in)
+		}
+		dbNames = append(dbNames, cloudcommon.DeveloperMetricsDbName)
 		rc.region = in.Region
 		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
 			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})

@@ -405,11 +405,12 @@ type MetricSeries struct {
 
 type RegionAppInstMetrics struct {
 	Region    string
-	AppInst   edgeproto.AppInstKey
 	Selector  string
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
+	AppInst   edgeproto.AppInstKey   `json:",omitempty"`
+	AppInsts  []edgeproto.AppInstKey `json:",omitempty"`
+	StartTime time.Time              `json:",omitempty"`
+	EndTime   time.Time              `json:",omitempty"`
+	Last      int                    `json:",omitempty"`
 }
 
 type RegionClusterInstMetrics struct {
@@ -555,14 +556,4 @@ type AlertReceiver struct {
 	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
 	// AppInst spec for alerts
 	AppInst edgeproto.AppInstKey `json:",omitempty"`
-}
-
-type RegionAppInstMetricsV2 struct {
-	Region   string
-	AppInsts []edgeproto.AppInstKey
-	Selector string
-	//	Function  string    `json:",omitempty"` // Future use - allow to specify rate/mean/max/sum
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
 }

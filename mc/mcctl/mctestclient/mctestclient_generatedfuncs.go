@@ -1907,22 +1907,6 @@ func (s *Client) ShowClientCloudletUsageMetrics(uri string, token string, in *or
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) ShowAppMetricsV2(uri string, token string, in *ormapi.RegionAppInstMetricsV2) (*ormapi.AllMetrics, int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	rundata.In = in
-	var out ormapi.AllMetrics
-	rundata.Out = &out
-
-	apiCmd := ormctl.MustGetCommand("ShowAppMetricsV2")
-	s.ClientRun.Run(apiCmd, &rundata)
-	if rundata.RetError != nil {
-		return nil, rundata.RetStatus, rundata.RetError
-	}
-	return &out, rundata.RetStatus, rundata.RetError
-}
-
 // Generating group Node
 
 func (s *Client) ShowNode(uri string, token string, in *ormapi.RegionNode) ([]edgeproto.Node, int, error) {

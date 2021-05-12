@@ -87,26 +87,11 @@ func init() {
 		ReqData:      &ormapi.RegionClientCloudletUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
 		Path:         "/auth/metrics/clientcloudletusage",
-	}, &ApiCommand{
-		Name:         "ShowAppMetricsV2",
-		Use:          "appv2",
-		Short:        "View App metrics",
-		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricV2RequiredArgs...), " "),
-		OptionalArgs: strings.Join(AppMetricOptionalArgs, " "),
-		AliasArgs:    strings.Join(AppMetricV2AliasArgs, " "),
-		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
-		ReqData:      &ormapi.RegionAppInstMetricsV2{},
-		ReplyData:    &ormapi.AllMetrics{},
-		Path:         "/auth/metrics/v2/app",
 	}}
 	AllApis.AddGroup(MetricsGroup, "View metrics", cmds)
 }
 
 var AppMetricRequiredArgs = []string{
-	"selector",
-}
-
-var AppMetricV2RequiredArgs = []string{
 	"selector",
 }
 
@@ -131,9 +116,6 @@ var AppMetricAliasArgs = []string{
 	"cluster-org=appinst.clusterinstkey.organization",
 	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
-}
-
-var AppMetricV2AliasArgs = []string{
 	"appinsts:#.app-org=appinsts:#.appkey.organization",
 	"appinsts:#.appname=appinsts:#.appkey.name",
 	"appinsts:#.appvers=appinsts:.appkey.version",

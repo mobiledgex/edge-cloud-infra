@@ -64,20 +64,20 @@ make edge-cloud-version-set
         stage('Docker Image') {
             steps {
                 dir(path: 'go/src/github.com/mobiledgex/edge-cloud') {
-                    sh label: 'make build-docker', script: '''#!/bin/bash
-TAG="${DOCKER_BUILD_TAG}" make build-docker
+                    sh label: 'make build-nightly', script: '''#!/bin/bash
+TAG="${DOCKER_BUILD_TAG}" make build-nightly
                     '''
                 }
                 script {
                     currentBuild.displayName = sh(returnStdout: true,
-                        script: "docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version")
+                        script: "docker run --rm harbor.mobiledgex.net/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} version")
                 }
             }
         }
         stage('Swagger Upload') {
             steps {
-                sh 'docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs internal >internal.json'
-                sh 'docker run --rm registry.mobiledgex.net:5000/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs external >external.json'
+                sh 'docker run --rm harbor.mobiledgex.net/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs internal >internal.json'
+                sh 'docker run --rm harbor.mobiledgex.net/mobiledgex/edge-cloud:${DOCKER_BUILD_TAG} dump-docs external >external.json'
                 rtUpload (
                     serverId: "artifactory",
                     spec:

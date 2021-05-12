@@ -4,21 +4,19 @@
     tasks_from: certs
   vars:
     cert_domains: [ "{{ inventory_hostname }}" ]
+    pre_renewal_hooks:
+      - hook_name: harbor_reload_hook
+        hook_content: |
+          #!/bin/bash
+          cd /home/ansible/harbor
+          docker-compose down -v
     post_renewal_hooks:
       - hook_name: harbor_reload_hook
         hook_content: |
           #!/bin/bash
           cd /home/ansible/harbor
           ./prepare --with-trivy --with-chartmuseum
-          docker-compose restart
-          START=$( date +'%s' )
-          while (( $( date +'%s' ) - START < 180 )); do
-                  docker-compose ps | tail +3 | grep -v 'Up (healthy)'
-                  [[ $? -ne 0 ]] && break
-                  echo "Some services not up yet"
-                  sleep 5
-                  docker-compose start
-          done
+          docker-compose up -d
   tags: setup
 
 - name: Configure the docker daemon

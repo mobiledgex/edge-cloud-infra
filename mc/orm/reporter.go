@@ -855,9 +855,9 @@ func GetCloudletEvents(ctx context.Context, username string, timezone *time.Loca
 			log.SpanLog(ctx, log.DebugLevelInfo, "missing cloudlet name in event, skipping", "event", event)
 			continue
 		}
-		timestamp := event.Timestamp.Format(TimeFormatDayDateTime)
+		timestamp := event.Timestamp.Format(ormapi.TimeFormatDayDateTime)
 		if timezone != nil {
-			timestamp = event.Timestamp.In(timezone).Format(TimeFormatDayDateTime)
+			timestamp = event.Timestamp.In(timezone).Format(ormapi.TimeFormatDayDateTime)
 		}
 		entry := []string{timestamp, event.Name}
 		if _, ok := eventsData[cloudlet]; !ok {
@@ -910,7 +910,7 @@ func GetCloudletAlerts(ctx context.Context, username string, timezone *time.Loca
 		if !ok {
 			log.SpanLog(ctx, log.DebugLevelInfo, "missing description in alert annotations, skipping", "annotations", alert.Annotations)
 		}
-		alertTimeStr := alertTime.Format(TimeFormatDayDateTime)
+		alertTimeStr := alertTime.Format(ormapi.TimeFormatDayDateTime)
 		entry := []string{alertTimeStr, desc, alert.State}
 		if _, ok := alertsData[cloudlet]; !ok {
 			alertsData[cloudlet] = [][]string{}
@@ -1171,9 +1171,9 @@ func GetAppStateEvents(ctx context.Context, username string, timezone *time.Loca
 		if !found {
 			continue
 		}
-		timestamp := event.Timestamp.Format(TimeFormatDayDateTime)
+		timestamp := event.Timestamp.Format(ormapi.TimeFormatDayDateTime)
 		if timezone != nil {
-			timestamp = event.Timestamp.In(timezone).Format(TimeFormatDayDateTime)
+			timestamp = event.Timestamp.In(timezone).Format(ormapi.TimeFormatDayDateTime)
 		}
 
 		entry := []string{

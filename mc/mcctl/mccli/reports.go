@@ -12,23 +12,23 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func getReportCmdGroup() *cobra.Command {
+func (s *RootCommand) getReportCmdGroup() *cobra.Command {
 	apiGroup := ormctl.MustGetGroup("Report")
 	cmds := []*cli.Command{}
 	for _, c := range apiGroup.Commands {
-		cliCmd := ConvertCmd(c)
+		cliCmd := s.ConvertCmd(c)
 		switch c.Name {
 		case "GenerateReport":
-			cliCmd.Run = runGenerateReport(c.Path)
+			cliCmd.Run = s.runGenerateReport(c.Path)
 		case "DownloadReport":
-			cliCmd.Run = runDownloadReport(c.Path)
+			cliCmd.Run = s.runDownloadReport(c.Path)
 		}
 		cmds = append(cmds, cliCmd)
 	}
 	return cli.GenGroup(strings.ToLower(apiGroup.Name), apiGroup.Desc, cmds)
 }
 
-func runGenerateReport(path string) func(c *cli.Command, args []string) error {
+func (s *RootCommand) runGenerateReport(path string) func(c *cli.Command, args []string) error {
 	return func(c *cli.Command, args []string) error {
 		c.CobraCmd.SilenceUsage = true
 		in, err := c.ParseInput(args)
@@ -40,15 +40,15 @@ func runGenerateReport(path string) func(c *cli.Command, args []string) error {
 			}
 			return err
 		}
-		client.Debug = cli.Debug
+		s.client.Debug = cli.Debug
 
 		report, ok := c.ReqData.(*ormapi.GenerateReport)
 		if !ok {
 			return fmt.Errorf("unable to fetch report args: %v", c.ReqData)
 		}
 
-		uri := getUri() + path
-		resp, err := client.PostJsonSend(uri, Token, in)
+		uri := s.getUri() + path
+		resp, err := s.client.PostJsonSend(uri, s.token, in)
 		if err != nil {
 			return fmt.Errorf("post %s client do failed, %s", uri, err.Error())
 		}
@@ -61,7 +61,7 @@ func runGenerateReport(path string) func(c *cli.Command, args []string) error {
 	}
 }
 
-func runDownloadReport(path string) func(c *cli.Command, args []string) error {
+func (s *RootCommand) runDownloadReport(path string) func(c *cli.Command, args []string) error {
 	return func(c *cli.Command, args []string) error {
 		c.CobraCmd.SilenceUsage = true
 		in, err := c.ParseInput(args)
@@ -73,14 +73,14 @@ func runDownloadReport(path string) func(c *cli.Command, args []string) error {
 			}
 			return err
 		}
-		client.Debug = cli.Debug
+		s.client.Debug = cli.Debug
 		report, ok := c.ReqData.(*ormapi.DownloadReport)
 		if !ok {
 			return fmt.Errorf("unable to fetch report args: %v", c.ReqData)
 		}
 
-		uri := getUri() + path
-		resp, err := client.PostJsonSend(uri, Token, in)
+		uri := s.getUri() + path
+		resp, err := s.client.PostJsonSend(uri, s.token, in)
 		if err != nil {
 			return fmt.Errorf("post %s client do failed, %s", uri, err.Error())
 		}

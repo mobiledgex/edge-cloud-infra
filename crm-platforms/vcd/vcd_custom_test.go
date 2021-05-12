@@ -41,7 +41,11 @@ func TestProdSec(t *testing.T) {
 	defer testVcdClient.Disconnect()
 	if live {
 		fmt.Printf("TestProdSec:")
-
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
 		// Test setting ProductSection as a means of guest customization
 		// Create a test vm
 		// Create some Properties, let's start with the VMRole of the node as an example
@@ -57,7 +61,7 @@ func TestProdSec(t *testing.T) {
 		// and then go to the vm's productSection to update the runtime info which  you want to pass int"
 		// Uh huh... sure buddy, we'll see
 		//
-		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient)
+		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient, vdc)
 		if err != nil {
 			fmt.Printf("%s not found\n", *vappName)
 			return

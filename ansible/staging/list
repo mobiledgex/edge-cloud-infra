@@ -28,6 +28,7 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 controller_replicas=2
 gitlab_version=13.8.7-ee.0
+billing_platform=chargify
 
 [notifyroot]
 notifyroot-stage.mobiledgex.net

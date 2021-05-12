@@ -98,7 +98,12 @@ func TestShowVM(t *testing.T) {
 	defer testVcdClient.Disconnect()
 
 	if live {
-		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient)
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
+		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient, vdc)
 		if err != nil {
 			fmt.Printf("vapp %s not found\n", *vappName)
 			return
@@ -262,8 +267,14 @@ func TestRMVM(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()
 	require.Nil(t, err, "InitTestEnv")
 	defer testVcdClient.Disconnect()
+
 	if live {
-		vm, err := tv.FindVMByName(ctx, *vmName, testVcdClient)
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
+		vm, err := tv.FindVMByName(ctx, *vmName, testVcdClient, vdc)
 		if err != nil {
 			fmt.Printf("VM %s not found\n", *vmName)
 			return
@@ -308,8 +319,13 @@ func TestVMDisk(t *testing.T) {
 	defer testVcdClient.Disconnect()
 
 	if live {
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
 		fmt.Printf("\nTestVMDisk Live: \n")
-		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient)
+		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient, vdc)
 		if err != nil {
 			fmt.Printf("Unable to find %s\n", *vappName)
 			return
@@ -374,9 +390,14 @@ func testAttachPortToServer(t *testing.T, ctx context.Context, serverName, subne
 		fmt.Printf("Error from GetServerDetail for %s : %s\n", serverName, err.Error())
 		return err
 	}
+	vdc, err := tv.GetVdc(ctx, testVcdClient)
+	if err != nil {
+		fmt.Printf("GetVdc failed: %s\n", err.Error())
+		return err
+	}
 	fmt.Printf("details of %s : %+v\n", serverName, detail)
 	// but this is not enough, we need the govcd.VM object for serverName, but we know it eixsts.
-	vm, err := tv.FindVMByName(ctx, serverName, vcdClient)
+	vm, err := tv.FindVMByName(ctx, serverName, vcdClient, vdc)
 	if err != nil {
 		fmt.Printf("FindVM failed err: %s\n", err.Error())
 		return err
@@ -406,7 +427,12 @@ func testVMMetrics(t *testing.T, ctx context.Context, vmname string, poweron boo
 	// if so, we should fetch the HREF and see what it has for us
 	// This will probably never work until govcd grows support for nsx-t.
 	// Ok, the ExecuteRequest on the "down"
-	vm, err := tv.FindVMByName(ctx, vmname, testVcdClient)
+	vdc, err := tv.GetVdc(ctx, testVcdClient)
+	if err != nil {
+		fmt.Printf("GetVdc failed: %s\n", err.Error())
+		return err
+	}
+	vm, err := tv.FindVMByName(ctx, vmname, testVcdClient, vdc)
 	if err != nil {
 		return fmt.Errorf("Error finding vm  %s  err: %s\n", *vmName, err.Error())
 	}
@@ -523,8 +549,13 @@ func TestGetExtAddrOfVM(t *testing.T) {
 	defer testVcdClient.Disconnect()
 
 	if live {
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
 		fmt.Printf("TestGetExtAddrOfVM vmName %s netName %s\n", *vmName, *netName)
-		vm, err := tv.FindVMByName(ctx, *vmName, testVcdClient)
+		vm, err := tv.FindVMByName(ctx, *vmName, testVcdClient, vdc)
 		if err != nil {
 			fmt.Printf("Error finding vm named: %s err: %s \n", *vmName, err.Error())
 			return

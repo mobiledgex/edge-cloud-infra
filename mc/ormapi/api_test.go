@@ -1,7 +1,6 @@
 package ormapi
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -14,11 +13,8 @@ var reportFileNameTests = map[string]string{
 }
 
 func TestReportFileNameRegex(t *testing.T) {
-	regObj := regexp.MustCompile(GetReportFileNameRE())
 	for inp, out := range reportFileNameTests {
-		allStrs := regObj.FindStringSubmatch(inp)
-		require.Greater(t, len(allStrs), 1)
-		orgName := allStrs[1]
+		orgName := GetOrgFromReportFileName(inp)
 		require.Equal(t, orgName, out)
 	}
 }

@@ -1,6 +1,7 @@
 package mccli
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -47,17 +48,9 @@ func (s *RootCommand) runGenerateReport(path string) func(c *cli.Command, args [
 			return fmt.Errorf("unable to fetch report args: %v", c.ReqData)
 		}
 
-		uri := s.getUri() + path
-		resp, err := s.client.PostJsonSend(uri, s.token, in)
-		if err != nil {
-			return fmt.Errorf("post %s client do failed, %s", uri, err.Error())
-		}
-		defer resp.Body.Close()
 		filename := ormapi.GetReportFileName("", report)
-		if resp.StatusCode == http.StatusOK {
-			err = downloadPDF(filename, resp)
-		}
-		return check(c, resp.StatusCode, err, nil)
+		st, err := s.sendReqAndDownloadPDF(path, filename, in)
+		return check(c, st, err, nil)
 	}
 }
 
@@ -79,30 +72,43 @@ func (s *RootCommand) runDownloadReport(path string) func(c *cli.Command, args [
 			return fmt.Errorf("unable to fetch report args: %v", c.ReqData)
 		}
 
-		uri := s.getUri() + path
-		resp, err := s.client.PostJsonSend(uri, s.token, in)
-		if err != nil {
-			return fmt.Errorf("post %s client do failed, %s", uri, err.Error())
-		}
-		defer resp.Body.Close()
-		if resp.StatusCode == http.StatusOK {
-			err = downloadPDF(report.Filename, resp)
-		}
-		c.ReplyData = &ormapi.Result{}
-		return check(c, resp.StatusCode, err, nil)
+		st, err := s.sendReqAndDownloadPDF(path, report.Filename, in)
+		return check(c, st, err, nil)
 	}
 }
 
-func downloadPDF(filename string, resp *http.Response) error {
+func (s *RootCommand) sendReqAndDownloadPDF(path, filename string, reqData interface{}) (int, error) {
+	uri := s.getUri() + path
+	resp, err := s.client.PostJsonSend(uri, s.token, reqData)
+	if err != nil {
+		return http.StatusBadRequest, fmt.Errorf("post %s client do failed, %s", uri, err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, iErr := ioutil.ReadAll(resp.Body)
+		if iErr != nil {
+			err = iErr
+		} else {
+			res := ormapi.Result{}
+			err = json.Unmarshal(body, &res)
+			if err != nil {
+				// string error
+				err = fmt.Errorf("%s", body)
+			} else {
+				err = fmt.Errorf("%s", res.Message)
+			}
+		}
+		return resp.StatusCode, err
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return err
+		return http.StatusBadRequest, err
 	}
 	// Save blob to file
 	err = ioutil.WriteFile(filename, body, 0666)
 	if err != nil {
-		return fmt.Errorf("failed to created file %s, %v", filename, err)
+		return http.StatusBadRequest, fmt.Errorf("failed to created file %s, %v", filename, err)
 	}
 	fmt.Printf("Saved PDF report to %s\n", filename)
-	return nil
+	return resp.StatusCode, nil
 }

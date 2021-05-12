@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -206,7 +205,7 @@ func GenerateReports() {
 }
 
 func InitReporter() {
-	reportTrigger = make(chan bool, 1)
+	reportTrigger = make(chan bool, 10)
 }
 
 func triggerReporter() {
@@ -1428,16 +1427,14 @@ func ShowReport(c echo.Context) error {
 	if err != nil {
 		return setReply(c, fmt.Errorf("Unable to get reports from GCS: %v", err), nil)
 	}
-	regObj := regexp.MustCompile(ormapi.GetReportFileNameRE())
 	out := []string{}
 	for _, obj := range objs {
-		allStrs := regObj.Split(obj, -1)
-		if len(allStrs) < 2 {
+		orgPrefix := ormapi.GetOrgFromReportFileName(obj)
+		if orgPrefix == "" {
 			continue
 		}
-		fileOrgPrefix := allStrs[0]
-		if fileOrgPrefix != reportQuery.Org &&
-			fileOrgPrefix != strings.ToLower(reportQuery.Org) {
+		if orgPrefix != reportQuery.Org &&
+			orgPrefix != strings.ToLower(reportQuery.Org) {
 			continue
 		}
 		out = append(out, obj)
@@ -1463,12 +1460,10 @@ func DownloadReport(c echo.Context) error {
 	if reportQuery.Filename == "" {
 		return setReply(c, fmt.Errorf("Report filename has to be specified"), nil)
 	}
-	pattern := ormapi.GetReportFileNameRE()
-	allStrs := regexp.MustCompile(pattern).Split(reportQuery.Filename, -1)
-	if len(allStrs) < 2 {
+	fileOrgPrefix := ormapi.GetOrgFromReportFileName(reportQuery.Filename)
+	if fileOrgPrefix == "" {
 		return setReply(c, fmt.Errorf("Unable to get org name from filename: %s", reportQuery.Filename), nil)
 	}
-	fileOrgPrefix := allStrs[0]
 	if fileOrgPrefix != reportQuery.Org &&
 		fileOrgPrefix != strings.ToLower(reportQuery.Org) {
 		return setReply(c, fmt.Errorf("Only org %s related reports can be accessed", reportQuery.Org), nil)

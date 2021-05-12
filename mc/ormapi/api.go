@@ -1,6 +1,7 @@
 package ormapi
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -617,6 +618,12 @@ func GetReportFileName(reporterName string, report *GenerateReport) string {
 	return report.Org + "_" + startDate + "_" + endDate + subStr + "_report.pdf"
 }
 
-func GetReportFileNameRE() string {
-	return `(.*)_\d{8}_\d{8}_[a-zA-Z0-9-.]*_report.pdf`
+func GetOrgFromReportFileName(fileName string) string {
+	pattern := `(.*)_\d{8}_\d{8}_[a-zA-Z0-9-.]*_report.pdf`
+	regObj := regexp.MustCompile(pattern)
+	allStrs := regObj.FindStringSubmatch(fileName)
+	if len(allStrs) < 2 {
+		return ""
+	}
+	return allStrs[1]
 }

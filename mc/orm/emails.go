@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"mime/multipart"
-	"net/http"
 	"net/smtp"
 	"text/template"
 	"time"
@@ -392,14 +391,21 @@ type operatorReportTmplArg struct {
 	StartDate    string
 	EndDate      string
 	Timezone     string
-	MIMEHeaders  string
-	MIMEBody     string
+	Boundary     string
+	FileName     string
+	Attachment   string
 }
 
-var operatorReportT = `From: {{.From}}
-To: {{.Email}}
-Subject: Cloudlet Usage Report for {{.Org}} for the period {{.StartDate}} to {{.EndDate}}
-{{.MIMEHeaders}}
+var operatorReportT = `Content-Type: multipart/mixed; boundary="{{.Boundary}}"
+MIME-Version: 1.0
+From: {{.From}}
+To: {{.To}}
+Subject: [{{.ReporterName}}] Cloudlet Usage Report for {{.Org}} for the period {{.StartDate}} to {{.EndDate}}
+
+--{{.Boundary}}
+Content-Type: text/plain; charset="utf-8"
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
 
 Hi {{.Name}},
 
@@ -411,7 +417,14 @@ If you did not request this report, please contact MobiledgeX support for assist
 Thanks!
 MobiledgeX Team
 
-{{.MIMEBody}}
+--{{.Boundary}}
+Content-Type: application/octet-stream
+MIME-Version: 1.0
+Content-Transfer-Encoding: base64
+Content-Disposition: attachment; filename={{.FileName}}
+
+{{.Attachment}}
+--{{.Boundary}}--
 `
 
 func sendOperatorReportEmail(ctx context.Context, username, email, reporterName string, report *ormapi.GenerateReport, pdfFileName string, pdfFileBytes []byte) error {
@@ -426,26 +439,10 @@ func sendOperatorReportEmail(ctx context.Context, username, email, reporterName 
 	if err != nil {
 		return err
 	}
-	// add attachment
-	// MIME headers
-	mimeHeaders := bytes.NewBuffer(nil)
-	mimeHeaders.WriteString("MIME-Version: 1.0\n")
-	writer := multipart.NewWriter(mimeHeaders)
+	writer := multipart.NewWriter(nil)
 	boundary := writer.Boundary()
-	mimeHeaders.WriteString(fmt.Sprintf("Content-Type: multipart/mixed; boundary=%s\n", boundary))
-	mimeHeaders.WriteString(fmt.Sprintf("--%s\n", boundary))
-	// MIME body
-	mimeBody := bytes.NewBuffer(nil)
-	mimeBody.WriteString(fmt.Sprintf("\n\n--%s\n", boundary))
-	mimeBody.WriteString(fmt.Sprintf("Content-Type: %s\n", http.DetectContentType(pdfFileBytes)))
-	mimeBody.WriteString("Content-Transfer-Encoding: base64\n")
-	mimeBody.WriteString(fmt.Sprintf("Content-Disposition: attachment; filename=%s\n", pdfFileName))
 
-	b := make([]byte, base64.StdEncoding.EncodedLen(len(pdfFileBytes)))
-	base64.StdEncoding.Encode(b, pdfFileBytes)
-	mimeBody.Write(b)
-	mimeBody.WriteString(fmt.Sprintf("\n--%s", boundary))
-	mimeBody.WriteString("--")
+	attachment := base64.StdEncoding.EncodeToString(pdfFileBytes)
 
 	arg := operatorReportTmplArg{
 		From:         noreply.Email,
@@ -454,15 +451,17 @@ func sendOperatorReportEmail(ctx context.Context, username, email, reporterName 
 		ReporterName: reporterName,
 		Org:          report.Org,
 		StartDate:    report.StartTimeUTC.In(location).Format(ormapi.TimeFormatDate),
-		EndDate:      report.StartTimeUTC.In(location).Format(ormapi.TimeFormatDate),
+		EndDate:      report.EndTimeUTC.In(location).Format(ormapi.TimeFormatDate),
 		Timezone:     report.Timezone,
-		MIMEHeaders:  mimeHeaders.String(),
-		MIMEBody:     mimeBody.String(),
+		Boundary:     boundary,
+		FileName:     pdfFileName,
+		Attachment:   attachment,
 	}
 	buf := bytes.Buffer{}
 	if err := operatorReportTmpl.Execute(&buf, &arg); err != nil {
 		return err
 	}
+
 	log.SpanLog(ctx, log.DebugLevelApi, "send operator report email",
 		"from", noreply.Email, "to", email, "report file", pdfFileName)
 	return sendEmail(noreply, email, &buf)

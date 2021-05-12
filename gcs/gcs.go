@@ -88,7 +88,8 @@ func (gc *GCSClient) UploadObject(ctx context.Context, objectName string, buf *b
 
 	// Upload an object with storage.Writer.
 	wc := gc.Client.Bucket(gc.BucketName).Object(objectName).NewWriter(ctx)
-	if _, err := io.Copy(wc, buf); err != nil {
+	reader := bytes.NewReader(buf.Bytes())
+	if _, err := io.Copy(wc, reader); err != nil {
 		return fmt.Errorf("io.Copy: %v", err)
 	}
 	if err := wc.Close(); err != nil {

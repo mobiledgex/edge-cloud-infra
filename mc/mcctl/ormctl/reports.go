@@ -41,6 +41,7 @@ func init() {
 		OptionalArgs: "name org",
 		ReqData:      &ormapi.Reporter{},
 		Comments:     ormapi.ReporterComments,
+		ReplyData:    &[]ormapi.Reporter{},
 		Path:         "/auth/reporter/show",
 	}}
 	AllApis.AddGroup(ReporterGroup, "Manage report schedule", cmds)
@@ -57,7 +58,7 @@ func init() {
 	}, &ApiCommand{
 		Name:         "ShowReport",
 		Use:          "show",
-		Short:        "Show already generated reports",
+		Short:        "Show already generated reports for an org",
 		RequiredArgs: "org",
 		ReqData:      &ormapi.DownloadReport{},
 		ReplyData:    &[]string{},
@@ -72,5 +73,5 @@ func init() {
 		Comments:     ormapi.DownloadReportComments,
 		Path:         "/auth/report/download",
 	}}
-	AllApis.AddGroup(ReportGroup, "Manage report schedule", cmds)
+	AllApis.AddGroup(ReportGroup, "Manage reports", cmds)
 }

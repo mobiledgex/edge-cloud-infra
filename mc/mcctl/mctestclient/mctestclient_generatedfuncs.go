@@ -2136,15 +2136,20 @@ func (s *Client) DeleteReporter(uri string, token string, in *ormapi.Reporter) (
 	return rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) ShowReporter(uri string, token string, in *ormapi.Reporter) (int, error) {
+func (s *Client) ShowReporter(uri string, token string, in *ormapi.Reporter) ([]ormapi.Reporter, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
+	var out []ormapi.Reporter
+	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("ShowReporter")
 	s.ClientRun.Run(apiCmd, &rundata)
-	return rundata.RetStatus, rundata.RetError
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
 }
 
 // Generating group Repos

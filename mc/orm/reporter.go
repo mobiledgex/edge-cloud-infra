@@ -132,7 +132,7 @@ func GenerateReports() {
 			//   check if report time matches schedule date
 			//      * get start & end date from schedule date & schedule interval
 			//      * verify it reportTime
-			if ormapi.DateCmpUTC(reporter.NextScheduleDateUTC, time.Now().UTC()) != 0 {
+			if ormapi.DateCmpUTC(reporter.NextScheduleDateUTC, time.Now().UTC()) > 0 {
 				// not scheduled to generate report
 				continue
 			}
@@ -152,19 +152,19 @@ func GenerateReports() {
 				Timezone:     reporter.Timezone,
 			}
 			wg.Add(1)
-			go func(reporter *ormapi.Reporter, genReport *ormapi.GenerateReport, wg *sync.WaitGroup) {
+			go func(inReporter *ormapi.Reporter, genReport *ormapi.GenerateReport, wg *sync.WaitGroup) {
 				log.SpanLog(ctx, log.DebugLevelInfo, "Generate operator report", "args", genReport)
 				tags := map[string]string{"cloudletorg": genReport.Org}
 				defer wg.Done()
 				var output bytes.Buffer
-				err = GenerateCloudletReport(ctx, reporter.Username, regions, genReport, &output)
+				err = GenerateCloudletReport(ctx, inReporter.Username, regions, genReport, &output)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to generate cloudlet report", "org", genReport.Org, "err", err)
 					nodeMgr.Event(ctx, "Cloudlet report generation failure", genReport.Org, tags, err)
 					return
 				}
 				// Upload PDF report to cloudlet
-				filename := ormapi.GetReportFileName(reporter.Name, genReport)
+				filename := ormapi.GetReportFileName(inReporter.Name, genReport)
 				err = storageClient.UploadObject(ctx, filename, &output)
 				if err != nil {
 					nodeMgr.Event(ctx, "Cloudlet report upload failure", genReport.Org, tags, err)
@@ -172,10 +172,10 @@ func GenerateReports() {
 					// if file upload failed, continue
 				}
 				// Trigger email
-				err = sendOperatorReportEmail(ctx, reporter.Username, reporter.Email, reporter.Name, genReport, filename, output.Bytes())
+				err = sendOperatorReportEmail(ctx, inReporter.Username, inReporter.Email, inReporter.Name, genReport, filename, output.Bytes())
 				if err != nil {
 					nodeMgr.Event(ctx, "Send Cloudlet report email", genReport.Org, tags, err)
-					log.SpanLog(ctx, log.DebugLevelInfo, "failed to send cloudlet report email", "org", genReport.Org, "email", reporter.Email, "err", err)
+					log.SpanLog(ctx, log.DebugLevelInfo, "failed to send cloudlet report email", "org", genReport.Org, "email", inReporter.Email, "err", err)
 					// if send email failed, continue
 				}
 				// Update next schedule date
@@ -239,11 +239,11 @@ func CreateReporter(c echo.Context) error {
 	}
 	// sanity check
 	if reporter.Name == "" {
-		return fmt.Errorf("Name not specified")
+		return setReply(c, fmt.Errorf("Name not specified"), nil)
 	}
 	err = ValidNameNoUnderscore(reporter.Name)
 	if err != nil {
-		return err
+		return setReply(c, err, nil)
 	}
 	if reporter.Org == "" {
 		return setReply(c, fmt.Errorf("Org name has to be specified"), nil)
@@ -251,7 +251,7 @@ func CreateReporter(c echo.Context) error {
 	// get org details
 	orgCheck, err := orgExists(ctx, reporter.Org)
 	if err != nil {
-		return err
+		return setReply(c, err, nil)
 	}
 	if orgCheck.Type != OrgTypeOperator {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter can only be created for Operator org"))
@@ -292,6 +292,11 @@ func CreateReporter(c echo.Context) error {
 		// check if timezone is present as part of user's setting
 		// this is set from console UI
 		reporter.Timezone, _ = GetUserTimezone(ctx, claims.Username)
+	} else {
+		_, err = time.LoadLocation(reporter.Timezone)
+		if err != nil {
+			return setReply(c, fmt.Errorf("Invalid timezone %s, %v", reporter.Timezone, err), nil)
+		}
 	}
 	if reporter.Timezone == "" {
 		// defaults to UTC
@@ -361,11 +366,17 @@ func UpdateReporter(c echo.Context) error {
 	if err != nil {
 		return bindErr(c, err)
 	}
+	applyUpdate := false
 	if reporter.Email != oldReporter.Email {
 		// validate email
 		if !util.ValidEmail(reporter.Email) {
 			return setReply(c, fmt.Errorf("Reporter email is invalid"), nil)
 		}
+		applyUpdate = true
+	}
+
+	if reporter.Org != oldReporter.Org {
+		return c.JSON(http.StatusBadRequest, Msg("Cannot change org"))
 	}
 
 	if reporter.Username != oldReporter.Username {
@@ -377,6 +388,7 @@ func UpdateReporter(c echo.Context) error {
 		if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
 			return setReply(c, fmt.Errorf("invalid schedule"), nil)
 		}
+		applyUpdate = true
 	}
 
 	if reporter.StartScheduleDateUTC != oldReporter.StartScheduleDateUTC {
@@ -386,7 +398,21 @@ func UpdateReporter(c echo.Context) error {
 		// Schedule date should only be date with no time value
 		reporter.StartScheduleDateUTC = ormapi.StripTimeUTC(reporter.StartScheduleDateUTC)
 		reporter.NextScheduleDateUTC = reporter.StartScheduleDateUTC
+		applyUpdate = true
 	}
+
+	if reporter.Timezone != oldReporter.Timezone {
+		_, err = time.LoadLocation(reporter.Timezone)
+		if err != nil {
+			return setReply(c, fmt.Errorf("invalid timezone %s, %v", reporter.Timezone, err), nil)
+		}
+		applyUpdate = true
+	}
+
+	if !applyUpdate {
+		return setReply(c, fmt.Errorf("nothing to update"), nil)
+	}
+
 	err = db.Save(&reporter).Error
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
@@ -448,7 +474,7 @@ func ShowReporter(c echo.Context) error {
 	}
 	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
-		return err
+		return setReply(c, dbErr(err), nil)
 	}
 	_, admin := authOrgs[""]
 	_, orgFound := authOrgs[filter.Org]
@@ -531,6 +557,11 @@ func GenerateReport(c echo.Context) error {
 		// check if timezone is present as part of user's setting
 		// this is set from console UI
 		report.Timezone, _ = GetUserTimezone(ctx, claims.Username)
+	} else {
+		_, err = time.LoadLocation(report.Timezone)
+		if err != nil {
+			return setReply(c, fmt.Errorf("Invalid timezone %s, %v", report.Timezone, err), nil)
+		}
 	}
 	if report.Timezone == "" {
 		// defaults to UTC
@@ -1397,10 +1428,10 @@ func ShowReport(c echo.Context) error {
 	if err != nil {
 		return setReply(c, fmt.Errorf("Unable to get reports from GCS: %v", err), nil)
 	}
-	pattern := ormapi.GetReportFileNameRE()
+	regObj := regexp.MustCompile(ormapi.GetReportFileNameRE())
 	out := []string{}
 	for _, obj := range objs {
-		allStrs := regexp.MustCompile(pattern).Split(obj, -1)
+		allStrs := regObj.Split(obj, -1)
 		if len(allStrs) < 2 {
 			continue
 		}

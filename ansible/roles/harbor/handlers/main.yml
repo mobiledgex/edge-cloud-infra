@@ -1,0 +1,14 @@
+---
+- name: Restart docker daemon
+  service:
+    name: docker
+    state: restarted
+  become: yes
+
+- name: Initial password notice
+  debug:
+    msg: |
+      For the first login, find the admin password in the config file:
+      {{ harbor_install_dir }}/harbor.yml
+      
+      REMEMBER TO CHANGE IT AFTER THE FIRST LOGIN!

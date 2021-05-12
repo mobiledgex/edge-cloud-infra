@@ -11,6 +11,7 @@ vault_ha_zones:
 vault_github_teams:
   - name: edge-cloud-development-team
     policies:
+      - logins.read.v1
       - ssh-ansible-user.sign.v1
       - ssh-machine.sign.v1
       - ssh-user.sign.v1

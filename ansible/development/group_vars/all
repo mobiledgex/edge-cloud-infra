@@ -19,6 +19,7 @@ vault_github_teams:
       - cloudlets.read.v1
       - chef.read.v1
       - influxdb.read.v1
+      - logins.read.v1
       - mexenv.read.v1
       - registry.read.v1
       - ssh-ansible-user.sign.v1

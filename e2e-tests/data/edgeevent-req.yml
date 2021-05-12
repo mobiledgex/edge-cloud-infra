@@ -18,7 +18,7 @@ clientedgeevent:
   deviceinfostatic:
     deviceos: Android
     devicemodel: "SM-G920F"
-    carriername: tmus
   deviceinfodynamic:
     datanetworktype: 5G
     signalstrength: 5
+    carriername: tmus

@@ -189,10 +189,10 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 		if app.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {
 			updateCallback(edgeproto.UpdateTask, "Converting Image to VMDK")
 			vmdkFile, err = vmlayer.ConvertQcowToVmdk(ctx, fileWithPath, appFlavor.Disk)
+			filesToCleanup = append(filesToCleanup, vmdkFile)
 			if err != nil {
 				return err
 			}
-			filesToCleanup = append(filesToCleanup, vmdkFile)
 		}
 
 		filenameNoExtension := strings.TrimSuffix(vmdkFile, filepath.Ext(vmdkFile))
@@ -209,10 +209,10 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "Creating OVF file", "ovfFile", ovfFile, "ovfParams", ovfParams)
 		err = ioutil.WriteFile(ovfFile, ovfBuf.Bytes(), 0644)
+		filesToCleanup = append(filesToCleanup, ovfFile)
 		if err != nil {
 			return fmt.Errorf("unable to write OVF file %s: %s", ovfFile, err.Error())
 		}
-		filesToCleanup = append(filesToCleanup, ovfFile)
 
 		updateCallback(edgeproto.UpdateTask, "Uploading OVF to Artifactory")
 		for _, f := range filesToCleanup {

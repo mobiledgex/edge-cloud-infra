@@ -2,21 +2,11 @@ package vcd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"strings"
 
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
-
-type ArtifactoryTokenResp struct {
-	Scope       string `json:"scope"`
-	AccessToken string `json:"access_token"`
-	ExpiresIn   int    `json:"expires_in"`
-}
 
 // Return requested vdc template
 func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string, vcdClient *govcd.VCDClient) (*govcd.VAppTemplate, error) {
@@ -35,35 +25,6 @@ func (v *VcdPlatform) FindTemplate(ctx context.Context, tmplName string, vcdClie
 	}
 
 	return nil, fmt.Errorf("template %s not found", tmplName)
-}
-
-var vcdDirect string = "vcdDirect"
-
-func (v *VcdPlatform) GetArtifactoryToken(ctx context.Context, host string) (string, error) {
-	log.WarnLog("XXX GetArtifactoryToken", "host", host)
-
-	url := fmt.Sprintf("https://%s/artifactory/api/security/token", host)
-	reqConfig := cloudcommon.RequestConfig{}
-	reqConfig.Headers = make(map[string]string)
-	reqConfig.Headers["Content-Type"] = "application/x-www-form-urlencoded"
-
-	resp, err := cloudcommon.SendHTTPReq(ctx, "POST", url, v.vmProperties.CommonPf.PlatformConfig.AccessApi, &reqConfig, strings.NewReader("username="+vcdDirect+"&scope=member-of-groups:readers"))
-	log.WarnLog("XXX GetArtifactoryToken", "err", err)
-	if err != nil {
-		return "", err
-	}
-	body, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
-	if err != nil {
-		return "", fmt.Errorf("error reading gettoken response: %v", err)
-	}
-	var tokResp ArtifactoryTokenResp
-	err = json.Unmarshal(body, &tokResp)
-	if err != nil {
-		return "", fmt.Errorf("Fail to unmarshal response - %v", err)
-	}
-	log.InfoLog("XXX GetArtifactoryToken got token", "token", tokResp.AccessToken)
-	return tokResp.AccessToken, nil
 }
 
 func (v *VcdPlatform) ImportTemplateFromUrl(ctx context.Context, name, templUrl string, catalog *govcd.Catalog) error {

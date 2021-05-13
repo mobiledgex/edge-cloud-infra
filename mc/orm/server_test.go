@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"runtime/pprof"
 	"testing"
 	"time"
 
@@ -23,7 +21,6 @@ import (
 )
 
 func TestServer(t *testing.T) {
-	defer pprof.Lookup("goroutine").WriteTo(os.Stdout, 1)
 	log.SetDebugLevel(log.DebugLevelApi)
 	log.InitTracer(nil)
 	defer log.FinishTracer()

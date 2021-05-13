@@ -59,6 +59,11 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Value:       "true",
 		Internal:    true,
 	},
+	"VCD_PULL_OVF_DIRECTLY_FROM_ARTIFACTORY": {
+		Description: "If value is \"true\", OVF Images are pulled directly from Artifactory to VCD",
+		Value:       "true",
+		Internal:    true,
+	},
 	"VCD_NSX_TYPE": {
 		Description: "NSX-T or NSX-V",
 		Mandatory:   true,
@@ -290,6 +295,15 @@ func (v *VcdPlatform) GetTemplateUrl() string {
 
 func (v *VcdPlatform) GetAllowApiGwImageUpload() bool {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_ALLOW_APIGW_IMAGE_UPLOAD")
+	if val == "true" {
+		return true
+	} else {
+		return false
+	}
+}
+
+func (v *VcdPlatform) GetOvfDirectlyFromArtifactory() bool {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_PULL_OVF_DIRECTLY_FROM_ARTIFACTORY")
 	if val == "true" {
 		return true
 	} else {

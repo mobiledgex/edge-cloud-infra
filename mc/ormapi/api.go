@@ -569,7 +569,7 @@ type Reporter struct {
 	Email string `json:",omitempty"`
 	// Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days, EveryMonth
 	Schedule edgeproto.ReportSchedule `json:",omitempty"`
-	// Start date (UTC)  when the report is scheduled to be generated (Default: today)
+	// Start date (UTC) when the report is scheduled to be generated (Default: today)
 	StartScheduleDateUTC time.Time `json:",omitempty"`
 	// Date (UTC) when the next report is scheduled to be generated (for internal use only)
 	// read only: true

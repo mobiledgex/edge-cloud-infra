@@ -161,7 +161,7 @@ var ReporterComments = map[string]string{
 	"org":                  `Organization name`,
 	"email":                `Email to send generated reports`,
 	"schedule":             `Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days, EveryMonth`,
-	"startscheduledateutc": `Start date (UTC)  when the report is scheduled to be generated (Default: today)`,
+	"startscheduledateutc": `Start date (UTC) when the report is scheduled to be generated (Default: today)`,
 	"timezone":             `Timezone in which to show the reports, defaults to either user setting or UTC`,
 }
 

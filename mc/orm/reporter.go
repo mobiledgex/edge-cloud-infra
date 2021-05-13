@@ -312,7 +312,7 @@ func CreateReporter(c echo.Context) error {
 	err = db.Create(&reporter).Error
 	if err != nil {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"reporters_pkey") {
-			return setReply(c, fmt.Errorf("Reporter with name %s already exists", reporter.Name), nil)
+			return setReply(c, fmt.Errorf("Reporter for org %s with name %s already exists", reporter.Org, reporter.Name), nil)
 		}
 		return setReply(c, dbErr(err), nil)
 	}
@@ -341,8 +341,12 @@ func UpdateReporter(c echo.Context) error {
 	if in.Name == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter name not specified"))
 	}
+	if in.Org == "" {
+		return c.JSON(http.StatusBadRequest, Msg("Reporter org not specified"))
+	}
 	lookup := ormapi.Reporter{
 		Name: in.Name,
+		Org:  in.Org,
 	}
 	reporter := ormapi.Reporter{}
 	db := loggedDB(ctx)
@@ -437,6 +441,9 @@ func DeleteReporter(c echo.Context) error {
 	}
 	if reporter.Name == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter name not specified"))
+	}
+	if reporter.Org == "" {
+		return c.JSON(http.StatusBadRequest, Msg("Reporter org not specified"))
 	}
 	db := loggedDB(ctx)
 	res := db.Where(&reporter).First(&reporter)

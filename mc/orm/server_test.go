@@ -28,6 +28,8 @@ func TestServer(t *testing.T) {
 	uri := "http://" + addr + "/api/v1"
 	ctx := log.StartTestSpan(context.Background())
 
+	vault.DefaultJwkRefreshDelay = time.Hour
+
 	vaultServer, vaultConfig := vault.DummyServer()
 	defer vaultServer.Close()
 
@@ -45,6 +47,7 @@ func TestServer(t *testing.T) {
 		vaultConfig:             vaultConfig,
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
+		DeploymentTag:           "local",
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")

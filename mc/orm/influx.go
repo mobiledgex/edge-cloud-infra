@@ -403,7 +403,6 @@ func influxStream(ctx context.Context, rc *InfluxDBContext, databases []string, 
 			influxDbConnCache.DeleteClient(rc.region)
 			// We return a different error, as we don't want to expose a URL-encoded query to influxDB
 			return fmt.Errorf("Connection to InfluxDB failed")
-
 		}
 		if resp.Error() != nil {
 			return resp.Error()

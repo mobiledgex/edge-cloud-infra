@@ -44,7 +44,6 @@ cloudlets:
 - key:
     organization: TDG
     name: jlmcloudlet
-  accessuri: jlm.cloudlet
   location:
     latitude: 31
     longitude: -91

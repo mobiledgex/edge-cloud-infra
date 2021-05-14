@@ -76,6 +76,3 @@ RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/late
 	&& mv /tmp/eksctl /usr/local/bin
 
 COPY edge-cloud-base-image.root/_ssh /root/.ssh
-
-WORKDIR /go/src/github.com/mobiledgex
-COPY edge-cloud-infra/static/MobiledgeX_Logo.png /MobiledgeX_Logo.png

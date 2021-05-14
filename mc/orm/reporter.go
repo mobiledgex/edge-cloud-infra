@@ -27,8 +27,10 @@ import (
 var (
 	reportTrigger chan bool
 
-	ReportTimeout = 1 * time.Hour
-	NoCloudlet    = ""
+	ReportTimeout       = 1 * time.Hour
+	NoCloudlet          = ""
+	ReportRetryCount    = 5
+	ReportRetryInterval = 5 * time.Minute
 )
 
 func getScheduleDayMonthCount(schedule edgeproto.ReportSchedule) (int, int, error) {
@@ -50,11 +52,17 @@ func getScheduleDayMonthCount(schedule edgeproto.ReportSchedule) (int, int, erro
 	return dayCount, monthCount, err
 }
 
-func getNextReportTimeUTC(now time.Time) time.Time {
-	// report once a day at the start of the day 12am UTC
+func getNextReportTimeUTC(now time.Time, retryCount *int) time.Time {
 	utcNow := now.UTC()
-	nextDay := time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day()+1, 0, 0, 0, 0, time.UTC)
-	return nextDay
+	nextReportTime := time.Time{}
+	if retryCount != nil && *retryCount > 0 {
+		nextReportTime = utcNow.Add(ReportRetryInterval)
+		*retryCount = *retryCount - 1
+	} else {
+		// report once a day at the start of the day 12am UTC
+		nextReportTime = time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day()+1, 0, 0, 0, 0, time.UTC)
+	}
+	return nextReportTime
 }
 
 func updateReporterData(ctx context.Context, reporterName, reporterOrg string, newDate time.Time, errStrs []string) (reterr error) {
@@ -80,12 +88,12 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 	applyUpdate := false
 	if !newDate.IsZero() {
 		updateReporter.NextScheduleDateUTC = newDate
-		updateReporter.LastStatus = "success"
+		updateReporter.Status = "success"
 		applyUpdate = true
 	}
 	if len(errStrs) > 0 {
-		errStr := strings.Join(errStrs, " and ")
-		updateReporter.LastStatus = errStr
+		errStr := strings.Join(errStrs, ";")
+		updateReporter.Status = errStr
 		applyUpdate = true
 	}
 	if applyUpdate {
@@ -112,7 +120,8 @@ func getAllRegions(ctx context.Context) ([]string, error) {
 
 // Start report generation thread to run every day 12AM UTC
 func GenerateReports() {
-	reportTime := getNextReportTimeUTC(time.Now().UTC())
+	retryCount := ReportRetryCount
+	reportTime := getNextReportTimeUTC(time.Now().UTC(), nil)
 	for {
 		select {
 		case <-time.After(reportTime.Sub(time.Now().UTC())):
@@ -126,21 +135,30 @@ func GenerateReports() {
 		err := db.Find(&reporters).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get list of reporters", "err", err)
-			reportTime = getNextReportTimeUTC(reportTime)
+			// retry again in few minutes
+			reportTime = getNextReportTimeUTC(time.Now().UTC(), &retryCount)
 			span.Finish()
 			continue
 		}
 		regions, err := getAllRegions(ctx)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get regions", "err", err)
+			// retry again in few minutes
+			reportTime = getNextReportTimeUTC(time.Now().UTC(), &retryCount)
+			span.Finish()
 			continue
 		}
 
 		storageClient, err := gcs.NewClient(ctx, serverConfig.vaultConfig, serverConfig.DeploymentTag)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to setup GCS storage client", "err", err)
+			// retry again in few minutes
+			reportTime = getNextReportTimeUTC(time.Now().UTC(), &retryCount)
+			span.Finish()
 			continue
 		}
+		// reset retryCount
+		retryCount = ReportRetryCount
 
 		wgDone := make(chan bool)
 		var wg sync.WaitGroup
@@ -220,7 +238,7 @@ func GenerateReports() {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Timedout generating operator reports")
 		}
 		storageClient.Close()
-		reportTime = getNextReportTimeUTC(reportTime)
+		reportTime = getNextReportTimeUTC(reportTime, nil)
 		span.Finish()
 	}
 }
@@ -1326,7 +1344,12 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		// Get app count by developer on cloudlet
 		appCountData, err := GetCloudletAppUsageData(ctx, username, report)
 		if err != nil {
-			return fmt.Errorf("failed to get cloudlet app count data: %v", err)
+			if strings.Contains(err.Error(), "Forbidden") {
+				// ignore as user is not authorized to perform this action
+				appCountData = make(map[string]PieChartDataMap)
+			} else {
+				return fmt.Errorf("failed to get cloudlet app count data: %v", err)
+			}
 		}
 		for cloudletName, _ := range appCountData {
 			cloudlets[cloudletName] = struct{}{}
@@ -1335,7 +1358,12 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		// Get app state events
 		appEventsData, err := GetAppStateEvents(ctx, username, pdfReport.timezone, report)
 		if err != nil {
-			return fmt.Errorf("failed to get app events: %v", err)
+			if strings.Contains(err.Error(), "Forbidden") {
+				// ignore as user is not authorized to perform this action
+				appEventsData = make(map[string][][]string)
+			} else {
+				return fmt.Errorf("failed to get app events: %v", err)
+			}
 		}
 		for cloudletName, _ := range appEventsData {
 			cloudlets[cloudletName] = struct{}{}
@@ -1349,9 +1377,11 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		pdfReport.AddTable("Cloudlets", header, cloudlets_summary, columnsWidth)
 
 		// Get list of cloudletpools
-		header = []string{"Name", "Associated Cloudlets", "Accepted Developers", "Pending Developers"}
-		columnsWidth = []float64{30, 60, 50, 50}
-		pdfReport.AddTable("CloudletPools", header, cloudletpools, columnsWidth)
+		if len(cloudletpools) > 0 {
+			header = []string{"Name", "Associated Cloudlets", "Accepted Developers", "Pending Developers"}
+			columnsWidth = []float64{30, 60, 50, 50}
+			pdfReport.AddTable("CloudletPools", header, cloudletpools, columnsWidth)
+		}
 
 		// Sort cloudlet by name
 		cloudletNames := []string{}

@@ -415,10 +415,23 @@ func DeleteBillingOrg(c echo.Context) error {
 }
 
 func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
+	roles, err := ShowUserRoleObj(ctx, claims.Username)
+	if err != nil {
+		return fmt.Errorf("Unable to discover user roles: %v", err)
+	}
+	isAdmin := false
+	for _, role := range roles {
+		if isAdminRole(role.Role) {
+			isAdmin = true
+		}
+	}
+	if !isAdmin && billingEnabled(ctx) {
+		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
+	}
 	if org.Name == "" {
 		return fmt.Errorf("Organization name not specified")
 	}
-	if err := authorized(ctx, claims.Username, org.Name, ResourceBilling, ActionManage); err != nil {
+	if err = authorized(ctx, claims.Username, org.Name, ResourceBilling, ActionManage); err != nil {
 		return err
 	}
 	orgDetails, err := billingOrgExists(ctx, org.Name)

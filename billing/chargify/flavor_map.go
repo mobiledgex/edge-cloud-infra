@@ -1,6 +1,7 @@
 package chargify
 
 import (
+	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -9,7 +10,9 @@ import (
 var dmeApiCode = "dmeapi"
 
 // gets the corresponding compoenent code for the flavor
-// TODO: figure out if we want to embed prices/components into the flavor struct itself(probably not)
 func getComponentCode(flavor string, cloudlet *edgeproto.CloudletKey, start, end time.Time) string {
-	return "handle:" + "testflavor1"
+	// for now just return flavor, later on we can get more complex with different prices based on cloudlet and peak usage times
+	// Handle must start with a letter or number and may only contain lowercase letters, numbers, or the characters ':', '-', or '_'
+	// replace .&,!
+	return "handle:" + strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(strings.ReplaceAll(flavor, ".", ":"), "&", ":"), ",", ":"), "!", ":")
 }

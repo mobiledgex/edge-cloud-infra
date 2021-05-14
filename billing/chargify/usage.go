@@ -13,6 +13,7 @@ import (
 )
 
 func (bs *BillingService) RecordUsage(ctx context.Context, account *ormapi.AccountInfo, usageRecords []billing.UsageRecord) error {
+	fmt.Printf("usagerecord: %+v\n", usageRecords)
 	for _, record := range usageRecords {
 		var memo string
 		var cloudlet *edgeproto.CloudletKey
@@ -28,11 +29,17 @@ func (bs *BillingService) RecordUsage(ctx context.Context, account *ormapi.Accou
 		componentId := getComponentCode(record.FlavorName, cloudlet, record.StartTime, record.EndTime)
 		endpoint := "/subscriptions/" + account.SubscriptionId + "/components/" + componentId + "/usages.json"
 
-		duration := int(record.EndTime.Sub(record.StartTime).Minutes() * float64(record.NodeCount))
+		nodeCount := record.NodeCount
+		// in docker, nodeCount isn't used, but we can't have multiplication by 0
+		if nodeCount == 0 {
+			nodeCount = 1
+		}
+		duration := int(record.EndTime.Sub(record.StartTime).Minutes() * float64(nodeCount))
 		newUsage := Usage{
 			Quantity: duration,
 			Memo:     memo,
 		}
+		fmt.Printf("new usage: %+v\n", newUsage)
 		resp, err := newChargifyReq("POST", endpoint, UsageWrapper{Usage: &newUsage})
 		if err != nil {
 			return fmt.Errorf("Error sending request: %v\n", err)

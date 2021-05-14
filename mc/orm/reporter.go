@@ -57,11 +57,17 @@ func getNextReportTimeUTC(now time.Time) time.Time {
 	return nextDay
 }
 
-func updateScheduleDate(ctx context.Context, reportOrg string, newDate time.Time) error {
+func updateReporterData(ctx context.Context, reporterName, reporterOrg string, newDate time.Time, errStrs []string) (reterr error) {
 	db := loggedDB(ctx)
 	lookup := ormapi.Reporter{
-		Org: reportOrg,
+		Org:  reporterOrg,
+		Name: reporterName,
 	}
+	defer func() {
+		if reterr != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule data for reporter", "name", reporterName, "org", reporterOrg, "err", reterr)
+		}
+	}()
 	updateReporter := ormapi.Reporter{}
 	res := db.Where(&lookup).First(&updateReporter)
 	if res.RecordNotFound() {
@@ -71,10 +77,21 @@ func updateScheduleDate(ctx context.Context, reportOrg string, newDate time.Time
 	if res.Error != nil {
 		return dbErr(res.Error)
 	}
-	updateReporter.NextScheduleDateUTC = newDate
-	err := db.Save(&updateReporter).Error
-	if err != nil {
-		return dbErr(res.Error)
+	applyUpdate := false
+	if !newDate.IsZero() {
+		updateReporter.NextScheduleDateUTC = newDate
+		updateReporter.LastStatus = "success"
+		applyUpdate = true
+	}
+	if len(errStrs) > 0 {
+		errStr := strings.Join(errStrs, " and ")
+		updateReporter.LastStatus = errStr
+	}
+	if applyUpdate {
+		err := db.Save(&updateReporter).Error
+		if err != nil {
+			return dbErr(res.Error)
+		}
 	}
 	return nil
 }
@@ -160,8 +177,14 @@ func GenerateReports() {
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to generate cloudlet report", "org", genReport.Org, "err", err)
 					nodeMgr.Event(ctx, "Cloudlet report generation failure", genReport.Org, tags, err)
+					updateReporterData(
+						ctx, inReporter.Name,
+						genReport.Org, time.Time{},
+						[]string{fmt.Sprintf("Failed to generate report: %v", err)},
+					)
 					return
 				}
+				errStrs := []string{}
 				// Upload PDF report to cloudlet
 				filename := ormapi.GetReportFileName(inReporter.Name, genReport)
 				err = storageClient.UploadObject(ctx, filename, &output)
@@ -169,6 +192,7 @@ func GenerateReports() {
 					nodeMgr.Event(ctx, "Cloudlet report upload failure", genReport.Org, tags, err)
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to upload cloudlet report to cloudlet", "org", genReport.Org, "err", err)
 					// if file upload failed, continue
+					errStrs = append(errStrs, fmt.Sprintf("Failed to upload report to cloudlet: %v", err))
 				}
 				// Trigger email
 				err = sendOperatorReportEmail(ctx, inReporter.Username, inReporter.Email, inReporter.Name, genReport, filename, output.Bytes())
@@ -176,15 +200,11 @@ func GenerateReports() {
 					nodeMgr.Event(ctx, "Send Cloudlet report email", genReport.Org, tags, err)
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to send cloudlet report email", "org", genReport.Org, "email", inReporter.Email, "err", err)
 					// if send email failed, continue
+					errStrs = append(errStrs, fmt.Sprintf("Failed to send report to configured email: %v", err))
 				}
 				// Update next schedule date
 				newDate := ormapi.StripTimeUTC(genReport.EndTimeUTC.AddDate(0, monthCount, dayCount))
-				err = updateScheduleDate(ctx, genReport.Org, newDate)
-				if err != nil {
-					nodeMgr.Event(ctx, "Cloudlet report schedule update failure", genReport.Org, tags, err)
-					log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule date for reporter", "org", genReport.Org, "err", err)
-					return
-				}
+				updateReporterData(ctx, inReporter.Name, genReport.Org, newDate, errStrs)
 			}(&reporter, &genReport, &wg)
 		}
 		go func() {

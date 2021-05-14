@@ -86,6 +86,7 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 	if len(errStrs) > 0 {
 		errStr := strings.Join(errStrs, " and ")
 		updateReporter.LastStatus = errStr
+		applyUpdate = true
 	}
 	if applyUpdate {
 		err := db.Save(&updateReporter).Error

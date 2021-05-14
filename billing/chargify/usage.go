@@ -13,7 +13,6 @@ import (
 )
 
 func (bs *BillingService) RecordUsage(ctx context.Context, account *ormapi.AccountInfo, usageRecords []billing.UsageRecord) error {
-	fmt.Printf("usagerecord: %+v\n", usageRecords)
 	for _, record := range usageRecords {
 		var memo string
 		var cloudlet *edgeproto.CloudletKey
@@ -39,7 +38,6 @@ func (bs *BillingService) RecordUsage(ctx context.Context, account *ormapi.Accou
 			Quantity: duration,
 			Memo:     memo,
 		}
-		fmt.Printf("new usage: %+v\n", newUsage)
 		resp, err := newChargifyReq("POST", endpoint, UsageWrapper{Usage: &newUsage})
 		if err != nil {
 			return fmt.Errorf("Error sending request: %v\n", err)

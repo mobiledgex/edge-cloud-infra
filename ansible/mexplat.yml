@@ -115,6 +115,7 @@
         resource_group: "{{ item.resource_group }}"
         dme_aliases: "{{ item.global_dme_aliases }}"
         kubernetes_version: "{{ item.kubernetes_version }}"
+        cluster_influxdb_volume_size: "{{ item.influxdb_volume_size }}"
       with_items: "{{ platform_regions }}"
 
     - debug: var=dme_details

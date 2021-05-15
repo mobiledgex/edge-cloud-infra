@@ -1279,9 +1279,20 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		return err
 	}
 	for _, region := range regions {
+		report.Region = region
+		// Get cloudlet summary
+		cloudlets_summary, err := GetCloudletSummaryData(ctx, username, report)
+		if err != nil {
+			return fmt.Errorf("failed to get cloudlet summary: %v", err)
+		}
+		if len(cloudlets_summary) == 0 {
+			// Skip as Operator has no cloudlets in this region
+			continue
+		}
+
 		log.SpanLog(ctx, log.DebugLevelInfo, "Generate operator report for region", "region", region)
 		// start new page for every region
-		report.Region = region
+		pdfReport.ResetHeader()
 		pdfReport.AddPage()
 
 		pdfReport.AddReportTitle(logoPath)
@@ -1292,12 +1303,6 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 
 		// Step-1: Gather all data
 		// -------------------------
-		// Get cloudlet summary
-		cloudlets_summary, err := GetCloudletSummaryData(ctx, username, report)
-		if err != nil {
-			return fmt.Errorf("failed to get cloudlet summary: %v", err)
-		}
-
 		// Get list of cloudletpools
 		cloudletpools, err := GetCloudletPoolSummaryData(ctx, username, report)
 		if err != nil {
@@ -1442,16 +1447,13 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 				pdfReport.AddTable("Developer App State", header, data, columnsWidth)
 			}
 		}
-
-		pdfReport.AddHeader(report, logoPath, NoCloudlet)
-
-		if err = pdfReport.Err(); err != nil {
-			return fmt.Errorf("failed to create PDF report: %s\n", err.Error())
-		}
-		err = pdfReport.Output(pdfOut)
-		if err != nil {
-			return fmt.Errorf("cannot get PDF output: %v", err)
-		}
+	}
+	if err = pdfReport.Err(); err != nil {
+		return fmt.Errorf("failed to create PDF report: %s\n", err.Error())
+	}
+	err = pdfReport.Output(pdfOut)
+	if err != nil {
+		return fmt.Errorf("cannot get PDF output: %v", err)
 	}
 	return nil
 }

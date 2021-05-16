@@ -54,11 +54,19 @@
     namespace: default
     definition: "{{ lookup('file', 'influxdb-config.yaml') }}"
 
-- name: "Set up data volume ({{ influxdb_volume_size }})"
+- name: "Check data volume ({{ cluster_influxdb_volume_size }})"
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     definition: "{{ lookup('template', 'influxdb-volume.yml.j2') }}"
+  check_mode: yes
+  register: pvc
+
+- name: Ensure PVC does not need resizing
+  assert:
+    that:
+      - pvc.method == "create" or not pvc.changed
+    fail_msg: "PVC needs resizing: {{ influxdb_volume_name }}: {{ cluster_influxdb_volume_size }}"
 
 - name: "Deploy InfluxDB v{{ influxdb_version }}"
   k8s:

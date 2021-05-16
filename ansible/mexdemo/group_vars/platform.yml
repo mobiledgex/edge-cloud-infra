@@ -18,6 +18,7 @@ regions:
       - 262-01
       - 262-06
       - sdkdemo
+    influxdb_volume_size: 50Gi
 
   - name: mexdemo-us
     location: northcentralus

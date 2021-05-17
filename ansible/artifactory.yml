@@ -66,6 +66,7 @@
         restart_policy: unless-stopped
         ports:
           - "127.0.0.1:9091:8081"
+          - "127.0.0.1:9092:8082"
         volumes:
           - "{{ data_directory }}:{{ data_directory }}"
           - "{{ mex_ca_cert_dir }}:/artifactory_extra_certs"

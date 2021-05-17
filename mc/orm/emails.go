@@ -428,9 +428,6 @@ Content-Disposition: attachment; filename={{.FileName}}
 `
 
 func sendOperatorReportEmail(ctx context.Context, username, email, reporterName string, report *ormapi.GenerateReport, pdfFileName string, pdfFileBytes []byte) error {
-	if getSkipVerifyEmail(ctx, nil) {
-		return nil
-	}
 	noreply, err := getNoreply(ctx)
 	if err != nil {
 		return err

@@ -430,6 +430,9 @@ func UpdateReporter(c echo.Context) error {
 		if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
 			return setReply(c, fmt.Errorf("invalid schedule"), nil)
 		}
+		if reporter.StartScheduleDateUTC == oldReporter.StartScheduleDateUTC {
+			return setReply(c, fmt.Errorf("startscheduledateutc should also be changed to update schedule"), nil)
+		}
 		applyUpdate = true
 	}
 
@@ -617,7 +620,7 @@ func GenerateReport(c echo.Context) error {
 		return setReply(c, fmt.Errorf("StartTimeUTC must be in UTC timezone"), nil)
 	}
 	if !ormapi.IsUTCTimezone(report.EndTimeUTC) {
-		return setReply(c, fmt.Errorf("StartTimeUTC must be in UTC timezone"), nil)
+		return setReply(c, fmt.Errorf("EndTimeUTC must be in UTC timezone"), nil)
 	}
 	if !report.StartTimeUTC.Before(report.EndTimeUTC) {
 		return c.JSON(http.StatusBadRequest, Msg("start time must be before end time"))

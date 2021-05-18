@@ -31,6 +31,10 @@ var (
 	NoCloudlet          = ""
 	ReportRetryCount    = 5
 	ReportRetryInterval = 5 * time.Minute
+
+	// Lock required to perform changes to reporter data,
+	// as GenerateReports thread also act on same data
+	reporterMux sync.Mutex
 )
 
 func getScheduleDayMonthCount(schedule edgeproto.ReportSchedule) (int, int, error) {
@@ -76,6 +80,12 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 			log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule data for reporter", "name", reporterName, "org", reporterOrg, "err", reterr)
 		}
 	}()
+
+	// Hold lock to perform changes to reporter data,
+	// as GenerateReports thread also act on same data
+	reporterMux.Lock()
+	defer reporterMux.Unlock()
+
 	updateReporter := ormapi.Reporter{}
 	res := db.Where(&lookup).First(&updateReporter)
 	if res.RecordNotFound() {
@@ -239,6 +249,7 @@ func GenerateReports() {
 		}
 		storageClient.Close()
 		reportTime = getNextReportTimeUTC(reportTime, nil)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Next operator report generation run info", "date", reportTime)
 		span.Finish()
 	}
 }
@@ -346,6 +357,11 @@ func CreateReporter(c echo.Context) error {
 	reporter.NextScheduleDateUTC = reporter.StartScheduleDateUTC
 	reporter.Username = claims.Username
 
+	// Hold lock to perform changes to reporter data,
+	// as GenerateReports thread also act on same data
+	reporterMux.Lock()
+	defer reporterMux.Unlock()
+
 	// store in db
 	db := loggedDB(ctx)
 	err = db.Create(&reporter).Error
@@ -387,6 +403,12 @@ func UpdateReporter(c echo.Context) error {
 		Name: in.Name,
 		Org:  in.Org,
 	}
+
+	// Hold lock to perform changes to reporter data,
+	// as GenerateReports thread also act on same data
+	reporterMux.Lock()
+	defer reporterMux.Unlock()
+
 	reporter := ormapi.Reporter{}
 	db := loggedDB(ctx)
 	res := db.Where(&lookup).First(&reporter)
@@ -485,6 +507,12 @@ func DeleteReporter(c echo.Context) error {
 	if reporter.Org == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter org not specified"))
 	}
+
+	// Hold lock to perform changes to reporter data,
+	// as GenerateReports thread also act on same data
+	reporterMux.Lock()
+	defer reporterMux.Unlock()
+
 	db := loggedDB(ctx)
 	res := db.Where(&reporter).First(&reporter)
 	if res.RecordNotFound() {

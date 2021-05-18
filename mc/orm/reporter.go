@@ -31,10 +31,6 @@ var (
 	NoCloudlet          = ""
 	ReportRetryCount    = 5
 	ReportRetryInterval = 5 * time.Minute
-
-	// Lock required to perform changes to reporter data,
-	// as GenerateReports thread also act on same data
-	reporterMux sync.Mutex
 )
 
 func getScheduleDayMonthCount(schedule edgeproto.ReportSchedule) (int, int, error) {
@@ -70,24 +66,23 @@ func getNextReportTimeUTC(now time.Time, retryCount *int) time.Time {
 }
 
 func updateReporterData(ctx context.Context, reporterName, reporterOrg string, newDate time.Time, errStrs []string) (reterr error) {
-	db := loggedDB(ctx)
 	lookup := ormapi.Reporter{
 		Org:  reporterOrg,
 		Name: reporterName,
 	}
+
 	defer func() {
 		if reterr != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule data for reporter", "name", reporterName, "org", reporterOrg, "err", reterr)
 		}
 	}()
 
-	// Hold lock to perform changes to reporter data,
-	// as GenerateReports thread also act on same data
-	reporterMux.Lock()
-	defer reporterMux.Unlock()
+	db := loggedDB(ctx)
+	tx := db.BeginTx(ctx, nil)
+	defer db.RollbackUnlessCommitted()
 
 	updateReporter := ormapi.Reporter{}
-	res := db.Where(&lookup).First(&updateReporter)
+	res := tx.Where(&lookup).First(&updateReporter)
 	if res.RecordNotFound() {
 		// reporter got deleted in meantime, ignore
 		return nil
@@ -107,10 +102,14 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 		applyUpdate = true
 	}
 	if applyUpdate {
-		err := db.Save(&updateReporter).Error
+		err := tx.Save(&updateReporter).Error
 		if err != nil {
-			return dbErr(res.Error)
+			return dbErr(err)
 		}
+	}
+	err := tx.Commit().Error
+	if err != nil {
+		return dbErr(err)
 	}
 	return nil
 }
@@ -357,11 +356,6 @@ func CreateReporter(c echo.Context) error {
 	reporter.NextScheduleDateUTC = reporter.StartScheduleDateUTC
 	reporter.Username = claims.Username
 
-	// Hold lock to perform changes to reporter data,
-	// as GenerateReports thread also act on same data
-	reporterMux.Lock()
-	defer reporterMux.Unlock()
-
 	// store in db
 	db := loggedDB(ctx)
 	err = db.Create(&reporter).Error
@@ -404,14 +398,12 @@ func UpdateReporter(c echo.Context) error {
 		Org:  in.Org,
 	}
 
-	// Hold lock to perform changes to reporter data,
-	// as GenerateReports thread also act on same data
-	reporterMux.Lock()
-	defer reporterMux.Unlock()
+	db := loggedDB(ctx)
+	tx := db.BeginTx(ctx, nil)
+	defer db.RollbackUnlessCommitted()
 
 	reporter := ormapi.Reporter{}
-	db := loggedDB(ctx)
-	res := db.Where(&lookup).First(&reporter)
+	res := tx.Where(&lookup).First(&reporter)
 	if res.RecordNotFound() {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter not found"))
 	}
@@ -478,7 +470,11 @@ func UpdateReporter(c echo.Context) error {
 		return setReply(c, fmt.Errorf("nothing to update"), nil)
 	}
 
-	err = db.Save(&reporter).Error
+	err = tx.Save(&reporter).Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
+	}
+	err = tx.Commit().Error
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
 	}
@@ -508,13 +504,11 @@ func DeleteReporter(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter org not specified"))
 	}
 
-	// Hold lock to perform changes to reporter data,
-	// as GenerateReports thread also act on same data
-	reporterMux.Lock()
-	defer reporterMux.Unlock()
-
 	db := loggedDB(ctx)
-	res := db.Where(&reporter).First(&reporter)
+	tx := db.BeginTx(ctx, nil)
+	defer db.RollbackUnlessCommitted()
+
+	res := tx.Where(&reporter).First(&reporter)
 	if res.RecordNotFound() {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter not found"))
 	}
@@ -525,9 +519,13 @@ func DeleteReporter(c echo.Context) error {
 	if err := authorized(ctx, claims.Username, reporter.Org, ResourceUsers, ActionManage); err != nil {
 		return setReply(c, err, nil)
 	}
-	err = db.Delete(&reporter).Error
+	err = tx.Delete(&reporter).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
+	}
+	err = tx.Commit().Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
 	}
 	return c.JSON(http.StatusOK, Msg("reporter deleted"))
 }

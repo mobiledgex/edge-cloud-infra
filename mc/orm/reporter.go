@@ -79,7 +79,7 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 
 	db := loggedDB(ctx)
 	tx := db.BeginTx(ctx, nil)
-	defer db.RollbackUnlessCommitted()
+	defer tx.RollbackUnlessCommitted()
 
 	updateReporter := ormapi.Reporter{}
 	res := tx.Where(&lookup).First(&updateReporter)
@@ -400,7 +400,7 @@ func UpdateReporter(c echo.Context) error {
 
 	db := loggedDB(ctx)
 	tx := db.BeginTx(ctx, nil)
-	defer db.RollbackUnlessCommitted()
+	defer tx.RollbackUnlessCommitted()
 
 	reporter := ormapi.Reporter{}
 	res := tx.Where(&lookup).First(&reporter)
@@ -506,7 +506,7 @@ func DeleteReporter(c echo.Context) error {
 
 	db := loggedDB(ctx)
 	tx := db.BeginTx(ctx, nil)
-	defer db.RollbackUnlessCommitted()
+	defer tx.RollbackUnlessCommitted()
 
 	res := tx.Where(&reporter).First(&reporter)
 	if res.RecordNotFound() {

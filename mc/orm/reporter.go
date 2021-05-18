@@ -27,8 +27,10 @@ import (
 var (
 	reportTrigger chan bool
 
-	ReportTimeout = 1 * time.Hour
-	NoCloudlet    = ""
+	ReportTimeout       = 1 * time.Hour
+	NoCloudlet          = ""
+	ReportRetryCount    = 5
+	ReportRetryInterval = 5 * time.Minute
 )
 
 func getScheduleDayMonthCount(schedule edgeproto.ReportSchedule) (int, int, error) {
@@ -50,18 +52,30 @@ func getScheduleDayMonthCount(schedule edgeproto.ReportSchedule) (int, int, erro
 	return dayCount, monthCount, err
 }
 
-func getNextReportTimeUTC(now time.Time) time.Time {
-	// report once a day at the start of the day 12am UTC
+func getNextReportTimeUTC(now time.Time, retryCount *int) time.Time {
 	utcNow := now.UTC()
-	nextDay := time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day()+1, 0, 0, 0, 0, time.UTC)
-	return nextDay
+	nextReportTime := time.Time{}
+	if retryCount != nil && *retryCount > 0 {
+		nextReportTime = utcNow.Add(ReportRetryInterval)
+		*retryCount = *retryCount - 1
+	} else {
+		// report once a day at the start of the day 12am UTC
+		nextReportTime = time.Date(utcNow.Year(), utcNow.Month(), utcNow.Day()+1, 0, 0, 0, 0, time.UTC)
+	}
+	return nextReportTime
 }
 
-func updateScheduleDate(ctx context.Context, reportOrg string, newDate time.Time) error {
+func updateReporterData(ctx context.Context, reporterName, reporterOrg string, newDate time.Time, errStrs []string) (reterr error) {
 	db := loggedDB(ctx)
 	lookup := ormapi.Reporter{
-		Org: reportOrg,
+		Org:  reporterOrg,
+		Name: reporterName,
 	}
+	defer func() {
+		if reterr != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule data for reporter", "name", reporterName, "org", reporterOrg, "err", reterr)
+		}
+	}()
 	updateReporter := ormapi.Reporter{}
 	res := db.Where(&lookup).First(&updateReporter)
 	if res.RecordNotFound() {
@@ -71,10 +85,22 @@ func updateScheduleDate(ctx context.Context, reportOrg string, newDate time.Time
 	if res.Error != nil {
 		return dbErr(res.Error)
 	}
-	updateReporter.NextScheduleDateUTC = newDate
-	err := db.Save(&updateReporter).Error
-	if err != nil {
-		return dbErr(res.Error)
+	applyUpdate := false
+	if !newDate.IsZero() {
+		updateReporter.NextScheduleDateUTC = newDate
+		updateReporter.Status = "success"
+		applyUpdate = true
+	}
+	if len(errStrs) > 0 {
+		errStr := strings.Join(errStrs, ";")
+		updateReporter.Status = errStr
+		applyUpdate = true
+	}
+	if applyUpdate {
+		err := db.Save(&updateReporter).Error
+		if err != nil {
+			return dbErr(res.Error)
+		}
 	}
 	return nil
 }
@@ -94,7 +120,8 @@ func getAllRegions(ctx context.Context) ([]string, error) {
 
 // Start report generation thread to run every day 12AM UTC
 func GenerateReports() {
-	reportTime := getNextReportTimeUTC(time.Now().UTC())
+	retryCount := ReportRetryCount
+	reportTime := getNextReportTimeUTC(time.Now().UTC(), nil)
 	for {
 		select {
 		case <-time.After(reportTime.Sub(time.Now().UTC())):
@@ -108,21 +135,30 @@ func GenerateReports() {
 		err := db.Find(&reporters).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get list of reporters", "err", err)
-			reportTime = getNextReportTimeUTC(reportTime)
+			// retry again in few minutes
+			reportTime = getNextReportTimeUTC(time.Now().UTC(), &retryCount)
 			span.Finish()
 			continue
 		}
 		regions, err := getAllRegions(ctx)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get regions", "err", err)
+			// retry again in few minutes
+			reportTime = getNextReportTimeUTC(time.Now().UTC(), &retryCount)
+			span.Finish()
 			continue
 		}
 
 		storageClient, err := gcs.NewClient(ctx, serverConfig.vaultConfig, serverConfig.DeploymentTag)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to setup GCS storage client", "err", err)
+			// retry again in few minutes
+			reportTime = getNextReportTimeUTC(time.Now().UTC(), &retryCount)
+			span.Finish()
 			continue
 		}
+		// reset retryCount
+		retryCount = ReportRetryCount
 
 		wgDone := make(chan bool)
 		var wg sync.WaitGroup
@@ -160,8 +196,14 @@ func GenerateReports() {
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to generate cloudlet report", "org", genReport.Org, "err", err)
 					nodeMgr.Event(ctx, "Cloudlet report generation failure", genReport.Org, tags, err)
+					updateReporterData(
+						ctx, inReporter.Name,
+						genReport.Org, time.Time{},
+						[]string{fmt.Sprintf("Failed to generate report: %v", err)},
+					)
 					return
 				}
+				errStrs := []string{}
 				// Upload PDF report to cloudlet
 				filename := ormapi.GetReportFileName(inReporter.Name, genReport)
 				err = storageClient.UploadObject(ctx, filename, &output)
@@ -169,6 +211,7 @@ func GenerateReports() {
 					nodeMgr.Event(ctx, "Cloudlet report upload failure", genReport.Org, tags, err)
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to upload cloudlet report to cloudlet", "org", genReport.Org, "err", err)
 					// if file upload failed, continue
+					errStrs = append(errStrs, fmt.Sprintf("Failed to upload report to cloudlet: %v", err))
 				}
 				// Trigger email
 				err = sendOperatorReportEmail(ctx, inReporter.Username, inReporter.Email, inReporter.Name, genReport, filename, output.Bytes())
@@ -176,15 +219,11 @@ func GenerateReports() {
 					nodeMgr.Event(ctx, "Send Cloudlet report email", genReport.Org, tags, err)
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to send cloudlet report email", "org", genReport.Org, "email", inReporter.Email, "err", err)
 					// if send email failed, continue
+					errStrs = append(errStrs, fmt.Sprintf("Failed to send report to configured email: %v", err))
 				}
 				// Update next schedule date
 				newDate := ormapi.StripTimeUTC(genReport.EndTimeUTC.AddDate(0, monthCount, dayCount))
-				err = updateScheduleDate(ctx, genReport.Org, newDate)
-				if err != nil {
-					nodeMgr.Event(ctx, "Cloudlet report schedule update failure", genReport.Org, tags, err)
-					log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule date for reporter", "org", genReport.Org, "err", err)
-					return
-				}
+				updateReporterData(ctx, inReporter.Name, genReport.Org, newDate, errStrs)
 			}(&reporter, &genReport, &wg)
 		}
 		go func() {
@@ -199,7 +238,7 @@ func GenerateReports() {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Timedout generating operator reports")
 		}
 		storageClient.Close()
-		reportTime = getNextReportTimeUTC(reportTime)
+		reportTime = getNextReportTimeUTC(reportTime, nil)
 		span.Finish()
 	}
 }
@@ -736,43 +775,60 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 		}
 		for _, result := range results {
 			for _, row := range result.Series {
-				/*
-					columns[0]  -> time
-					columns[1]  -> cloudlet
-					columns[2]  -> cloudletorg
-					columns[3:] -> resources
-				*/
-				for _, val := range row.Values {
-					if len(val) < 4 {
-						// not enough data
-						continue
+				if len(row.Columns) < 4 {
+					// not enough data
+					continue
+				}
+				// get column indices
+				timeIndex := -1
+				cloudletIndex := -1
+				cloudletOrgIndex := -1
+				resIndices := []int{}
+				for ii, col := range row.Columns {
+					switch col {
+					case "time":
+						timeIndex = ii
+					case "cloudlet":
+						cloudletIndex = ii
+					case "cloudletorg":
+						cloudletOrgIndex = ii
+					default:
+						resIndices = append(resIndices, ii)
 					}
-					timeStr, ok := val[0].(string)
+				}
+				if timeIndex < 0 || cloudletIndex < 0 || cloudletOrgIndex < 0 || len(resIndices) == 0 {
+					// not enough data
+					continue
+				}
+				for _, val := range row.Values {
+					timeStr, ok := val[timeIndex].(string)
 					if !ok {
-						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch resource time", "time", val[0])
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch resource time", "time", val[timeIndex])
+						continue
 					}
 					time, err := time.Parse("2006-01-02T15:04:05Z", timeStr)
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to parse resource time", "time", timeStr)
 						continue
 					}
-					cloudlet, ok := val[1].(string)
+					cloudlet, ok := val[cloudletIndex].(string)
 					if !ok {
-						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[1])
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[cloudletIndex])
+						continue
 					}
 					if _, ok := chartMap[cloudlet]; !ok {
 						chartMap[cloudlet] = make(TimeChartDataMap)
 					}
-					for resIndex := 3; resIndex < len(val); resIndex++ {
+					for _, resIndex := range resIndices {
+						if val[resIndex] == nil {
+							continue
+						}
 						resName := row.Columns[resIndex]
 						if _, ok := chartMap[cloudlet][resName]; !ok {
 							chartMap[cloudlet][resName] = []TimeChartData{TimeChartData{}}
 						}
 						clData := chartMap[cloudlet][resName][0]
 
-						if val[resIndex] == nil {
-							continue
-						}
 						resVal, err := val[resIndex].(json.Number).Float64()
 						if err != nil {
 							log.SpanLog(ctx, log.DebugLevelInfo, "failed to parse resource value", "value", val[resIndex])
@@ -821,33 +877,56 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 		}
 		for _, result := range results {
 			for _, row := range result.Series {
-				/*
-					columns[0] -> time
-					columns[1] -> cloudlet
-					columns[2] -> cloudletorg
-					columns[3] -> count
-					columns[4] -> flavor
-				*/
+				if len(row.Columns) < 5 {
+					// not enough data
+					continue
+				}
+				// get column indices
+				timeIndex := -1
+				cloudletIndex := -1
+				cloudletOrgIndex := -1
+				countIndex := -1
+				flavorIndex := -1
+				for ii, col := range row.Columns {
+					switch col {
+					case "time":
+						timeIndex = ii
+					case "cloudlet":
+						cloudletIndex = ii
+					case "cloudletorg":
+						cloudletOrgIndex = ii
+					case "count":
+						countIndex = ii
+					case "flavor":
+						flavorIndex = ii
+					}
+				}
+				if timeIndex < 0 ||
+					cloudletIndex < 0 ||
+					cloudletOrgIndex < 0 ||
+					countIndex < 0 ||
+					flavorIndex < 0 {
+					// not enough data
+					continue
+				}
 				for _, val := range row.Values {
-					if len(val) < 5 {
-						// not enough data
-						continue
-					}
-					cloudlet, ok := val[1].(string)
+					cloudlet, ok := val[cloudletIndex].(string)
 					if !ok {
-						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[1])
-					}
-					if val[3] == nil {
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch cloudlet name", "cloudlet", val[cloudletIndex])
 						continue
 					}
-					countVal, err := val[3].(json.Number).Float64()
+					if val[countIndex] == nil || val[flavorIndex] == nil {
+						continue
+					}
+					countVal, err := val[countIndex].(json.Number).Float64()
 					if err != nil {
-						log.SpanLog(ctx, log.DebugLevelInfo, "failed to parse flavor count", "value", val[3])
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to parse flavor count", "value", val[countIndex])
 						continue
 					}
-					flavor, ok := val[4].(string)
+					flavor, ok := val[flavorIndex].(string)
 					if !ok {
-						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch flavor name", "flavor", val[4])
+						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch flavor name", "flavor", val[flavorIndex])
+						continue
 					}
 					if _, ok := flavorMap[cloudlet]; !ok {
 						flavorMap[cloudlet] = make(PieChartDataMap)
@@ -1010,7 +1089,8 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 	}
 	rc.region = in.Region
 	claims := &UserClaims{Username: username}
-	cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims, in.Region, in.AppInst.AppKey.Organization, ResourceAppAnalytics, in.AppInst.ClusterInstKey.CloudletKey)
+	cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
+		ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
 	if err != nil {
 		return nil, err
 	}
@@ -1240,9 +1320,20 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		return err
 	}
 	for _, region := range regions {
+		report.Region = region
+		// Get cloudlet summary
+		cloudlets_summary, err := GetCloudletSummaryData(ctx, username, report)
+		if err != nil {
+			return fmt.Errorf("failed to get cloudlet summary: %v", err)
+		}
+		if len(cloudlets_summary) == 0 {
+			// Skip as Operator has no cloudlets in this region
+			continue
+		}
+
 		log.SpanLog(ctx, log.DebugLevelInfo, "Generate operator report for region", "region", region)
 		// start new page for every region
-		report.Region = region
+		pdfReport.ResetHeader()
 		pdfReport.AddPage()
 
 		pdfReport.AddReportTitle(logoPath)
@@ -1253,12 +1344,6 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 
 		// Step-1: Gather all data
 		// -------------------------
-		// Get cloudlet summary
-		cloudlets_summary, err := GetCloudletSummaryData(ctx, username, report)
-		if err != nil {
-			return fmt.Errorf("failed to get cloudlet summary: %v", err)
-		}
-
 		// Get list of cloudletpools
 		cloudletpools, err := GetCloudletPoolSummaryData(ctx, username, report)
 		if err != nil {
@@ -1305,7 +1390,12 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		// Get app count by developer on cloudlet
 		appCountData, err := GetCloudletAppUsageData(ctx, username, report)
 		if err != nil {
-			return fmt.Errorf("failed to get cloudlet app count data: %v", err)
+			if strings.Contains(err.Error(), "Forbidden") {
+				// ignore as user is not authorized to perform this action
+				appCountData = make(map[string]PieChartDataMap)
+			} else {
+				return fmt.Errorf("failed to get cloudlet app count data: %v", err)
+			}
 		}
 		for cloudletName, _ := range appCountData {
 			cloudlets[cloudletName] = struct{}{}
@@ -1314,7 +1404,12 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		// Get app state events
 		appEventsData, err := GetAppStateEvents(ctx, username, pdfReport.timezone, report)
 		if err != nil {
-			return fmt.Errorf("failed to get app events: %v", err)
+			if strings.Contains(err.Error(), "Forbidden") {
+				// ignore as user is not authorized to perform this action
+				appEventsData = make(map[string][][]string)
+			} else {
+				return fmt.Errorf("failed to get app events: %v", err)
+			}
 		}
 		for cloudletName, _ := range appEventsData {
 			cloudlets[cloudletName] = struct{}{}
@@ -1328,9 +1423,11 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		pdfReport.AddTable("Cloudlets", header, cloudlets_summary, columnsWidth)
 
 		// Get list of cloudletpools
-		header = []string{"Name", "Associated Cloudlets", "Accepted Developers", "Pending Developers"}
-		columnsWidth = []float64{30, 60, 50, 50}
-		pdfReport.AddTable("CloudletPools", header, cloudletpools, columnsWidth)
+		if len(cloudletpools) > 0 {
+			header = []string{"Name", "Associated Cloudlets", "Accepted Developers", "Pending Developers"}
+			columnsWidth = []float64{30, 60, 50, 50}
+			pdfReport.AddTable("CloudletPools", header, cloudletpools, columnsWidth)
+		}
 
 		// Sort cloudlet by name
 		cloudletNames := []string{}
@@ -1391,16 +1488,13 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 				pdfReport.AddTable("Developer App State", header, data, columnsWidth)
 			}
 		}
-
-		pdfReport.AddHeader(report, logoPath, NoCloudlet)
-
-		if err = pdfReport.Err(); err != nil {
-			return fmt.Errorf("failed to create PDF report: %s\n", err.Error())
-		}
-		err = pdfReport.Output(pdfOut)
-		if err != nil {
-			return fmt.Errorf("cannot get PDF output: %v", err)
-		}
+	}
+	if err = pdfReport.Err(); err != nil {
+		return fmt.Errorf("failed to create PDF report: %s\n", err.Error())
+	}
+	err = pdfReport.Output(pdfOut)
+	if err != nil {
+		return fmt.Errorf("cannot get PDF output: %v", err)
 	}
 	return nil
 }

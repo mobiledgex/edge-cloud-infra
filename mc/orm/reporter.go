@@ -720,7 +720,7 @@ func GetCloudletPoolSummaryData(ctx context.Context, username string, report *or
 	poolCloudlets := make(map[string][]string)
 	err = ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{Key: poolKey}, func(pool *edgeproto.CloudletPool) {
 		for _, name := range pool.Cloudlets {
-			if cloudlets, ok := poolCloudlets[op.CloudletPool]; ok {
+			if cloudlets, ok := poolCloudlets[pool.Key.Name]; ok {
 				cloudlets = append(cloudlets, name)
 				poolCloudlets[pool.Key.Name] = cloudlets
 			} else {

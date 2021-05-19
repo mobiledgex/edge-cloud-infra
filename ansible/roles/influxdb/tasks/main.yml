@@ -68,6 +68,13 @@
       - pvc.method == "create" or not pvc.changed
     fail_msg: "PVC needs resizing: {{ influxdb_volume_name }}: {{ cluster_influxdb_volume_size }}"
 
+- name: "Create data volume ({{ cluster_influxdb_volume_size }})"
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    definition: "{{ lookup('template', 'influxdb-volume.yml.j2') }}"
+  when: pvc.method == "create"
+
 - name: "Deploy InfluxDB v{{ influxdb_version }}"
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"

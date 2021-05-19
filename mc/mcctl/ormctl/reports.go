@@ -78,7 +78,7 @@ func init() {
 
 	cmds = []*ApiCommand{&ApiCommand{
 		Name:         "GenerateReportData",
-		Use:          "generatedata",
+		Use:          "generate",
 		Short:        "Generate report data for an org of all regions",
 		RequiredArgs: "org starttimeutc endtimeutc",
 		OptionalArgs: "timezone",

@@ -69,18 +69,23 @@ func getNextReportTimeUTC(now time.Time, retryCount *int) time.Time {
 }
 
 func updateReporterData(ctx context.Context, reporterName, reporterOrg string, newDate time.Time, errStrs []string) (reterr error) {
-	db := loggedDB(ctx)
 	lookup := ormapi.Reporter{
 		Org:  reporterOrg,
 		Name: reporterName,
 	}
+
 	defer func() {
 		if reterr != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "failed to update schedule data for reporter", "name", reporterName, "org", reporterOrg, "err", reterr)
 		}
 	}()
+
+	db := loggedDB(ctx)
+	tx := db.BeginTx(ctx, nil)
+	defer tx.RollbackUnlessCommitted()
+
 	updateReporter := ormapi.Reporter{}
-	res := db.Where(&lookup).First(&updateReporter)
+	res := tx.Where(&lookup).First(&updateReporter)
 	if res.RecordNotFound() {
 		// reporter got deleted in meantime, ignore
 		return nil
@@ -100,10 +105,14 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 		applyUpdate = true
 	}
 	if applyUpdate {
-		err := db.Save(&updateReporter).Error
+		err := tx.Save(&updateReporter).Error
 		if err != nil {
-			return dbErr(res.Error)
+			return dbErr(err)
 		}
+	}
+	err := tx.Commit().Error
+	if err != nil {
+		return dbErr(err)
 	}
 	return nil
 }
@@ -124,7 +133,7 @@ func getAllRegions(ctx context.Context) ([]string, error) {
 // Start report generation thread to run every day 12AM UTC
 func GenerateReports() {
 	retryCount := ReportRetryCount
-	reportTime := getNextReportTimeUTC(time.Now().UTC(), nil)
+	reportTime := time.Now().UTC()
 	for {
 		select {
 		case <-time.After(reportTime.Sub(time.Now().UTC())):
@@ -242,6 +251,7 @@ func GenerateReports() {
 		}
 		storageClient.Close()
 		reportTime = getNextReportTimeUTC(reportTime, nil)
+		log.SpanLog(ctx, log.DebugLevelInfo, "Next operator report generation run info", "date", reportTime)
 		span.Finish()
 	}
 }
@@ -390,9 +400,13 @@ func UpdateReporter(c echo.Context) error {
 		Name: in.Name,
 		Org:  in.Org,
 	}
-	reporter := ormapi.Reporter{}
+
 	db := loggedDB(ctx)
-	res := db.Where(&lookup).First(&reporter)
+	tx := db.BeginTx(ctx, nil)
+	defer tx.RollbackUnlessCommitted()
+
+	reporter := ormapi.Reporter{}
+	res := tx.Where(&lookup).First(&reporter)
 	if res.RecordNotFound() {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter not found"))
 	}
@@ -459,7 +473,11 @@ func UpdateReporter(c echo.Context) error {
 		return setReply(c, fmt.Errorf("nothing to update"), nil)
 	}
 
-	err = db.Save(&reporter).Error
+	err = tx.Save(&reporter).Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
+	}
+	err = tx.Commit().Error
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
 	}
@@ -488,8 +506,12 @@ func DeleteReporter(c echo.Context) error {
 	if reporter.Org == "" {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter org not specified"))
 	}
+
 	db := loggedDB(ctx)
-	res := db.Where(&reporter).First(&reporter)
+	tx := db.BeginTx(ctx, nil)
+	defer tx.RollbackUnlessCommitted()
+
+	res := tx.Where(&reporter).First(&reporter)
 	if res.RecordNotFound() {
 		return c.JSON(http.StatusBadRequest, Msg("Reporter not found"))
 	}
@@ -500,9 +522,13 @@ func DeleteReporter(c echo.Context) error {
 	if err := authorized(ctx, claims.Username, reporter.Org, ResourceUsers, ActionManage); err != nil {
 		return setReply(c, err, nil)
 	}
-	err = db.Delete(&reporter).Error
+	err = tx.Delete(&reporter).Error
 	if err != nil {
 		return setReply(c, dbErr(err), nil)
+	}
+	err = tx.Commit().Error
+	if err != nil {
+		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
 	}
 	return c.JSON(http.StatusOK, Msg("reporter deleted"))
 }

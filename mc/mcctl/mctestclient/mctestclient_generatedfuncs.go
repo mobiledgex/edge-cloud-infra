@@ -2103,12 +2103,12 @@ func (s *Client) DownloadReport(uri string, token string, in *ormapi.DownloadRep
 
 // Generating group ReportData
 
-func (s *Client) GenerateReportData(uri string, token string, in *ormapi.GenerateReport) (*ormapi.Result, int, error) {
+func (s *Client) GenerateReportData(uri string, token string, in *ormapi.GenerateReport) (map[string]interface{}, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out ormapi.Result
+	var out map[string]interface{}
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("GenerateReportData")
@@ -2116,7 +2116,7 @@ func (s *Client) GenerateReportData(uri string, token string, in *ormapi.Generat
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
 	}
-	return &out, rundata.RetStatus, rundata.RetError
+	return out, rundata.RetStatus, rundata.RetError
 }
 
 // Generating group Reporter

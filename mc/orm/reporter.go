@@ -618,9 +618,6 @@ func GenerateReportObj(c echo.Context, dataOnly bool) error {
 	if err := c.Bind(&report); err != nil {
 		return bindErr(c, err)
 	}
-	if dataOnly {
-		report.DataOnly = true
-	}
 	org := report.Org
 	if org == "" {
 		return c.JSON(http.StatusBadRequest, Msg("org not specified"))

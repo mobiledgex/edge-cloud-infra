@@ -610,9 +610,6 @@ type GenerateReport struct {
 	Region string
 	// Timezone in which to show the reports, defaults to either user setting or UTC
 	Timezone string
-	// Dump data only, do not generate PDF report (for internal use only)
-	// read only: true
-	DataOnly bool
 }
 
 func GetReportFileName(reporterName string, report *GenerateReport) string {

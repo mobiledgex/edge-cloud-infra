@@ -195,7 +195,7 @@ func GenerateReports() {
 				tags := map[string]string{"cloudletorg": genReport.Org}
 				defer wg.Done()
 				var output bytes.Buffer
-				_, err = GenerateCloudletReport(ctx, inReporter.Username, regions, genReport, &output)
+				_, err = GenerateCloudletReport(ctx, inReporter.Username, regions, genReport, &output, OutputPDF)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to generate cloudlet report", "org", genReport.Org, "err", err)
 					nodeMgr.Event(ctx, "Cloudlet report generation failure", genReport.Org, tags, err)
@@ -657,20 +657,16 @@ func GenerateReportObj(c echo.Context, dataOnly bool) error {
 	}
 
 	var output bytes.Buffer
-	data, err := GenerateCloudletReport(ctx, claims.Username, regions, &report, &output)
+	data, err := GenerateCloudletReport(ctx, claims.Username, regions, &report, &output, dataOnly)
 	if err != nil {
 		return setReply(c, err, nil)
 	}
 
-	if report.DataOnly {
+	if dataOnly {
 		if data == nil {
-			return c.JSON(http.StatusOK, "no report data")
+			return setReply(c, fmt.Errorf("No report data"), nil)
 		}
-		jsonData, err := json.Marshal(data)
-		if err != nil {
-			return setReply(c, err, nil)
-		}
-		return c.JSON(http.StatusOK, ormapi.Result{Message: string(jsonData)})
+		return c.JSON(http.StatusOK, data)
 	}
 
 	return c.HTMLBlob(http.StatusOK, output.Bytes())
@@ -1336,7 +1332,7 @@ func GetAppStateEvents(ctx context.Context, username string, timezone *time.Loca
 	return eventsData, nil
 }
 
-func GenerateCloudletReport(ctx context.Context, username string, regions []string, report *ormapi.GenerateReport, pdfOut *bytes.Buffer) (map[string]map[string]interface{}, error) {
+func GenerateCloudletReport(ctx context.Context, username string, regions []string, report *ormapi.GenerateReport, pdfOut *bytes.Buffer, dataOnly bool) (map[string]map[string]interface{}, error) {
 	// fetch logo path
 	logoPath := serverConfig.StaticDir + "/MobiledgeX_Logo.png"
 	if _, err := os.Stat(logoPath); os.IsNotExist(err) {
@@ -1526,7 +1522,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 			}
 		}
 	}
-	if report.DataOnly {
+	if dataOnly {
 		return reportData, nil
 	}
 	if err = pdfReport.Err(); err != nil {

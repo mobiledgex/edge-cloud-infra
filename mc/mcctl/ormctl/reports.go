@@ -83,7 +83,7 @@ func init() {
 		RequiredArgs: "org starttimeutc endtimeutc",
 		OptionalArgs: "timezone",
 		ReqData:      &ormapi.GenerateReport{},
-		ReplyData:    &ormapi.Result{},
+		ReplyData:    map[string]interface{}{},
 		Comments:     ormapi.GenerateReportComments,
 		Path:         "/auth/report/generatedata",
 	}}

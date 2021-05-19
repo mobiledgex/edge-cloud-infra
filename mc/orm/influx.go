@@ -775,7 +775,7 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 		}
 	}
 
-	if (len(devOrgs) == 0 || devOrgs[0] == "") && len(cloudletOrgs) == 0 {
+	if len(devOrgs) == 0 && len(cloudletOrgs) == 0 {
 		return []string{}, fmt.Errorf("Must provide either App organization or Cloudlet organization")
 	}
 	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, devResource, ActionView)

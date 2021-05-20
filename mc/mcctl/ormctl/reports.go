@@ -6,6 +6,7 @@ import (
 
 const ReporterGroup = "Reporter"
 const ReportGroup = "Report"
+const ReportDataGroup = "ReportData"
 
 func init() {
 	cmds := []*ApiCommand{&ApiCommand{
@@ -13,7 +14,7 @@ func init() {
 		Use:          "create",
 		Short:        "Create new reporter",
 		RequiredArgs: "name org",
-		OptionalArgs: "email schedule startscheduledateutc",
+		OptionalArgs: "email schedule startscheduledateutc timezone",
 		ReqData:      &ormapi.Reporter{},
 		Comments:     ormapi.ReporterComments,
 		Path:         "/auth/reporter/create",
@@ -22,7 +23,7 @@ func init() {
 		Use:          "update",
 		Short:        "Update reporter",
 		RequiredArgs: "name org",
-		OptionalArgs: "email schedule startscheduledateutc",
+		OptionalArgs: "email schedule startscheduledateutc timezone",
 		ReqData:      &ormapi.Reporter{},
 		Comments:     ormapi.ReporterComments,
 		Path:         "/auth/reporter/update",
@@ -74,4 +75,17 @@ func init() {
 		Path:         "/auth/report/download",
 	}}
 	AllApis.AddGroup(ReportGroup, "Manage reports", cmds)
+
+	cmds = []*ApiCommand{&ApiCommand{
+		Name:         "GenerateReportData",
+		Use:          "generate",
+		Short:        "Generate report data for an org of all regions",
+		RequiredArgs: "org starttimeutc endtimeutc",
+		OptionalArgs: "timezone",
+		ReqData:      &ormapi.GenerateReport{},
+		ReplyData:    &map[string]interface{}{},
+		Comments:     ormapi.GenerateReportComments,
+		Path:         "/auth/report/generatedata",
+	}}
+	AllApis.AddGroup(ReportDataGroup, "Access report data", cmds)
 }

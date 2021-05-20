@@ -31,13 +31,13 @@ func CollectBillingUsage(collectInterval time.Duration) {
 				nextCollectTime = getNextCollectTime(nextCollectTime, collectInterval)
 				continue
 			}
-			controllers, err := ShowControllerObj(ctx, nil)
+			controllers, err := ShowControllerObj(ctx, nil, nil)
 			if err != nil {
 				retryCount := 0
 				for retryCount < retryMax {
 					log.SpanLog(ctx, log.DebugLevelInfo, fmt.Sprintf("Unable to get regions to query influx, retrying in %v", retryInterval), "err", err)
 					time.Sleep(retryInterval)
-					controllers, err = ShowControllerObj(ctx, nil)
+					controllers, err = ShowControllerObj(ctx, nil, nil)
 					if err == nil {
 						break
 					}

@@ -219,7 +219,7 @@ func (e *EdgeEventsHandlerPlugin) SendCloudletStateEdgeEvent(ctx context.Context
 	// Send cloudlet state event to each client on each appinst on the affected cloudlet
 	go func() {
 		e.mux.Lock()
-		e.mux.Unlock()
+		defer e.mux.Unlock()
 		for key, clients := range appinsts.AppInstsMap {
 			for _, clientinfo := range clients.ClientsMap {
 				cloudletStateEdgeEvent := e.createCloudletStateEdgeEvent(ctx, cloudlet, key, clientinfo, usability)
@@ -243,7 +243,7 @@ func (e *EdgeEventsHandlerPlugin) SendCloudletMaintenanceStateEdgeEvent(ctx cont
 	// Send cloudlet state event to each client on each appinst on the affected cloudlet
 	go func() {
 		e.mux.Lock()
-		e.mux.Unlock()
+		defer e.mux.Unlock()
 		for key, clients := range appinsts.AppInstsMap {
 			for _, clientinfo := range clients.ClientsMap {
 				cloudletStateEdgeEvent := e.createCloudletMaintenanceStateEdgeEvent(ctx, cloudlet, key, clientinfo, usability)

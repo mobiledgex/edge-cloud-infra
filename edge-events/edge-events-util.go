@@ -95,8 +95,6 @@ func (e *EdgeEventsHandlerPlugin) addNewCloudletToServerEdgeEvent(ctx context.Co
 
 // Helper function that iterates through map of ServerEdgeEvents and sendFuncs and sends each ServerEdgeEvent to via the correct sendFunc
 func (e *EdgeEventsHandlerPlugin) sendEdgeEventsToClients(m map[*dme.ServerEdgeEvent]func(event *dme.ServerEdgeEvent)) {
-	e.Lock()
-	defer e.Unlock()
 	for edgeEvent, sendFunc := range m {
 		sendFunc(edgeEvent)
 	}

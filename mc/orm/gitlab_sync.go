@@ -101,12 +101,7 @@ func (s *AppStoreSync) syncUsers(ctx context.Context) {
 	}
 }
 
-func (s *AppStoreSync) syncGroups(ctx context.Context) map[string]*ormapi.Organization {
-	orgsT, err := GetAllOrgs(ctx)
-	if err != nil {
-		s.syncErr(ctx, err)
-		return nil
-	}
+func getGitlabGroups(ctx context.Context) (map[string]*gitlab.Group, error) {
 	// get Gitlab groups
 	groupsT := make(map[string]*gitlab.Group)
 	opts := gitlab.ListGroupsOptions{
@@ -115,8 +110,7 @@ func (s *AppStoreSync) syncGroups(ctx context.Context) map[string]*ormapi.Organi
 	for {
 		groups, resp, err := gitlabClient.Groups.ListGroups(&opts)
 		if err != nil {
-			s.syncErr(ctx, err)
-			return orgsT
+			return nil, err
 		}
 		for ii, _ := range groups {
 			groupsT[groups[ii].Name] = groups[ii]
@@ -126,6 +120,21 @@ func (s *AppStoreSync) syncGroups(ctx context.Context) map[string]*ormapi.Organi
 			break
 		}
 		opts.Page = resp.NextPage
+	}
+	return groupsT, nil
+}
+
+func (s *AppStoreSync) syncGroups(ctx context.Context) map[string]*ormapi.Organization {
+	orgsT, err := GetAllOrgs(ctx)
+	if err != nil {
+		s.syncErr(ctx, err)
+		return nil
+	}
+	// get Gitlab groups
+	groupsT, err := getGitlabGroups(ctx)
+	if err != nil {
+		s.syncErr(ctx, err)
+		return orgsT
 	}
 	devOrgsCount := 0
 	for _, org := range orgsT {

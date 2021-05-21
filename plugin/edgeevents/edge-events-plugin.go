@@ -11,7 +11,6 @@ import (
 
 func GetEdgeEventsHandler(ctx context.Context, edgeEventsCookieExpiration time.Duration) (dmecommon.EdgeEventsHandler, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetEdgeEventHandler")
-
 	edgeEventsHandlerPlugin := new(edgeevents.EdgeEventsHandlerPlugin)
 	edgeEventsHandlerPlugin.EdgeEventsCookieExpiration = edgeEventsCookieExpiration
 	return edgeEventsHandlerPlugin, nil

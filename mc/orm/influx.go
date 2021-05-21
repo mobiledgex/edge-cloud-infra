@@ -215,12 +215,6 @@ func (c *InfluxDbConnCache) GetClient(region string) (influxdb.Client, error) {
 	c.RLock()
 	defer c.RUnlock()
 	if client, found := c.clients[region]; found {
-		// Check the liveness of the connection
-		_, _, err := client.Ping(time.Second)
-		if err != nil {
-			client.Close()
-			return nil, err
-		}
 		return client, nil
 	}
 	return nil, fmt.Errorf("Client no found in cache")
@@ -229,6 +223,9 @@ func (c *InfluxDbConnCache) GetClient(region string) (influxdb.Client, error) {
 func (c *InfluxDbConnCache) AddClient(client influxdb.Client, region string) {
 	c.Lock()
 	defer c.Unlock()
+	if oldClient, found := c.clients[region]; found {
+		oldClient.Close()
+	}
 	c.clients[region] = client
 }
 

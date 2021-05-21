@@ -79,12 +79,12 @@ func (e *EdgeEventsHandlerPlugin) addNewCloudletToServerEdgeEvent(ctx context.Co
 	var err error
 	err = dmecommon.FindCloudlet(ctx, &appInstKey.AppKey, clientinfo.carrier, clientinfo.lastLoc, newCloudlet, e.EdgeEventsCookieExpiration)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Current appinst is unusable, but error doing FindCloudlet", "err", err)
-		err = fmt.Errorf("Current appinst is unusable, but error doing FindCloudlet - error is %s", err.Error())
+		log.SpanLog(ctx, log.DebugLevelInfra, "Current appinst is unusable. Unable to find alternate cloudlet", "err", err)
+		err = fmt.Errorf("Current appinst is unusable. Unable to find alternate cloudlet doing FindCloudlet - error is %s", err.Error())
 		newCloudlet = nil
 	} else if newCloudlet.Status != dme.FindCloudletReply_FIND_FOUND {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Current appinst is unusable, but unable to find any cloudlets", "FindStatus", newCloudlet.Status)
-		err = fmt.Errorf("Current appinst is unusable, but unable to find any cloudlets - FindStatus is %s", newCloudlet.Status)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Current appinst is unusable. Unable to find any cloudlets", "FindStatus", newCloudlet.Status)
+		err = fmt.Errorf("Current appinst is unusable. Unable to find any cloudlets doing FindCloudlet - FindStatus is %s", newCloudlet.Status)
 		newCloudlet = nil
 	}
 	if err != nil {
@@ -93,8 +93,17 @@ func (e *EdgeEventsHandlerPlugin) addNewCloudletToServerEdgeEvent(ctx context.Co
 	serverEdgeEvent.NewCloudlet = newCloudlet
 }
 
+// Helper function that iterates through map of ServerEdgeEvents and sendFuncs and sends each ServerEdgeEvent to via the correct sendFunc
+func (e *EdgeEventsHandlerPlugin) sendEdgeEventsToClients(m map[*dme.ServerEdgeEvent]func(event *dme.ServerEdgeEvent)) {
+	e.Lock()
+	defer e.Unlock()
+	for edgeEvent, sendFunc := range m {
+		sendFunc(edgeEvent)
+	}
+}
+
 // Helper function that gets the ClientInfo for the specified Client on the specified AppInst on the specified Cloudlet
-// Must lock e.mux before calling this function
+// Must lock EdgeEventsHandlerPlugin before calling this function
 func (e *EdgeEventsHandlerPlugin) getClientInfo(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) (*ClientInfo, error) {
 	// Get clients on specified appinst on specified cloudlet
 	clients, err := e.getClients(ctx, appInstKey)
@@ -117,7 +126,7 @@ func (e *EdgeEventsHandlerPlugin) getClientInfo(ctx context.Context, appInstKey 
 }
 
 // Helper function that gets the Clients on the specified AppInst on the specified Cloudlet
-// Must lock e.mux before calling this function
+// Must lock EdgeEventsHandlerPlugin before calling this function
 func (e *EdgeEventsHandlerPlugin) getClients(ctx context.Context, appInstKey edgeproto.AppInstKey) (*Clients, error) {
 	// Get appinsts on specified cloudlet
 	appinsts, err := e.getAppInsts(ctx, appInstKey.ClusterInstKey.CloudletKey)
@@ -139,18 +148,62 @@ func (e *EdgeEventsHandlerPlugin) getClients(ctx context.Context, appInstKey edg
 }
 
 // Helper function that gets the AppInsts on the specified Cloudlet
-// Must lock e.mux before calling this function
+// Must lock EdgeEventsHandlerPlugin before calling this function
 func (e *EdgeEventsHandlerPlugin) getAppInsts(ctx context.Context, cloudletKey edgeproto.CloudletKey) (*AppInsts, error) {
 	// Make sure CloudletsMap is initialized
-	if e.CloudletsStruct.CloudletsMap == nil {
+	if e.CloudletsMap == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "cannot get appinsts - CloudletsMap is uninitialized, because no cloudlets are up yet")
 		return nil, fmt.Errorf("cannot get appinsts - CloudletsMap is uninitialized")
 	}
 	// Get appinsts on specified cloudlet
-	appinsts, ok := e.CloudletsStruct.CloudletsMap[cloudletKey]
+	appinsts, ok := e.CloudletsMap[cloudletKey]
 	if !ok {
 		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find cloudlet", "cloudletKey", cloudletKey)
 		return nil, fmt.Errorf("unable to find cloudlet: %v", cloudletKey)
 	}
 	return appinsts, nil
+}
+
+// Helper function that removes ClientKey from clients.ClientsMap
+// Will also remove AppInstKey if clients is empty
+// Will also remove CloudletKey if appinsts is empty
+// Must lock EdgeEventsHandlerPlugin before calling this function
+func (e *EdgeEventsHandlerPlugin) removeClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) {
+	// Get clients on specified appinst
+	clients, err := e.getClients(ctx, appInstKey)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find appinst to remove", "appInstKey", appInstKey, "error", err)
+		return
+	}
+	// Remove specified client
+	client := Client{cookieKey}
+	delete(clients.ClientsMap, client)
+	// If there are no clients on appinst, remove appinst
+	if len(clients.ClientsMap) == 0 {
+		e.removeAppInstKey(ctx, appInstKey)
+	}
+}
+
+// Helper function that removes AppInstKey from appinsts.AppInstsMap
+// Will also remove CloudletKey if appinsts is empty
+// Must lock EdgeEventsHandlerPlugin before calling this function
+func (e *EdgeEventsHandlerPlugin) removeAppInstKey(ctx context.Context, appInstKey edgeproto.AppInstKey) {
+	// Check to see if appinst exists
+	appinsts, err := e.getAppInsts(ctx, appInstKey.ClusterInstKey.CloudletKey)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find appinst to remove", "appInstKey", appInstKey, "error", err)
+		return
+	}
+	// Remove appinst from map of appinsts
+	delete(appinsts.AppInstsMap, appInstKey)
+	if len(appinsts.AppInstsMap) == 0 {
+		e.removeCloudletKey(ctx, appInstKey.ClusterInstKey.CloudletKey)
+	}
+}
+
+// Helper function that removes CloudletKey from Cloudlets.CloudletsMap
+// Must lock EdgeEventsHandlerPlugin before calling this function
+func (e *EdgeEventsHandlerPlugin) removeCloudletKey(ctx context.Context, cloudletKey edgeproto.CloudletKey) {
+	// Remove cloudlet from map of cloudlets
+	delete(e.CloudletsMap, cloudletKey)
 }

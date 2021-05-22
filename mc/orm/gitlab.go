@@ -227,7 +227,7 @@ func gitlabUpdateVisibility(ctx context.Context, org *ormapi.Organization) error
 	// update project
 	approvals := 0
 	opts := gitlab.EditProjectOptions{
-		Name:                 &name,
+		Name:                 &DefaultProjectName,
 		NamespaceID:          &proj.Namespace.ID,
 		ApprovalsBeforeMerge: &approvals,
 		Visibility:           gitlab.Visibility(gitlab.PrivateVisibility),

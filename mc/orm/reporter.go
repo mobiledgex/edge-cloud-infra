@@ -118,7 +118,7 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 }
 
 func getAllRegions(ctx context.Context) ([]string, error) {
-	controllers, err := ShowControllerObj(ctx, nil, nil)
+	controllers, err := ShowControllerObj(ctx, NoUserClaims, NoShowFilter)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get regions: %v", err)
 	}

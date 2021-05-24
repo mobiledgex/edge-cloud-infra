@@ -8,6 +8,8 @@ import (
 	"github.com/labstack/echo"
 )
 
+var NoShowFilter map[string]interface{} = nil
+
 // For show filtering, convert the input json map to a db-name map,
 // to be passed to db.Where(). This allows for searching based on
 // empty values like "" or false, which would be ignored if we
@@ -55,8 +57,9 @@ func bindDbFilter(c echo.Context, refObj interface{}) (map[string]interface{}, e
 		return filter, nil
 	}
 	// input data from client is in JSON format
-	if err := c.Bind(&filter); err != nil {
-		return nil, bindErr(c, err)
+	filter, err := bindMap(c)
+	if err != nil {
+		return nil, err
 	}
 	dbFilter, err := jsonToDbNames(filter, refObj)
 	if err != nil {
@@ -64,6 +67,16 @@ func bindDbFilter(c echo.Context, refObj interface{}) (map[string]interface{}, e
 		return nil, setReply(c, err, nil)
 	}
 	return dbFilter, nil
+}
+
+func bindMap(c echo.Context) (map[string]interface{}, error) {
+	m := make(map[string]interface{})
+	if c.Request().ContentLength > 0 {
+		if err := c.Bind(&m); err != nil {
+			return nil, bindErr(c, err)
+		}
+	}
+	return m, nil
 }
 
 func getFilterString(filter map[string]interface{}, key string) (string, bool) {

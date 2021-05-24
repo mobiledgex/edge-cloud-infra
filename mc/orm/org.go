@@ -418,7 +418,7 @@ func markOrgForDelete(db *gorm.DB, name string, mark bool) (reterr error) {
 }
 
 func orgInUse(ctx context.Context, orgName string) error {
-	ctrls, err := ShowControllerObj(ctx, nil, nil)
+	ctrls, err := ShowControllerObj(ctx, NoUserClaims, NoShowFilter)
 	if err != nil {
 		return err
 	}

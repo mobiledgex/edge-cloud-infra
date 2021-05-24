@@ -177,11 +177,9 @@ func ShowRolePerms(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	filter := make(map[string]interface{})
-	if c.Request().ContentLength > 0 {
-		if err := c.Bind(&filter); err != nil {
-			return bindErr(c, err)
-		}
+	filter, err := bindMap(c)
+	if err != nil {
+		return err
 	}
 
 	policies, err := enforcer.GetPolicy()
@@ -214,11 +212,9 @@ func ShowRoleAssignment(c echo.Context) error {
 	}
 	ctx := GetContext(c)
 
-	filter := make(map[string]interface{})
-	if c.Request().ContentLength > 0 {
-		if err := c.Bind(&filter); err != nil {
-			return bindErr(c, err)
-		}
+	filter, err := bindMap(c)
+	if err != nil {
+		return err
 	}
 	super := false
 	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
@@ -565,11 +561,9 @@ func ShowUserRole(c echo.Context) error {
 	}
 	ctx := GetContext(c)
 
-	filter := make(map[string]interface{})
-	if c.Request().ContentLength > 0 {
-		if err := c.Bind(&filter); err != nil {
-			return bindErr(c, err)
-		}
+	filter, err := bindMap(c)
+	if err != nil {
+		return err
 	}
 	roles, err := ShowUserRoleObj(ctx, claims.Username, filter)
 	return setReply(c, err, roles)

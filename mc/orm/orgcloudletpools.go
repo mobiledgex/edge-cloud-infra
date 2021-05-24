@@ -577,7 +577,7 @@ func showCloudletPoolAccess(c echo.Context, typ string) error {
 	}
 	out, err := showCloudletPoolAccessObj(ctx, claims.Username, filter, typ)
 	if err != nil {
-		return err
+		return setReply(c, err, nil)
 	}
 	return setReply(c, nil, out)
 }

@@ -85,7 +85,7 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	require.Equal(t, "", super.Salt, "empty salt")
 	require.Equal(t, 0, super.Iter, "empty iter")
 
-	roleAssignments, status, err := mcClient.ShowRoleAssignment(uri, token, nil)
+	roleAssignments, status, err := mcClient.ShowRoleAssignment(uri, token, NoShowFilter)
 	require.Nil(t, err, "show roles")
 	require.Equal(t, http.StatusOK, status, "show role status")
 	require.Equal(t, 1, len(roleAssignments), "num role assignments")
@@ -93,7 +93,7 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	require.Equal(t, super.Name, roleAssignments[0].Username)
 
 	// show users - only super user at this point
-	users, status, err := mcClient.ShowUser(uri, token, nil)
+	users, status, err := mcClient.ShowUser(uri, token, NoShowFilter)
 	require.Equal(t, http.StatusOK, status, "show user status")
 	require.Equal(t, 1, len(users))
 	require.Equal(t, DefaultSuperuser, users[0].Name, "super user name")
@@ -101,7 +101,7 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	require.Equal(t, "", users[0].Salt, "empty salt")
 	require.Equal(t, 0, users[0].Iter, "empty iter")
 
-	policies, status, err := mcClient.ShowRolePerm(uri, token, nil)
+	policies, status, err := mcClient.ShowRolePerm(uri, token, NoShowFilter)
 	require.Nil(t, err, "show role perms err")
 	require.Equal(t, http.StatusOK, status, "show role perms status")
 	require.Equal(t, 163, len(policies), "number of role perms")
@@ -331,25 +331,25 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	require.NotNil(t, err, "delete reserved mobiledgex org")
 
 	// check org membership as mister x
-	orgs, status, err := mcClient.ShowOrg(uri, tokenMisterX, nil)
+	orgs, status, err := mcClient.ShowOrg(uri, tokenMisterX, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(orgs))
 	require.Equal(t, org1.Name, orgs[0].Name)
 	require.Equal(t, org1.Type, orgs[0].Type)
 	// check org membership as mister y
-	orgs, status, err = mcClient.ShowOrg(uri, tokenMisterY, nil)
+	orgs, status, err = mcClient.ShowOrg(uri, tokenMisterY, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(orgs))
 	require.Equal(t, org2.Name, orgs[0].Name)
 	require.Equal(t, org2.Type, orgs[0].Type)
 	// super user should be able to show all orgs
-	orgs, status, err = mcClient.ShowOrg(uri, token, nil)
+	orgs, status, err = mcClient.ShowOrg(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 3, len(orgs))
-	orgs, status, err = mcClient.ShowOrg(uri, tokenAdmin, nil)
+	orgs, status, err = mcClient.ShowOrg(uri, tokenAdmin, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 3, len(orgs))
@@ -386,23 +386,23 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	testUpdateOrgFail(t, mcClient, uri, tokenMisterY, org1.Name)
 
 	// check role assignments as mister x
-	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterX, nil)
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterX, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(roleAssignments))
 	require.Equal(t, user1.Name, roleAssignments[0].Username)
 	// check role assignments as mister y
-	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterY, nil)
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterY, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(roleAssignments))
 	require.Equal(t, user2.Name, roleAssignments[0].Username)
 	// super user should be able to see all role assignments
-	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, token, nil)
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 5, len(roleAssignments))
-	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenAdmin, nil)
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenAdmin, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 5, len(roleAssignments))
@@ -459,11 +459,11 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	require.Equal(t, 1, len(users))
 	require.Equal(t, user2.Name, users[0].Name)
 	// super user can see all users with org = ""
-	users, status, err = mcClient.ShowUser(uri, token, nil)
+	users, status, err = mcClient.ShowUser(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 4, len(users))
-	users, status, err = mcClient.ShowUser(uri, tokenAdmin, nil)
+	users, status, err = mcClient.ShowUser(uri, tokenAdmin, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 4, len(users))
@@ -643,12 +643,12 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	require.Equal(t, http.StatusOK, status)
 
 	// check orgs are gone
-	orgs, status, err = mcClient.ShowOrg(uri, token, nil)
+	orgs, status, err = mcClient.ShowOrg(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(orgs))
 	// check users are gone
-	users, status, err = mcClient.ShowUser(uri, token, nil)
+	users, status, err = mcClient.ShowUser(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(users))

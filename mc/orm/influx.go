@@ -238,6 +238,14 @@ func (c *InfluxDbConnCache) DeleteClient(region string) {
 	delete(c.clients, region)
 }
 
+func (c *InfluxDbConnCache) CloseIdleConnections(region string) {
+	c.Lock()
+	defer c.Unlock()
+	if client, found := c.clients[region]; found {
+		client.Close()
+	}
+}
+
 func init() {
 	devInfluxDBTemplate = template.Must(template.New("influxquery").Parse(devInfluxDBT))
 	operatorInfluxDBTemplate = template.Must(template.New("influxquery").Parse(operatorInfluxDBT))
@@ -398,8 +406,8 @@ func influxStream(ctx context.Context, rc *InfluxDBContext, databases []string, 
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "InfluxDB query failed",
 				"query", query, "resp", resp, "err", err)
-			// If the query failed, reset the client just in case
-			influxDbConnCache.DeleteClient(rc.region)
+			// If the query failed, clean up idle connections
+			influxDbConnCache.CloseIdleConnections(rc.region)
 			// We return a different error, as we don't want to expose a URL-encoded query to influxDB
 			return fmt.Errorf("Connection to InfluxDB failed")
 		}

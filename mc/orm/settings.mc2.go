@@ -27,11 +27,6 @@ var _ = math.Inf
 
 func UpdateSettings(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -84,11 +79,6 @@ func UpdateSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Se
 
 func ResetSettings(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -141,11 +131,6 @@ func ResetSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Set
 
 func ShowSettings(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

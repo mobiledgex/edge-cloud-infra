@@ -27,11 +27,6 @@ var _ = math.Inf
 
 func EnableDebugLevels(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -114,11 +109,6 @@ func EnableDebugLevelsObj(ctx context.Context, rc *RegionContext, obj *edgeproto
 
 func DisableDebugLevels(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -201,11 +191,6 @@ func DisableDebugLevelsObj(ctx context.Context, rc *RegionContext, obj *edgeprot
 
 func ShowDebugLevels(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -285,11 +270,6 @@ func ShowDebugLevelsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.D
 
 func RunDebug(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

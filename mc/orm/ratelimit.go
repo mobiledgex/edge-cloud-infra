@@ -45,19 +45,35 @@ const (
 	ShowUsage
 )
 
+// Let controller reject, MC will "leak" requests to controller at reasonable rate
+var DefaultMcControllerApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
+	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
+		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
+			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_LEAKY_BUCKET_ALGORITHM,
+			ReqsPerSecond: 25,
+		},
+	},
+	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
+		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
+			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_LEAKY_BUCKET_ALGORITHM,
+			ReqsPerSecond: 5,
+		},
+	},
+}
+
 var DefaultNoAuthMcApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
 	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 2,
-			BurstSize:     1,
+			ReqsPerSecond: 50,
+			BurstSize:     10,
 		},
 	},
 	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 1,
-			BurstSize:     1,
+			ReqsPerSecond: 10,
+			BurstSize:     2,
 		},
 	},
 }
@@ -66,15 +82,15 @@ var DefaultMcCreateApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimi
 	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 5,
-			BurstSize:     1,
+			ReqsPerSecond: 200,
+			BurstSize:     25,
 		},
 	},
 	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 1,
-			BurstSize:     1,
+			ReqsPerSecond: 50,
+			BurstSize:     5,
 		},
 	},
 }
@@ -83,15 +99,15 @@ var DefaultMcDeleteApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimi
 	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 5,
-			BurstSize:     1,
+			ReqsPerSecond: 200,
+			BurstSize:     25,
 		},
 	},
 	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 1,
-			BurstSize:     1,
+			ReqsPerSecond: 50,
+			BurstSize:     5,
 		},
 	},
 }
@@ -100,15 +116,15 @@ var DefaultMcUpdateApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimi
 	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 5,
-			BurstSize:     1,
+			ReqsPerSecond: 200,
+			BurstSize:     25,
 		},
 	},
 	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 1,
-			BurstSize:     1,
+			ReqsPerSecond: 50,
+			BurstSize:     5,
 		},
 	},
 }
@@ -117,15 +133,15 @@ var DefaultMcDefaultApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLim
 	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 5,
-			BurstSize:     1,
+			ReqsPerSecond: 200,
+			BurstSize:     25,
 		},
 	},
 	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 1,
-			BurstSize:     1,
+			ReqsPerSecond: 50,
+			BurstSize:     5,
 		},
 	},
 }
@@ -134,15 +150,15 @@ var DefaultMcShowApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitS
 	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 10,
-			BurstSize:     3,
+			ReqsPerSecond: 300,
+			BurstSize:     25,
 		},
 	},
 	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 1,
-			BurstSize:     1,
+			ReqsPerSecond: 50,
+			BurstSize:     5,
 		},
 	},
 }
@@ -151,15 +167,15 @@ var DefaultMcShowMetricsApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRat
 	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 5,
-			BurstSize:     1,
+			ReqsPerSecond: 200,
+			BurstSize:     25,
 		},
 	},
 	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 1,
-			BurstSize:     1,
+			ReqsPerSecond: 50,
+			BurstSize:     5,
 		},
 	},
 }
@@ -168,32 +184,15 @@ var DefaultMcShowUsageApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateL
 	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 5,
-			BurstSize:     1,
+			ReqsPerSecond: 200,
+			BurstSize:     25,
 		},
 	},
 	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
 		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 1,
-			BurstSize:     1,
-		},
-	},
-}
-
-var TestMcApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 100,
-			BurstSize:     100,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 100,
-			BurstSize:     100,
+			ReqsPerSecond: 50,
+			BurstSize:     5,
 		},
 	},
 }
@@ -237,8 +236,6 @@ func RateLimit(next echo.HandlerFunc) echo.HandlerFunc {
 			return echo.NewHTTPError(http.StatusTooManyRequests, errMsg)
 
 		}
-		c = NewEchoContext(c, ctx)
-		log.DebugLog(log.DebugLevelInfo, "BLAH: new echo context", "c", c, "c.ctx", GetContext(c))
 		return next(c)
 	}
 }

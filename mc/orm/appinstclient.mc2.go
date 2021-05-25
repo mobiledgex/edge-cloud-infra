@@ -28,11 +28,6 @@ var _ = math.Inf
 
 func ShowAppInstClient(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

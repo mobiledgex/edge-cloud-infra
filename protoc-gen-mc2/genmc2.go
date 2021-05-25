@@ -44,7 +44,6 @@ type GenMC2 struct {
 	importStrings      bool
 	importLog          bool
 	importCli          bool
-	//importRateLimit    bool
 }
 
 func (g *GenMC2) Name() string {
@@ -110,9 +109,6 @@ func (g *GenMC2) GenerateImports(file *generator.FileDescriptor) {
 	if g.importGrpcStatus {
 		g.PrintImport("", "google.golang.org/grpc/status")
 	}
-	/*if g.importRateLimit {
-		g.PrintImport("", "github.com/mobiledgex/edge-cloud/cloudcommon/ratelimit")
-	}*/
 }
 
 type ServiceProps struct {
@@ -256,7 +252,9 @@ func (g *GenMC2) generatePosts() {
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
 
-				if strings.Contains(*method.Name, "Create") {
+				g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Default)")
+
+				/*if strings.Contains(*method.Name, "Create") {
 					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Create)")
 				} else if strings.Contains(*method.Name, "Delete") {
 					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Delete)")
@@ -266,7 +264,7 @@ func (g *GenMC2) generatePosts() {
 					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Update)")
 				} else {
 					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Default)")
-				}
+				}*/
 			}
 		}
 	}
@@ -529,11 +527,6 @@ type Region{{.InName}} struct {
 var tmpl = `
 func {{.MethodName}}(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

@@ -26,11 +26,6 @@ var _ = math.Inf
 
 func RunCommand(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -84,11 +79,6 @@ func RunCommandObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ExecRe
 
 func RunConsole(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -142,11 +132,6 @@ func RunConsoleObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ExecRe
 
 func ShowLogs(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -197,11 +182,6 @@ func ShowLogsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ExecRequ
 
 func AccessCloudlet(c echo.Context) error {
 	ctx := GetContext(c)
-
-	//rl := &ratelimit.LimiterInfo{RateLimited: true}
-	//ctx = ratelimit.NewLimiterInfoContext(ctx, rl)
-	log.DebugLog(log.DebugLevelInfo, "BLAH: context in tmpl", "ctx", ctx)
-
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {

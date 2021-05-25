@@ -711,8 +711,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	createAuthMcApi(auth, authPrefix, "/reporter/update", UpdateReporter, Update)
 	createAuthMcApi(auth, authPrefix, "/reporter/delete", DeleteReporter, Delete)
 	createAuthMcApi(auth, authPrefix, "/reporter/show", ShowReporter, Show)
-  createAuthMcApi(auth, authPrefix, "/report/generatedata", GenerateReportData, Default)	
-  createAuthMcApi(auth, authPrefix, "/report/generate", GenerateReport, Default)
+	createAuthMcApi(auth, authPrefix, "/report/generatedata", GenerateReportData, Default)
+	createAuthMcApi(auth, authPrefix, "/report/generate", GenerateReport, Default)
 	createAuthMcApi(auth, authPrefix, "/report/show", ShowReport, Show)
 	createAuthMcApi(auth, authPrefix, "/report/download", DownloadReport, Default)
 
@@ -1091,48 +1091,35 @@ func addApiRateLimit(prefix string, path string, apiAuthType ApiAuthType, apiTyp
 	log.DebugLog(log.DebugLevelInfo, "BLAH: mc api", "method", methodName, "authtype", apiAuthType, "actiontype", apiActionType)
 
 	var rateLimitSettings *edgeproto.ApiEndpointRateLimitSettings
-	if apiAuthType == Auth {
-		switch apiActionType {
-		case Create:
-			if apiType == Controller {
-				rateLimitSettings = edgeproto.DefaultControllerCreateApiEndpointRateLimitSettings
-			} else {
-				rateLimitSettings = DefaultMcCreateApiEndpointRateLimitSettings
-			}
-		case Delete:
-			if apiType == Controller {
-				rateLimitSettings = edgeproto.DefaultControllerDeleteApiEndpointRateLimitSettings
-			} else {
-				rateLimitSettings = DefaultMcDeleteApiEndpointRateLimitSettings
-			}
-		case Show:
-			if apiType == Controller {
-				rateLimitSettings = edgeproto.DefaultControllerShowApiEndpointRateLimitSettings
-			} else {
-				rateLimitSettings = DefaultMcShowApiEndpointRateLimitSettings
-			}
-		case Update:
-			if apiType == Controller {
-				rateLimitSettings = edgeproto.DefaultControllerUpdateApiEndpointRateLimitSettings
-			} else {
-				rateLimitSettings = DefaultMcUpdateApiEndpointRateLimitSettings
-			}
-		case ShowMetrics:
-			rateLimitSettings = DefaultMcShowMetricsApiEndpointRateLimitSettings
-		case ShowUsage:
-			rateLimitSettings = DefaultMcShowUsageApiEndpointRateLimitSettings
-		case Default:
-			fallthrough
-		default:
-			if apiType == Controller {
-				rateLimitSettings = edgeproto.DefaultControllerDefaultApiEndpointRateLimitSettings
-			} else {
-				rateLimitSettings = DefaultMcDefaultApiEndpointRateLimitSettings
-			}
-		}
+	if apiType == Controller {
+		rateLimitSettings = DefaultMcControllerApiEndpointRateLimitSettings
 	} else {
-		rateLimitSettings = DefaultNoAuthMcApiEndpointRateLimitSettings
+		if apiAuthType == Auth {
+			switch apiActionType {
+			case Create:
+				rateLimitSettings = DefaultMcCreateApiEndpointRateLimitSettings
+			case Delete:
+				rateLimitSettings = DefaultMcDeleteApiEndpointRateLimitSettings
+			case Show:
+				rateLimitSettings = DefaultMcShowApiEndpointRateLimitSettings
+			case Update:
+				rateLimitSettings = DefaultMcUpdateApiEndpointRateLimitSettings
+			case ShowMetrics:
+				rateLimitSettings = DefaultMcShowMetricsApiEndpointRateLimitSettings
+			case ShowUsage:
+				rateLimitSettings = DefaultMcShowUsageApiEndpointRateLimitSettings
+			case Default:
+				fallthrough
+			default:
+				if apiType == Controller {
+					rateLimitSettings = edgeproto.DefaultControllerDefaultApiEndpointRateLimitSettings
+				} else {
+					rateLimitSettings = DefaultMcDefaultApiEndpointRateLimitSettings
+				}
+			}
+		} else {
+			rateLimitSettings = DefaultNoAuthMcApiEndpointRateLimitSettings
+		}
 	}
-	rateLimitSettings = TestMcApiEndpointRateLimitSettings
 	rateLimitMgr.AddRateLimitPerApi(methodName, rateLimitSettings)
 }

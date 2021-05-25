@@ -22,6 +22,29 @@ import (
 // TODO: currently VCD assumes 10.101.x.x.  We should tweak to use the netplan value so we can have different cloudlets on one vcd
 var mexInternalNetRange = "10.101"
 
+// Use MEX_NETWORK_SCHEME to derive sharedLB orgvdcnet cidr for this cloudlet
+
+func (v *VcdPlatform) getMexInternalNetRange(ctx context.Context) (string, error) {
+	baseCidr := v.GetNetworkScheme()
+	// cidr=10.102.X.0/24
+	parts := strings.Split(baseCidr, "=")
+	if len(parts) == 2 {
+		baseCidr = string(parts[1])
+	}
+	baseCidr = strings.Replace(baseCidr, "X", "1", 1)
+	addr, _, err := net.ParseCIDR(baseCidr)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange ParseCIDR  failed", "baseCidr", baseCidr, "error", err)
+		return "", err
+	}
+	octet2, err := Octet(ctx, addr.String(), 1)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange Octet failed", "baseCidr", err)
+		return "", err
+	}
+	return "10." + strconv.Itoa(octet2), nil
+}
+
 var CloudletIsoNamesMap = "CloudletIsoNamesMap"
 
 func (v *VcdPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
@@ -436,7 +459,7 @@ func IncrIP(ctx context.Context, a string, delta int) (string, error) {
 	}
 	ip = ip.To4()
 	if ip == nil {
-		return "", fmt.Errorf("%s failed to parse as IP", a)
+		return "", fmt.Errorf("%s failed to parse as v4 IP", a)
 	}
 	ip[3] += byte(delta)
 	// we know a is a good IP
@@ -480,6 +503,7 @@ func Octet(ctx context.Context, a string, n int) (int, error) {
 
 	ip := net.ParseIP(addr)
 	if ip == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Octet ParseIP return nil for ", "addr", addr)
 		return 0, fmt.Errorf("%s failed to parse as IP", a)
 	}
 	ip = ip.To4()
@@ -750,14 +774,11 @@ func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string
 	// look at the free list and use that if available
 	if len(v.FreeIsoNets) > 0 {
 		cidr := v.getAvailableIsoNetwork(ctx)
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetNetInternalSubnet  FreeNets available reusing", "net", cidr)
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet  FreeNets available reusing", "net", cidr)
 		return cidr, true, nil
 	}
-
-	// use schema xxx
-	startAddr := "10.101.1.1"
-	// We'll incr the netSpec.DelimiterOctet of this start addr, if it's not in our
-	// All VApps map, it's available
+	startAddr := mexInternalNetRange + ".1.1"
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet using", "startAddr", startAddr)
 	curAddr := startAddr
 	vappMap, err := v.GetVappToNetworkMap(ctx, vcdClient)
 	if err != nil {
@@ -1050,6 +1071,9 @@ func (v *VcdPlatform) GetVappIsoNetwork(ctx context.Context, vdc *govcd.Vdc, vap
 // on (re)start attempt to rebuild the free isolated networks and name mapping.
 // On cloudlet create, if any of these isonets are in existance, (nsx-t)
 // they will be placed on the free list and reused.
+// With multi-cloudlets/vdc, any n+n cloudlet will 'see' the vdc global
+// shared orgvdcnets of all other cloudlets. Filter these using mexInternalNetRange
+
 func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 	cleanup := v.GetCleanupOrphanedNetworks()
 	log.SpanLog(ctx, log.DebugLevelInfra, "RebuildIsoNamesMap", "cleanup", cleanup, "NSX Type", v.GetNsxType())
@@ -1069,7 +1093,7 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 
 	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DetachPortFromServer unable to retrieve current vdc", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "RebuildIsoNamesAndFreeMaps unable to retrieve current vdc", "err", err)
 		return err
 	}
 
@@ -1092,8 +1116,8 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Mex internal OrgVDCNetwork", "name", ref.Name, "nntype", nn.OrgVDCNetwork.Type)
 				orgNets[ref.Name] = true
 			} else {
-				// in multi vdc case this could happen
-				log.SpanLog(ctx, log.DebugLevelInfra, "OrgVDCNetwork is not a mex int net", "name", ref.Name, "nntype", ref.Type)
+				// in multi vdc case this happens if other cloudlets use sharedLBs
+				log.SpanLog(ctx, log.DebugLevelInfra, "OrgVDCNetwork is not this cloudlets to reuse", "name", ref.Name, "nntype", ref.Type)
 			}
 		}
 	}
@@ -1130,7 +1154,7 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 					log.SpanLog(ctx, log.DebugLevelInfra, "found nic connected to none network, pruning", "nc", nc.IPAddress)
 					validNetwork = false
 				} else if !strings.HasPrefix(nc.Network, mexInternalNetRange) {
-					log.SpanLog(ctx, log.DebugLevelInfra, "network is not an mex internal network, not prunable")
+					log.SpanLog(ctx, log.DebugLevelInfra, "network is not this cloudlets internal network, not prunable")
 				} else {
 					if nc.IsConnected == false {
 						log.SpanLog(ctx, log.DebugLevelInfra, "found disconnected internal rootlb net, pruning", "nc", nc.IPAddress)
@@ -1285,7 +1309,7 @@ func (v *VcdPlatform) getVappToSubnetMap(ctx context.Context, vdc *govcd.Vdc, vc
 						continue
 					}
 					if !strings.HasPrefix(net.OrgVDCNetwork.Name, mexInternalNetRange) {
-						log.SpanLog(ctx, log.DebugLevelInfra, "Skipping network not in internal range", "netname", net.OrgVDCNetwork.Name)
+						log.SpanLog(ctx, log.DebugLevelInfra, "Skipping network not in cloudlets internal range", "netname", net.OrgVDCNetwork.Name)
 						continue
 					}
 					mexSubnetName := v.vappNameToInternalSubnet(ctx, vapp.VApp.Name)

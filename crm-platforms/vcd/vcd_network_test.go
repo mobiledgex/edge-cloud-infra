@@ -3,6 +3,8 @@ package vcd
 import (
 	"context"
 	"fmt"
+	"net"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -839,4 +841,41 @@ func TestGetCidr(t *testing.T) {
 	cidr, _ = MaskToCidr(mask)
 	require.Equal(t, "27", cidr)
 
+}
+
+func TestOctet(t *testing.T) {
+	live, ctx, err := InitVcdTestEnv()
+	require.Nil(t, err, "InitVcdTestEnv")
+	defer testVcdClient.Disconnect()
+	if live {
+		// cidr=10.102.X.0/24
+		baseCidr := tv.GetNetworkScheme()
+		fmt.Printf("scheme %s\n", baseCidr)
+		parts := strings.Split(baseCidr, "=")
+		if len(parts) == 2 {
+			baseCidr = string(parts[1])
+			fmt.Printf("now %s\n", baseCidr)
+		}
+
+		baseCidr = strings.Replace(baseCidr, "X", "1", 1)
+		a, _, e := net.ParseCIDR(baseCidr)
+		if e != nil {
+			fmt.Printf("error parsing CIDR: %s\n", e.Error())
+			return
+		}
+		oct, err := Octet(ctx, a.String(), 1)
+		if err != nil {
+			fmt.Printf("Octet failed: %s\n", err.Error())
+			return
+		}
+		fmt.Printf("2 octet: %d\n", oct)
+		interNetRange := "10." + strconv.Itoa(oct)
+		fmt.Printf("interNetRnage = %s\n", interNetRange)
+
+		startAddr, err := IncrIP(ctx, a.String() /*startAddr,*/, 1)
+		if err != nil {
+			fmt.Printf("IncrIP failed: %s\n", err.Error())
+		}
+		fmt.Printf("startAddr now %s\n", startAddr)
+	}
 }

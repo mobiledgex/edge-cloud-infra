@@ -254,6 +254,7 @@ func updateOrg(c echo.Context, updateType UpdateType) error {
 	}
 	oldType := org.Type
 	oldEdgeboxOnly := org.EdgeboxOnly
+	oldPublicImages := org.PublicImages
 
 	if updateType == AdminUpdate {
 		// Only admin user allowed to update org data.
@@ -277,6 +278,12 @@ func updateOrg(c echo.Context, updateType UpdateType) error {
 	if org.EdgeboxOnly != oldEdgeboxOnly && updateType != AdminUpdate {
 		return c.JSON(http.StatusBadRequest, Msg("Cannot update edgeboxonly field for Organization"))
 	}
+	if org.PublicImages != oldPublicImages {
+		err := gitlabUpdateVisibility(ctx, &org)
+		if err != nil {
+			return err
+		}
+	}
 
 	err = db.Save(&org).Error
 	if err != nil {
@@ -292,43 +299,48 @@ func ShowOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	orgs, err := ShowOrgObj(ctx, claims)
+	filter, err := bindDbFilter(c, &ormapi.Organization{})
+	if err != nil {
+		return err
+	}
+	orgs, err := ShowOrgObj(ctx, claims, filter)
 	return setReply(c, err, orgs)
 }
 
-func ShowOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Organization, error) {
+func ShowOrgObj(ctx context.Context, claims *UserClaims, filter map[string]interface{}) ([]ormapi.Organization, error) {
 	orgs := []ormapi.Organization{}
 	db := loggedDB(ctx)
-	err := authorized(ctx, claims.Username, "", ResourceUsers, ActionView)
+	err := db.Where(filter).Find(&orgs).Error
+	if err != nil {
+		return nil, dbErr(err)
+	}
+	err = authorized(ctx, claims.Username, "", ResourceUsers, ActionView)
 	if err == nil {
 		// super user, show all orgs
-		err := db.Find(&orgs).Error
-		if err != nil {
-			return nil, dbErr(err)
+		return orgs, nil
+	}
+	// show orgs for current user
+	authOrgs := make(map[string]struct{})
+	groupings, err := enforcer.GetGroupingPolicy()
+	if err != nil {
+		return nil, dbErr(err)
+	}
+	for _, grp := range groupings {
+		if len(grp) < 2 {
+			continue
 		}
-	} else {
-		// show orgs for current user
-		groupings, err := enforcer.GetGroupingPolicy()
-		if err != nil {
-			return nil, dbErr(err)
-		}
-		for _, grp := range groupings {
-			if len(grp) < 2 {
-				continue
-			}
-			orguser := strings.Split(grp[0], "::")
-			if len(orguser) > 1 && orguser[1] == claims.Username {
-				org := ormapi.Organization{}
-				org.Name = orguser[0]
-				err := db.Where(&org).First(&org).Error
-				if err != nil {
-					return nil, dbErr(err)
-				}
-				orgs = append(orgs, org)
-			}
+		orguser := strings.Split(grp[0], "::")
+		if len(orguser) > 1 && orguser[1] == claims.Username {
+			authOrgs[orguser[0]] = struct{}{}
 		}
 	}
-	return orgs, nil
+	allowedOrgs := []ormapi.Organization{}
+	for _, org := range orgs {
+		if _, ok := authOrgs[org.Name]; ok {
+			allowedOrgs = append(allowedOrgs, org)
+		}
+	}
+	return allowedOrgs, nil
 }
 
 func GetAllOrgs(ctx context.Context) (map[string]*ormapi.Organization, error) {
@@ -413,7 +425,7 @@ func markOrgForDelete(db *gorm.DB, name string, mark bool) (reterr error) {
 }
 
 func orgInUse(ctx context.Context, orgName string) error {
-	ctrls, err := ShowControllerObj(ctx, nil)
+	ctrls, err := ShowControllerObj(ctx, NoUserClaims, NoShowFilter)
 	if err != nil {
 		return err
 	}

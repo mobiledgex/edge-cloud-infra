@@ -155,6 +155,8 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 	}
 
 	filesToCleanup := []string{}
+	filesToUpload := []string{}
+
 	defer func() {
 		for _, file := range filesToCleanup {
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete file", "file", file)
@@ -193,6 +195,7 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 			if err != nil {
 				return err
 			}
+			filesToUpload = append(filesToUpload, vmdkFile)
 		}
 
 		filenameNoExtension := strings.TrimSuffix(vmdkFile, filepath.Ext(vmdkFile))
@@ -213,9 +216,10 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 		if err != nil {
 			return fmt.Errorf("unable to write OVF file %s: %s", ovfFile, err.Error())
 		}
+		filesToUpload = append(filesToUpload, ovfFile)
 
 		updateCallback(edgeproto.UpdateTask, "Uploading OVF to Artifactory")
-		for _, f := range filesToCleanup {
+		for _, f := range filesToUpload {
 			artifactoryPathMinusFile = u.Scheme + "://" + u.Host + strings.Join(ps[:len(ps)-1], "/") + "/"
 			uploadPath := artifactoryPathMinusFile + filepath.Base(f)
 			log.SpanLog(ctx, log.DebugLevelInfra, "Uploading OVF to Artifactory", "uploadPath", uploadPath)
@@ -223,8 +227,19 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 			if err != nil {
 				return fmt.Errorf("unable to open file: %s for upload - %v", f, err)
 			}
-			body := bufio.NewReader(file)
+			fi, err := file.Stat()
+			if err != nil {
+				return fmt.Errorf("Could not stat file: %s - %v", f, err)
+			}
 			reqConfig := cloudcommon.RequestConfig{}
+			size := fi.Size()
+			timeout := cloudcommon.GetTimeout(int(size))
+			if timeout > 0 {
+				reqConfig.Timeout = timeout
+				reqConfig.ResponseHeaderTimeout = timeout
+				log.SpanLog(ctx, log.DebugLevelApi, "increased upload timeout", "file", f, "timeout", timeout.String())
+			}
+			body := bufio.NewReader(file)
 			reqConfig.Headers = make(map[string]string)
 			reqConfig.Headers["Content-Type"] = "application/octet-stream"
 			resp, err := cloudcommon.SendHTTPReq(ctx, "PUT", uploadPath, v.vmProperties.CommonPf.PlatformConfig.AccessApi, &reqConfig, body)

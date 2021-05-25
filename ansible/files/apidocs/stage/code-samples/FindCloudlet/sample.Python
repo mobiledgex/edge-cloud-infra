@@ -1,7 +1,7 @@
 import json
 import requests
 
-matching_engine = "https://eu-mexdemo.dme.mobiledgex.net:38001"
+matching_engine = "https://eu-stage.dme.mobiledgex.net:38001"
 
 register_response = requests.post(
     matching_engine + "/v1/registerclient",

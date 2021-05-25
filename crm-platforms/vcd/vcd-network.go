@@ -27,10 +27,6 @@ var mexInternalNetRange = "10.101"
 func (v *VcdPlatform) getMexInternalNetRange(ctx context.Context) (string, error) {
 	baseCidr := v.GetNetworkScheme()
 	// cidr=10.102.X.0/24
-	parts := strings.Split(baseCidr, "=")
-	if len(parts) == 2 {
-		baseCidr = string(parts[1])
-	}
 	baseCidr = strings.Replace(baseCidr, "X", "1", 1)
 	addr, _, err := net.ParseCIDR(baseCidr)
 	if err != nil {

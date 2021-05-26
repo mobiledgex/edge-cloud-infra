@@ -279,16 +279,12 @@ func errorHandler(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		// All error handling is done here. We do not rely on
 		// echo's default error handler, which basically just calls
-		// c.JSON(), so this function always returns nil.
-		// Here is where we break the idiomatic go error handling and
-		// inject the error into the response, instead of passing it
-		// to the caller to handle.
+		// c.JSON(). We still pass the error up, but that's just
+		// so it can go into the audit log.
 		err := next(c)
 		if err == nil {
 			return nil
 		}
-		ctx := GetContext(c)
-
 		code, res := getErrorResult(err)
 
 		// write error to response/stream
@@ -309,6 +305,7 @@ func errorHandler(next echo.HandlerFunc) echo.HandlerFunc {
 			writeErr = c.JSON(code, res)
 		}
 		if writeErr != nil {
+			ctx := GetContext(c)
 			log.SpanLog(ctx, log.DebugLevelApi, "Failed to write error to response", "err", err, "writeError", writeErr)
 		}
 		return err

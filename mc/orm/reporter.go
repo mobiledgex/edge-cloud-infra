@@ -870,6 +870,9 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 							continue
 						}
 						resName := row.Columns[resIndex]
+						if resDesc, ok := cloudcommon.ResourceMetricsDesc[resName]; ok {
+							resName = resDesc
+						}
 						if _, ok := chartMap[cloudlet][resName]; !ok {
 							chartMap[cloudlet][resName] = []TimeChartData{TimeChartData{}}
 						}
@@ -1510,7 +1513,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 
 			// Get top flavors used per Cloudlet
 			if data, ok := flavorData[cloudletName]; ok {
-				err = pdfReport.AddPieChart(cloudletName, "Flavors Used", data)
+				err = pdfReport.AddPieChart(cloudletName, "Flavor Usage Count", data)
 				if err != nil {
 					return nil, err
 				}

@@ -95,7 +95,7 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 	}
 	applyUpdate := false
 	if !newDate.IsZero() {
-		updateReporter.NextScheduleDateUTC = newDate
+		updateReporter.NextScheduleDate = newDate
 		updateReporter.Status = "success"
 		applyUpdate = true
 	}
@@ -179,7 +179,7 @@ func GenerateReports() {
 			//   check if report time matches schedule date
 			//      * get start & end date from schedule date & schedule interval
 			//      * verify it reportTime
-			if ormapi.DateCmpUTC(reporter.NextScheduleDateUTC, time.Now().UTC()) > 0 {
+			if ormapi.DateCmp(reporter.NextScheduleDate, time.Now()) > 0 {
 				// not scheduled to generate report
 				continue
 			}
@@ -188,15 +188,14 @@ func GenerateReports() {
 				log.SpanLog(ctx, log.DebugLevelInfo, "failed to get day/month count for report schedule", "err", err)
 				continue
 			}
-			StartTimeUTC := ormapi.StripTimeUTC(reporter.NextScheduleDateUTC.AddDate(0, -monthCount, -dayCount))
-			EndTimeUTC := ormapi.StripTimeUTC(reporter.NextScheduleDateUTC)
+			StartTime := ormapi.StripTime(reporter.NextScheduleDate.AddDate(0, -monthCount, -dayCount))
+			EndTime := ormapi.StripTime(reporter.NextScheduleDate).Add(-1 * time.Second)
 
 			// generate report in a separate thread
 			genReport := ormapi.GenerateReport{
-				Org:          reporter.Org,
-				StartTimeUTC: StartTimeUTC,
-				EndTimeUTC:   EndTimeUTC,
-				Timezone:     reporter.Timezone,
+				Org:       reporter.Org,
+				StartTime: StartTime,
+				EndTime:   EndTime,
 			}
 			wg.Add(1)
 			go func(inReporter ormapi.Reporter, genReport ormapi.GenerateReport, wg *sync.WaitGroup) {
@@ -234,7 +233,7 @@ func GenerateReports() {
 					errStrs = append(errStrs, fmt.Sprintf("Failed to send report to configured email: %v", err))
 				}
 				// Update next schedule date
-				newDate := ormapi.StripTimeUTC(genReport.EndTimeUTC.AddDate(0, monthCount, dayCount))
+				newDate := ormapi.StripTime(genReport.EndTime.AddDate(0, monthCount, dayCount))
 				updateReporterData(ctx, inReporter.Name, genReport.Org, newDate, errStrs)
 			}(reporter, genReport, &wg)
 		}
@@ -267,13 +266,20 @@ func triggerReporter() {
 	}
 }
 
-func validScheduleDate(scheduleDate time.Time) error {
-	if ormapi.DateCmpUTC(scheduleDate, time.Now().UTC()) < 0 {
+func validScheduleDate(scheduleDate time.Time, schedule edgeproto.ReportSchedule) error {
+	if ormapi.DateCmp(scheduleDate, time.Now()) < 0 {
 		return fmt.Errorf("Schedule date must not be historical date")
 	}
-	if !ormapi.IsUTCTimezone(scheduleDate) {
-		return fmt.Errorf("Schedule date must be in UTC timezone")
+	if schedule == edgeproto.ReportSchedule_EveryMonth {
+		// if reporter is scheduled for EveryMonth, then ensure
+		// that start schedule day is <= 28, so that we have consistent
+		// next schedule day
+		if scheduleDate.Day() > 28 {
+			return fmt.Errorf("For reporter schedule 'EveryMonth', StartScheduleDate's day " +
+				"should be less than 28 so that we have consistent schedule period")
+		}
 	}
+
 	return nil
 }
 
@@ -324,39 +330,34 @@ func CreateReporter(c echo.Context) error {
 	}
 	// validate report schedule
 	if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
-		return setReply(c, fmt.Errorf("invalid schedule"), nil)
+		return setReply(c, fmt.Errorf("Invalid reporter schedule"), nil)
 	}
-	// StartScheduleDateUTC defaults to now
-	if reporter.StartScheduleDateUTC.IsZero() {
-		reporter.StartScheduleDateUTC = time.Now().UTC()
+	// StartScheduleDate defaults to now
+	if reporter.StartScheduleDate.IsZero() {
+		reporter.StartScheduleDate = time.Now()
 	} else {
-		if err := validScheduleDate(reporter.StartScheduleDateUTC); err != nil {
+		if err := validScheduleDate(reporter.StartScheduleDate, reporter.Schedule); err != nil {
 			return setReply(c, err, nil)
 		}
 	}
 
-	if !reporter.NextScheduleDateUTC.IsZero() {
-		return setReply(c, fmt.Errorf("NextScheduleDateUTC is for internal-use only"), nil)
-	}
-
-	if reporter.Timezone == "" {
-		// check if timezone is present as part of user's setting
-		// this is set from console UI
-		reporter.Timezone, _ = GetUserTimezone(ctx, claims.Username)
-	} else {
-		_, err = time.LoadLocation(reporter.Timezone)
-		if err != nil {
-			return setReply(c, fmt.Errorf("Invalid timezone %s, %v", reporter.Timezone, err), nil)
+	if reporter.Schedule == edgeproto.ReportSchedule_EveryMonth {
+		// if reporter is scheduled for EveryMonth, then ensure
+		// that start schedule day is <= 28, so that we have consistent
+		// next schedule day
+		if reporter.StartScheduleDate.Day() > 28 {
+			return setReply(c, fmt.Errorf("For reporter schedule 'EveryMonth', StartScheduleDate's day "+
+				"should be less than 28 so that we have consistent schedule period"), nil)
 		}
 	}
-	if reporter.Timezone == "" {
-		// defaults to UTC
-		reporter.Timezone = "UTC"
+
+	if !reporter.NextScheduleDate.IsZero() {
+		return setReply(c, fmt.Errorf("NextScheduleDate is for internal-use only"), nil)
 	}
 
 	// Schedule date should only be date with no time value
-	reporter.StartScheduleDateUTC = ormapi.StripTimeUTC(reporter.StartScheduleDateUTC)
-	reporter.NextScheduleDateUTC = reporter.StartScheduleDateUTC
+	reporter.StartScheduleDate = ormapi.StripTime(reporter.StartScheduleDate)
+	reporter.NextScheduleDate = reporter.StartScheduleDate
 	reporter.Username = claims.Username
 
 	// store in db
@@ -369,10 +370,10 @@ func CreateReporter(c echo.Context) error {
 		return setReply(c, dbErr(err), nil)
 	}
 	// trigger report generation if schedule date is today as it may have passed our internal report schedule
-	if ormapi.DateCmpUTC(reporter.NextScheduleDateUTC, time.Now().UTC()) == 0 {
+	if ormapi.DateCmp(reporter.NextScheduleDate, time.Now()) == 0 {
 		triggerReporter()
 	}
-	return c.JSON(http.StatusOK, Msg("reporter created"))
+	return c.JSON(http.StatusOK, Msg("Reporter created"))
 }
 
 func UpdateReporter(c echo.Context) error {
@@ -447,25 +448,17 @@ func UpdateReporter(c echo.Context) error {
 		if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
 			return setReply(c, fmt.Errorf("invalid schedule"), nil)
 		}
-		reporter.StartScheduleDateUTC = time.Now().UTC()
+		reporter.StartScheduleDate = time.Now()
 		applyUpdate = true
 	}
 
-	if reporter.StartScheduleDateUTC != oldReporter.StartScheduleDateUTC {
-		if err := validScheduleDate(reporter.StartScheduleDateUTC); err != nil {
+	if reporter.StartScheduleDate != oldReporter.StartScheduleDate {
+		if err := validScheduleDate(reporter.StartScheduleDate, reporter.Schedule); err != nil {
 			return setReply(c, err, nil)
 		}
 		// Schedule date should only be date with no time value
-		reporter.StartScheduleDateUTC = ormapi.StripTimeUTC(reporter.StartScheduleDateUTC)
-		reporter.NextScheduleDateUTC = reporter.StartScheduleDateUTC
-		applyUpdate = true
-	}
-
-	if reporter.Timezone != oldReporter.Timezone {
-		_, err = time.LoadLocation(reporter.Timezone)
-		if err != nil {
-			return setReply(c, fmt.Errorf("invalid timezone %s, %v", reporter.Timezone, err), nil)
-		}
+		reporter.StartScheduleDate = ormapi.StripTime(reporter.StartScheduleDate)
+		reporter.NextScheduleDate = reporter.StartScheduleDate
 		applyUpdate = true
 	}
 
@@ -481,9 +474,9 @@ func UpdateReporter(c echo.Context) error {
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
 	}
-	if reporter.StartScheduleDateUTC != oldReporter.StartScheduleDateUTC {
+	if reporter.StartScheduleDate != oldReporter.StartScheduleDate {
 		// trigger report generation if schedule date is today as it may have passed our internal report schedule
-		if ormapi.DateCmpUTC(reporter.NextScheduleDateUTC, time.Now().UTC()) == 0 {
+		if ormapi.DateCmp(reporter.NextScheduleDate, time.Now()) == 0 {
 			triggerReporter()
 		}
 	}
@@ -577,28 +570,6 @@ func ShowReporter(c echo.Context) error {
 	return c.JSON(http.StatusOK, showOutput)
 }
 
-func GetUserTimezone(ctx context.Context, username string) (string, error) {
-	// check if timezone is present as part of user's setting
-	// this is set from console UI
-	user := ormapi.User{Name: username}
-	db := loggedDB(ctx)
-	err := db.Where(&user).First(&user).Error
-	if err != nil {
-		return "", dbErr(err)
-	}
-	if user.Metadata != "" {
-		metadata := make(map[string]string)
-		err = json.Unmarshal([]byte(user.Metadata), &metadata)
-		if err != nil {
-			return "", fmt.Errorf("Invalid user metadata: %v, %v", user.Metadata, err)
-		}
-		if timezone, ok := metadata["Timezone"]; ok {
-			return timezone, nil
-		}
-	}
-	return "", nil
-}
-
 // For testing only
 func GenerateReportData(c echo.Context) error {
 	return GenerateReportObj(c, OutputDataNoPDF)
@@ -637,40 +608,24 @@ func GenerateReportObj(c echo.Context, dataOnly bool) error {
 		return setReply(c, err, nil)
 	}
 
-	if report.Timezone == "" {
-		// check if timezone is present as part of user's setting
-		// this is set from console UI
-		report.Timezone, _ = GetUserTimezone(ctx, claims.Username)
-	} else {
-		_, err = time.LoadLocation(report.Timezone)
-		if err != nil {
-			return setReply(c, fmt.Errorf("Invalid timezone %s, %v", report.Timezone, err), nil)
-		}
+	_, startTimeZoneOffset := report.StartTime.Zone()
+	_, endTimeZoneOffset := report.EndTime.Zone()
+	if startTimeZoneOffset != endTimeZoneOffset {
+		return setReply(c, fmt.Errorf("StartTime and EndTime must be in same timezone"), nil)
 	}
-	if report.Timezone == "" {
-		// defaults to UTC
-		report.Timezone = "UTC"
-	}
-
-	if !ormapi.IsUTCTimezone(report.StartTimeUTC) {
-		return setReply(c, fmt.Errorf("StartTimeUTC must be in UTC timezone"), nil)
-	}
-	if !ormapi.IsUTCTimezone(report.EndTimeUTC) {
-		return setReply(c, fmt.Errorf("EndTimeUTC must be in UTC timezone"), nil)
-	}
-	if !report.StartTimeUTC.Before(report.EndTimeUTC) {
+	if !report.StartTime.Before(report.EndTime) {
 		return c.JSON(http.StatusBadRequest, Msg("start time must be before end time"))
 	}
 
-	if !report.EndTimeUTC.Before(time.Now().UTC()) {
+	if !report.EndTime.Before(time.Now().In(report.EndTime.Location())) {
 		return c.JSON(http.StatusBadRequest, Msg("end time must be historical time"))
 	}
 
-	if report.EndTimeUTC.Sub(report.StartTimeUTC).Hours() < (7 * 24) {
+	if report.EndTime.Sub(report.StartTime).Hours() < (7 * 24) {
 		return c.JSON(http.StatusBadRequest, Msg("time range must be at least 7 days"))
 	}
 
-	if report.EndTimeUTC.Sub(report.StartTimeUTC).Hours() > (31 * 24) {
+	if report.EndTime.Sub(report.StartTime).Hours() > (31 * 24) {
 		return c.JSON(http.StatusBadRequest, Msg("time range must not be more than 31 days"))
 	}
 
@@ -802,8 +757,8 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 			Organization: report.Org,
 		},
 		Selector:  "resourceusage",
-		StartTime: report.StartTimeUTC,
-		EndTime:   report.EndTimeUTC,
+		StartTime: report.StartTime,
+		EndTime:   report.EndTime,
 	}
 	rc.region = in.Region
 	cmd := CloudletUsageMetricsQuery(&in)
@@ -904,8 +859,8 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 			Organization: report.Org,
 		},
 		Selector:  "flavorusage",
-		StartTime: report.StartTimeUTC,
-		EndTime:   report.EndTimeUTC,
+		StartTime: report.StartTime,
+		EndTime:   report.EndTime,
 	}
 	rc.region = in.Region
 	cmd := CloudletUsageMetricsQuery(&in)
@@ -993,7 +948,7 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 	return flavorMap, nil
 }
 
-func GetCloudletEvents(ctx context.Context, username string, timezone *time.Location, report *ormapi.GenerateReport) (map[string][][]string, error) {
+func GetCloudletEvents(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string][][]string, error) {
 	search := node.EventSearch{
 		Match: node.EventMatch{
 			Orgs:    []string{report.Org},
@@ -1001,8 +956,8 @@ func GetCloudletEvents(ctx context.Context, username string, timezone *time.Loca
 			Regions: []string{report.Region},
 		},
 		TimeRange: util.TimeRange{
-			StartTime: report.StartTimeUTC,
-			EndTime:   report.EndTimeUTC,
+			StartTime: report.StartTime,
+			EndTime:   report.EndTime,
 		},
 	}
 
@@ -1017,10 +972,7 @@ func GetCloudletEvents(ctx context.Context, username string, timezone *time.Loca
 			log.SpanLog(ctx, log.DebugLevelInfo, "missing cloudlet name in event, skipping", "event", event)
 			continue
 		}
-		timestamp := event.Timestamp.Format(ormapi.TimeFormatDayDateTime)
-		if timezone != nil {
-			timestamp = event.Timestamp.In(timezone).Format(ormapi.TimeFormatDayDateTime)
-		}
+		timestamp := event.Timestamp.In(report.StartTime.Location()).Format(ormapi.TimeFormatDayDateTime)
 		entry := []string{timestamp, event.Name}
 		if _, ok := eventsData[cloudlet]; !ok {
 			eventsData[cloudlet] = [][]string{}
@@ -1031,16 +983,19 @@ func GetCloudletEvents(ctx context.Context, username string, timezone *time.Loca
 }
 
 func inTimeSpan(start, end, check time.Time) bool {
-	if start.Before(end) {
-		return !check.Before(start) && !check.After(end)
+	startUTC := start.UTC()
+	endUTC := end.UTC()
+	checkUTC := check.UTC()
+	if startUTC.Before(endUTC) {
+		return !checkUTC.Before(startUTC) && !checkUTC.After(endUTC)
 	}
-	if start.Equal(end) {
-		return check.Equal(start)
+	if startUTC.Equal(endUTC) {
+		return checkUTC.Equal(startUTC)
 	}
-	return !start.After(check) || !end.Before(check)
+	return !startUTC.After(checkUTC) || !endUTC.Before(checkUTC)
 }
 
-func GetCloudletAlerts(ctx context.Context, username string, timezone *time.Location, report *ormapi.GenerateReport) (map[string][][]string, error) {
+func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string][][]string, error) {
 	alertsData := make(map[string][][]string)
 	rc := &RegionContext{
 		region:   report.Region,
@@ -1057,11 +1012,8 @@ func GetCloudletAlerts(ctx context.Context, username string, timezone *time.Loca
 		return nil, err
 	}
 	for _, alert := range alerts {
-		alertTime := cloudcommon.TimestampToTime(alert.ActiveAt)
-		if timezone != nil {
-			alertTime = alertTime.In(timezone)
-		}
-		if !inTimeSpan(report.StartTimeUTC, report.EndTimeUTC, alertTime) {
+		alertTime := cloudcommon.TimestampToTime(alert.ActiveAt).In(report.StartTime.Location())
+		if !inTimeSpan(report.StartTime, report.EndTime, alertTime) {
 			continue
 		}
 		cloudlet, ok := alert.Labels[edgeproto.CloudletKeyTagName]
@@ -1130,8 +1082,8 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 			},
 		},
 		Selector:  "cpu,mem,disk,network",
-		StartTime: report.StartTimeUTC,
-		EndTime:   report.EndTimeUTC,
+		StartTime: report.StartTime,
+		EndTime:   report.EndTime,
 	}
 	rc.region = in.Region
 	claims := &UserClaims{Username: username}
@@ -1291,7 +1243,7 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 	return chartMap, nil
 }
 
-func GetAppStateEvents(ctx context.Context, username string, timezone *time.Location, report *ormapi.GenerateReport) (map[string][][]string, error) {
+func GetAppStateEvents(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string][][]string, error) {
 	search := node.EventSearch{
 		Match: node.EventMatch{
 			Names:   []string{"AppInst online", "AppInst offline"},
@@ -1302,8 +1254,8 @@ func GetAppStateEvents(ctx context.Context, username string, timezone *time.Loca
 			},
 		},
 		TimeRange: util.TimeRange{
-			StartTime: report.StartTimeUTC,
-			EndTime:   report.EndTimeUTC,
+			StartTime: report.StartTime,
+			EndTime:   report.EndTime,
 		},
 	}
 
@@ -1334,11 +1286,7 @@ func GetAppStateEvents(ctx context.Context, username string, timezone *time.Loca
 		if !found {
 			continue
 		}
-		timestamp := event.Timestamp.Format(ormapi.TimeFormatDayDateTime)
-		if timezone != nil {
-			timestamp = event.Timestamp.In(timezone).Format(ormapi.TimeFormatDayDateTime)
-		}
-
+		timestamp := event.Timestamp.In(report.StartTime.Location()).Format(ormapi.TimeFormatDayDateTime)
 		entry := []string{
 			timestamp,
 			reqdTags["app"] + " | " + reqdTags["appver"],         // App Identifier
@@ -1422,7 +1370,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		reportData[region]["flavorsused"] = flavorData
 
 		// Get cloudlet events
-		eventsData, err := GetCloudletEvents(ctx, username, pdfReport.timezone, report)
+		eventsData, err := GetCloudletEvents(ctx, username, report)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cloudlet events: %v", err)
 		}
@@ -1432,7 +1380,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		reportData[region]["cloudletevents"] = eventsData
 
 		// Get cloudlet alerts
-		alertsData, err := GetCloudletAlerts(ctx, username, pdfReport.timezone, report)
+		alertsData, err := GetCloudletAlerts(ctx, username, report)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cloudlet alerts: %v", err)
 		}
@@ -1457,7 +1405,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		reportData[region]["appcounts"] = appCountData
 
 		// Get app state events
-		appEventsData, err := GetAppStateEvents(ctx, username, pdfReport.timezone, report)
+		appEventsData, err := GetAppStateEvents(ctx, username, report)
 		if err != nil {
 			if strings.Contains(err.Error(), "Forbidden") {
 				// ignore as user is not authorized to perform this action
@@ -1518,7 +1466,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 			// Get cloudlet events
 			if data, ok := eventsData[cloudletName]; ok {
 				header = []string{"Timestamp", "Description"}
-				columnsWidth = []float64{40, 100}
+				columnsWidth = []float64{50, 120}
 				pdfReport.AddTable("Cloudlet Events", header, data, columnsWidth)
 			}
 

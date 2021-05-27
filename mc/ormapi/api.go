@@ -575,10 +575,10 @@ type Reporter struct {
 	// Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days, EveryMonth
 	Schedule edgeproto.ReportSchedule `json:",omitempty"`
 	// Start date when the report is scheduled to be generated (Default: today)
-	StartScheduleDate time.Time `json:",omitempty"`
+	StartScheduleDate string `json:",omitempty"`
 	// Date when the next report is scheduled to be generated (for internal use only)
 	// read only: true
-	NextScheduleDate time.Time `json:",omitempty"`
+	NextScheduleDate string `json:",omitempty"`
 	// User name (for internal use only)
 	// read only: true
 	Username string

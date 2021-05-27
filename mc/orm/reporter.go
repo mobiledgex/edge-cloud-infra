@@ -95,7 +95,7 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 	}
 	applyUpdate := false
 	if !newDate.IsZero() {
-		updateReporter.NextScheduleDate = newDate
+		updateReporter.NextScheduleDate = ormapi.TimeToStr(newDate)
 		updateReporter.Status = "success"
 		applyUpdate = true
 	}
@@ -176,10 +176,15 @@ func GenerateReports() {
 		var wg sync.WaitGroup
 		// For each reporter
 		for _, reporter := range reporters {
+			scheduleDate, err := ormapi.StrToTime(reporter.NextScheduleDate)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfo, "Invalid nextscheduledate", "reporter", reporter.Name, "nextscheduledate", reporter.NextScheduleDate, "error", err)
+				continue
+			}
 			//   check if report time matches schedule date
 			//      * get start & end date from schedule date & schedule interval
 			//      * verify it reportTime
-			if ormapi.DateCmp(reporter.NextScheduleDate, time.Now()) > 0 {
+			if ormapi.DateCmp(scheduleDate, time.Now()) > 0 {
 				// not scheduled to generate report
 				continue
 			}
@@ -188,8 +193,8 @@ func GenerateReports() {
 				log.SpanLog(ctx, log.DebugLevelInfo, "failed to get day/month count for report schedule", "err", err)
 				continue
 			}
-			StartTime := ormapi.StripTime(reporter.NextScheduleDate.AddDate(0, -monthCount, -dayCount))
-			EndTime := ormapi.StripTime(reporter.NextScheduleDate).Add(-1 * time.Second)
+			StartTime := ormapi.StripTime(scheduleDate.AddDate(0, -monthCount, -dayCount))
+			EndTime := ormapi.StripTime(scheduleDate).Add(-1 * time.Second)
 
 			// generate report in a separate thread
 			genReport := ormapi.GenerateReport{
@@ -333,30 +338,23 @@ func CreateReporter(c echo.Context) error {
 		return fmt.Errorf("Invalid reporter schedule")
 	}
 	// StartScheduleDate defaults to now
-	if reporter.StartScheduleDate.IsZero() {
-		reporter.StartScheduleDate = time.Now()
-	} else {
-		if err := validScheduleDate(reporter.StartScheduleDate, reporter.Schedule); err != nil {
-			return err
-		}
+	if reporter.StartScheduleDate == "" {
+		reporter.StartScheduleDate = ormapi.TimeToStr(time.Now())
+	}
+	scheduleDate, err := ormapi.StrToTime(reporter.StartScheduleDate)
+	if err != nil {
+		return err
+	}
+	if err := validScheduleDate(scheduleDate, reporter.Schedule); err != nil {
+		return err
 	}
 
-	if reporter.Schedule == edgeproto.ReportSchedule_EveryMonth {
-		// if reporter is scheduled for EveryMonth, then ensure
-		// that start schedule day is <= 28, so that we have consistent
-		// next schedule day
-		if reporter.StartScheduleDate.Day() > 28 {
-			return fmt.Errorf("For reporter schedule 'EveryMonth', StartScheduleDate's day " +
-				"should be less than 28 so that we have consistent schedule period")
-		}
-	}
-
-	if !reporter.NextScheduleDate.IsZero() {
+	if reporter.NextScheduleDate != "" {
 		return fmt.Errorf("NextScheduleDate is for internal-use only")
 	}
 
 	// Schedule date should only be date with no time value
-	reporter.StartScheduleDate = ormapi.StripTime(reporter.StartScheduleDate)
+	reporter.StartScheduleDate = ormapi.TimeToStr(ormapi.StripTime(scheduleDate))
 	reporter.NextScheduleDate = reporter.StartScheduleDate
 	reporter.Username = claims.Username
 
@@ -370,7 +368,7 @@ func CreateReporter(c echo.Context) error {
 		return dbErr(err)
 	}
 	// trigger report generation if schedule date is today as it may have passed our internal report schedule
-	if ormapi.DateCmp(reporter.NextScheduleDate, time.Now()) == 0 {
+	if ormapi.DateCmp(scheduleDate, time.Now()) == 0 {
 		triggerReporter()
 	}
 	return c.JSON(http.StatusOK, Msg("Reporter created"))
@@ -448,16 +446,20 @@ func UpdateReporter(c echo.Context) error {
 		if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
 			return fmt.Errorf("invalid schedule")
 		}
-		reporter.StartScheduleDate = time.Now()
+		reporter.StartScheduleDate = ormapi.TimeToStr(time.Now())
 		applyUpdate = true
+	}
+	scheduleDate, err := ormapi.StrToTime(reporter.StartScheduleDate)
+	if err != nil {
+		return err
 	}
 
 	if reporter.StartScheduleDate != oldReporter.StartScheduleDate {
-		if err := validScheduleDate(reporter.StartScheduleDate, reporter.Schedule); err != nil {
+		if err := validScheduleDate(scheduleDate, reporter.Schedule); err != nil {
 			return err
 		}
 		// Schedule date should only be date with no time value
-		reporter.StartScheduleDate = ormapi.StripTime(reporter.StartScheduleDate)
+		reporter.StartScheduleDate = ormapi.TimeToStr(ormapi.StripTime(scheduleDate))
 		reporter.NextScheduleDate = reporter.StartScheduleDate
 		applyUpdate = true
 	}
@@ -476,7 +478,7 @@ func UpdateReporter(c echo.Context) error {
 	}
 	if reporter.StartScheduleDate != oldReporter.StartScheduleDate {
 		// trigger report generation if schedule date is today as it may have passed our internal report schedule
-		if ormapi.DateCmp(reporter.NextScheduleDate, time.Now()) == 0 {
+		if ormapi.DateCmp(scheduleDate, time.Now()) == 0 {
 			triggerReporter()
 		}
 	}
@@ -809,7 +811,7 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch resource time", "time", val[timeIndex])
 						continue
 					}
-					time, err := time.Parse("2006-01-02T15:04:05Z", timeStr)
+					time, err := ormapi.StrToTime(timeStr)
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to parse resource time", "time", timeStr)
 						continue
@@ -1150,7 +1152,7 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 					if !ok {
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to fetch resource time", "time", val[0])
 					}
-					time, err := time.Parse("2006-01-02T15:04:05Z", timeStr)
+					time, err := ormapi.StrToTime(timeStr)
 					if err != nil {
 						log.SpanLog(ctx, log.DebugLevelInfo, "failed to parse resource time", "time", timeStr)
 						continue

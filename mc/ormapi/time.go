@@ -113,3 +113,11 @@ func IsUTCTimezone(date time.Time) bool {
 func StripTime(date time.Time) time.Time {
 	return time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
 }
+
+func TimeToStr(in time.Time) string {
+	return in.Format(time.RFC3339)
+}
+
+func StrToTime(in string) (time.Time, error) {
+	return time.Parse(time.RFC3339, in)
+}

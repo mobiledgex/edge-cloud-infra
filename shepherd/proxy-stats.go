@@ -26,30 +26,36 @@ import (
 var ProxyMap map[string]ProxyScrapePoint
 var ProxyMutex sync.Mutex
 
-// TCP stat names in envoy
-var envoyTcpClusterName = "cluster.backend"
-var envoyTcpActive = "upstream_cx_active"
-var envoyTcpTotal = "upstream_cx_total"
-var envoyTcpDropped = "upstream_cx_connect_fail" // this one might not be right/enough
-var envoyTcpBytesSent = "upstream_cx_tx_bytes_total"
-var envoyTcpBytesRecvd = "upstream_cx_rx_bytes_total"
-var envoyTcpSessionTime = "upstream_cx_length_ms"
+const (
+	// TCP stat names in envoy
+	envoyTcpClusterName = "cluster.backend"
+	envoyTcpActive      = "upstream_cx_active"
+	envoyTcpTotal       = "upstream_cx_total"
+	envoyTcpDropped     = "upstream_cx_connect_fail" // this one might not be right/enough
+	envoyTcpBytesSent   = "upstream_cx_tx_bytes_total"
+	envoyTcpBytesRecvd  = "upstream_cx_rx_bytes_total"
+	envoyTcpSessionTime = "upstream_cx_length_ms"
 
-// UDP stat names in envoy
-// So tx, and rx is from the point of view of envoy to the backend
-// but we want to give the POV of the backend to the client so we flip these.
-var envoyUdpClusterName = "cluster.udp_backend"
-var envoyUdpRecvBytes = "upstream_cx_tx_bytes_total"
-var envoyUdpSentBytes = "upstream_cx_rx_bytes_total"
-var envoyUdpOverflow = "upstream_cx_overflow"        // # number of datagrams dropped due to hitting the max connections limit
-var envoyUdpNoneHealthy = "upstream_cx_none_healthy" // # of datagrams dropped due to no healthy hosts
-var envoyUdpSessionAdditionalPrefix = "udp."
-var envoyUdpRecvDatagrams = "sess_tx_datagrams"
-var envoyUdpSentDatagrams = "sess_rx_datagrams"
-var envoyUdpRecvErrs = "sess_tx_errors"
-var envoyUdpSentErrs = "sess_rx_errors"
+	// UDP stat names in envoy
+	// So tx, and rx is from the point of view of envoy to the backend
+	// but we want to give the POV of the backend to the client so we flip these.
+	envoyUdpClusterName             = "cluster.udp_backend"
+	envoyUdpRecvBytes               = "upstream_cx_tx_bytes_total"
+	envoyUdpSentBytes               = "upstream_cx_rx_bytes_total"
+	envoyUdpOverflow                = "upstream_cx_overflow"     // # number of datagrams dropped due to hitting the max connections limit
+	envoyUdpNoneHealthy             = "upstream_cx_none_healthy" // # of datagrams dropped due to no healthy hosts
+	envoyUdpSessionAdditionalPrefix = "udp."
+	envoyUdpRecvDatagrams           = "sess_tx_datagrams"
+	envoyUdpSentDatagrams           = "sess_rx_datagrams"
+	envoyUdpRecvErrs                = "sess_tx_errors"
+	envoyUdpSentErrs                = "sess_rx_errors"
 
-var envoyUnseen = "No recorded values"
+	envoyUnseen = "No recorded values"
+
+	maxReconnectSkipDuration = 5 * time.Minute // try to re-connect every 5 mins
+)
+
+// no support for const slices
 var envoyHistogramBuckets = []string{"P0", "P25", "P50", "P75", "P90", "P95", "P99", "P99.5", "P99.9", "P100"}
 
 type ProxyScrapePoint struct {
@@ -68,8 +74,10 @@ type ProxyScrapePoint struct {
 
 type DockerNetworkType string
 
-var DockerNetworkHost DockerNetworkType = "host"
-var DockerNetworkBridge DockerNetworkType = "bridge"
+const (
+	DockerNetworkHost   DockerNetworkType = "host"
+	DockerNetworkBridge DockerNetworkType = "bridge"
+)
 
 func InitProxyScraper() {
 	ProxyMap = make(map[string]ProxyScrapePoint)
@@ -306,16 +314,40 @@ func clientReady(scrape ProxyScrapePoint) bool {
 	}
 	return false
 }
+
+func shouldUpdateFailedClient(scrape *ProxyScrapePoint) bool {
+	var skipDuration time.Duration
+
+	// skip either 5(5+current) intervals, or maxSkipDuration, whichever is shortest
+	if 6*settings.ShepherdMetricsCollectionInterval.TimeDuration() > maxReconnectSkipDuration {
+		skipDuration = maxReconnectSkipDuration
+	} else {
+		skipDuration = 6 * settings.ShepherdMetricsCollectionInterval.TimeDuration()
+	}
+
+	if time.Since(scrape.LastConnectAttempt) > skipDuration {
+		return true
+	}
+	return false
+}
+
+func shouldPushLbMetrics(lastPushed time.Time) bool {
+	if time.Since(lastPushed) > settings.ShepherdMetricsCollectionInterval.TimeDuration() {
+		return true
+	}
+	return false
+}
+
 func ProxyScraper(done chan bool) {
+	var metricsLastPushed time.Time
 	for {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
-		case <-time.After(settings.ShepherdMetricsCollectionInterval.TimeDuration()):
+		case <-time.After(*promScrapeInterval):
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				if !clientReady(v) {
-					// If we could not connect first, skip 5 intervals before trying to re-connect
-					if time.Since(v.LastConnectAttempt) > 6*settings.ShepherdMetricsCollectionInterval.TimeDuration() {
+					if shouldUpdateFailedClient(&v) {
 						// Update this in the background
 						go updateProxyScrapeClient(v.Key)
 					}
@@ -330,7 +362,8 @@ func ProxyScraper(done chan bool) {
 				metrics, err := QueryProxy(ctx, &v)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelMetrics, "Error retrieving proxy metrics", "appinst", v.App, "error", err.Error())
-				} else {
+				} else if shouldPushLbMetrics(metricsLastPushed) {
+					metricsLastPushed = time.Now()
 					// send to crm->controller->influx
 					influxData := MarshallTcpProxyMetric(v, metrics)
 					influxData = append(influxData, MarshallUdpProxyMetric(v, metrics)...)

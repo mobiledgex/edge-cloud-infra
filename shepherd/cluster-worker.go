@@ -21,7 +21,9 @@ type ClusterWorker struct {
 	reservedBy     string
 	deployment     string
 	promAddr       string
-	interval       time.Duration
+	scrapeInterval time.Duration
+	pushInterval   time.Duration
+	lastPushed     time.Time
 	clusterStat    shepherd_common.ClusterStats
 	send           func(ctx context.Context, metric *edgeproto.Metric) bool
 	waitGrp        sync.WaitGroup
@@ -29,14 +31,14 @@ type ClusterWorker struct {
 	client         ssh.Client
 }
 
-func NewClusterWorker(ctx context.Context, promAddr string, interval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, clusterInst *edgeproto.ClusterInst, pf platform.Platform) (*ClusterWorker, error) {
+func NewClusterWorker(ctx context.Context, promAddr string, scrapeInterval time.Duration, pushInterval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, clusterInst *edgeproto.ClusterInst, pf platform.Platform) (*ClusterWorker, error) {
 	var err error
 	p := ClusterWorker{}
 	p.promAddr = promAddr
 	p.deployment = clusterInst.Deployment
-	p.interval = interval
 	p.send = send
 	p.clusterInstKey = clusterInst.Key
+	p.UpdateIntervals(ctx, scrapeInterval, pushInterval)
 	p.client, err = pf.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
 		// If we cannot get a platform client no point in trying to get metrics
@@ -94,11 +96,30 @@ func (p *ClusterWorker) Stop(ctx context.Context) {
 	flushAlerts(ctx, &p.clusterInstKey)
 }
 
+func (p *ClusterWorker) UpdateIntervals(ctx context.Context, scrapeInterval time.Duration, pushInterval time.Duration) {
+	p.pushInterval = pushInterval
+	// scrape interval cannot be longer than push interval
+	if scrapeInterval > pushInterval {
+		p.scrapeInterval = p.pushInterval
+	} else {
+		p.scrapeInterval = scrapeInterval
+	}
+	// reset when we last pushed to allign scrape and push intervals
+	p.lastPushed = time.Now()
+}
+
+func (p *ClusterWorker) shouldPushMetrics(ts time.Time) bool {
+	if ts.After(p.lastPushed.Add(p.pushInterval)) {
+		return true
+	}
+	return false
+}
+
 func (p *ClusterWorker) RunNotify() {
 	done := false
 	for !done {
 		select {
-		case <-time.After(p.interval):
+		case <-time.After(p.scrapeInterval):
 			span := log.StartSpan(log.DebugLevelSampled, "send-metric")
 			log.SetTags(span, p.clusterInstKey.GetTags())
 			ctx := log.ContextWithSpan(context.Background(), span)
@@ -107,28 +128,32 @@ func (p *ClusterWorker) RunNotify() {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Collected cluster metrics",
 				"cluster", p.clusterInstKey, "cluster stats", clusterStats)
 
+			// Marshaling and sending only every push interval
+			if p.shouldPushMetrics(time.Now()) {
+				// reset when we last pushed
+				p.lastPushed = time.Now()
+				for key, stat := range appStatsMap {
+					log.SpanLog(ctx, log.DebugLevelMetrics, "App metrics",
+						"AppInst key", key, "stats", stat)
+					appMetrics := MarshalAppMetrics(&key, stat, p.reservedBy)
+					for _, metric := range appMetrics {
+						p.send(context.Background(), metric)
+					}
+				}
+				clusterMetrics := p.MarshalClusterMetrics(clusterStats)
+				for _, metric := range clusterMetrics {
+					p.send(context.Background(), metric)
+				}
+			}
+			span.Finish()
+
 			// create another span for alerts that is always logged
 			aspan := log.StartSpan(log.DebugLevelMetrics, "alerts check")
 			log.SetTags(aspan, p.clusterInstKey.GetTags())
 			actx := log.ContextWithSpan(context.Background(), aspan)
-
-			for key, stat := range appStatsMap {
-				log.SpanLog(ctx, log.DebugLevelMetrics, "App metrics",
-					"AppInst key", key, "stats", stat)
-				appMetrics := MarshalAppMetrics(&key, stat, p.reservedBy)
-				for _, metric := range appMetrics {
-					p.send(context.Background(), metric)
-				}
-			}
-			clusterMetrics := p.MarshalClusterMetrics(clusterStats)
-			for _, metric := range clusterMetrics {
-				p.send(context.Background(), metric)
-			}
-
 			clusterAlerts := p.clusterStat.GetAlerts(actx)
 			clusterAlerts = addClusterDetailsToAlerts(clusterAlerts, &p.clusterInstKey)
 			UpdateAlerts(actx, clusterAlerts, &p.clusterInstKey, pruneClusterForeignAlerts)
-			span.Finish()
 			aspan.Finish()
 		case <-p.stop:
 			done = true

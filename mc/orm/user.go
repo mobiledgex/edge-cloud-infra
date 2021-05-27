@@ -75,8 +75,8 @@ func GenerateWSAuthToken(c echo.Context) error {
 	ctx := GetContext(c)
 
 	claims.StandardClaims.IssuedAt = time.Now().Unix()
-	// Set short expiry as it intended to be used immediately by the
-	// client for connection to Websocket API endpoint
+	// Set short expiry as it is intended to be used immediately
+	// by the client for connection to Websocket API endpoint
 	claims.StandardClaims.ExpiresAt = time.Now().Add(JWTWSAuthDuration).Unix()
 	cookie, err := Jwks.GenerateCookie(claims)
 	if err != nil {

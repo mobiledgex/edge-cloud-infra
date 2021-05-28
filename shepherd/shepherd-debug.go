@@ -29,7 +29,7 @@ func setScrapeInterval(ctx context.Context, req *edgeproto.DebugRequest) string 
 	if err != nil {
 		return "cannot parse scrape interval duration(example: 15s)"
 	}
-	updateClusterWorker(ctx, settings.ShepherdMetricsCollectionInterval)
+	updateClusterWorkers(ctx, settings.ShepherdMetricsCollectionInterval)
 	return "set prometheus scrape interval to " + promScrapeInterval.String()
 
 }
@@ -39,6 +39,6 @@ func resetScrapeInterval(ctx context.Context, req *edgeproto.DebugRequest) strin
 		return "reset command doesn't take any arguments"
 	}
 	*promScrapeInterval = defaultScrapeInterval
-	updateClusterWorker(ctx, settings.ShepherdMetricsCollectionInterval)
+	updateClusterWorkers(ctx, settings.ShepherdMetricsCollectionInterval)
 	return "reset promScrapeInterval for all workers"
 }

@@ -309,7 +309,7 @@ func TestClusterWorkerTimers(t *testing.T) {
 		testMetricSend, &testClusterInst, testPlatform)
 	require.Nil(t, err)
 	require.NotNil(t, testClusterWorker)
-	require.True(t, testClusterWorker.shouldPushMetrics(time.Now().Add(time.Second)))
+	require.True(t, testClusterWorker.checkAndSetLastPushMetrics(time.Now().Add(time.Second)))
 	testClusterWorker.UpdateIntervals(ctx, 2*time.Minute, time.Minute)
 	require.Equal(t, testClusterWorker.scrapeInterval, testClusterWorker.pushInterval)
 	require.Equal(t, time.Minute, testClusterWorker.scrapeInterval)
@@ -318,8 +318,8 @@ func TestClusterWorkerTimers(t *testing.T) {
 	require.Equal(t, 2*time.Second, testClusterWorker.scrapeInterval)
 	require.Equal(t, time.Minute, testClusterWorker.pushInterval)
 	// We push metric every pushInterval not scrapeInterval
-	require.False(t, testClusterWorker.shouldPushMetrics(time.Now().Add(testClusterWorker.scrapeInterval)))
-	require.True(t, testClusterWorker.shouldPushMetrics(time.Now().Add(testClusterWorker.pushInterval)))
+	require.False(t, testClusterWorker.checkAndSetLastPushMetrics(time.Now().Add(testClusterWorker.scrapeInterval)))
+	require.True(t, testClusterWorker.checkAndSetLastPushMetrics(time.Now().Add(testClusterWorker.pushInterval)))
 }
 
 func TestPromStats(t *testing.T) {

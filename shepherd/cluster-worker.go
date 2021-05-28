@@ -23,6 +23,7 @@ type ClusterWorker struct {
 	promAddr       string
 	scrapeInterval time.Duration
 	pushInterval   time.Duration
+	lastPushedLock sync.Mutex
 	lastPushed     time.Time
 	clusterStat    shepherd_common.ClusterStats
 	send           func(ctx context.Context, metric *edgeproto.Metric) bool
@@ -97,6 +98,8 @@ func (p *ClusterWorker) Stop(ctx context.Context) {
 }
 
 func (p *ClusterWorker) UpdateIntervals(ctx context.Context, scrapeInterval time.Duration, pushInterval time.Duration) {
+	p.lastPushedLock.Lock()
+	defer p.lastPushedLock.Unlock()
 	p.pushInterval = pushInterval
 	// scrape interval cannot be longer than push interval
 	if scrapeInterval > pushInterval {
@@ -108,8 +111,12 @@ func (p *ClusterWorker) UpdateIntervals(ctx context.Context, scrapeInterval time
 	p.lastPushed = time.Now()
 }
 
-func (p *ClusterWorker) shouldPushMetrics(ts time.Time) bool {
+func (p *ClusterWorker) checkAndSetLastPushMetrics(ts time.Time) bool {
+	p.lastPushedLock.Lock()
+	defer p.lastPushedLock.Unlock()
 	if ts.After(p.lastPushed.Add(p.pushInterval)) {
+		// reset when we last pushed
+		p.lastPushed = time.Now()
 		return true
 	}
 	return false
@@ -129,9 +136,7 @@ func (p *ClusterWorker) RunNotify() {
 				"cluster", p.clusterInstKey, "cluster stats", clusterStats)
 
 			// Marshaling and sending only every push interval
-			if p.shouldPushMetrics(time.Now()) {
-				// reset when we last pushed
-				p.lastPushed = time.Now()
+			if p.checkAndSetLastPushMetrics(time.Now()) {
 				for key, stat := range appStatsMap {
 					log.SpanLog(ctx, log.DebugLevelMetrics, "App metrics",
 						"AppInst key", key, "stats", stat)

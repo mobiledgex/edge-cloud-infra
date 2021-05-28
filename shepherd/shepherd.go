@@ -234,7 +234,7 @@ func autoProvPolicyCb(ctx context.Context, old *edgeproto.AutoProvPolicy, new *e
 	}
 }
 
-func updateClusterWorker(ctx context.Context, newInterval edgeproto.Duration) {
+func updateClusterWorkers(ctx context.Context, newInterval edgeproto.Duration) {
 	workerMapMutex.Lock()
 	defer workerMapMutex.Unlock()
 	for _, worker := range workerMap {
@@ -260,7 +260,7 @@ func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Setti
 
 	if old.ShepherdMetricsCollectionInterval !=
 		new.ShepherdMetricsCollectionInterval {
-		updateClusterWorker(ctx, new.ShepherdMetricsCollectionInterval)
+		updateClusterWorkers(ctx, new.ShepherdMetricsCollectionInterval)
 	}
 
 	if old.AutoDeployIntervalSec != new.AutoDeployIntervalSec {

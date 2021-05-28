@@ -61,13 +61,9 @@ func NewReport(report *ormapi.GenerateReport) (*PDFReport, error) {
 	pdf := gofpdf.New(gofpdf.OrientationPortrait, "mm", "A4", "")
 	pdf.SetFont(FontName, "B", DefaultFontSize)
 	pdf.AliasNbPages("")
-	location, err := time.LoadLocation(report.Timezone)
-	if err != nil {
-		return nil, err
-	}
 	pdfReport := &PDFReport{
 		pdf:      pdf,
-		timezone: location,
+		timezone: report.StartTime.Location(),
 	}
 	return pdfReport, nil
 }
@@ -126,11 +122,12 @@ func (r *PDFReport) AddOperatorInfo(report *ormapi.GenerateReport) {
 	r.pdf.Ln(5)
 	r.pdf.Cell(40, 10, fmt.Sprintf("Region: %s", report.Region))
 	r.pdf.Ln(5)
-	startDate := report.StartTimeUTC.Format(ormapi.TimeFormatDate)
-	endDate := report.EndTimeUTC.Format(ormapi.TimeFormatDate)
+	startDate := report.StartTime.Format(ormapi.TimeFormatDate)
+	endDate := report.EndTime.Format(ormapi.TimeFormatDateTZ)
+	if ormapi.IsUTCTimezone(report.EndTime) {
+		endDate = report.EndTime.Format(ormapi.TimeFormatDate) + " (UTC)"
+	}
 	r.pdf.Cell(40, 10, fmt.Sprintf("Report Period: %s - %s", startDate, endDate))
-	r.pdf.Ln(5)
-	r.pdf.Cell(40, 10, fmt.Sprintf("Timezone: %s", report.Timezone))
 	r.pdf.Ln(-1)
 }
 
@@ -352,8 +349,10 @@ func (r *PDFReport) AddTimeChart(chartPrefix, title string, multiChartData []Tim
 	r.setChartPageBreak(float64(ChartHeight))
 
 	r.pdf.SetFont(FontName, "B", DefaultFontSize)
-	titleWords := util.SplitCamelCase(title)
-	title = strings.Title(strings.Join(titleWords, " "))
+	if len(strings.Fields(title)) == 1 {
+		titleWords := util.SplitCamelCase(title)
+		title = strings.Title(strings.Join(titleWords, " "))
+	}
 	r.pdf.Cell(40, 10, title)
 	r.pdf.Ln(-1)
 

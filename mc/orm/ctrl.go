@@ -87,10 +87,13 @@ func CreateController(c echo.Context) error {
 
 	ctrl := ormapi.Controller{}
 	if err := c.Bind(&ctrl); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	err = CreateControllerObj(ctx, claims, &ctrl)
-	return setReply(c, err, Msg("Controller registered"))
+	if err != nil {
+		return err
+	}
+	return setReply(c, Msg("Controller registered"))
 }
 
 func CreateControllerObj(ctx context.Context, claims *UserClaims, ctrl *ormapi.Controller) error {
@@ -120,10 +123,15 @@ func DeleteController(c echo.Context) error {
 
 	ctrl := ormapi.Controller{}
 	if err := c.Bind(&ctrl); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	err = DeleteControllerObj(ctx, claims, &ctrl)
-	return setReply(c, err, Msg("Controller deregistered"))
+	if err != nil {
+		return err
+	}
+	// Close regional influxDB connection when controller is deleted
+	influxDbConnCache.DeleteClient(ctrl.Region)
+	return setReply(c, Msg("Controller deregistered"))
 }
 
 func DeleteControllerObj(ctx context.Context, claims *UserClaims, ctrl *ormapi.Controller) error {
@@ -147,14 +155,21 @@ func ShowController(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctrls, err := ShowControllerObj(ctx, claims)
-	return setReply(c, err, ctrls)
+	filter, err := bindDbFilter(c, &ormapi.Controller{})
+	if err != nil {
+		return err
+	}
+	ctrls, err := ShowControllerObj(ctx, claims, filter)
+	if err != nil {
+		return err
+	}
+	return setReply(c, ctrls)
 }
 
-func ShowControllerObj(ctx context.Context, claims *UserClaims) ([]ormapi.Controller, error) {
+func ShowControllerObj(ctx context.Context, claims *UserClaims, filter map[string]interface{}) ([]ormapi.Controller, error) {
 	ctrls := []ormapi.Controller{}
 	db := loggedDB(ctx)
-	err := db.Find(&ctrls).Error
+	err := db.Where(filter).Find(&ctrls).Error
 	if err != nil {
 		return nil, dbErr(err)
 	}

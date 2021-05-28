@@ -224,6 +224,7 @@ func (vp *VMProperties) GetCloudletSharedRootLBFlavor(flavor *edgeproto.Flavor) 
 	} else {
 		flavor.Disk = 40
 	}
+	flavor.Key.Name = "mex-rootlb-flavor"
 	return nil
 }
 

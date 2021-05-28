@@ -11,10 +11,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-// This functions could be shared across non-openstack platforms, and were basicly hijacked from vsphere
-// While in VcdPlatform currently, if approved, move into vm-common-mumble package
 func (v *VcdPlatform) GetFlavor(ctx context.Context, flavorName string) (*edgeproto.FlavorInfo, error) {
-	flavs, err := v.GetFlavorList(ctx)
+	flavs, err := v.GetFlavorListInternal(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -27,9 +25,14 @@ func (v *VcdPlatform) GetFlavor(ctx context.Context, flavorName string) (*edgepr
 }
 
 func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList")
-	// we just send the controller back the same list of flavors it gave us, because VSphere has no flavor concept.
-	// Make sure each flavor is at least a minimum size to run the platform
+	var flavors []*edgeproto.FlavorInfo
+	// by returning no flavors, we signal to the controller this platform supports no native flavors
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList return empty", "len", len(flavors))
+	return flavors, nil
+}
+
+func (v *VcdPlatform) GetFlavorListInternal(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorListInternal")
 
 	var flavors []*edgeproto.FlavorInfo
 	if v.caches == nil {
@@ -84,6 +87,7 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 		Disk:  rlbFlav.Disk,
 	}
 	flavors = append(flavors, &rootlbFlavorInfo)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorListInternal added SharedRootLB", "flavor", rootlbFlavorInfo)
 	return flavors, nil
 }
 

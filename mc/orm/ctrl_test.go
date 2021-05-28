@@ -65,6 +65,7 @@ func TestController(t *testing.T) {
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
+		RemoveRateLimit:         true,
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
@@ -1806,6 +1807,7 @@ func TestUpgrade(t *testing.T) {
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
+		RemoveRateLimit:         true,
 	}
 
 	// start postgres so we can prepopulate it with old data

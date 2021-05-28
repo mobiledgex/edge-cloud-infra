@@ -38,6 +38,7 @@ func TestLDAPServer(t *testing.T) {
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
+		RemoveRateLimit:         true,
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")

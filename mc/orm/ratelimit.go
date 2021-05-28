@@ -197,6 +197,16 @@ var DefaultMcShowUsageApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateL
 	},
 }
 
+var DefaultMcControllerApiEndpointRateLimitSettingsName = "DefaultMcControllerApiEndpointRateLimitSettings"
+var DefaultNoAuthMcApiEndpointRateLimitSettingsName = "DefaultNoAuthMcApiEndpointRateLimitSettings"
+var DefaultMcCreateApiEndpointRateLimitSettingsName = "DefaultMcCreateApiEndpointRateLimitSettings"
+var DefaultMcDeleteApiEndpointRateLimitSettingsName = "DefaultMcDeleteApiEndpointRateLimitSettings"
+var DefaultMcUpdateApiEndpointRateLimitSettingsName = "DefaultMcUpdateApiEndpointRateLimitSettings"
+var DefaultMcDefaultApiEndpointRateLimitSettingsName = "DefaultMcDefaultApiEndpointRateLimitSettings"
+var DefaultMcShowApiEndpointRateLimitSettingsName = "DefaultMcShowApiEndpointRateLimitSettings"
+var DefaultMcShowMetricsApiEndpointRateLimitSettingsName = "DefaultMcShowMetricsApiEndpointRateLimitSettings"
+var DefaultMcShowUsageApiEndpointRateLimitSettingsName = "DefaultMcShowUsageApiEndpointRateLimitSettings"
+
 /*func rateLimit(ctx context.Context, api, usr, org, ip string) (bool, error) {
 	rateLimitCtx := ratelimit.Context{Context: ctx}
 	rateLimitCtx.Api = api

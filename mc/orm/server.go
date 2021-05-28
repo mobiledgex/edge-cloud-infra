@@ -84,6 +84,7 @@ type ServerConfig struct {
 	DomainName              string
 	StaticDir               string
 	DeploymentTag           string
+	RemoveRateLimit         bool
 }
 
 var DefaultDBUser = "mcuser"
@@ -1086,40 +1087,50 @@ func createMcWebsocketsApi(ws *echo.Group, prefix string, path string, h echo.Ha
 }
 
 func addApiRateLimit(prefix string, path string, apiAuthType ApiAuthType, apiType ApiType, apiActionType ApiActionType) {
+	if serverConfig.RemoveRateLimit {
+		log.DebugLog(log.DebugLevelInfo, "skip mc api rate limit", "method", "/"+prefix+path)
+		return
+	}
 	// add api to ratelimitmgr
 	methodName := "/" + prefix + path
 	log.DebugLog(log.DebugLevelInfo, "BLAH: mc api", "method", methodName, "authtype", apiAuthType, "actiontype", apiActionType)
 
 	var rateLimitSettings *edgeproto.ApiEndpointRateLimitSettings
+	var settingsName string
 	if apiType == Controller {
 		rateLimitSettings = DefaultMcControllerApiEndpointRateLimitSettings
+		settingsName = DefaultMcControllerApiEndpointRateLimitSettingsName
 	} else {
 		if apiAuthType == Auth {
 			switch apiActionType {
 			case Create:
 				rateLimitSettings = DefaultMcCreateApiEndpointRateLimitSettings
+				settingsName = DefaultMcCreateApiEndpointRateLimitSettingsName
 			case Delete:
 				rateLimitSettings = DefaultMcDeleteApiEndpointRateLimitSettings
+				settingsName = DefaultMcDeleteApiEndpointRateLimitSettingsName
 			case Show:
 				rateLimitSettings = DefaultMcShowApiEndpointRateLimitSettings
+				settingsName = DefaultMcShowApiEndpointRateLimitSettingsName
 			case Update:
 				rateLimitSettings = DefaultMcUpdateApiEndpointRateLimitSettings
+				settingsName = DefaultMcUpdateApiEndpointRateLimitSettingsName
 			case ShowMetrics:
 				rateLimitSettings = DefaultMcShowMetricsApiEndpointRateLimitSettings
+				settingsName = DefaultMcShowMetricsApiEndpointRateLimitSettingsName
 			case ShowUsage:
 				rateLimitSettings = DefaultMcShowUsageApiEndpointRateLimitSettings
+				settingsName = DefaultMcShowUsageApiEndpointRateLimitSettingsName
 			case Default:
 				fallthrough
 			default:
-				if apiType == Controller {
-					rateLimitSettings = edgeproto.DefaultControllerDefaultApiEndpointRateLimitSettings
-				} else {
-					rateLimitSettings = DefaultMcDefaultApiEndpointRateLimitSettings
-				}
+				rateLimitSettings = DefaultMcDefaultApiEndpointRateLimitSettings
+				settingsName = DefaultMcDefaultApiEndpointRateLimitSettingsName
 			}
 		} else {
 			rateLimitSettings = DefaultNoAuthMcApiEndpointRateLimitSettings
+			settingsName = DefaultNoAuthMcApiEndpointRateLimitSettingsName
 		}
 	}
-	rateLimitMgr.AddRateLimitPerApi(methodName, rateLimitSettings)
+	rateLimitMgr.AddRateLimitPerApi(methodName, rateLimitSettings, settingsName)
 }

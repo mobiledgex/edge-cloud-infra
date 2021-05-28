@@ -343,7 +343,7 @@ func ProxyScraper(done chan bool) {
 	for {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
-		case <-time.After(*promScrapeInterval):
+		case <-time.After(metricsScrapingInterval):
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				if !clientReady(v) {

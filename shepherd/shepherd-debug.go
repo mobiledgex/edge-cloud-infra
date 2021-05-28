@@ -25,7 +25,7 @@ func setScrapeInterval(ctx context.Context, req *edgeproto.DebugRequest) string 
 	if req.Args == "" {
 		return "please specify shepherd metrics scrape interval"
 	}
-	*promScrapeInterval, err = time.ParseDuration(req.Args)
+	metricsScrapingInterval, err = time.ParseDuration(req.Args)
 	if err != nil {
 		return "cannot parse scrape interval duration(example: 15s)"
 	}
@@ -38,7 +38,7 @@ func resetScrapeInterval(ctx context.Context, req *edgeproto.DebugRequest) strin
 	if req.Args != "" {
 		return "reset command doesn't take any arguments"
 	}
-	*promScrapeInterval = defaultScrapeInterval
+	metricsScrapingInterval = *promScrapeInterval
 	updateClusterWorkers(ctx, settings.ShepherdMetricsCollectionInterval)
 	return "reset promScrapeInterval for all workers"
 }

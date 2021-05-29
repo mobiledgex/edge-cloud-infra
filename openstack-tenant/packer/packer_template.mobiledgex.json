@@ -59,8 +59,15 @@
 	    "script": "harden.sh"
 	},
 	{
-	"type": "shell",
-	"script": "cleanup.sh"
+	    "type": "shell",
+	    "script": "reboot.sh",
+	    "expect_disconnect": true
+	},
+	{
+	    "type": "shell",
+	    "script": "cleanup.sh",
+	    "remote_folder": "/var/tmp",
+	    "pause_before": "10s"
 	}   
     ]
 }

@@ -189,13 +189,9 @@ ip route
 log "Updating dhclient timeout"
 sudo perl -i -p -e s/'timeout 300;'/'timeout 15;'/g /etc/dhcp/dhclient.conf
 
-case "$OUTPUT_PLATFORM" in
-vsphere|vcd)
-	log "Removing serial console from grub"
-	sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
-	sudo grub-mkconfig -o /boot/grub/grub.cfg
-	;;
-esac
+log "Removing serial console from grub"
+sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
+sudo grub-mkconfig -o /boot/grub/grub.cfg
 
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd

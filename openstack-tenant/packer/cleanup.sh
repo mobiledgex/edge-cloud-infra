@@ -23,6 +23,9 @@ log "cleanup package cache"
 sudo apt-get autoremove -y
 sudo rm -f /var/cache/apt/archives/*.deb
 
+log "Enabling the mobiledgex service"
+sudo systemctl enable mobiledgex
+
 # IMPORTANT:
 # This needs to be the very last thing that runs in the base image build
 log "cleanup sudoers file"

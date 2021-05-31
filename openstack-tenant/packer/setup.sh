@@ -186,9 +186,6 @@ sudo dhclient "$INTERFACE"
 ip addr
 ip route
 
-log "Enabling the mobiledgex service"
-sudo systemctl enable mobiledgex
-
 log "Updating dhclient timeout"
 sudo perl -i -p -e s/'timeout 300;'/'timeout 15;'/g /etc/dhcp/dhclient.conf
 

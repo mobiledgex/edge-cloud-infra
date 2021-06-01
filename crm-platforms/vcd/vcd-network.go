@@ -43,6 +43,14 @@ func (v *VcdPlatform) getMexInternalNetRange(ctx context.Context) (string, error
 		log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange Octet failed", "baseCidr", err)
 		return "", err
 	}
+
+	ni, err := vmlayer.ParseNetSpec(ctx, v.vmProperties.GetCloudletNetworkScheme())
+	if err != nil {
+
+		return "", err
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange ni", "CIDR", ni.CIDR, "ni", ni)
+
 	return "10." + strconv.Itoa(octet2), nil
 }
 

@@ -573,7 +573,7 @@ func (v *VSpherePlatform) CreateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOr
 			updateCallback(edgeproto.UpdateTask, "Cleaning up after failure")
 			err := v.DeleteResourcesForGroup(ctx, vmgp.GroupName)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "cleanup failed: %v", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "cleanup failed", "err", err)
 			}
 		}
 		return fmt.Errorf("CreateVMs failed: %s", errFound)

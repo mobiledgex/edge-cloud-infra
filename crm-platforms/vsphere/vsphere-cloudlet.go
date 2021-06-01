@@ -25,7 +25,7 @@ func (v *VSpherePlatform) SaveCloudletAccessVars(ctx context.Context, cloudlet *
 }
 
 func (v *VSpherePlatform) GetCloudletImageSuffix(ctx context.Context) string {
-	return "-vsphere.qcow2"
+	return ".qcow2"
 }
 
 //CreateImageFromUrl downloads image from URL and then imports to the datastore

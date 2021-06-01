@@ -70,7 +70,7 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
         <rasd:Description>SCSI Controller</rasd:Description>
         <rasd:ElementName>SCSI Controller 1</rasd:ElementName>
         <rasd:InstanceID>3</rasd:InstanceID>
-        <rasd:ResourceSubType>lsilogic</rasd:ResourceSubType>
+        <rasd:ResourceSubType>lsilogicsas</rasd:ResourceSubType>
         <rasd:ResourceType>6</rasd:ResourceType>
         <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="16"/>
       </Item>

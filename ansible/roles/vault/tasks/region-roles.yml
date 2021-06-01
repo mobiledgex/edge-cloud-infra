@@ -32,6 +32,7 @@
       - chef.read.v1
       - certs.read.v1
       - gcp-auth.read.v1
+      - gcs.read.v1
       - mex-ssh-key.read.v1
       - mexenv.read.v1
       - registry.read.v1
@@ -54,6 +55,7 @@
       - chef.read.v1
       - certs.read.v1
       - gcp-auth.read.v1
+      - gcs.read.v1
       - mex-ssh-key.read.v1
       - mexenv.read.v1
       - registry.read.v1

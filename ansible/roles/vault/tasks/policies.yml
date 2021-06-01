@@ -24,6 +24,7 @@
     - policies/chef.read.v1.hcl.j2
     - policies/cloudlets.read.v1.hcl.j2
     - policies/cloudlets.write.v1.hcl.j2
+    - policies/gcs.read.v1.hcl.j2
     - policies/influxdb.read.v1.hcl.j2
     - policies/influxdb-internal.read.v1.hcl.j2
     - policies/logins.read.v1.hcl.j2

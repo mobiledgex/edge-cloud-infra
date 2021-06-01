@@ -64,6 +64,12 @@ func persistInterfaceName(ctx context.Context, client ssh.Client, ifName, mac st
 	return pc.WriteFile(client, udevRulesFile, newFileContents, "udev-rules", pc.SudoOn)
 }
 
+func (v *VMPlatform) GetInterfaceNameForMac(ctx context.Context, client ssh.Client, mac string) string {
+	cmd := fmt.Sprintf("ip -br link | awk '$3 ~ /^%s/ {print $1; exit 1}'", mac)
+	out, _ := client.Output(cmd)
+	return out
+}
+
 // configureInternalInterfaceAndExternalForwarding sets up the new internal interface and then creates iptables rules to forward
 // traffic out the external interface.  Returns the name of the internal interface
 func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context.Context, client ssh.Client, subnetName, internalPortName string, serverDetails *ServerDetail, action *infracommon.InterfaceActionsOp) (string, error) {
@@ -90,16 +96,8 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 	}
 
 	// discover the interface names matching our macs
-	externalIfname := ""
-	internalIfname := ""
-	cmd := fmt.Sprintf("ip -br link | awk '$3 ~ /^%s/ {print $1; exit 1}'", internalIP.MacAddress)
-	out, _ := client.Output(cmd)
-	internalIfname = out
-	log.SpanLog(ctx, log.DebugLevelInfra, "found interface", "ifn", internalIfname, "mac", internalIP.MacAddress)
-	cmd = fmt.Sprintf("ip -br link | awk '$3 ~ /^%s/ {print $1; exit 1}'", externalIP.MacAddress)
-	out, _ = client.Output(cmd)
-	externalIfname = out
-	log.SpanLog(ctx, log.DebugLevelInfra, "found interface", "ifn", externalIfname, "mac", externalIP.MacAddress)
+	externalIfname := v.GetInterfaceNameForMac(ctx, client, externalIP.MacAddress)
+	internalIfname := v.GetInterfaceNameForMac(ctx, client, internalIP.MacAddress)
 
 	if externalIfname == "" {
 		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find external interface via MAC", "mac", externalIP.MacAddress)
@@ -120,7 +118,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 	if action.AddInterface {
 		// cleanup any interfaces files that may be sitting around with our new interface, perhaps from some old failure
 		cmd := fmt.Sprintf("grep -l ' %s ' %s", fileMatch, internalIfname)
-		out, err = client.Output(cmd)
+		out, err := client.Output(cmd)
 		log.SpanLog(ctx, log.DebugLevelInfra, "cleanup old interface files with interface", "internalIfname", internalIfname, "out", out, "err", err)
 		if err == nil {
 			files := strings.Split(out, "\n")
@@ -149,7 +147,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		ipcmds = append(ipcmds, addrCmd)
 		for _, c := range ipcmds {
 			log.SpanLog(ctx, log.DebugLevelInfra, "bringing up interface", "internalIfname", internalIfname, "cmd", c)
-			out, err = client.Output(c)
+			out, err := client.Output(c)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "unable to run", "cmd", c, "out", out, "err", err)
 				return "", fmt.Errorf("unable to run ip command: %s - %v", out, err)
@@ -271,6 +269,27 @@ func (v *VMPlatform) DetachAndDisableRootLBInterface(ctx context.Context, client
 var rootLBLock sync.Mutex
 var MaxRootLBWait = 5 * time.Minute
 
+// used by cloudlet.go currently
+func (v *VMPlatform) GetDefaultRootLBFlavor(ctx context.Context) (*edgeproto.FlavorInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetDefaultRootLBFlavor cloudlet flavor list empty use default")
+	var rlbFlav edgeproto.Flavor
+	// must be a platform with no native flavor support, use our default LB flavor from props
+	err := v.VMProperties.GetCloudletSharedRootLBFlavor(&rlbFlav)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetDefaultRootLBFlavor GetCloudletSharedRootLBFlavor", "error", err)
+		return nil, err
+	}
+
+	rootlbFlavorInfo := edgeproto.FlavorInfo{
+		Name:  MEX_ROOTLB_FLAVOR_NAME,
+		Vcpus: rlbFlav.Vcpus,
+		Ram:   rlbFlav.Ram,
+		Disk:  rlbFlav.Disk,
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetDefaultRootLBFlavor", "default", rootlbFlavorInfo)
+	return &rootlbFlavorInfo, nil
+}
+
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb
 func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, subnetConnect string, tags []string, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
@@ -286,14 +305,23 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	cli := edgeproto.CloudletInfo{}
 	cli.Key = *v.VMProperties.CommonPf.PlatformConfig.CloudletKey
 	cli.Flavors = v.FlavorList
-	restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
-	vmspec, err := vmspec.GetVMSpec(ctx, rootlbFlavor, cli, restbls)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "RootLB GetVMSpec error", "v.FlavorList", v.FlavorList, "rootlbFlavor", rootlbFlavor, "err", err)
-		return nil, fmt.Errorf("unable to find VM spec for RootLB: %v", err)
+
+	spec := &vmspec.VMCreationSpec{}
+	if len(cli.Flavors) == 0 {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB clouldlet flavor list emtpy use default", "rootLbName", rootLbName)
+		// must be a platform with no native flavor support, just use the default
+		spec.FlavorName = rootlbFlavor.Key.Name
+		// The platform has the definition of the name in its internal flavors list for the actual create
+	} else {
+		restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
+		spec, err = vmspec.GetVMSpec(ctx, rootlbFlavor, cli, restbls)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "RootLB GetVMSpec error", "v.FlavorList", v.FlavorList, "rootlbFlavor", rootlbFlavor, "err", err)
+			return nil, fmt.Errorf("unable to find VM spec for RootLB: %v", err)
+		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpec returned", "flavor", vmspec.FlavorName, "for mex flavor", rootlbFlavor)
-	az := vmspec.AvailabilityZone
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpec returned", "flavor", spec.FlavorName, "for mex flavor", rootlbFlavor)
+	az := spec.AvailabilityZone
 	if az == "" {
 		az = v.VMProperties.GetCloudletComputeAvailabilityZone()
 	}
@@ -309,10 +337,10 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 	return v.GetVMRequestSpec(ctx,
 		cloudcommon.VMTypeRootLB,
 		rootLbName,
-		vmspec.FlavorName,
+		spec.FlavorName,
 		imageName,
 		true,
-		WithExternalVolume(vmspec.ExternalVolumeSize),
+		WithExternalVolume(spec.ExternalVolumeSize),
 		WithSubnetConnection(subnetConnect),
 		WithChefParams(chefParams),
 		WithAdditionalNetworks(v.VMProperties.GetCloudletAdditionalRootLbNetworks()))
@@ -372,6 +400,7 @@ func (v *VMPlatform) SetupRootLB(
 	ctx context.Context, rootLBName string,
 	cloudletKey *edgeproto.CloudletKey,
 	TrustPolicy *edgeproto.TrustPolicy,
+	fixForwardingRules bool,
 	updateCallback edgeproto.CacheUpdateCallback,
 ) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupRootLB", "rootLBName", rootLBName)
@@ -455,6 +484,18 @@ func (v *VMPlatform) SetupRootLB(
 	ip, err := GetIPFromServerDetails(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", sd)
 	if err != nil {
 		return fmt.Errorf("cannot get rootLB IP %sv", err)
+	}
+	if fixForwardingRules {
+		// fixForwardingRules is needed for short term only to tweak forwarding rules which were
+		// previously created
+		externalIf := v.GetInterfaceNameForMac(ctx, client, ip.MacAddress)
+		if externalIf == "" {
+			return fmt.Errorf("Unable to find external interface for rootlb")
+		}
+		err = infracommon.FixForwardingRules(ctx, client, externalIf)
+		if err != nil {
+			return err
+		}
 	}
 	// just for test as this is taking too long
 	if v.VMProperties.GetSkipInstallResourceTracker() {

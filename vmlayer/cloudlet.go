@@ -438,6 +438,11 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 	}
 
+	// Delete FQDN of shared RootLB
+	if err = v.VMProperties.CommonPf.DeleteDNSRecords(ctx, rootLBName); err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete sharedRootLB DNS record", "fqdn", rootLBName, "err", err)
+	}
+
 	// Not sure if it's safe to remove vars from Vault due to testing/virtual cloudlets,
 	// so leaving them in Vault for the time being. We can always delete them manually
 
@@ -530,16 +535,24 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 			return nil, err
 		}
 		if cloudlet.InfraConfig.FlavorName == "" {
+			var spec *vmspec.VMCreationSpec
 			cli := edgeproto.CloudletInfo{}
 			cli.Flavors = flavorList
 			cli.Key = cloudlet.Key
-			restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
-			vmspec, err := vmspec.GetVMSpec(ctx, *pfFlavor, cli, restbls)
-
-			if err != nil {
-				return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
+			if len(flavorList) == 0 {
+				flavInfo, err := v.GetDefaultRootLBFlavor(ctx)
+				if err != nil {
+					return nil, fmt.Errorf("unable to find DefaultShared RootLB flavor: %v", err)
+				}
+				spec.FlavorName = flavInfo.Name
+			} else {
+				restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
+				spec, err = vmspec.GetVMSpec(ctx, *pfFlavor, cli, restbls)
+				if err != nil {
+					return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
+				}
 			}
-			flavorName = vmspec.FlavorName
+			flavorName = spec.FlavorName
 		} else {
 			// Validate infra flavor name provided by user
 			for _, finfo := range flavorList {

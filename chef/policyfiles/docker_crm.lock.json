@@ -1,5 +1,5 @@
 {
-  "revision_id": "4831961644cf7fcaabc112c74d062bb2c4c425331622e937b146217fe11af936",
+  "revision_id": "5dfccd9375fefbd040949c3fc8112239607e8cb01c1f90c244ab8c3369f6d4bc",
   "name": "docker_crm",
   "run_list": [
     "recipe[runstatus_handler::default]",
@@ -15,8 +15,8 @@
   "cookbook_locks": {
     "docker": {
       "version": "6.0.3",
-      "identifier": "0dd8b3f1858b79e0fddb8eba164b12652cf5bbbb",
-      "dotted_decimal_identifier": "3897442060045177.63329514217412171.20225755298747",
+      "identifier": "6008032447fab3b9506abaab9d3ad808ea988d01",
+      "dotted_decimal_identifier": "27030407350844083.52161290020035898.237532807204097",
       "cache_key": "docker-6.0.3",
       "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
@@ -80,14 +80,14 @@
       }
     },
     "setup_services": {
-      "version": "1.0.25",
-      "identifier": "2c9d536fb63d82a2116d9699219caf8861b25708",
-      "dotted_decimal_identifier": "12557880657329538.45618108602851740.193000289490696",
-      "cache_key": "setup_services-1.0.25",
+      "version": "1.0.27",
+      "identifier": "d83c1f8bc1d18e7d0daf58f1ec7a59c599f7212f",
+      "dotted_decimal_identifier": "60864701155889550.35199418851519610.98705226539311",
+      "cache_key": "setup_services-1.0.27",
       "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
         "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
-        "version": "1.0.25"
+        "version": "1.0.27"
       }
     }
   },
@@ -132,7 +132,7 @@
       ],
       [
         "setup_services",
-        "= 1.0.25"
+        "= 1.0.27"
       ]
     ],
     "dependencies": {
@@ -154,7 +154,7 @@
       "setup_infra (1.0.0)": [
 
       ],
-      "setup_services (1.0.25)": [
+      "setup_services (1.0.27)": [
         [
           "docker",
           ">= 0.0.0"

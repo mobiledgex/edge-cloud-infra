@@ -92,6 +92,7 @@ func GetRootCommand() *RootCommand {
 		rc.getCmdGroup(ormctl.SpansGroup),
 		rc.getCmd("RestrictedUpdateUser"),
 		rc.getCmd("RestrictedUpdateOrg"),
+		rc.getCmdGroup(ormctl.RateLimitSettingsGroup),
 	}
 	logsMetricsCommands := []*cobra.Command{
 		rc.getCmdGroup(ormctl.MetricsGroup),

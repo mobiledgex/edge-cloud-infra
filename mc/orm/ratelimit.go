@@ -5,19 +5,9 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/ratelimit"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/log"
 )
-
-/*type ApiType int
-
-const (
-	Admin ApiType = iota
-	Developer
-	Operator
-)*/
 
 type ApiType int
 
@@ -45,200 +35,124 @@ const (
 	ShowUsage
 )
 
-// Let controller reject, MC will "leak" requests to controller at reasonable rate
-var DefaultMcControllerApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_LEAKY_BUCKET_ALGORITHM,
-			ReqsPerSecond: 25,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_LEAKY_BUCKET_ALGORITHM,
-			ReqsPerSecond: 5,
-		},
-	},
+var McControllerApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_LEAKY_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
 }
 
-var DefaultNoAuthMcApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 50,
-			BurstSize:     10,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 10,
-			BurstSize:     2,
-		},
-	},
+var McControllerApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_LEAKY_BUCKET_ALGORITHM,
+	ReqsPerSecond: 10,
 }
 
-var DefaultMcCreateApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 200,
-			BurstSize:     25,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 50,
-			BurstSize:     5,
-		},
-	},
+var NoAuthMcApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
+	BurstSize:     10,
 }
 
-var DefaultMcDeleteApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 200,
-			BurstSize:     25,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 50,
-			BurstSize:     5,
-		},
-	},
+var NoAuthMcApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 10,
+	BurstSize:     2,
 }
 
-var DefaultMcUpdateApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 200,
-			BurstSize:     25,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 50,
-			BurstSize:     5,
-		},
-	},
+var McCreateApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 200,
+	BurstSize:     25,
 }
 
-var DefaultMcDefaultApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 200,
-			BurstSize:     25,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 50,
-			BurstSize:     5,
-		},
-	},
+var McCreateApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
+	BurstSize:     5,
 }
 
-var DefaultMcShowApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 300,
-			BurstSize:     25,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 50,
-			BurstSize:     5,
-		},
-	},
+var McDeleteApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 200,
+	BurstSize:     25,
 }
 
-var DefaultMcShowMetricsApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 200,
-			BurstSize:     25,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 50,
-			BurstSize:     5,
-		},
-	},
+var McDeleteApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
+	BurstSize:     5,
 }
 
-var DefaultMcShowUsageApiEndpointRateLimitSettings = &edgeproto.ApiEndpointRateLimitSettings{
-	EndpointRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 200,
-			BurstSize:     25,
-		},
-	},
-	EndpointPerIpRateLimitSettings: &edgeproto.RateLimitSettings{
-		FlowRateLimitSettings: &edgeproto.FlowRateLimitSettings{
-			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
-			ReqsPerSecond: 50,
-			BurstSize:     5,
-		},
-	},
+var McUpdateApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 200,
+	BurstSize:     25,
 }
 
-var DefaultMcControllerApiEndpointRateLimitSettingsName = "DefaultMcControllerApiEndpointRateLimitSettings"
-var DefaultNoAuthMcApiEndpointRateLimitSettingsName = "DefaultNoAuthMcApiEndpointRateLimitSettings"
-var DefaultMcCreateApiEndpointRateLimitSettingsName = "DefaultMcCreateApiEndpointRateLimitSettings"
-var DefaultMcDeleteApiEndpointRateLimitSettingsName = "DefaultMcDeleteApiEndpointRateLimitSettings"
-var DefaultMcUpdateApiEndpointRateLimitSettingsName = "DefaultMcUpdateApiEndpointRateLimitSettings"
-var DefaultMcDefaultApiEndpointRateLimitSettingsName = "DefaultMcDefaultApiEndpointRateLimitSettings"
-var DefaultMcShowApiEndpointRateLimitSettingsName = "DefaultMcShowApiEndpointRateLimitSettings"
-var DefaultMcShowMetricsApiEndpointRateLimitSettingsName = "DefaultMcShowMetricsApiEndpointRateLimitSettings"
-var DefaultMcShowUsageApiEndpointRateLimitSettingsName = "DefaultMcShowUsageApiEndpointRateLimitSettings"
+var McUpdateApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
+	BurstSize:     5,
+}
 
-/*func rateLimit(ctx context.Context, api, usr, org, ip string) (bool, error) {
-	rateLimitCtx := ratelimit.Context{Context: ctx}
-	rateLimitCtx.Api = api
-	rateLimitCtx.User = usr
-	rateLimitCtx.Org = org
-	rateLimitCtx.Ip = ip
-	limit, err := rateLimitMgr.Limit(rateLimitCtx)
-	if limit {
-		errMsg := fmt.Sprintf("%s is rejected, please retry later.", api)
-		if err != nil {
-			errMsg += fmt.Sprintf(" Error is: %s.", err.Error())
-		}
-		return true, status.Errorf(codes.ResourceExhausted, errMsg)
+var McDefaultApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 200,
+	BurstSize:     25,
+}
 
-	}
-	return false, nil
-}*/
+var McDefaultApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
+	BurstSize:     5,
+}
+
+var McShowApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 300,
+	BurstSize:     25,
+}
+
+var McShowApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
+	BurstSize:     5,
+}
+
+var McShowMetricsApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 200,
+	BurstSize:     25,
+}
+
+var McShowMetricsApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
+	BurstSize:     5,
+}
+
+var McShowUsageApiFullEndpointRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 200,
+	BurstSize:     25,
+}
+
+var McShowUsageApiPerIpRateLimitSettings = &edgeproto.RateLimitSettings{
+	FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
+	ReqsPerSecond: 50,
+	BurstSize:     5,
+}
 
 func RateLimit(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
+		// Create ctx with rateLimitInfo
 		ctx := GetContext(c)
 		rateLimitInfo := &ratelimit.LimiterInfo{
-			Api:         c.Path(),
-			Ip:          c.RealIP(),
-			RateLimited: true,
+			Api: c.Path(),
+			Ip:  c.RealIP(),
 		}
 		ctx = ratelimit.NewLimiterInfoContext(ctx, rateLimitInfo)
-		//rateLimitCtx.Ip = c.RealIP()
-		// TODO: by org???
+		// Rate limit
 		limit, err := rateLimitMgr.Limit(ctx)
 		if limit {
-			log.DebugLog(log.DebugLevelInfo, "BLAH: error ratelimiting", "err", err)
 			errMsg := fmt.Sprintf("%s is rejected, please retry later.", c.Path())
 			if err != nil {
 				errMsg += fmt.Sprintf(" Error is: %s.", err.Error())
@@ -247,25 +161,5 @@ func RateLimit(next echo.HandlerFunc) echo.HandlerFunc {
 
 		}
 		return next(c)
-	}
-}
-
-func getOrgFromRequest(c echo.Context) (string, error) {
-	var inter interface{}
-	if err := c.Bind(&inter); err != nil {
-		// log
-		log.DebugLog(log.DebugLevelInfo, "BLAH: error binding", "err", err)
-		return "", fmt.Errorf("BLAH error binding: %s", err)
-	}
-	log.DebugLog(log.DebugLevelInfo, "BLAH: binded")
-	switch typ := inter.(type) {
-	case *ormapi.RegionAppInstMetrics:
-		// switch based on selector
-		return typ.AppInst.AppKey.Organization, nil
-	case *ormapi.RegionAppInst:
-		return typ.AppInst.Key.AppKey.Organization, nil
-	default:
-		log.DebugLog(log.DebugLevelInfo, "BLAH: unknown req", "req type", typ)
-		return "", nil
 	}
 }

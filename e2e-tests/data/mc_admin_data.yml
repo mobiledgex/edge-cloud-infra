@@ -75,18 +75,6 @@ regiondata:
       influxdbdownsampledmetricsretention: 672h0m0s
       edgeeventsmetricscontinuousqueriescollectionintervals:
       - interval: 2s
-      controllercreateapiendpointratelimitsettings:
-        removeratelimit: true
-      controllerupdateapiendpointratelimitsettings:
-        removeratelimit: true
-      controllerdeleteapiendpointratelimitsettings:
-        removeratelimit: true
-      controllershowapiendpointratelimitsettings:
-        removeratelimit: true
-      controllerdefaultapiendpointratelimitsettings:
-        removeratelimit: true
-      dmedefaultapiendpointratelimitsettings:
-        removeratelimit: true
     flavors:
     - key:
         name: x1.tiny
@@ -139,18 +127,6 @@ regiondata:
       influxdbdownsampledmetricsretention: 672h0m0s
       edgeeventsmetricscontinuousqueriescollectionintervals:
       - interval: 2s
-      controllercreateapiendpointratelimitsettings:
-        removeratelimit: true
-      controllerupdateapiendpointratelimitsettings:
-        removeratelimit: true
-      controllerdeleteapiendpointratelimitsettings:
-        removeratelimit: true
-      controllershowapiendpointratelimitsettings:
-        removeratelimit: true
-      controllerdefaultapiendpointratelimitsettings:
-        removeratelimit: true
-      dmedefaultapiendpointratelimitsettings:
-        removeratelimit: true
     flavors:
     - key:
         name: x1.tiny

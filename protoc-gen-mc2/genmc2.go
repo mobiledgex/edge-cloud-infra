@@ -253,18 +253,6 @@ func (g *GenMC2) generatePosts() {
 					"\", ", method.Name, ")")
 
 				g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Default)")
-
-				/*if strings.Contains(*method.Name, "Create") {
-					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Create)")
-				} else if strings.Contains(*method.Name, "Delete") {
-					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Delete)")
-				} else if strings.Contains(*method.Name, "Show") {
-					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Show)")
-				} else if strings.Contains(*method.Name, "Update") {
-					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Update)")
-				} else {
-					g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Default)")
-				}*/
 			}
 		}
 	}

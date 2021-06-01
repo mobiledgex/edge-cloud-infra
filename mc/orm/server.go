@@ -105,7 +105,7 @@ var nodeMgr *node.NodeMgr
 var AlertManagerServer *alertmgr.AlertMgrServer
 var allRegionCaches AllRegionCaches
 
-var rateLimitMgr *ratelimit.ApiRateLimitManager
+var rateLimitMgr *ratelimit.RateLimitManager
 
 func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	server := Server{config: config}
@@ -117,7 +117,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	nodeMgr = config.NodeMgr
 	server.done = make(chan struct{})
 
-	rateLimitMgr = ratelimit.NewApiRateLimitManager()
+	rateLimitMgr = ratelimit.NewRateLimitManager()
 
 	dbuser := os.Getenv("db_username")
 	dbpass := os.Getenv("db_password")
@@ -1070,67 +1070,70 @@ func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 	return nil
 }
 
-// Create Mc API Echo Route and Adds API to ratelimitmgr
+// Create MC API Echo Route and Adds API to ratelimitmgr
 func createMcApi(e *echo.Echo, prefix string, path string, h echo.HandlerFunc, apiAuthType ApiAuthType, apiActionType ApiActionType) {
 	e.POST(prefix+path, h)
 	addApiRateLimit(prefix, path, apiAuthType, Mc, apiActionType)
 }
 
+// Create MC API in the AUTH group and Adds API to ratelimitmgr
 func createAuthMcApi(auth *echo.Group, prefix string, path string, h echo.HandlerFunc, apiActionType ApiActionType) {
 	auth.POST(path, h)
 	addApiRateLimit(prefix, path, Auth, Mc, apiActionType)
 }
 
+// Create MC API that uses websockets route and Adds API to ratelimitmgr
 func createMcWebsocketsApi(ws *echo.Group, prefix string, path string, h echo.HandlerFunc, apiAuthType ApiAuthType, apiActionType ApiActionType) {
 	ws.GET(path, h)
 	addApiRateLimit(prefix, path, apiAuthType, Mc, apiActionType)
 }
 
+// add api to ratelimitmgr
 func addApiRateLimit(prefix string, path string, apiAuthType ApiAuthType, apiType ApiType, apiActionType ApiActionType) {
+	// If RemoveRateLimit, do not add to ratelimitmgr
 	if serverConfig.RemoveRateLimit {
-		log.DebugLog(log.DebugLevelInfo, "skip mc api rate limit", "method", "/"+prefix+path)
 		return
 	}
-	// add api to ratelimitmgr
 	methodName := "/" + prefix + path
-	log.DebugLog(log.DebugLevelInfo, "BLAH: mc api", "method", methodName, "authtype", apiAuthType, "actiontype", apiActionType)
-
-	var rateLimitSettings *edgeproto.ApiEndpointRateLimitSettings
-	var settingsName string
+	var fullEpRateLimitSettings *edgeproto.RateLimitSettings
+	var perIpRateLimitSettings *edgeproto.RateLimitSettings
 	if apiType == Controller {
-		rateLimitSettings = DefaultMcControllerApiEndpointRateLimitSettings
-		settingsName = DefaultMcControllerApiEndpointRateLimitSettingsName
+		// If controller API, use LeakyBucket to "leak" requests to controller and let controller accept or reject
+		fullEpRateLimitSettings = McControllerApiFullEndpointRateLimitSettings
+		perIpRateLimitSettings = McControllerApiPerIpRateLimitSettings
 	} else {
 		if apiAuthType == Auth {
+			// Switch through different MC API action types
 			switch apiActionType {
 			case Create:
-				rateLimitSettings = DefaultMcCreateApiEndpointRateLimitSettings
-				settingsName = DefaultMcCreateApiEndpointRateLimitSettingsName
+				fullEpRateLimitSettings = McCreateApiFullEndpointRateLimitSettings
+				perIpRateLimitSettings = McCreateApiPerIpRateLimitSettings
 			case Delete:
-				rateLimitSettings = DefaultMcDeleteApiEndpointRateLimitSettings
-				settingsName = DefaultMcDeleteApiEndpointRateLimitSettingsName
+				fullEpRateLimitSettings = McDeleteApiFullEndpointRateLimitSettings
+				perIpRateLimitSettings = McDeleteApiPerIpRateLimitSettings
 			case Show:
-				rateLimitSettings = DefaultMcShowApiEndpointRateLimitSettings
-				settingsName = DefaultMcShowApiEndpointRateLimitSettingsName
+				fullEpRateLimitSettings = McShowApiFullEndpointRateLimitSettings
+				perIpRateLimitSettings = McShowApiPerIpRateLimitSettings
 			case Update:
-				rateLimitSettings = DefaultMcUpdateApiEndpointRateLimitSettings
-				settingsName = DefaultMcUpdateApiEndpointRateLimitSettingsName
+				fullEpRateLimitSettings = McUpdateApiFullEndpointRateLimitSettings
+				perIpRateLimitSettings = McUpdateApiPerIpRateLimitSettings
 			case ShowMetrics:
-				rateLimitSettings = DefaultMcShowMetricsApiEndpointRateLimitSettings
-				settingsName = DefaultMcShowMetricsApiEndpointRateLimitSettingsName
+				fullEpRateLimitSettings = McShowMetricsApiFullEndpointRateLimitSettings
+				perIpRateLimitSettings = McShowMetricsApiPerIpRateLimitSettings
 			case ShowUsage:
-				rateLimitSettings = DefaultMcShowUsageApiEndpointRateLimitSettings
-				settingsName = DefaultMcShowUsageApiEndpointRateLimitSettingsName
+				fullEpRateLimitSettings = McShowUsageApiFullEndpointRateLimitSettings
+				perIpRateLimitSettings = McShowUsageApiPerIpRateLimitSettings
 			case Default:
 				fallthrough
 			default:
-				rateLimitSettings = DefaultMcDefaultApiEndpointRateLimitSettings
-				settingsName = DefaultMcDefaultApiEndpointRateLimitSettingsName
+				fullEpRateLimitSettings = McDefaultApiFullEndpointRateLimitSettings
+				perIpRateLimitSettings = McDefaultApiPerIpRateLimitSettings
 			}
 		} else {
-			rateLimitSettings = DefaultNoAuthMcApiEndpointRateLimitSettings
-			settingsName = DefaultNoAuthMcApiEndpointRateLimitSettingsName
+			// No auth MC APIs
+			fullEpRateLimitSettings = NoAuthMcApiFullEndpointRateLimitSettings
+			perIpRateLimitSettings = NoAuthMcApiPerIpRateLimitSettings
 		}
 	}
-	rateLimitMgr.AddRateLimitPerApi(methodName, rateLimitSettings, settingsName)
+	rateLimitMgr.AddApiEndpointLimiter(methodName, fullEpRateLimitSettings, perIpRateLimitSettings, nil, nil)
 }

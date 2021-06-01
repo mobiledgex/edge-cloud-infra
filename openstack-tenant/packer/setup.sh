@@ -176,10 +176,12 @@ sudo apt-get install -y mobiledgex
 
 sudo apt-mark hold mobiledgex linux-image-generic linux-image-virtual
 
-if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
-	log "Adding VMWare cloud-init Guestinfo"
-	sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
-fi
+log "Adding VMWare cloud-init Guestinfo"
+sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
+sudo rm -f /etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
+sudo tee /etc/cloud/cloud.cfg.d/99-mobiledgex.cfg <<'EOT'
+datasource_list: [ "ConfigDrive", "VMwareGuestInfo" ]
+EOT
 
 log "dhclient $INTERFACE"
 sudo dhclient "$INTERFACE"
@@ -312,9 +314,7 @@ Restart=always
 WantedBy=multi-user.target
 EOT
 
-case "$OUTPUT_PLATFORM" in
-vsphere|vcd)
-	sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
+sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
 [Unit]
 Description=Service for virtual machines hosted on VMware
 Documentation=http://open-vm-tools.sourceforge.net/about.php
@@ -330,10 +330,8 @@ TimeoutStopSec=10
 WantedBy=multi-user.target
 EOT
 
-	log "Enabling the open-vm-tools service"
-	sudo systemctl enable open-vm-tools
-	;;
-esac
+log "Enabling the open-vm-tools service"
+sudo systemctl enable open-vm-tools
 
 # Clear /etc/machine-id so that it is uniquely generated on every clone
 echo "" | sudo tee /etc/machine-id

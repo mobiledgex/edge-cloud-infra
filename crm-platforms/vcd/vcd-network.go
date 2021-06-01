@@ -26,32 +26,12 @@ var CloudletIsoNamesMap = "CloudletIsoNamesMap"
 
 // Use MEX_NETWORK_SCHEME to derive sharedLB orgvdcnet cidr for this cloudlet
 func (v *VcdPlatform) getMexInternalNetRange(ctx context.Context) (string, error) {
-	baseCidr := v.GetNetworkScheme()
-	// cidr=10.102.X.0/24
-	parts := strings.Split(baseCidr, "=")
-	if len(parts) == 2 {
-		baseCidr = string(parts[1])
-	}
-	baseCidr = strings.Replace(baseCidr, "X", "1", 1)
-	addr, _, err := net.ParseCIDR(baseCidr)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange ParseCIDR  failed", "baseCidr", baseCidr, "error", err)
-		return "", err
-	}
-	octet2, err := Octet(ctx, addr.String(), 1)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange Octet failed", "baseCidr", err)
-		return "", err
-	}
-
 	ni, err := vmlayer.ParseNetSpec(ctx, v.vmProperties.GetCloudletNetworkScheme())
 	if err != nil {
-
 		return "", err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange ni", "CIDR", ni.CIDR, "ni", ni)
-
-	return "10." + strconv.Itoa(octet2), nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange return", "prefix", ni.Octets[0]+"."+ni.Octets[1])
+	return ni.Octets[0] + "." + ni.Octets[1], nil
 }
 
 func (v *VcdPlatform) GetNetworkList(ctx context.Context) ([]string, error) {

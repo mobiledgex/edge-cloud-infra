@@ -90,13 +90,26 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	}
 
 	if stage == vmlayer.ProviderInitPlatformStartCrm {
+
+		ni := &vmlayer.NetSpecInfo{}
+		ni, err := vmlayer.ParseNetSpec(ctx, v.vmProperties.GetCloudletNetworkScheme())
+		if err != nil {
+			return err
+		}
+
+		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider ni.CIDR", "stage", stage, "CIDR", ni.CIDR, "ni", ni)
+
+		// Replace work below with above after verifying they're the same result
 		mexInternalNetRange, err = v.getMexInternalNetRange(ctx)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider NetRange failed", "stage", stage, "err", err)
 			return err
 		}
+
+		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider ni.CIDR", "stage", stage, "mexInternalNetRange", mexInternalNetRange)
+
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider RebuildMaps", "stage", stage)
-		err := v.RebuildIsoNamesAndFreeMaps(ctx)
+		err = v.RebuildIsoNamesAndFreeMaps(ctx)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider Rebuild maps failed", "error", err)
 			return err

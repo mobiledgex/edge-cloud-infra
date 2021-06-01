@@ -24,6 +24,28 @@ var mexInternalNetRange = "10.101"
 
 var CloudletIsoNamesMap = "CloudletIsoNamesMap"
 
+// Use MEX_NETWORK_SCHEME to derive sharedLB orgvdcnet cidr for this cloudlet
+func (v *VcdPlatform) getMexInternalNetRange(ctx context.Context) (string, error) {
+	baseCidr := v.GetNetworkScheme()
+	// cidr=10.102.X.0/24
+	parts := strings.Split(baseCidr, "=")
+	if len(parts) == 2 {
+		baseCidr = string(parts[1])
+	}
+	baseCidr = strings.Replace(baseCidr, "X", "1", 1)
+	addr, _, err := net.ParseCIDR(baseCidr)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange ParseCIDR  failed", "baseCidr", baseCidr, "error", err)
+		return "", err
+	}
+	octet2, err := Octet(ctx, addr.String(), 1)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "getMexInternalNetRange Octet failed", "baseCidr", err)
+		return "", err
+	}
+	return "10." + strconv.Itoa(octet2), nil
+}
+
 func (v *VcdPlatform) GetNetworkList(ctx context.Context) ([]string, error) {
 	return []string{
 		v.vmProperties.GetCloudletExternalNetwork(),
@@ -430,6 +452,7 @@ func (v *VcdPlatform) DetachPortFromServer(ctx context.Context, serverName, subn
 }
 
 func IncrIP(ctx context.Context, a string, delta int) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "IncrIP", "a", a, "delta", delta)
 	ip := net.ParseIP(a)
 	if ip == nil {
 		return "", fmt.Errorf("%s failed to parse as IP", a)
@@ -754,10 +777,10 @@ func (v *VcdPlatform) GetNextInternalSubnet(ctx context.Context, vappName string
 		return cidr, true, nil
 	}
 
-	// use schema xxx
-	startAddr := "10.101.1.1"
+	startAddr := mexInternalNetRange + ".1.1"
 	// We'll incr the netSpec.DelimiterOctet of this start addr, if it's not in our
 	// All VApps map, it's available
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNextInternalSubnet using", "startAddr", startAddr)
 	curAddr := startAddr
 	vappMap, err := v.GetVappToNetworkMap(ctx, vcdClient)
 	if err != nil {

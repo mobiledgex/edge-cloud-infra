@@ -282,3 +282,20 @@ func (v *VcdPlatform) GetTemplateUrl() string {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_TEMPLATE_URL")
 	return val
 }
+
+func (v *VcdPlatform) GetNetworkScheme() string {
+	if v.TestMode {
+		val := os.Getenv("MEX_NETWORK_SCHEME")
+		if val == "" {
+			val = "10.101.X.0/24"
+		}
+		return val
+	}
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_NETWORK_SCHEME")
+	parts := strings.Split(val, "=")
+	if len(parts) == 2 {
+		val = string(parts[1])
+	}
+
+	return val
+}

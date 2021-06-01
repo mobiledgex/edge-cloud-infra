@@ -542,14 +542,12 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 			if len(flavorList) == 0 {
 				flavInfo, err := v.GetDefaultRootLBFlavor(ctx)
 				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletVMsSpec cld flavor list empty GetDefaultLBflavor failed:", "error", err)
 					return nil, fmt.Errorf("unable to find DefaultShared RootLB flavor: %v", err)
 				}
 				spec.FlavorName = flavInfo.Name
 			} else {
 				restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
 				spec, err = vmspec.GetVMSpec(ctx, *pfFlavor, cli, restbls)
-
 				if err != nil {
 					return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
 				}

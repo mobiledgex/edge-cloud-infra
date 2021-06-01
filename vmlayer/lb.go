@@ -273,7 +273,7 @@ var MaxRootLBWait = 5 * time.Minute
 
 // used by cloudlet.go currently
 func (v *VMPlatform) GetDefaultRootLBFlavor(ctx context.Context) (*edgeproto.FlavorInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetDefaultRootLBFlavor clouldet flavor list empty use default")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetDefaultRootLBFlavor cloudlet flavor list empty use default")
 	var rlbFlav edgeproto.Flavor
 	// must be a platform with no native flavor support, use our default LB flavor from props
 	err := v.VMProperties.GetCloudletSharedRootLBFlavor(&rlbFlav)
@@ -283,7 +283,7 @@ func (v *VMPlatform) GetDefaultRootLBFlavor(ctx context.Context) (*edgeproto.Fla
 	}
 
 	rootlbFlavorInfo := edgeproto.FlavorInfo{
-		Name:  "mex-rootlb-flavor",
+		Name:  MEX_ROOTLB_FLAVOR_NAME,
 		Vcpus: rlbFlav.Vcpus,
 		Ram:   rlbFlav.Ram,
 		Disk:  rlbFlav.Disk,

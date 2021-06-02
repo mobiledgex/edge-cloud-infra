@@ -75,8 +75,8 @@ log_file_contents /etc/hosts
 
 sudo tee /etc/systemd/resolved.conf <<EOT
 [Resolve]
-DNS=1.1.1.1
-FallbackDNS=1.0.0.1
+DNS=1.1.1.1 1.0.0.1
+FallbackDNS=8.8.8.8
 EOT
 sudo tee -a /etc/resolv.conf >/dev/null <<EOT
 nameserver 1.1.1.1

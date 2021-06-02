@@ -9,6 +9,7 @@ pipeline {
     environment {
         ARTIFACTORY_APIKEY = credentials('artiifactory-baseimage-reader')
         PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
+        BASE_IMAGE_ARTF_PATH = 'https://artifactory.mobiledgex.net/artifactory/baseimages'
     }
 
     parameters {
@@ -41,7 +42,7 @@ pipeline {
                 build job: 'cis-cat-assessment',
                       parameters: [[$class: 'StringParameterValue',
                                     name: 'BASE_IMAGE_URL',
-                                    value: "https://artifactory.mobiledgex.net/artifactory/baseimages/${BASE_IMAGE_NAME}.qcow2"]],
+                                    value: "${BASE_IMAGE_ARTF_PATH}/${BASE_IMAGE_NAME.replaceAll('_uncompressed', '')}.qcow2"]],
                       propagate: false,
                       wait: false
             }

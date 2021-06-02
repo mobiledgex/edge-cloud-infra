@@ -5,14 +5,11 @@ COMPONENT = main
 
 PKGDIR = $(PACKAGE)_$(VERSION)
 
-all: build-vers openstack
+all: build-vers package
 
 build-vers:
 	mkdir -p ../../../version
 	(cd ../../../version; ../openstack-tenant/packages/mobiledgex/version.sh "$(VERSION)")
-
-openstack:
-	$(MAKE) package
 
 package: builddir setup_files
 	../build.sh $(PACKAGE) $(VERSION) $(DISTRIBUTION) $(COMPONENT)

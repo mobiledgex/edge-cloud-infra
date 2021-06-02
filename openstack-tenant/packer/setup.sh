@@ -78,7 +78,7 @@ sudo tee /etc/systemd/resolved.conf <<EOT
 DNS=1.1.1.1
 FallbackDNS=1.0.0.1
 EOT
-sudo tee -a /etc/resolv.conf >/dev/null <EOT
+sudo tee -a /etc/resolv.conf >/dev/null <<EOT
 nameserver 1.1.1.1
 nameserver 1.0.0.1
 EOT

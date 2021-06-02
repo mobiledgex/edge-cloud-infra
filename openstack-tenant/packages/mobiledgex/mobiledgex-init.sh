@@ -74,22 +74,20 @@ elif vmtoolsd --cmd "info-get guestinfo.metadata"; then
         fi
 else
 	log "Running in OpenStack"
+	mkdir -p $MCONF
+	START=$( date +'%s' )
+	while (( $( date +'%s' ) - START < 180 )); do
+		MCONF_DEV=$( blkid -t LABEL="config-2" -odevice )
+		[[ -n "$MCONF_DEV" ]] && break
+		log "Waiting for config device..."
+		sleep 5
+	done
+	if [[ -z "$MCONF_DEV" ]]; then
+		log "Failed to identify config device"
+		exit 2
+	fi
+	mount "$MCONF_DEV" "$MCONF"
 fi
-
-mkdir -p $MCONF
-
-START=$( date +'%s' )
-while (( $( date +'%s' ) - START < 180 )); do
-	MCONF_DEV=$( blkid -t LABEL="config-2" -odevice )
-	[[ -n "$MCONF_DEV" ]] && break
-	log "Waiting for config device..."
-	sleep 5
-done
-if [[ -z "$MCONF_DEV" ]]; then
-	log "Failed to identify config device"
-	exit 2
-fi
-mount "$MCONF_DEV" "$MCONF"
 
 # Load parameters
 set_param() {

@@ -331,8 +331,9 @@ func shouldUpdateFailedClient(scrape *ProxyScrapePoint) bool {
 	return false
 }
 
-func shouldPushLbMetrics(lastPushed time.Time) bool {
-	if time.Since(lastPushed) > settings.ShepherdMetricsCollectionInterval.TimeDuration() {
+func checkAndSetLastPushLbMetrics(lastPushed *time.Time) bool {
+	if time.Since(*lastPushed) > settings.ShepherdMetricsCollectionInterval.TimeDuration() {
+		*lastPushed = time.Now()
 		return true
 	}
 	return false
@@ -362,8 +363,8 @@ func ProxyScraper(done chan bool) {
 				metrics, err := QueryProxy(ctx, &v)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelMetrics, "Error retrieving proxy metrics", "appinst", v.App, "error", err.Error())
-				} else if shouldPushLbMetrics(metricsLastPushed) {
-					metricsLastPushed = time.Now()
+				} else if checkAndSetLastPushLbMetrics(&metricsLastPushed) {
+					log.DebugLog(log.DebugLevelInfo, "Pushing proxy metrics")
 					// send to crm->controller->influx
 					influxData := MarshallTcpProxyMetric(v, metrics)
 					influxData = append(influxData, MarshallUdpProxyMetric(v, metrics)...)

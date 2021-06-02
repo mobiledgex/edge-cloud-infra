@@ -72,7 +72,7 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
         <rasd:InstanceID>3</rasd:InstanceID>
         <rasd:ResourceSubType>lsilogicsas</rasd:ResourceSubType>
         <rasd:ResourceType>6</rasd:ResourceType>
-        <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="16"/>
+        <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="192"/>
       </Item>
       <Item>
         <rasd:Address>0</rasd:Address>
@@ -186,6 +186,13 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 			return err
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "downloaded file", "fileWithPath", fileWithPath)
+
+		// as the download may take a long time, refresh the session by triggering an API call
+		_, err = v.GetOrg(ctx, vcdClient)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "fail to get org", "err", err)
+			return fmt.Errorf("Failed to get VCD org")
+		}
 		filesToCleanup = append(filesToCleanup, fileWithPath)
 		vmdkFile := fileWithPath
 		if app.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {

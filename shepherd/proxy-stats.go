@@ -23,9 +23,6 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-var ProxyMap map[string]ProxyScrapePoint
-var ProxyMutex sync.Mutex
-
 const (
 	// TCP stat names in envoy
 	envoyTcpClusterName = "cluster.backend"
@@ -58,6 +55,13 @@ const (
 // no support for const slices
 var envoyHistogramBuckets = []string{"P0", "P25", "P50", "P75", "P90", "P95", "P99", "P99.5", "P99.9", "P100"}
 
+type DockerNetworkType string
+
+const (
+	DockerNetworkHost   DockerNetworkType = "host"
+	DockerNetworkBridge DockerNetworkType = "bridge"
+)
+
 type ProxyScrapePoint struct {
 	Key                edgeproto.AppInstKey
 	FailedChecksCount  int
@@ -72,15 +76,36 @@ type ProxyScrapePoint struct {
 	ListenIP           string
 }
 
-type DockerNetworkType string
+var ProxyMap map[string]ProxyScrapePoint
+var ProxyMutex sync.Mutex
 
-const (
-	DockerNetworkHost   DockerNetworkType = "host"
-	DockerNetworkBridge DockerNetworkType = "bridge"
-)
+var rootLbScrapeInterval time.Duration
+var rootLbMetricsPushInterval time.Duration
+var rootLbMetricsLastPushedLock sync.Mutex
+var rootLbMetricsLastPushed time.Time
 
-func InitProxyScraper() {
+func InitProxyScraper(scrapeInterval, pushInterval time.Duration) {
 	ProxyMap = make(map[string]ProxyScrapePoint)
+	rootLbScrapeInterval = scrapeInterval
+	rootLbMetricsLastPushedLock.Lock()
+	defer rootLbMetricsLastPushedLock.Unlock()
+	rootLbMetricsLastPushed = time.Now()
+	rootLbMetricsPushInterval = pushInterval
+}
+
+// NOTE: This function is almost identical to ClusterWorker:UpdateIntervals()
+//    Should be consolidated
+func updateProxyScraperIntervals(ctx context.Context, scrapeInterval, pushInterval time.Duration) {
+	rootLbMetricsLastPushedLock.Lock()
+	defer rootLbMetricsLastPushedLock.Unlock()
+	rootLbMetricsPushInterval = pushInterval
+	// scrape interval cannot be longer than push interval
+	if scrapeInterval > pushInterval {
+		rootLbScrapeInterval = rootLbMetricsPushInterval
+	} else {
+		rootLbScrapeInterval = scrapeInterval
+	}
+	rootLbMetricsLastPushed = time.Now()
 }
 
 func StartProxyScraper(done chan bool) {
@@ -319,10 +344,10 @@ func shouldUpdateFailedClient(scrape *ProxyScrapePoint) bool {
 	var skipDuration time.Duration
 
 	// skip either 5(5+current) intervals, or maxSkipDuration, whichever is shortest
-	if 6*settings.ShepherdMetricsCollectionInterval.TimeDuration() > maxReconnectSkipDuration {
+	if 6*rootLbScrapeInterval > maxReconnectSkipDuration {
 		skipDuration = maxReconnectSkipDuration
 	} else {
-		skipDuration = 6 * settings.ShepherdMetricsCollectionInterval.TimeDuration()
+		skipDuration = 6 * rootLbScrapeInterval
 	}
 
 	if time.Since(scrape.LastConnectAttempt) > skipDuration {
@@ -331,20 +356,24 @@ func shouldUpdateFailedClient(scrape *ProxyScrapePoint) bool {
 	return false
 }
 
-func checkAndSetLastPushLbMetrics(lastPushed *time.Time) bool {
-	if time.Since(*lastPushed) > settings.ShepherdMetricsCollectionInterval.TimeDuration() {
-		*lastPushed = time.Now()
+// NOTE: This function is almost identical to ClusterWorker:checkAndSetLastPushMetrics()
+//    Should be consolidated
+func checkAndSetLastPushLbMetrics(ts time.Time) bool {
+	rootLbMetricsLastPushedLock.Lock()
+	defer rootLbMetricsLastPushedLock.Unlock()
+	lastPushedAddInterval := rootLbMetricsLastPushed.Add(rootLbMetricsPushInterval)
+	if ts.After(lastPushedAddInterval) {
+		rootLbMetricsLastPushed = time.Now()
 		return true
 	}
 	return false
 }
 
 func ProxyScraper(done chan bool) {
-	var metricsLastPushed time.Time
 	for {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
-		case <-time.After(metricsScrapingInterval):
+		case <-time.After(rootLbScrapeInterval):
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				if !clientReady(v) {
@@ -363,7 +392,7 @@ func ProxyScraper(done chan bool) {
 				metrics, err := QueryProxy(ctx, &v)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelMetrics, "Error retrieving proxy metrics", "appinst", v.App, "error", err.Error())
-				} else if checkAndSetLastPushLbMetrics(&metricsLastPushed) {
+				} else if checkAndSetLastPushLbMetrics(time.Now()) {
 					log.DebugLog(log.DebugLevelInfo, "Pushing proxy metrics")
 					// send to crm->controller->influx
 					influxData := MarshallTcpProxyMetric(v, metrics)

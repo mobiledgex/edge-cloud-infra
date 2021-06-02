@@ -114,8 +114,9 @@ func (p *ClusterWorker) UpdateIntervals(ctx context.Context, scrapeInterval time
 func (p *ClusterWorker) checkAndSetLastPushMetrics(ts time.Time) bool {
 	p.lastPushedLock.Lock()
 	defer p.lastPushedLock.Unlock()
-	if ts.After(p.lastPushed.Add(p.pushInterval)) {
-		// reset when we last pushed
+	lastPushedAddInterval := p.lastPushed.Add(p.pushInterval)
+	if ts.After(lastPushedAddInterval) {
+		// reset when we last pushed (time.Now() instead of ts for ease of testing)
 		p.lastPushed = time.Now()
 		return true
 	}

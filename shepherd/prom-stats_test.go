@@ -322,6 +322,25 @@ func TestClusterWorkerTimers(t *testing.T) {
 	require.True(t, testClusterWorker.checkAndSetLastPushMetrics(time.Now().Add(testClusterWorker.pushInterval)))
 }
 
+// Tests are identical to the ones in TestClusterWorkerTimers
+func TestProxyScraperTimers(t *testing.T) {
+	log.InitTracer(nil)
+	defer log.FinishTracer()
+	ctx := log.StartTestSpan(context.Background())
+
+	InitProxyScraper(time.Second, time.Second)
+	require.True(t, checkAndSetLastPushLbMetrics(time.Now().Add(time.Second)))
+	updateProxyScraperIntervals(ctx, 2*time.Minute, time.Minute)
+	require.Equal(t, rootLbScrapeInterval, rootLbMetricsPushInterval)
+	require.Equal(t, time.Minute, rootLbScrapeInterval)
+	updateProxyScraperIntervals(ctx, 2*time.Second, time.Minute)
+	require.NotEqual(t, rootLbScrapeInterval, rootLbMetricsPushInterval)
+	require.Equal(t, 2*time.Second, rootLbScrapeInterval)
+	require.Equal(t, time.Minute, rootLbMetricsPushInterval)
+	require.False(t, checkAndSetLastPushLbMetrics(time.Now().Add(rootLbScrapeInterval)))
+	require.True(t, checkAndSetLastPushLbMetrics(time.Now().Add(rootLbMetricsPushInterval)))
+}
+
 func TestPromStats(t *testing.T) {
 	log.InitTracer(nil)
 	defer log.FinishTracer()

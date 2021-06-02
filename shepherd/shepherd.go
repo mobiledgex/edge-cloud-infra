@@ -242,6 +242,7 @@ func updateClusterWorkers(ctx context.Context, newInterval edgeproto.Duration) {
 	for _, worker := range workerMap {
 		worker.UpdateIntervals(ctx, metricsScrapingInterval, time.Duration(newInterval))
 	}
+	updateProxyScraperIntervals(ctx, metricsScrapingInterval, time.Duration(newInterval))
 }
 
 func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Settings) {
@@ -548,7 +549,7 @@ func start() {
 		log.FatalLog("Failed to initialize platform", "platformName", platformName, "err", err)
 	}
 	// LB metrics are not supported in fake mode
-	InitProxyScraper()
+	InitProxyScraper(metricsScrapingInterval, settings.ShepherdMetricsCollectionInterval.TimeDuration())
 	if pf.GetType(*platformName) != "fake" {
 		StartProxyScraper(stopCh)
 	}

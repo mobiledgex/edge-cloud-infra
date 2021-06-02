@@ -8,6 +8,7 @@ pipeline {
 
     environment {
         ARTIFACTORY_APIKEY = credentials('artiifactory-baseimage-reader')
+        PAGERDUTY_INTEGRATION_KEY = credentials('pagerduty-service-integration-key')
     }
 
     parameters {

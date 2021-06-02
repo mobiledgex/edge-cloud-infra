@@ -238,10 +238,10 @@ func autoProvPolicyCb(ctx context.Context, old *edgeproto.AutoProvPolicy, new *e
 
 func updateClusterWorkers(ctx context.Context, newInterval edgeproto.Duration) {
 	workerMapMutex.Lock()
-	defer workerMapMutex.Unlock()
 	for _, worker := range workerMap {
 		worker.UpdateIntervals(ctx, metricsScrapingInterval, time.Duration(newInterval))
 	}
+	workerMapMutex.Unlock()
 	updateProxyScraperIntervals(ctx, metricsScrapingInterval, time.Duration(newInterval))
 }
 

@@ -68,7 +68,7 @@ die() {
 }
 
 # Main
-echo "[$(date)] Starting setup.sh for platform \"$OUTPUT_PLATFORM\" ($( pwd ))"
+echo "[$(date)] Starting setup.sh ($( pwd ))"
 
 echo "127.0.0.1 $( hostname )" | sudo tee -a /etc/hosts >/dev/null
 log_file_contents /etc/hosts
@@ -91,7 +91,6 @@ MEX_BUILD_TAG=$TAG
 MEX_BUILD_FLAVOR=$FLAVOR
 MEX_BUILD_SRC_IMG=$SRC_IMG
 MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
-MEX_PLATFORM_FLAVOR=$OUTPUT_PLATFORM
 EOT
 
 SSH_CA_KEY_FILE=/etc/ssh/trusted-user-ca-keys.pem

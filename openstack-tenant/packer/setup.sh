@@ -78,7 +78,10 @@ sudo tee /etc/systemd/resolved.conf <<EOT
 DNS=1.1.1.1
 FallbackDNS=1.0.0.1
 EOT
-echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf >/dev/null
+sudo tee -a /etc/resolv.conf >/dev/null <EOT
+nameserver 1.1.1.1
+nameserver 1.0.0.1
+EOT
 log_file_contents /etc/resolv.conf
 
 log "Setting up $MEX_RELEASE"

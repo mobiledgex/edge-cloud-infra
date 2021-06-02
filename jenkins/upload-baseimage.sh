@@ -25,6 +25,8 @@ artf_call() {
 [[ -z "$OPENSTACK_INSTANCE" ]] && die "OPENSTACK_INSTANCE not set"
 [[ -z "$ARTIFACTORY_APIKEY" ]] && die "ARTIFACTORY_APIKEY not set"
 
+COMPRESSED_BASE_IMAGE_NAME="${BASE_IMAGE_NAME%_uncompressed}"
+
 OPENRC="$HOME/.cloudlets/${OPENSTACK_INSTANCE}_cloudlet/openrc.mex"
 [[ -f "$OPENRC" ]] || die "OpenRC not found: $OPENRC"
 
@@ -37,7 +39,7 @@ CHECKSUM=$( openstack image show -c checksum -f value "$BASE_IMAGE_NAME" )
 ARTF_VERIFY=$( artf_call "api/storage/baseimages/README.txt" | jq -r .path )
 [[ "$ARTF_VERIFY" == /README.txt ]] || die "Failed to access Artifactory"
 
-ARTIFACT_PATH="baseimages/${BASE_IMAGE_NAME}.qcow2"
+ARTIFACT_PATH="baseimages/${COMPRESSED_BASE_IMAGE_NAME}.qcow2"
 ARTF_VERIFY=$( artf_call "api/storage/${ARTIFACT_PATH}" | jq -r .uri )
 [[ -n "$ARTF_VERIFY" ]] && die "Base image exists: $ARTF_VERIFY"
 
@@ -53,8 +55,14 @@ log "Validating checksum"
 IMAGE_CHECKSUM=$( md5sum "$IMAGE" | awk '{print $1}' )
 [[ "$IMAGE_CHECKSUM" != "$CHECKSUM" ]] && die "Checksum mismatch: $BASE_IMAGE_NAME"
 
-log "Compressing image"
-qemu-img convert -c -O qcow2 "$IMAGE" "$COMPRESSED_IMAGE"
+if [[ "$BASE_IMAGE_NAME" == "$COMPRESSED_BASE_IMAGE_NAME" ]]; then
+	log "Not compressing image"
+	echo "Assuming image is already compressed as it does not have the _\"uncompressed\" suffix"
+	mv "$IMAGE" "$COMPRESSED_IMAGE"
+else
+	log "Compressing image"
+	qemu-img convert -c -O qcow2 "$IMAGE" "$COMPRESSED_IMAGE"
+fi
 
 log "Uploading image"
 COMPRESSED_IMAGE_CHECKSUM=$( md5sum "$COMPRESSED_IMAGE" | awk '{print $1}' )
@@ -64,3 +72,4 @@ ARTF_CHECKSUM=$( artf_call "${ARTIFACT_PATH}" -T "$COMPRESSED_IMAGE" | jq -r .ch
 	&& die "Upload error; checksum mismatch: $ARTIFACT_PATH"
 
 log "Image uploaded to Artifactory: $ARTIFACT_PATH"
+log "You can remove the uncompressed base image from Glance now: $BASE_IMAGE_NAME"

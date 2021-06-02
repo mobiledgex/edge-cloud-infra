@@ -98,7 +98,7 @@ for TOOL in jq openstack packer; do
 done
 echo
 
-OUTPUT_IMAGE_NAME="${OUTPUT_IMAGE_NAME}-${OUTPUT_TAG}"
+OUTPUT_IMAGE_NAME="${OUTPUT_IMAGE_NAME}-${OUTPUT_TAG}_uncompressed"
 
 ARTIFACTORY_CLOUD_IMAGE_PATH="baseimage-build/${ARTIFACTORY_ARTIFACTS_TAG}/${CLOUD_IMAGE}"
 ARTIFACTORY_CLOUD_IMAGE_CHECKSUM=$( curl -sSL -u "${ARTIFACTORY_USER}:${ARTIFACTORY_APIKEY}" \
@@ -152,7 +152,7 @@ esac
 CMDLINE=( packer build -on-error=ask )
 $DEBUG && CMDLINE+=( -debug )
 PACKER_LOG=1 "${CMDLINE[@]}" \
-	-var "OUTPUT_IMAGE_NAME=$OUTPUT_IMAGE_NAME" \
+	-var "OUTPUT_IMAGE_NAME=${OUTPUT_IMAGE_NAME}" \
 	-var "SRC_IMG=$SRC_IMG" \
 	-var "SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM" \
 	-var "NETWORK=$NETWORK" \
@@ -176,37 +176,10 @@ if [[ $? -ne 0 ]]; then
 	exit 2
 fi
 
-echo
-read -p "Upload to Artifactory? (yN) " RESP
-case "$RESP" in
-	y*|Y*)	true ;;
-	*)	echo "NOT uploading to Artifactory"; exit 0 ;;
-esac
+cat <<EOT
 
-IMAGE_FNAME="${OUTPUT_IMAGE_NAME}.qcow2"
+IMPORTANT: Run this Jenkins job to compress and upload this image to Artifactory:
 
-echo
-echo "Downloading image from glance: $IMAGE_FNAME ..."
-openstack image save --file "$IMAGE_FNAME" "$OUTPUT_IMAGE_NAME"
+https://nightly.mobiledgex.net/job/upload-baseimage/parambuild/?OPENSTACK_INSTANCE=&BASE_IMAGE_NAME=${OUTPUT_IMAGE_NAME}
 
-GLANCE_CHECKSUM=$( openstack image show -c checksum -f value "$OUTPUT_IMAGE_NAME" )
-LOCAL_CHECKSUM=$( openssl md5 "$IMAGE_FNAME" | awk '{print $NF}' )
-if [[ "$LOCAL_CHECKSUM" != "$GLANCE_CHECKSUM" ]]; then
-	echo "Error downloading \"$OUTPUT_IMAGE_NAME\" image; checksum mismatch" >&2
-	exit 2
-fi
-
-echo
-echo "Uploading image to Artifactory..."
-LOCAL_SHA1SUM=$( openssl sha1 "$IMAGE_FNAME" | awk '{print $NF}' )
-curl -sSL -XPUT -u "${ARTIFACTORY_USER}:${ARTIFACTORY_APIKEY}" \
-	-H "X-Checksum-MD5:$LOCAL_CHECKSUM" \
-	-H "X-Checksum-Sha1:$LOCAL_SHA1SUM" \
-	-T "$IMAGE_FNAME" \
-	"${ARTIFACTORY_BASEURL}/baseimages/${IMAGE_FNAME}"
-if [[ $? -ne 0 ]]; then
-	echo "Error uploading image to Artifactory" >&2
-	exit 2
-fi
-
-rm "$IMAGE_FNAME"
+EOT

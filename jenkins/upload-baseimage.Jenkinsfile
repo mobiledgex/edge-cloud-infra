@@ -12,7 +12,7 @@ pipeline {
     }
 
     parameters {
-    	string name: 'OPENSTACK_INSTANCE', defaultValue: 'berlin', description: 'Openstack instance holding the image'
+        string name: 'OPENSTACK_INSTANCE', defaultValue: 'berlin', description: 'Openstack instance holding the image (Example: berlin)'
         string name: 'BASE_IMAGE_NAME', defaultValue: '', description: 'Example: mobiledgex-v4.3.5'
     }
 

@@ -36,6 +36,16 @@ pipeline {
                 }
             }
         }
+        stage('Run CIS-CAT assessment') {
+            steps {
+                build job: 'cis-cat-assessment',
+                      parameters: [[$class: 'StringParameterValue',
+                                    name: 'BASE_IMAGE_URL',
+                                    value: "https://artifactory.mobiledgex.net/artifactory/baseimages/${BASE_IMAGE_NAME}.qcow2"]],
+                      propagate: false,
+                      wait: false
+            }
+        }
     }
     post {
         success {

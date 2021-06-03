@@ -21,6 +21,7 @@ import (
 type VmAppOvfParams struct {
 	ImageBaseFileName string
 	DiskSizeInBytes   string
+	OSType            string
 }
 
 var vcdDirectUser string = "vcdDirect"
@@ -37,7 +38,7 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
   <VirtualSystem ovf:id="{{.ImageBaseFileName}}">
     <Info>A Virtual system</Info>
     <Name>{{.ImageBaseFileName}}</Name>
-    <OperatingSystemSection ovf:id="94" vmw:osType="otherGuest64">
+    <OperatingSystemSection ovf:id="94" vmw:osType="{{.OSType}}">
       <Info>The operating system installed</Info>
       <Description></Description>
     </OperatingSystemSection>
@@ -209,9 +210,14 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 		ovfFile = filenameNoExtension + ".ovf"
 
 		imageFileBaseName := filepath.Base(filenameNoExtension)
+		mappedOs, err := vmlayer.GetVmwareMappedOsType(app.VmAppOsType)
+		if err != nil {
+			return err
+		}
 		ovfParams := VmAppOvfParams{
 			ImageBaseFileName: imageFileBaseName,
 			DiskSizeInBytes:   fmt.Sprintf("%d", appFlavor.Disk*1024*1024*1024),
+			OSType:            mappedOs,
 		}
 		ovfBuf, err := infracommon.ExecTemplate("vmwareOvf", vmAppOvfTemplate, ovfParams)
 		if err != nil {

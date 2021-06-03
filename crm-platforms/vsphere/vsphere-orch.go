@@ -388,7 +388,7 @@ func (v *VSpherePlatform) CreateVM(ctx context.Context, vm *vmlayer.VMOrchestrat
 			netname = vm.Ports[0].PortGroup
 		}
 		image := vm.Volumes[0].ImageName
-		mappedGuestType, err := vmlayer.GetVmwareMappedOsType(vm.VmAppGuestOsType)
+		mappedGuestType, err := vmlayer.GetVmwareMappedOsType(vm.VmAppOsType)
 		if err != nil {
 			return err
 		}

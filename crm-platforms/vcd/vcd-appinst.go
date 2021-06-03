@@ -85,10 +85,17 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
         <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="33"/>
       </Item>
       <Item>
+      <rasd:Description>USB Controller (XHCI)</rasd:Description>
+      <rasd:ElementName>USB controller</rasd:ElementName>
+      <rasd:InstanceID>5</rasd:InstanceID>
+      <rasd:ResourceSubType>vmware.usb.xhci</rasd:ResourceSubType>
+      <rasd:ResourceType>23</rasd:ResourceType>
+      </Item>
+      <Item>
         <rasd:AddressOnParent>0</rasd:AddressOnParent>
         <rasd:ElementName>Hard Disk 1</rasd:ElementName>
         <rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource>
-        <rasd:InstanceID>5</rasd:InstanceID>
+        <rasd:InstanceID>6</rasd:InstanceID>
         <rasd:Parent>3</rasd:Parent>
         <rasd:ResourceType>17</rasd:ResourceType>
       </Item>
@@ -96,14 +103,14 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
         <rasd:AddressOnParent>0</rasd:AddressOnParent>
         <rasd:AutomaticAllocation>false</rasd:AutomaticAllocation>
         <rasd:ElementName>CD/DVD Drive 1</rasd:ElementName>
-        <rasd:InstanceID>6</rasd:InstanceID>
+        <rasd:InstanceID>7</rasd:InstanceID>
         <rasd:Parent>4</rasd:Parent>
         <rasd:ResourceSubType>vmware.cdrom.remotepassthrough</rasd:ResourceSubType>
         <rasd:ResourceType>15</rasd:ResourceType>
       </Item>
       <Item ovf:required="false">
         <rasd:ElementName>Video card</rasd:ElementName>
-        <rasd:InstanceID>7</rasd:InstanceID>
+        <rasd:InstanceID>8</rasd:InstanceID>
         <rasd:ResourceType>24</rasd:ResourceType>
         <vmw:Config ovf:required="false" vmw:key="numDisplays" vmw:value="1"/>
         <vmw:Config ovf:required="false" vmw:key="graphicsMemorySizeInKB" vmw:value="262144"/>

@@ -68,6 +68,8 @@ die() {
 }
 
 # Main
+[[ -z "$APT_REPO" ]] && die "APT_REPO not set"
+
 echo "[$(date)] Starting setup.sh ($( pwd ))"
 
 echo "127.0.0.1 $( hostname )" | sudo tee -a /etc/hosts >/dev/null
@@ -126,7 +128,7 @@ ps -ef | grep cloud
 log "Set up APT sources"
 sudo rm -rf /etc/apt/sources.list.d/*
 sudo tee /etc/apt/sources.list <<EOT
-deb https://apt.mobiledgex.net/cirrus/2021-05-27 bionic main
+deb ${APT_REPO} bionic main
 deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
 EOT
 sudo apt-get update

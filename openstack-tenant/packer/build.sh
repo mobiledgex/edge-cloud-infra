@@ -4,6 +4,10 @@ ARTIFACTORY_USER='packer'
 ARTIFACTORY_ARTIFACTS_TAG='2020-04-27'
 CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
+CHEF_RECIPE="$( dirname $0 )/../../chef/cookbooks/upgrade_mobiledgex_package/recipes/default.rb"
+CHEF_UPDATE_GUIDE="https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/329384023/How+to+create+a+new+MobiledgeX+OS+base+image#chef"
+
+APT_REPO="https://apt.mobiledgex.net/cirrus/2021-05-27"
 
 : ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64}
 : ${VAULT:=vault-main.mobiledgex.net}
@@ -48,6 +52,23 @@ die() {
 	echo "ERROR: $*" >&2
 	exit 2
 }
+
+if ! grep "$APT_REPO" "$CHEF_RECIPE" >/dev/null; then
+	echo
+	echo "APT repo for build not found in chef recipe"
+	echo "    Repo URL: $APT_REPO"
+	echo "      Recipe: $CHEF_RECIPE"
+	echo
+	read -p "Are you sure you want to continue? (yN) " RESP
+	case "$RESP" in
+	y*|Y*)	true ;;
+	*)	echo
+		echo "Check Confluence for instructions on updating chef:"
+		echo "  $CHEF_UPDATE_GUIDE"
+		exit 2
+		;;
+	esac
+fi
 
 TAG=${TAG#v}
 [[ -z "$OUTPUT_TAG" ]] && OUTPUT_TAG="v$TAG"
@@ -148,6 +169,7 @@ PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "ARTIFACTORY_USER=$ARTIFACTORY_USER" \
 	-var "ARTIFACTORY_APIKEY=$ARTIFACTORY_APIKEY" \
 	-var "ARTIFACTORY_ARTIFACTS_TAG=$ARTIFACTORY_ARTIFACTS_TAG" \
+	-var "APT_REPO=$APT_REPO" \
 	-var "ROOT_PASS=$ROOT_PASS" \
 	-var "GRUB_PW_HASH=$GRUB_PW_HASH" \
 	-var "TOTP_KEY=$TOTP_KEY" \
@@ -166,8 +188,12 @@ fi
 
 cat <<EOT
 
-IMPORTANT: Run this Jenkins job to compress and upload this image to Artifactory:
+IMPORTANT FOLLOW-UP TASKS
 
-https://nightly.mobiledgex.net/job/upload-baseimage/parambuild/?OPENSTACK_INSTANCE=&BASE_IMAGE_NAME=${OUTPUT_IMAGE_NAME}
+- Run this Jenkins job to compress and upload this image to Artifactory:
+  https://nightly.mobiledgex.net/job/upload-baseimage/parambuild/?OPENSTACK_INSTANCE=&BASE_IMAGE_NAME=${OUTPUT_IMAGE_NAME}
+
+- Update and push the chef policy for the mobiledgex package upgrade:
+  $CHEF_UPDATE_GUIDE
 
 EOT

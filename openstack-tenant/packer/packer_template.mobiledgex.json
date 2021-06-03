@@ -9,7 +9,8 @@
 	"ROOT_PASS": "",
 	"GRUB_PW_HASH": "",
 	"TOTP_KEY": "",
-	"ARTIFACTORY_ARTIFACTS_TAG": ""
+	"ARTIFACTORY_ARTIFACTS_TAG": "",
+	"APT_REPO": ""
     },
     "builders": [{
 	"type": "openstack",
@@ -48,6 +49,7 @@
 		"GRUB_PW_HASH={{ user `GRUB_PW_HASH` }}",
 		"TOTP_KEY={{ user `TOTP_KEY` }}",
 		"ARTIFACTORY_ARTIFACTS_TAG={{ user `ARTIFACTORY_ARTIFACTS_TAG` }}",
+		"APT_REPO={{ user `APT_REPO` }}",
 		"SRC_IMG={{ user `SRC_IMG` }}",
 		"SRC_IMG_CHECKSUM={{ user `SRC_IMG_CHECKSUM` }}"
 	    ]

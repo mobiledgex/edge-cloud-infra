@@ -296,3 +296,7 @@ replace github.com/cloudflare/cloudflare-go => github.com/cloudflare/cloudflare-
 replace github.com/jaegertracing/jaeger => github.com/jaegertracing/jaeger v1.21.0
 
 replace github.com/uber/jaeger-lib => github.com/uber/jaeger-lib v2.4.0+incompatible
+
+replace cloud.google.com/go => cloud.google.com/go v0.39.0
+
+replace google.golang.org/api => google.golang.org/api v0.14.0

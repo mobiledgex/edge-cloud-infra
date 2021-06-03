@@ -494,6 +494,89 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
+	// swagger:route POST /auth/ctrl/CreateGPUDriver GPUDriver CreateGPUDriver
+	// Create GPU Driver.
+	//  Creates GPU driver with all the config required to install it.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateGPUDriver", CreateGPUDriver)
+	// swagger:route POST /auth/ctrl/DeleteGPUDriver GPUDriver DeleteGPUDriver
+	// Delete GPU Driver.
+	//  Deletes GPU driver given that it is not used by any cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteGPUDriver", DeleteGPUDriver)
+	// swagger:route POST /auth/ctrl/UpdateGPUDriver GPUDriver UpdateGPUDriver
+	// Update GPU Driver.
+	//  Updates GPU driver config.
+	// The following values should be added to `GPUDriver.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyName: 2.1
+	// KeyOrganization: 2.2
+	// KeyType: 2.3
+	// Builds: 3
+	// BuildsName: 3.1
+	// BuildsDriverPath: 3.2
+	// BuildsOperatingSystem: 3.3
+	// BuildsKernelVersion: 3.4
+	// BuildsHypervisor: 3.5
+	// LicenseConfig: 4
+	// Properties: 5
+	// PropertiesKey: 5.1
+	// PropertiesValue: 5.2
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateGPUDriver", UpdateGPUDriver)
+	// swagger:route POST /auth/ctrl/ShowGPUDriver GPUDriver ShowGPUDriver
+	// Show GPU Drivers.
+	//  Lists all the MobiledgeX created GPU drivers and operator created GPU drivers.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowGPUDriver", ShowGPUDriver)
+	// swagger:route POST /auth/ctrl/AddGPUDriverBuild GPUDriverBuildMember AddGPUDriverBuild
+	// Add GPU Driver Build.
+	//  Adds new build to GPU driver.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AddGPUDriverBuild", AddGPUDriverBuild)
+	// swagger:route POST /auth/ctrl/RemoveGPUDriverBuild GPUDriverBuildMember RemoveGPUDriverBuild
+	// Remove GPU Driver Build.
+	//  Removes build from GPU driver.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RemoveGPUDriverBuild", RemoveGPUDriverBuild)
 	// swagger:route POST /auth/ctrl/CreateCloudlet Cloudlet CreateCloudlet
 	// Create Cloudlet.
 	//  Sets up Cloudlet services on the Operators compute resources, and integrated as part of MobiledgeX edge resource portfolio. These resources are managed from the Edge Controller.
@@ -624,6 +707,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// ResourceQuotasAlertThreshold: 39.3
 	// DefaultResourceAlertThreshold: 40
 	// HostController: 41
+	// GpuConfig: 42
+	// GpuConfigGpuType: 42.1
+	// GpuConfigDriverName: 42.2
+	// GpuConfigProperties: 42.3
+	// GpuConfigPropertiesKey: 42.3.1
+	// GpuConfigPropertiesValue: 42.3.2
 	// ```
 	// Security:
 	//   Bearer:

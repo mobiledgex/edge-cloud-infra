@@ -339,6 +339,14 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		return fmt.Errorf("can't get rootLB client, %v", err)
 	}
 
+	if clusterInst.OptRes == "gpu" {
+		// setup GPU drivers
+		err = v.setupGPUDrivers(ctx, client, clusterInst, updateCallback, action)
+		if err != nil {
+			return fmt.Errorf("failed to install GPU drivers on cluster VM: %v", err)
+		}
+	}
+
 	if v.VMProperties.GetCloudletExternalRouter() == NoExternalRouter {
 		if clusterInst.Deployment == cloudcommon.DeploymentTypeKubernetes ||
 			(clusterInst.Deployment == cloudcommon.DeploymentTypeDocker) {

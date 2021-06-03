@@ -37,7 +37,7 @@ func UpdateRateLimitSettings(c echo.Context) error {
 
 	in := ormapi.RegionRateLimitSettings{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -48,8 +48,9 @@ func UpdateRateLimitSettings(c echo.Context) error {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
 		}
+		return err
 	}
-	return setReply(c, err, resp)
+	return setReply(c, resp)
 }
 
 func UpdateRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {
@@ -89,7 +90,7 @@ func DeleteRateLimitSettings(c echo.Context) error {
 
 	in := ormapi.RegionRateLimitSettings{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -100,8 +101,9 @@ func DeleteRateLimitSettings(c echo.Context) error {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
 		}
+		return err
 	}
-	return setReply(c, err, resp)
+	return setReply(c, resp)
 }
 
 func DeleteRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {
@@ -141,7 +143,7 @@ func ResetRateLimitSettings(c echo.Context) error {
 
 	in := ormapi.RegionRateLimitSettings{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -152,8 +154,9 @@ func ResetRateLimitSettings(c echo.Context) error {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
 		}
+		return err
 	}
-	return setReply(c, err, resp)
+	return setReply(c, resp)
 }
 
 func ResetRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {
@@ -196,24 +199,23 @@ func ShowRateLimitSettings(c echo.Context) error {
 	if !success {
 		return err
 	}
-	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.RateLimitSettings.GetKey().GetTags())
 
-	err = ShowRateLimitSettingsStream(ctx, rc, &in.RateLimitSettings, func(res *edgeproto.RateLimitSettings) {
+	err = ShowRateLimitSettingsStream(ctx, rc, &in.RateLimitSettings, func(res *edgeproto.RateLimitSettings) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		WriteStream(c, &payload)
+		return WriteStream(c, &payload)
 	})
 	if err != nil {
-		WriteError(c, err)
+		return err
 	}
 	return nil
 }
 
-func ShowRateLimitSettingsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.RateLimitSettings, cb func(res *edgeproto.RateLimitSettings)) error {
+func ShowRateLimitSettingsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.RateLimitSettings, cb func(res *edgeproto.RateLimitSettings) error) error {
 	var authz *AuthzShow
 	var err error
 	if !rc.skipAuthz {
@@ -252,15 +254,19 @@ func ShowRateLimitSettingsStream(ctx context.Context, rc *RegionContext, obj *ed
 				continue
 			}
 		}
-		cb(res)
+		err = cb(res)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func ShowRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.RateLimitSettings) ([]edgeproto.RateLimitSettings, error) {
 	arr := []edgeproto.RateLimitSettings{}
-	err := ShowRateLimitSettingsStream(ctx, rc, obj, func(res *edgeproto.RateLimitSettings) {
+	err := ShowRateLimitSettingsStream(ctx, rc, obj, func(res *edgeproto.RateLimitSettings) error {
 		arr = append(arr, *res)
+		return nil
 	})
 	return arr, err
 }

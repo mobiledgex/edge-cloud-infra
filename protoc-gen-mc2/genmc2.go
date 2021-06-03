@@ -444,7 +444,6 @@ func (g *GenMC2) generateMethod(file *generator.FileDescriptor, service string, 
 		g.importContext = true
 		g.importOrmapi = true
 		g.importLog = true
-		//g.importRateLimit = true
 		if args.Outstream {
 			g.importIO = true
 		} else {

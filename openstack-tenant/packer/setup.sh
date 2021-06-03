@@ -184,7 +184,7 @@ log "Adding VMWare cloud-init Guestinfo"
 sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
 sudo rm -f /etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
 sudo tee /etc/cloud/cloud.cfg.d/99-mobiledgex.cfg <<'EOT'
-datasource_list: [ "ConfigDrive", "VMwareGuestInfo" ]
+datasource_list: [ "ConfigDrive", "OVF", "VMwareGuestInfo" ]
 EOT
 
 log "dhclient $INTERFACE"

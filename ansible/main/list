@@ -46,3 +46,6 @@ events.es.mobiledgex.net
 
 [alertmanager]
 alertmanager.mobiledgex.net
+
+[harbor]
+harbor.mobiledgex.net

@@ -24,6 +24,7 @@ type influxClientMetricsQueryArgs struct {
 	AppVersion   string
 	ClusterName  string
 	CloudletName string
+	CloudletList string
 	OrgField     string
 	ApiCallerOrg string
 	CloudletOrg  string
@@ -114,6 +115,7 @@ var ClientCloudletUsageLatencyFields = []string{
 var DeviceInfoFields = []string{
 	"\"deviceos\"",
 	"\"devicemodel\"",
+	"\"devicecarrier\"",
 	"\"numsessions\"",
 }
 
@@ -123,7 +125,6 @@ var ClientAppUsageDeviceInfoFields = []string{
 
 var ClientCloudletUsageDeviceInfoFields = []string{
 	"\"locationtile\"",
-	"\"devicecarrier\"",
 }
 
 const (
@@ -139,6 +140,7 @@ var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
 	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
 	`{{if .AppVersion}} AND "ver"='{{.AppVersion}}'{{end}}` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
+	`{{if .CloudletList}} AND ({{.CloudletList}}){{end}}` +
 	`{{if .CloudletOrg}} AND "cloudletorg"='{{.CloudletOrg}}'{{end}}` +
 	`{{if .Method}} AND "method"='{{.Method}}'{{end}}` +
 	`{{if .CellId}} AND "cellID"='{{.CellId}}'{{end}}` +
@@ -197,20 +199,27 @@ func fillTimeAndGetCmdForClientMetricsQuery(q *influxClientMetricsQueryArgs, tmp
 	return buf.String()
 }
 
-func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics) string {
+func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudletList []string) string {
 	arg := influxClientMetricsQueryArgs{
 		Selector:     getFields(obj.Selector, CLIENT_APIUSAGE),
 		Measurement:  getMeasurementString(obj.Selector, CLIENT_APIUSAGE),
 		AppInstName:  obj.AppInst.AppKey.Name,
 		AppVersion:   obj.AppInst.AppKey.Version,
-		OrgField:     "apporg",
 		ApiCallerOrg: obj.AppInst.AppKey.Organization,
 		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
-		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
+		CloudletList: generateCloudletList(cloudletList),
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
 		Method:       obj.Method,
 		Last:         obj.Last,
+	}
+	if obj.AppInst.AppKey.Organization != "" {
+		arg.OrgField = "apporg"
+		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
+		arg.CloudletOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+	} else {
+		arg.OrgField = "cloudletorg"
+		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
 	if obj.CellId != 0 {
 		arg.CellId = strconv.FormatUint(uint64(obj.CellId), 10)
@@ -218,7 +227,7 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics) string 
 	return fillTimeAndGetCmdForClientMetricsQuery(&arg, devInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime)
 }
 
-func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics) string {
+func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics, cloudletList []string) string {
 	measurement := "*"
 	switch obj.Selector {
 	case "latency":
@@ -233,9 +242,8 @@ func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics) string 
 		AppVersion:      obj.AppInst.AppKey.Version,
 		ApiCallerOrg:    obj.AppInst.AppKey.Organization,
 		ClusterOrg:      obj.AppInst.ClusterInstKey.Organization,
-		CloudletName:    obj.AppInst.ClusterInstKey.CloudletKey.Name,
+		CloudletList:    generateCloudletList(cloudletList),
 		ClusterName:     obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		CloudletOrg:     obj.AppInst.ClusterInstKey.CloudletKey.Organization,
 		DeviceCarrier:   obj.DeviceCarrier,
 		DataNetworkType: obj.DataNetworkType,
 		DeviceOs:        obj.DeviceOs,
@@ -244,7 +252,15 @@ func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics) string 
 		LocationTile:    obj.LocationTile,
 		Last:            obj.Last,
 	}
-	arg.OrgField = "apporg"
+	if obj.AppInst.AppKey.Organization != "" {
+		arg.OrgField = "apporg"
+		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
+		arg.CloudletOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+	} else {
+		arg.OrgField = "cloudletorg"
+		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+		arg.AppOrg = obj.AppInst.AppKey.Organization
+	}
 	return fillTimeAndGetCmdForClientMetricsQuery(&arg, devInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime)
 }
 
@@ -282,7 +298,10 @@ func validateClientAppUsageMetricReq(req *ormapi.RegionClientAppUsageMetrics, se
 			return fmt.Errorf("DeviceOS not allowed for appinst latency metric")
 		}
 		if req.DeviceModel != "" {
-			return fmt.Errorf("DeviceType not allowed for appinst latency metric")
+			return fmt.Errorf("DeviceModel not allowed for appinst latency metric")
+		}
+		if req.DeviceCarrier != "" {
+			return fmt.Errorf("DeviceCarrier not allowed for appinst latency metric")
 		}
 		if req.DataNetworkType != "" {
 			return fmt.Errorf("DataNetworkType not allowed for appinst latency metric")
@@ -294,7 +313,7 @@ func validateClientAppUsageMetricReq(req *ormapi.RegionClientAppUsageMetrics, se
 	case "custom":
 		return fmt.Errorf("Custom stat not implemented yet")
 	default:
-		return fmt.Errorf("Provided selector %s is not valid. Must provide only one of %s", selector, strings.Join(ClientAppUsageSelectors, "\", \""))
+		return fmt.Errorf("Provided selector \"%s\" is not valid. Must provide only one of \"%s\"", selector, strings.Join(ormapi.ClientAppUsageSelectors, "\", \""))
 	}
 	return nil
 }
@@ -308,14 +327,14 @@ func validateClientCloudletUsageMetricReq(req *ormapi.RegionClientCloudletUsageM
 			return fmt.Errorf("DeviceOS not allowed for cloudlet latency metric")
 		}
 		if req.DeviceModel != "" {
-			return fmt.Errorf("DeviceType not allowed for cloudlet latency metric")
+			return fmt.Errorf("DeviceModel not allowed for cloudlet latency metric")
 		}
 	case "deviceinfo":
 		if req.DataNetworkType != "" {
 			return fmt.Errorf("DataNetworkType not allowed for cloudlet deviceinfo metric")
 		}
 	default:
-		return fmt.Errorf("Provided selector %s is not valid. Must provide only one of %s", selector, strings.Join(ClientCloudletUsageSelectors, "\", \""))
+		return fmt.Errorf("Provided selector \"%s\" is not valid. Must provide only one of \"%s\"", selector, strings.Join(ormapi.ClientCloudletUsageSelectors, "\", \""))
 	}
 	return nil
 }

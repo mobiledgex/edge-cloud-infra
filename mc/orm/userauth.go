@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"golang.org/x/crypto/pbkdf2"
@@ -31,8 +32,10 @@ var PasshashSaltBytes = 8
 var BruteForceGuessesPerSecond = 1000000
 
 var JWTShortDuration = 4 * time.Hour
+var JWTWSAuthDuration = 2 * time.Minute
 
 var Jwks vault.JWKS
+var NoUserClaims *UserClaims = nil
 
 const (
 	ApiKeyAuth   string = "apikeyauth"
@@ -43,9 +46,9 @@ type TokenAuth struct {
 	Token string
 }
 
-func InitVault(config *vault.Config, updateDone chan struct{}) {
+func InitVault(config *vault.Config, serverDone chan struct{}, updateDone chan struct{}) {
 	Jwks.Init(config, "", "mcorm")
-	Jwks.GoUpdate(updateDone)
+	Jwks.GoUpdate(serverDone, updateDone)
 }
 
 func ValidPassword(pw string) error {
@@ -101,7 +104,23 @@ func (u *UserClaims) SetKid(kid int) {
 	u.Kid = kid
 }
 
-func GenerateCookie(user *ormapi.User, apiKeyId string) (string, error) {
+func NewHTTPAuthCookie(token string, expires int64, domain string) *http.Cookie {
+	return &http.Cookie{
+		Name:    "token",
+		Value:   token,
+		Expires: time.Unix(expires, 0),
+		// only send this cookie over HTTPS
+		Secure: true,
+		// true means no scripts will be able to access this cookie, http requests only
+		HttpOnly: true,
+		// limit cookie access to this domain only
+		Domain: domain,
+		// limits cookie's scope to only requests originating from same site
+		SameSite: http.SameSiteStrictMode,
+	}
+}
+
+func GenerateCookie(user *ormapi.User, apiKeyId, domain string) (*http.Cookie, error) {
 	claims := UserClaims{
 		StandardClaims: jwt.StandardClaims{
 			IssuedAt: time.Now().Unix(),
@@ -126,7 +145,7 @@ func GenerateCookie(user *ormapi.User, apiKeyId string) (string, error) {
 		claims.AuthType = PasswordAuth
 	}
 	cookie, err := Jwks.GenerateCookie(&claims)
-	return cookie, err
+	return NewHTTPAuthCookie(cookie, claims.ExpiresAt, domain), err
 }
 
 func getClaims(c echo.Context) (*UserClaims, error) {
@@ -166,16 +185,28 @@ func AuthCookie(next echo.HandlerFunc) echo.HandlerFunc {
 		auth := c.Request().Header.Get(echo.HeaderAuthorization)
 		scheme := "Bearer"
 		l := len(scheme)
-		if len(auth) <= len(scheme) || !strings.HasPrefix(auth, scheme) {
-			//if no token provided, return a 400 err
+		cookie := ""
+		if len(auth) > len(scheme) && strings.HasPrefix(auth, scheme) {
+			cookie = auth[l+1:]
+		} else {
+			// if no token provided as part of request headers,
+			// then check if it is part of http cookie
+			for _, httpCookie := range c.Request().Cookies() {
+				if httpCookie.Name == "token" {
+					cookie = httpCookie.Value
+					break
+				}
+			}
+		}
+
+		if cookie == "" {
+			//if no token found, return a 400 err
 			return &echo.HTTPError{
 				Code:     http.StatusBadRequest,
 				Message:  "no bearer token found",
 				Internal: fmt.Errorf("no token found for Authorization Bearer"),
 			}
 		}
-
-		cookie := auth[l+1:]
 
 		claims := UserClaims{}
 		token, err := Jwks.VerifyCookie(cookie, &claims)
@@ -204,9 +235,9 @@ func AuthWSCookie(c echo.Context, ws *websocket.Conn) (bool, error) {
 	err := ws.ReadJSON(&tokAuth)
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			return false, setReply(c, fmt.Errorf("no bearer token found"), nil)
+			return false, fmt.Errorf("no bearer token found")
 		}
-		return false, setReply(c, err, nil)
+		return false, err
 	}
 
 	claims := UserClaims{}
@@ -216,7 +247,7 @@ func AuthWSCookie(c echo.Context, ws *websocket.Conn) (bool, error) {
 		c.Set("user", token)
 		return true, nil
 	}
-	return false, setReply(c, fmt.Errorf("invalid or expired jwt"), nil)
+	return false, fmt.Errorf("invalid or expired jwt")
 }
 
 func authorized(ctx context.Context, sub, org, obj, act string, ops ...authOp) error {
@@ -252,12 +283,12 @@ func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgebo
 			return echo.ErrForbidden
 		}
 		if strings.Contains(err.Error(), "not found") {
-			return echo.NewHTTPError(http.StatusBadRequest, err)
+			return err
 		}
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("org %s lookup failed: %v", org, err))
+		return fmt.Errorf("Org %s lookup failed: %v", org, err)
 	}
 	if lookup.DeleteInProgress {
-		return echo.NewHTTPError(http.StatusBadRequest, "operation not allowed for org with delete in progress")
+		return fmt.Errorf("Operation not allowed for org with delete in progress")
 	}
 	// see if resource is only for a specific type of org
 	orgType := ""
@@ -267,19 +298,21 @@ func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgebo
 		orgType = OrgTypeOperator
 	}
 	if orgType != "" && lookup.Type != orgType {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("operation only allowed for organizations of type %s", orgType))
+		return fmt.Errorf("Operation only allowed for organizations of type %s", orgType)
 	}
 	// make sure only edgebox cloudlets are created for edgebox org
 	if lookup.EdgeboxOnly && noEdgeboxOnly {
-		return echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("only allowed to create EDGEBOX cloudlet on org %s", org))
+		return fmt.Errorf("Only allowed to create EDGEBOX cloudlet on org %s", org)
 	}
 	return nil
 }
 
 type authOptions struct {
-	showAudit     bool
-	requiresOrg   string
-	noEdgeboxOnly bool
+	showAudit          bool
+	requiresOrg        string
+	noEdgeboxOnly      bool
+	requiresBillingOrg string
+	targetCloudlet     *edgeproto.Cloudlet
 }
 
 type authOp func(opts *authOptions)
@@ -294,4 +327,11 @@ func withRequiresOrg(org string) authOp {
 
 func withNoEdgeboxOnly() authOp {
 	return func(opts *authOptions) { opts.noEdgeboxOnly = true }
+}
+
+func withRequiresBillingOrg(org string, targetCloudlet *edgeproto.Cloudlet) authOp {
+	return func(opts *authOptions) {
+		opts.requiresBillingOrg = org
+		opts.targetCloudlet = targetCloudlet
+	}
 }

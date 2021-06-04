@@ -15,11 +15,6 @@ import (
 	vcdtypes "github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
-var (
-	ResourceInstances   = "Instances"
-	ResourceExternalIps = "External IPs"
-)
-
 type VcdResources struct {
 	VmsUsed         uint64
 	ExternalIpsUsed uint64
@@ -42,7 +37,7 @@ func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.Pla
 		case cloudcommon.ResourceRamMb:
 			resources.MemMax = r.InfraMaxValue
 			resources.MemUsed = r.Value
-		case ResourceExternalIps:
+		case cloudcommon.ResourceExternalIPs:
 			resources.Ipv4Max = r.InfraMaxValue
 			resources.Ipv4Used = r.Value
 		}
@@ -99,7 +94,7 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 		log.SpanLog(ctx, log.DebugLevelInfra, "Using cpu speed from properties", "cpuSpeed", cpuSpeed)
 	}
 
-	vmlist, err := vcdClient.Client.QueryVmList(vcdtypes.VmQueryFilterAll)
+	vmlist, err := vcdClient.Client.QueryVmList(vcdtypes.VmQueryFilterOnlyDeployed)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query VmList: %v", err)
 	}
@@ -132,12 +127,12 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 	}
 
 	resInfo = append(resInfo, edgeproto.InfraResource{
-		Name:          ResourceExternalIps,
+		Name:          cloudcommon.ResourceExternalIPs,
 		InfraMaxValue: uint64(len(availIps)),
 		Value:         usedIps,
 	})
 	resInfo = append(resInfo, edgeproto.InfraResource{
-		Name:          ResourceInstances,
+		Name:          cloudcommon.ResourceInstances,
 		InfraMaxValue: uint64(vdc.Vdc.VMQuota),
 		Value:         uint64(len(vmlist)),
 	})
@@ -162,12 +157,12 @@ func (v *VcdPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgep
 	return &edgeproto.CloudletResourceQuotaProps{
 		Properties: []edgeproto.InfraResource{
 			{
-				Name:        ResourceExternalIps,
-				Description: "Limit on how many external IPs are available",
+				Name:        cloudcommon.ResourceExternalIPs,
+				Description: cloudcommon.ResourceQuotaDesc[cloudcommon.ResourceExternalIPs],
 			},
 			{
-				Name:        ResourceInstances,
-				Description: "Limit on number of instances that can be provisioned",
+				Name:        cloudcommon.ResourceInstances,
+				Description: cloudcommon.ResourceQuotaDesc[cloudcommon.ResourceInstances],
 			},
 		},
 	}, nil
@@ -175,17 +170,18 @@ func (v *VcdPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgep
 }
 
 func getVcdResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, resources []edgeproto.VMResource) *VcdResources {
-	log.SpanLog(ctx, log.DebugLevelInfra, "getVcdResources")
+	log.SpanLog(ctx, log.DebugLevelInfra, "getVcdResources", "vmRes count", len(resources))
 	var vRes VcdResources
 	for _, vmRes := range resources {
 		log.SpanLog(ctx, log.DebugLevelInfra, "getVcdResources", "vmRes", vmRes)
 
 		// Number of Instances = Number of resources
 		vRes.VmsUsed += 1
-		if vmRes.Type == cloudcommon.VMTypeRootLB {
+		if vmRes.Type == cloudcommon.VMTypeRootLB || vmRes.Type == cloudcommon.VMTypePlatform {
 			vRes.ExternalIpsUsed += 1
 		}
 	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "getVcdResources", "vRes", vRes)
 	return &vRes
 }
 
@@ -193,8 +189,8 @@ func getVcdResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, resource
 func (v *VcdPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
 	// resource name -> resource units
 	cloudletRes := map[string]string{
-		ResourceInstances:   "",
-		ResourceExternalIps: "",
+		cloudcommon.ResourceInstances:   "",
+		cloudcommon.ResourceExternalIPs: "",
 	}
 	resInfo := make(map[string]edgeproto.InfraResource)
 	for resName, resUnits := range cloudletRes {
@@ -209,15 +205,15 @@ func (v *VcdPlatform) GetClusterAdditionalResources(ctx context.Context, cloudle
 		}
 	}
 	vRes := getVcdResources(ctx, cloudlet, vmResources)
-	outInfo, ok := resInfo[ResourceInstances]
+	outInfo, ok := resInfo[cloudcommon.ResourceInstances]
 	if ok {
 		outInfo.Value += vRes.VmsUsed
-		resInfo[ResourceInstances] = outInfo
+		resInfo[cloudcommon.ResourceInstances] = outInfo
 	}
-	outInfo, ok = resInfo[ResourceExternalIps]
+	outInfo, ok = resInfo[cloudcommon.ResourceExternalIPs]
 	if ok {
 		outInfo.Value += vRes.ExternalIpsUsed
-		resInfo[ResourceExternalIps] = outInfo
+		resInfo[cloudcommon.ResourceExternalIPs] = outInfo
 	}
 	return resInfo
 }
@@ -225,8 +221,8 @@ func (v *VcdPlatform) GetClusterAdditionalResources(ctx context.Context, cloudle
 func (v *VcdPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterAdditionalResourceMetric ")
 	vRes := getVcdResources(ctx, cloudlet, resources)
-	resMetric.AddIntVal("VMsUsed", vRes.VmsUsed)
-	resMetric.AddIntVal("externalIpsUsed", vRes.ExternalIpsUsed)
-
+	resMetric.AddIntVal(cloudcommon.ResourceMetricInstances, vRes.VmsUsed)
+	resMetric.AddIntVal(cloudcommon.ResourceMetricExternalIPs, vRes.ExternalIpsUsed)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterAdditionalResourceMetric Reports", "numVmsUsed", vRes.VmsUsed, "external IPsUsed", vRes.ExternalIpsUsed)
 	return nil
 }

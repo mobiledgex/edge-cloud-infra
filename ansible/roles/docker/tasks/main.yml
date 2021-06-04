@@ -47,6 +47,11 @@
     state: present
   become: yes
 
+- name: Update pip
+  command: pip3 install --upgrade pip
+  become: yes
+  changed_when: no
+
 - name: Pip install docker
   pip:
     name: docker
@@ -56,6 +61,13 @@
   pip:
     name: docker-compose
   become: yes
+
+- name: Set up cronjob to prune old docker images
+  cron:
+    name: Docker prune
+    minute: "0"
+    hour: "2"
+    job: docker system prune >/dev/null
 
 - name: Load registry docker creds
   import_role:

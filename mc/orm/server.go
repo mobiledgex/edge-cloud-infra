@@ -31,7 +31,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/nmcclain/ldap"
 	gitlab "github.com/xanzy/go-gitlab"
-	"google.golang.org/grpc/status"
 )
 
 // Server struct is just to track sql/db so we can stop them later.
@@ -47,6 +46,8 @@ type Server struct {
 	notifyServer *notify.ServerMgr
 	notifyClient *notify.Client
 	sqlListener  *pq.Listener
+	ldapServer   *ldap.Server
+	done         chan struct{}
 }
 
 type ServerConfig struct {
@@ -79,6 +80,9 @@ type ServerConfig struct {
 	AlertMgrAddr            string
 	AlertmgrResolveTimout   time.Duration
 	UsageCheckpointInterval string
+	DomainName              string
+	StaticDir               string
+	DeploymentTag           string
 }
 
 var DefaultDBUser = "mcuser"
@@ -107,6 +111,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		config.NodeMgr = &node.NodeMgr{}
 	}
 	nodeMgr = config.NodeMgr
+	server.done = make(chan struct{})
 
 	dbuser := os.Getenv("db_username")
 	dbpass := os.Getenv("db_password")
@@ -137,7 +142,11 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	}
 	allRegionCaches.init()
 
-	ctx, span, err := nodeMgr.Init(node.NodeTypeMC, node.CertIssuerGlobal, node.WithName(config.Hostname), node.WithCloudletPoolLookup(&allRegionCaches))
+	if config.DeploymentTag == "" {
+		return nil, fmt.Errorf("Missing deployment tag")
+	}
+
+	ctx, span, err := nodeMgr.Init(node.NodeTypeMC, node.CertIssuerGlobal, node.WithName(config.Hostname), node.WithCloudletPoolLookup(&allRegionCaches), node.WithCloudletLookup(&allRegionCaches))
 	if err != nil {
 		return nil, err
 	}
@@ -181,7 +190,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	}
 	log.SpanLog(ctx, log.DebugLevelInfo, "vault auth", "type", config.vaultConfig.Auth.Type())
 	server.initJWKDone = make(chan struct{}, 1)
-	InitVault(config.vaultConfig, server.initJWKDone)
+	InitVault(config.vaultConfig, server.done, server.initJWKDone)
 
 	switch serverConfig.BillingPlatform {
 	case "fake":
@@ -246,7 +255,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	}
 
 	server.initDataDone = make(chan error, 1)
-	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.initDataDone)
+	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.done, server.initDataDone)
 
 	if config.AlertMgrAddr != "" {
 		tlsConfig, err := nodeMgr.GetPublicClientTlsConfig(ctx)
@@ -404,16 +413,6 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/org/delete", DeleteOrg)
 
-	// swagger:route POST /auth/billingorg/create BillingOrganization CreateBillingOrg
-	// Create BillingOrganization.
-	// Create a BillingOrganization to set up billing info.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
 	auth.POST("/billingorg/create", CreateBillingOrg)
 	// swagger:route POST /auth/billingorg/update BillingOrganization UpdateBillingOrg
 	// Update BillingOrganization.
@@ -471,6 +470,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/billingorg/delete", DeleteBillingOrg)
 	auth.POST("/billingorg/invoice", GetInvoice)
+	auth.POST("/billingorg/showaccount", ShowAccountInfo)
+	auth.POST("/billingorg/showpaymentprofiles", ShowPaymentInfo)
+	auth.POST("/billingorg/deletepaymentprofile", DeletePaymentInfo)
 
 	auth.POST("/controller/create", CreateController)
 	auth.POST("/controller/delete", DeleteController)
@@ -490,10 +492,11 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/cloudletpoolaccessinvitation/create", CreateCloudletPoolAccessInvitation)
 	auth.POST("/cloudletpoolaccessinvitation/delete", DeleteCloudletPoolAccessInvitation)
 	auth.POST("/cloudletpoolaccessinvitation/show", ShowCloudletPoolAccessInvitation)
-	auth.POST("/cloudletpoolaccessconfirmation/create", CreateCloudletPoolAccessConfirmation)
-	auth.POST("/cloudletpoolaccessconfirmation/delete", DeleteCloudletPoolAccessConfirmation)
-	auth.POST("/cloudletpoolaccessconfirmation/show", ShowCloudletPoolAccessConfirmation)
+	auth.POST("/cloudletpoolaccessresponse/create", CreateCloudletPoolAccessResponse)
+	auth.POST("/cloudletpoolaccessresponse/delete", DeleteCloudletPoolAccessResponse)
+	auth.POST("/cloudletpoolaccessresponse/show", ShowCloudletPoolAccessResponse)
 	auth.POST("/cloudletpoolaccessgranted/show", ShowCloudletPoolAccessGranted)
+	auth.POST("/cloudletpoolaccesspending/show", ShowCloudletPoolAccessPending)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
 	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
 
@@ -698,6 +701,25 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/alertreceiver/show", ShowAlertReceiver)
 
+	auth.POST("/reporter/create", CreateReporter)
+	auth.POST("/reporter/update", UpdateReporter)
+	auth.POST("/reporter/delete", DeleteReporter)
+	auth.POST("/reporter/show", ShowReporter)
+	auth.POST("/report/generatedata", GenerateReportData)
+	auth.POST("/report/generate", GenerateReport)
+	auth.POST("/report/show", ShowReport)
+	auth.POST("/report/download", DownloadReport)
+
+	// Generate new short-lived token to authenticate websocket connections
+	// Note: Web-client should not store auth token as part of local storage,
+	//       instead browser should store it as secure cookies.
+	//       For HTTP endpoints, server responds with "set-cookie" to store
+	//       cookie in browser. But the same cannot be used for websockets
+	//       due to browser limitations.
+	//       Hence, authenticated clients can use this API endpoint to
+	//       fetch a short-lived token to authenticate websocket endpoints
+	auth.POST("/wstoken", GenerateWSAuthToken)
+
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
 	// Also, authorization is handled as part of websocketUpgrade
@@ -763,6 +785,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	handler := &ldapHandler{}
 	ldapServer.BindFunc("", handler)
 	ldapServer.SearchFunc("", handler)
+	server.ldapServer = ldapServer
 	go func() {
 		var err error
 		if config.ApiTlsCertFile != "" {
@@ -783,12 +806,12 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	if err != nil {
 		return nil, err
 	}
-	gitlabSync.Start()
-	artifactorySync.Start()
+	gitlabSync.Start(server.done)
+	artifactorySync.Start(server.done)
 	if AlertManagerServer != nil {
 		AlertManagerServer.Start()
 	}
-	sqlListener, err := initSqlListener(ctx)
+	sqlListener, err := initSqlListener(ctx, server.done)
 	if err != nil {
 		return nil, err
 	}
@@ -827,6 +850,10 @@ func (s *Server) WaitUntilReady() error {
 
 func (s *Server) Stop() {
 	s.stopInitData = true
+	close(s.done)
+	if s.ldapServer != nil {
+		close(s.ldapServer.Quit)
+	}
 	if s.echo != nil {
 		s.echo.Close()
 	}
@@ -917,17 +944,37 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 		SetWs(c, ws)
 
 		// call next handler
-		return next(c)
+		err = next(c)
+
+		// Any handler errors are sent via the websocket here before
+		// it is closed. The error is also passed to the caller, but
+		// only for being recorded in the audit log.
+		if err != nil {
+			code, res := getErrorResult(err)
+			wsPayload := ormapi.WSStreamPayload{
+				Code: code,
+				Data: res,
+			}
+			writeErr := writeWS(c, ws, &wsPayload)
+			if writeErr != nil {
+				ctx := GetContext(c)
+				log.SpanLog(ctx, log.DebugLevelApi, "Failed to write error to websocket stream", "err", err, "writeErr", writeErr)
+			}
+		}
+
+		ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
+
+		return err
 	}
 }
+
+const StreamAPITag = "StreamAPITag"
 
 func ReadConn(c echo.Context, in interface{}) (bool, error) {
 	var err error
 
-	// Init header state while reading connection.
-	// This will be used to track if headers is written
-	// for response.
-	c.Set("WroteHeader", false)
+	// Mark stream API
+	c.Set(StreamAPITag, true)
 
 	if ws := GetWs(c); ws != nil {
 		err = ws.ReadJSON(in)
@@ -942,20 +989,18 @@ func ReadConn(c echo.Context, in interface{}) (bool, error) {
 	}
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			return false, setReply(c, fmt.Errorf("Invalid data"), nil)
+			return false, fmt.Errorf("Invalid data")
 		}
+		// echo returns HTTPError which may include "code: ..., message:", chop code
+		if errObj, ok := err.(*echo.HTTPError); ok {
+			err = fmt.Errorf("%v", errObj.Message)
+		}
+
 		errStr := checkForTimeError(fmt.Sprintf("Invalid data: %v", err))
-		return false, setReply(c, fmt.Errorf(errStr), nil)
+		return false, fmt.Errorf(errStr)
 	}
 
 	return true, nil
-}
-
-func CloseConn(c echo.Context) {
-	if ws := GetWs(c); ws != nil {
-		ws.WriteMessage(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
-		ws.Close()
-	}
 }
 
 func WaitForConnClose(c echo.Context, serverClosed chan bool) {
@@ -985,70 +1030,34 @@ func WaitForConnClose(c echo.Context, serverClosed chan bool) {
 	}
 }
 
+func writeWS(c echo.Context, ws *websocket.Conn, wsPayload *ormapi.WSStreamPayload) error {
+	out, err := json.Marshal(wsPayload)
+	if err == nil {
+		LogWsResponse(c, string(out))
+	}
+	return ws.WriteJSON(wsPayload)
+}
+
 func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 	if ws := GetWs(c); ws != nil {
 		wsPayload := ormapi.WSStreamPayload{
 			Code: http.StatusOK,
 			Data: (*payload).Data,
 		}
-		out, err := json.Marshal(wsPayload)
-		if err == nil {
-			LogWsResponse(c, string(out))
-		}
-		return ws.WriteJSON(wsPayload)
+		return writeWS(c, ws, &wsPayload)
 	} else {
-		headerFlag := c.Get("WroteHeader")
-		wroteHeader := false
-		if headerFlag != nil {
-			if h, ok := headerFlag.(bool); ok {
-				wroteHeader = h
-			}
-		}
 		// stream func may return "forbidden", so don't write
 		// header until we know it's ok
-		if !wroteHeader {
+		if !c.Response().Committed {
+			// Write header now that we're streaming back data
 			c.Response().Header().Set(echo.HeaderContentType, echo.MIMEApplicationJSON)
 			c.Response().WriteHeader(http.StatusOK)
-			c.Set("WroteHeader", true)
 		}
-		json.NewEncoder(c.Response()).Encode(*payload)
+		err := json.NewEncoder(c.Response()).Encode(*payload)
+		if err != nil {
+			return err
+		}
 		c.Response().Flush()
 	}
-
-	return nil
-}
-
-func WriteError(c echo.Context, err error) error {
-	if st, ok := status.FromError(err); ok {
-		err = fmt.Errorf("%s", st.Message())
-	}
-	headerFlag := c.Get("WroteHeader")
-	wroteHeader := false
-	if headerFlag != nil {
-		if h, ok := headerFlag.(bool); ok {
-			wroteHeader = h
-		}
-	}
-	if !wroteHeader {
-		return setReply(c, err, nil)
-	}
-	if ws := GetWs(c); ws != nil {
-		wsPayload := ormapi.WSStreamPayload{
-			Code: http.StatusBadRequest,
-			Data: MsgErr(err),
-		}
-		out, err := json.Marshal(wsPayload)
-		if err == nil {
-			LogWsResponse(c, string(out))
-		}
-		return ws.WriteJSON(wsPayload)
-	} else {
-		res := ormapi.Result{}
-		res.Message = err.Error()
-		res.Code = http.StatusBadRequest
-		payload := ormapi.StreamPayload{Result: &res}
-		json.NewEncoder(c.Response()).Encode(payload)
-	}
-
 	return nil
 }

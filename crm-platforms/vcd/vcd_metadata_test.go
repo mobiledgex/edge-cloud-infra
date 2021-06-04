@@ -16,10 +16,14 @@ func TestMeta(t *testing.T) {
 	require.Nil(t, err, "InitVcdTestEnv")
 	defer testVcdClient.Disconnect()
 	if live {
-
+		vdc, err := tv.GetVdc(ctx, testVcdClient)
+		if err != nil {
+			fmt.Printf("GetVdc failed: %s\n", err.Error())
+			return
+		}
 		fmt.Printf("TestMeta:")
 
-		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient)
+		vapp, err := tv.FindVApp(ctx, *vappName, testVcdClient, vdc)
 		require.Nil(t, err, "FindVApp")
 
 		vm, err := vapp.GetVMByName(*vmName, false)

@@ -1,16 +1,17 @@
 package ormctl
 
 import (
+	fmt "fmt"
 	"strings"
 
-	"github.com/mobiledgex/edge-cloud-infra/mc/orm"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud/cli"
-	"github.com/spf13/cobra"
 )
 
-func GetMetricsCommand() *cobra.Command {
-	cmds := []*cli.Command{&cli.Command{
+const MetricsGroup = "Metrics"
+
+func init() {
+	cmds := []*ApiCommand{&ApiCommand{
+		Name:         "ShowAppMetrics",
 		Use:          "app",
 		Short:        "View App metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricRequiredArgs...), " "),
@@ -19,8 +20,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
 		ReqData:      &ormapi.RegionAppInstMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/app"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/app",
+	}, &ApiCommand{
+		Name:         "ShowClusterMetrics",
 		Use:          "cluster",
 		Short:        "View ClusterInst metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClusterMetricRequiredArgs...), " "),
@@ -29,8 +31,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), ClusterMetricComments),
 		ReqData:      &ormapi.RegionClusterInstMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/cluster"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/cluster",
+	}, &ApiCommand{
+		Name:         "ShowCloudletMetrics",
 		Use:          "cloudlet",
 		Short:        "View Cloudlet metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
@@ -39,8 +42,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletMetricComments),
 		ReqData:      &ormapi.RegionCloudletMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/cloudlet"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/cloudlet",
+	}, &ApiCommand{
+		Name:         "ShowCloudletUsage",
 		Use:          "cloudletusage",
 		Short:        "View Cloudlet usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
@@ -49,8 +53,9 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletUsageMetricComments),
 		ReqData:      &ormapi.RegionCloudletMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/cloudlet/usage"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/cloudlet/usage",
+	}, &ApiCommand{
+		Name:         "ShowClientApiUsageMetrics",
 		Use:          "clientapiusage",
 		Short:        "View client API usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientApiUsageMetricRequiredArgs...), " "),
@@ -59,29 +64,31 @@ func GetMetricsCommand() *cobra.Command {
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), ClientApiUsageMetricComments),
 		ReqData:      &ormapi.RegionClientApiUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/clientapiusage"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/clientapiusage",
+	}, &ApiCommand{
+		Name:         "ShowClientAppUsageMetrics",
 		Use:          "clientappusage",
 		Short:        "View client App usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientAppUsageMetricRequiredArgs...), " "),
 		OptionalArgs: strings.Join(ClientAppUsageMetricOptionalArgs, " "),
 		AliasArgs:    strings.Join(ClientAppUsageMetricAliasArgs, " "),
-		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), ClientAppUsageMetricComments),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), getClientTypeUsageMetricComments("app")),
 		ReqData:      &ormapi.RegionClientAppUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/clientappusage"),
-	}, &cli.Command{
+		Path:         "/auth/metrics/clientappusage",
+	}, &ApiCommand{
+		Name:         "ShowClientCloudletUsageMetrics",
 		Use:          "clientcloudletusage",
 		Short:        "View client Cloudlet usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientCloudletUsageMetricRequiredArgs...), " "),
 		OptionalArgs: strings.Join(ClientCloudletUsageMetricOptionalArgs, " "),
 		AliasArgs:    strings.Join(ClientCloudletUsageMetricAliasArgs, " "),
-		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), ClientCloudletUsageMetricComments),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), getClientTypeUsageMetricComments("cloudlet")),
 		ReqData:      &ormapi.RegionClientCloudletUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
-		Run:          runRest("/auth/metrics/clientcloudletusage"),
+		Path:         "/auth/metrics/clientcloudletusage",
 	}}
-	return cli.GenGroup("metrics", "View metrics", cmds)
+	AllApis.AddGroup(MetricsGroup, "View metrics", cmds)
 }
 
 var AppMetricRequiredArgs = []string{
@@ -109,10 +116,17 @@ var AppMetricAliasArgs = []string{
 	"cluster-org=appinst.clusterinstkey.organization",
 	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
+	"appinsts:#.app-org=appinsts:#.appkey.organization",
+	"appinsts:#.appname=appinsts:#.appkey.name",
+	"appinsts:#.appvers=appinsts:.appkey.version",
+	"appinsts:#.cluster=appinsts:#.clusterinstkey.clusterkey.name",
+	"appinsts:#.cluster-org=appinsts:#.clusterinstkey.organization",
+	"appinsts:#.cloudlet-org=appinsts:#.clusterinstkey.cloudletkey.organization",
+	"appinsts:#.cloudlet=appinsts:#.clusterinstkey.cloudletkey.name",
 }
 
 var AppMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.AppSelectors, "\", \"") + "\"",
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.AppSelectors, "\", \"") + "\"",
 }
 
 var ClusterMetricRequiredArgs = []string{
@@ -137,7 +151,7 @@ var ClusterMetricAliasArgs = []string{
 }
 
 var ClusterMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClusterSelectors, "\", \"") + "\"",
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.ClusterSelectors, "\", \"") + "\"",
 }
 
 var CloudletMetricRequiredArgs = []string{
@@ -158,21 +172,21 @@ var CloudletMetricAliasArgs = []string{
 }
 
 var CloudletMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.CloudletSelectors, "\", \"") + "\"",
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.CloudletSelectors, "\", \"") + "\"",
 }
 
 var CloudletUsageMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.CloudletUsageSelectors, "\", \"") + "\"",
+	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.CloudletUsageSelectors, "\", \"") + "\"",
 }
 
 var ClientApiUsageMetricRequiredArgs = []string{
-	"app-org",
 	"selector",
 }
 
 var ClientApiUsageMetricOptionalArgs = []string{
 	"appname",
 	"appvers",
+	"app-org",
 	"cluster",
 	"cluster-org",
 	"cloudlet",
@@ -201,22 +215,23 @@ var ClientApiUsageMetricComments = map[string]string{
 }
 
 var ClientAppUsageMetricRequiredArgs = []string{
-	"app-org",
 	"selector",
 }
 
 var ClientAppUsageMetricOptionalArgs = []string{
 	"appname",
 	"appvers",
+	"app-org",
 	"cluster",
 	"cluster-org",
 	"cloudlet",
 	"cloudlet-org",
-	"location",
-	"device-os",
-	"device-type",
-	"data-network-type",
-	"raw-data",
+	"locationtile",
+	"deviceos",
+	"devicemodel",
+	"devicecarrier",
+	"datanetworktype",
+	"rawdata",
 	"last",
 	"starttime",
 	"endtime",
@@ -232,15 +247,6 @@ var ClientAppUsageMetricAliasArgs = []string{
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
 }
 
-var ClientAppUsageMetricComments = map[string]string{
-	"location":          "Location tile. Use only for latency selector",
-	"device-os":         "Device operating system. Use only for deviceinfo selector",
-	"device-type":       "Device type. Use only for deviceinfo selector",
-	"data-network-type": "Data network type used by client device. Use only for deviceinfo selector",
-	"raw-data":          "Set to true for additional raw data (not downsampled)",
-	"selector":          "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClientAppUsageSelectors, "\", \"") + "\"",
-}
-
 var ClientCloudletUsageMetricRequiredArgs = []string{
 	"cloudlet-org",
 	"selector",
@@ -248,11 +254,12 @@ var ClientCloudletUsageMetricRequiredArgs = []string{
 
 var ClientCloudletUsageMetricOptionalArgs = []string{
 	"cloudlet",
-	"location",
-	"device-os",
-	"device-type",
-	"data-network-type",
-	"raw-data",
+	"locationtile",
+	"deviceos",
+	"devicemodel",
+	"devicecarrier",
+	"datanetworktype",
+	"rawdata",
 	"last",
 	"starttime",
 	"endtime",
@@ -261,15 +268,6 @@ var ClientCloudletUsageMetricOptionalArgs = []string{
 var ClientCloudletUsageMetricAliasArgs = []string{
 	"cloudlet-org=cloudlet.organization",
 	"cloudlet=cloudlet.name",
-}
-
-var ClientCloudletUsageMetricComments = map[string]string{
-	"location":          "Location tile. Use for either latency or deviceinfo selectors",
-	"device-os":         "Device operating system. Use only for deviceinfo selector",
-	"device-type":       "Device type. Use only for deviceinfo selector",
-	"data-network-type": "Data network type used by client device. Use only for latency selector",
-	"raw-data":          "Set to true for additional raw data (not downsampled)",
-	"selector":          "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(orm.ClientCloudletUsageSelectors, "\", \"") + "\"",
 }
 
 var MetricCommentsCommon = map[string]string{
@@ -296,4 +294,44 @@ func mergeMetricComments(a, b map[string]string) map[string]string {
 		res[k] = v
 	}
 	return res
+}
+
+// generates ClientAppUsage and ClientCloudletUsage comments along with which args are available for which selectors
+func getClientTypeUsageMetricComments(typ string) map[string]string {
+	baseSelectorPermission := "Can be used for selectors: %s."
+	var locationtileSelectorPermission string
+	var deviceosSelectorPermission string
+	var devicemodelSelectorPermission string
+	var devicecarrierSelectorPermission string
+	var datanetworktypeSelectorPermission string
+	var availableMetrics string
+
+	switch typ {
+	case "app":
+		locationtileSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
+		deviceosSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		devicecarrierSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		datanetworktypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		availableMetrics = strings.Join(ormapi.ClientAppUsageSelectors, "\", \"")
+	case "cloudlet":
+		locationtileSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency, deviceinfo")
+		deviceosSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		devicecarrierSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency, deviceinfo")
+		datanetworktypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
+		availableMetrics = strings.Join(ormapi.ClientCloudletUsageSelectors, "\", \"")
+	default:
+		return map[string]string{}
+	}
+
+	return map[string]string{
+		"locationtile":    fmt.Sprintf("Location tile. Provides the range of GPS coordinates for the location tile/square. Format is: \"LocationUnderLongitude,LocationUnderLatitude_LocationOverLongitude,LocationOverLatitude_LocationTileLength\". LocationUnder are the GPS coordinates of the corner closest to (0,0) of the location tile. LocationOver are the GPS coordinates of the corner farthest from (0,0) of the location tile. LocationTileLength is the length (in kilometers) of one side of the location tile square. %s", locationtileSelectorPermission),
+		"deviceos":        fmt.Sprintf("Device operating system. %s", deviceosSelectorPermission),
+		"devicemodel":     fmt.Sprintf("Device model. %s", devicemodelSelectorPermission),
+		"devicecarrier":   fmt.Sprintf("Device carrier. %s", devicecarrierSelectorPermission),
+		"datanetworktype": fmt.Sprintf("Data network type used by client device. %s", datanetworktypeSelectorPermission),
+		"rawdata":         "Set to true for additional raw data (not downsampled)",
+		"selector":        fmt.Sprintf("Comma separated list of metrics to view. Available metrics: \"%s\"", availableMetrics),
+	}
 }

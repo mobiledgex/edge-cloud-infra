@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
@@ -25,7 +26,7 @@ func (bs *BillingService) GetType() string {
 	return "fakebilling"
 }
 
-func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.CustomerDetails, account *billing.AccountInfo, payment *billing.PaymentMethod) error {
+func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.CustomerDetails, account *ormapi.AccountInfo) error {
 	accMux.Lock()
 	account.AccountId = strconv.Itoa(accountCounter)
 	accountCounter = accountCounter + 1
@@ -49,28 +50,36 @@ func (bs *BillingService) CreateCustomer(ctx context.Context, customer *billing.
 	return nil
 }
 
-func (bs *BillingService) DeleteCustomer(ctx context.Context, account *billing.AccountInfo) error {
+func (bs *BillingService) DeleteCustomer(ctx context.Context, account *ormapi.AccountInfo) error {
 	return nil
 }
 
-func (bs *BillingService) UpdateCustomer(ctx context.Context, account *billing.AccountInfo, customerDetails *billing.CustomerDetails) error {
+func (bs *BillingService) UpdateCustomer(ctx context.Context, account *ormapi.AccountInfo, customerDetails *billing.CustomerDetails) error {
 	return nil
 }
 
-func (bs *BillingService) AddChild(ctx context.Context, parentAccount, childAccount *billing.AccountInfo, childDetails *billing.CustomerDetails) error {
-	bs.CreateCustomer(ctx, childDetails, childAccount, nil)
+func (bs *BillingService) AddChild(ctx context.Context, parentAccount, childAccount *ormapi.AccountInfo, childDetails *billing.CustomerDetails) error {
+	bs.CreateCustomer(ctx, childDetails, childAccount)
 	childAccount.ParentId = parentAccount.AccountId
 	return nil
 }
 
-func (bs *BillingService) RemoveChild(ctx context.Context, parent, child *billing.AccountInfo) error {
+func (bs *BillingService) RemoveChild(ctx context.Context, parent, child *ormapi.AccountInfo) error {
 	return nil
 }
 
-func (bs *BillingService) RecordUsage(ctx context.Context, account *billing.AccountInfo, usageRecords []billing.UsageRecord) error {
+func (bs *BillingService) RecordUsage(ctx context.Context, account *ormapi.AccountInfo, usageRecords []billing.UsageRecord) error {
 	return nil
 }
 
-func (bs *BillingService) GetInvoice(ctx context.Context, account *billing.AccountInfo, startDate, endDate string) ([]billing.InvoiceData, error) {
+func (bs *BillingService) GetInvoice(ctx context.Context, account *ormapi.AccountInfo, startDate, endDate string) ([]billing.InvoiceData, error) {
 	return nil, nil
+}
+
+func (bs *BillingService) ShowPaymentProfiles(ctx context.Context, account *ormapi.AccountInfo) ([]billing.PaymentProfile, error) {
+	return nil, nil
+}
+
+func (bs *BillingService) DeletePaymentProfile(ctx context.Context, account *ormapi.AccountInfo, profile *billing.PaymentProfile) error {
+	return nil
 }

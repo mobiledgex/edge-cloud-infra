@@ -29,8 +29,8 @@ etcd_quota_backend="150 MB"
 etcd_auto_compaction_retention=2
 artifactory_fqdn=https://artifactory-qa.mobiledgex.net/artifactory/
 cloudlet_vm_path=https://artifactory-qa.mobiledgex.net/artifactory/baseimages
-controller_replicas=2
-gitlab_version=13.5.7-ee.0
+controller_replicas=1
+gitlab_version=13.8.7-ee.0
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net

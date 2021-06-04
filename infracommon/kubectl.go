@@ -2,7 +2,6 @@ package infracommon
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,7 +12,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
-	v1 "k8s.io/api/core/v1"
 )
 
 // getSecretAuth returns secretName, dockerServer, auth, error
@@ -38,7 +36,10 @@ func getSecretAuth(ctx context.Context, imagePath string, authApi cloudcommon.Re
 		return "", "", nil, nil
 	}
 	if auth.AuthType != cloudcommon.BasicAuth {
-		return "", "", nil, fmt.Errorf("auth type for %s is not basic auth type", auth.Hostname)
+		// This can be ignored as it'll only happen for internally
+		// used non-docker registry hostnames like artifactory.mobiledgex.net
+		log.SpanLog(ctx, log.DebugLevelInfra, "warning, auth type is not basic auth type - assume internal registry", "hostname", auth.Hostname, "authType", auth.AuthType)
+		return "", "", nil, nil
 	}
 	// Note: docker-server must contain port if imagepath contains port,
 	// otherwise imagepullsecrets won't work.
@@ -88,7 +89,7 @@ func CreateDockerRegistrySecret(ctx context.Context, client ssh.Client, kconf st
 	// may put multiple apps in the same ClusterInst and they may come
 	// from different registries.
 	cmd := fmt.Sprintf("kubectl create secret docker-registry %s "+
-		"--docker-server=%s --docker-username=%s --docker-password=%s "+
+		"--docker-server=%s --docker-username='%s' --docker-password='%s' "+
 		"--docker-email=mobiledgex@mobiledgex.com --kubeconfig=%s",
 		secretName, dockerServer, auth.Username, auth.Password,
 		kconf)
@@ -145,7 +146,7 @@ func GetSvcExternalIpOrHost(ctx context.Context, client ssh.Client, kubeNames *k
 		if err != nil {
 			return "", "", fmt.Errorf("error getting svc %s, %s, %v", name, out, err)
 		}
-		svcs, err := GetServices(ctx, client, kubeNames)
+		svcs, err := k8smgmt.GetServices(ctx, client, kubeNames)
 		if err != nil {
 			return "", "", err
 		}
@@ -176,31 +177,6 @@ func GetSvcExternalIpOrHost(ctx context.Context, client ssh.Client, kubeNames *k
 		return "", "", fmt.Errorf("timed out trying to get externalIP")
 	}
 	return externalIP, dnsName, nil
-}
-
-func GetServices(ctx context.Context, client ssh.Client, names *k8smgmt.KubeNames) ([]v1.Service, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "get services", "kconf", names.KconfName)
-	svcs := svcItems{}
-	if names.DeploymentType == cloudcommon.DeploymentTypeDocker {
-		// just populate the service names
-		for _, sn := range names.ServiceNames {
-			item := v1.Service{}
-			item.Name = sn
-			svcs.Items = append(svcs.Items, item)
-		}
-		return svcs.Items, nil
-	}
-	cmd := fmt.Sprintf("%s kubectl get svc -o json", names.KconfEnv)
-	out, err := client.Output(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("can not get list of services: %s, %s, %v", cmd, out, err)
-	}
-	err = json.Unmarshal([]byte(out), &svcs)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "cannot unmarshal svc json", "out", out, "err", err)
-		return nil, fmt.Errorf("cannot unmarshal svc json, %s", err.Error())
-	}
-	return svcs.Items, nil
 }
 
 func BackupKubeconfig(ctx context.Context, client ssh.Client) {

@@ -45,6 +45,8 @@
     name: mcorm.v1
     policies:
       - approle.login.v1
+      - chargify.read.v1
+      - gcs.read.v1
       - influxdb.read.v1
       - mcorm-jwtkeys.read.v1
       - noreplyemail.read.v1

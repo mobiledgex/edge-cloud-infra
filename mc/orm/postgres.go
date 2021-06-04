@@ -11,7 +11,6 @@ import (
 	_ "github.com/labstack/echo"
 	"github.com/lib/pq"
 	_ "github.com/lib/pq"
-	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/gormlog"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -49,28 +48,32 @@ func InitSql(ctx context.Context, addr, username, password, dbname string) (*gor
 	return db, nil
 }
 
-func InitData(ctx context.Context, superuser, superpass string, pingInterval time.Duration, stop *bool, done chan error) {
+func InitData(ctx context.Context, superuser, superpass string, pingInterval time.Duration, stop *bool, done chan struct{}, initDone chan error) {
 	if database == nil {
 		log.FatalLog("db not initialized")
 	}
 	db := loggedDB(ctx)
-	first := true
-	for {
-		if *stop {
+	isDone := false
+	// do first attempt immediately, then retry after interval if needed
+	retryInt := time.Duration(0)
+	for !isDone {
+		select {
+		case <-done:
+			isDone = true
+		case <-time.After(retryInt):
+			retryInt = retryInterval
+		}
+		if isDone {
 			return
 		}
-		if !first {
-			time.Sleep(retryInterval)
-		}
-		first = false
 
 		// create or update tables
 		err := db.AutoMigrate(&ormapi.User{}, &ormapi.Organization{},
-			&ormapi.Controller{}, &ormapi.Config{}, &ormapi.OrgCloudletPool{}, &billing.AccountInfo{}, &ormapi.BillingOrganization{}, &ormapi.UserApiKey{}).Error
+			&ormapi.Controller{}, &ormapi.Config{}, &ormapi.OrgCloudletPool{}, &ormapi.AccountInfo{}, &ormapi.BillingOrganization{}, &ormapi.UserApiKey{}, &ormapi.Reporter{}).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "automigrate", "err", err)
 			if unitTest {
-				done <- err
+				initDone <- err
 				return
 			}
 			continue
@@ -80,7 +83,7 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "init roles", "err", err)
 			if unitTest {
-				done <- err
+				initDone <- err
 				return
 			}
 			continue
@@ -89,7 +92,7 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "init admin", "err", err)
 			if unitTest {
-				done <- err
+				initDone <- err
 				return
 			}
 			continue
@@ -98,7 +101,7 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "init config", "err", err)
 			if unitTest {
-				done <- err
+				initDone <- err
 				return
 			}
 			continue
@@ -107,7 +110,7 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "init orgcloudletpool", "err", err)
 			if unitTest {
-				done <- err
+				initDone <- err
 				return
 			}
 			continue
@@ -117,11 +120,15 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 	}
 	go func() {
 		for {
-			time.Sleep(pingInterval)
-			database.DB().Ping()
+			select {
+			case <-done:
+				return
+			case <-time.After(pingInterval):
+				database.DB().Ping()
+			}
 		}
 	}()
-	done <- nil
+	initDone <- nil
 }
 
 // Unfortunately the logger interface used by gorm does not
@@ -162,7 +169,7 @@ type sqlNotice struct {
 	Action string `json:"action"`
 }
 
-func initSqlListener(ctx context.Context) (*pq.Listener, error) {
+func initSqlListener(ctx context.Context, done chan struct{}) (*pq.Listener, error) {
 	log.SpanLog(ctx, log.DebugLevelInfo, "init sql listener")
 	sqlListenerWorkers.Init("sqlListener", sqlListenerWorkFunc)
 
@@ -182,7 +189,8 @@ func initSqlListener(ctx context.Context) (*pq.Listener, error) {
 	maxReconnectInterval := 60 * time.Second
 	listener := pq.NewListener(psqlInfo, minReconnectInterval, maxReconnectInterval, sqlListenerEventCb)
 	go func() {
-		for {
+		isDone := false
+		for !isDone {
 			select {
 			case noticeData := <-listener.Notify:
 				if noticeData == nil {
@@ -205,6 +213,8 @@ func initSqlListener(ctx context.Context) (*pq.Listener, error) {
 				go func() {
 					listener.Ping()
 				}()
+			case <-done:
+				isDone = true
 			}
 		}
 	}()

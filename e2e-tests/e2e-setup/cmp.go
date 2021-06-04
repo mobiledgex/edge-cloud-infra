@@ -69,17 +69,26 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 	var y2 interface{}
 	copts := []cmp.Option{}
 
-	if fileType == "mcdata" {
+	if fileType == "mcdata" || fileType == "mcdata-xind" {
 		var a1 ormapi.AllData
 		var a2 ormapi.AllData
 
 		err1 = util.ReadYamlFile(firstYamlFile, &a1)
 		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
 		copts = []cmp.Option{
 			cmpopts.IgnoreTypes(time.Time{}, dmeproto.Timestamp{}),
 			IgnoreAdminRole,
 		}
-		copts = append(copts, edgeproto.IgnoreTaggedFields("nocmp")...)
+		if fileType == "mcdata" {
+			copts = append(copts, edgeproto.IgnoreTaggedFields("nocmp")...)
+		}
+		if fileType == "mcdata-xind" {
+			// ignore container ids
+			copts = append(copts, cmpopts.IgnoreFields(edgeproto.AppInstRuntime{}, "ContainerIds"))
+			// ignore local hostname based data
+			copts = append(copts, cmpopts.IgnoreFields(edgeproto.CloudletInfo{}, "Controller"))
+		}
 		copts = append(copts, edgeproto.CmpSortSlices()...)
 		copts = append(copts, cmpopts.SortSlices(CmpSortOrgs))
 
@@ -415,6 +424,8 @@ func cmpFilterSpans(data []SpanSearch) {
 				ignoreMapVal(log.KeyValues, "resp")
 				ignoreMapVal(log.KeyValues, "rev")
 				ignoreMapVal(log.KeyValues, "autoProvStats")
+				ignoreMapVal(log.KeyValues, "stats count")
+				ignoreMapVal(log.KeyValues, "stats last count")
 			}
 		}
 	}

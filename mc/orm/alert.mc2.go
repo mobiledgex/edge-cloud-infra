@@ -40,18 +40,17 @@ func ShowAlert(c echo.Context) error {
 	if !success {
 		return err
 	}
-	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
-	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) {
+	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		WriteStream(c, &payload)
+		return WriteStream(c, &payload)
 	})
 	if err != nil {
-		WriteError(c, err)
+		return err
 	}
 	return nil
 }
@@ -61,7 +60,7 @@ type ShowAlertAuthz interface {
 	Filter(obj *edgeproto.Alert)
 }
 
-func ShowAlertStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert, cb func(res *edgeproto.Alert)) error {
+func ShowAlertStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert, cb func(res *edgeproto.Alert) error) error {
 	var authz ShowAlertAuthz
 	var err error
 	if !rc.skipAuthz {
@@ -104,15 +103,19 @@ func ShowAlertStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Aler
 				authz.Filter(res)
 			}
 		}
-		cb(res)
+		err = cb(res)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func ShowAlertObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert) ([]edgeproto.Alert, error) {
 	arr := []edgeproto.Alert{}
-	err := ShowAlertStream(ctx, rc, obj, func(res *edgeproto.Alert) {
+	err := ShowAlertStream(ctx, rc, obj, func(res *edgeproto.Alert) error {
 		arr = append(arr, *res)
+		return nil
 	})
 	return arr, err
 }
@@ -146,7 +149,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdateClusterInstTimeout: 12
 	// DeleteClusterInstTimeout: 13
 	// MasterNodeFlavor: 14
-	// LoadBalancerMaxPortRange: 15
 	// MaxTrackedDmeClients: 16
 	// ChefClientInterval: 17
 	// InfluxDbMetricsRetention: 18
@@ -447,6 +449,11 @@ func addControllerApis(method string, group *echo.Group) {
 	// RequiredOutboundConnectionsProtocol: 38.1
 	// RequiredOutboundConnectionsPort: 38.2
 	// RequiredOutboundConnectionsRemoteIp: 38.4
+	// AllowServerless: 39
+	// ServerlessConfig: 40
+	// ServerlessConfigVcpus: 40.1
+	// ServerlessConfigRam: 40.2
+	// ServerlessConfigMinReplicas: 40.3
 	// ```
 	// Security:
 	//   Bearer:
@@ -617,6 +624,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// ResourceQuotasAlertThreshold: 39.3
 	// DefaultResourceAlertThreshold: 40
 	// HostController: 41
+	// KafkaCluster: 42
+	// KafkaUser: 43
+	// KafkaPassword: 44
 	// ```
 	// Security:
 	//   Bearer:
@@ -1075,6 +1085,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ReservationEndedAt: 31
 	// ReservationEndedAtSeconds: 31.1
 	// ReservationEndedAtNanos: 31.2
+	// MultiTenant: 32
 	// ```
 	// Security:
 	//   Bearer:

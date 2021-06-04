@@ -1,9 +1,9 @@
 package ormapi
 
 import (
+	"regexp"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/util"
 )
@@ -100,38 +100,26 @@ type Organization struct {
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
+	// Images are made available to other organization
 	// read only: true
 	PublicImages bool `json:",omitempty"`
+	// Delete of this organization is in progress
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
 	// read only: true
 	Parent string `json:",omitempty"`
+	// Edgebox only operator organization
 	// read only: true
 	EdgeboxOnly bool `json:",omitempty"`
 }
 
-// used for CreateBillingOrg, so we can pass through payment details to the billing service without actually storing them
-type CreateBillingOrganization struct {
-	Name       string `json:",omitempty"`
-	Type       string `json:",omitempty"`
-	FirstName  string `json:",omitempty"`
-	LastName   string `json:",omitempty"`
-	Email      string `json:",omitempty"`
-	Address    string `json:",omitempty"`
-	Address2   string `json:",omitempty"`
-	City       string `json:",omitempty"`
-	Country    string `json:",omitempty"`
-	State      string `json:",omitempty"`
-	PostalCode string `json:",omitempty"`
-	Phone      string `json:",omitempty"`
-	Children   string `json:",omitempty"`
-	Payment    billing.PaymentMethod
-}
-
 type InvoiceRequest struct {
-	Name      string `json:",omitempty"`
+	// Billing Organization name to retrieve invoices for
+	Name string `json:",omitempty"`
+	// Date filter for invoice selection, YYYY-MM-DD format
 	StartDate string `json:",omitempty"`
-	EndDate   string `json:",omitempty"`
+	// Date filter for invoice selection, YYYY-MM-DD format
+	EndDate string `json:",omitempty"`
 }
 
 type BillingOrganization struct {
@@ -168,6 +156,24 @@ type BillingOrganization struct {
 	UpdatedAt time.Time `json:",omitempty"`
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
+}
+
+type AccountInfo struct {
+	// Billing Organization name to commit
+	OrgName string `gorm:"primary_key;type:citext"`
+	// Account ID given by the billing platform
+	AccountId string `json:",omitempty"`
+	// Subscription ID given by the billing platform
+	SubscriptionId string `json:",omitempty"`
+	ParentId       string `json:",omitempty"`
+	Type           string `json:",omitempty"`
+}
+
+type PaymentProfileDeletion struct {
+	// Billing Organization Name associated with the payment profile
+	Org string `json:",omitempty"`
+	// Payment Profile Id
+	Id int `json:",omitempty"`
 }
 
 type Controller struct {
@@ -213,13 +219,20 @@ type OrgCloudletPool struct {
 	CloudletPool string `gorm:"not null"`
 	// Operator's Organization
 	CloudletPoolOrg string `gorm:"type:citext REFERENCES organizations(name)"`
-	// Type is an internal-only field which is either invitation or confirmation
+	// Type is an internal-only field which is either invitation or response
 	Type string `json:",omitempty"`
+	// Decision is to either accept or reject an invitation
+	Decision string `json:",omitempty"`
 }
 
 const (
-	CloudletPoolAccessInvitation   = "invitation"
-	CloudletPoolAccessConfirmation = "confirmation"
+	CloudletPoolAccessInvitation = "invitation"
+	CloudletPoolAccessResponse   = "response"
+)
+
+const (
+	CloudletPoolAccessDecisionAccept = "accept"
+	CloudletPoolAccessDecisionReject = "reject"
 )
 
 // Structs used for API calls
@@ -363,14 +376,14 @@ type WSStreamPayload struct {
 // all data is for full create/delete
 
 type AllData struct {
-	Controllers                     []Controller          `json:"controllers,omitempty"`
-	BillingOrgs                     []BillingOrganization `json:"billingorgs,omitempty"`
-	AlertReceivers                  []AlertReceiver       `json:"alertreceivers,omitempty"`
-	Orgs                            []Organization        `json:"orgs,omitempty"`
-	Roles                           []Role                `json:"roles,omitempty"`
-	CloudletPoolAccessInvitations   []OrgCloudletPool     `json:"cloudletpoolaccessinvitations,omitempty"`
-	CloudletPoolAccessConfirmations []OrgCloudletPool     `json:"cloudletpoolaccessconfirmations,omitempty"`
-	RegionData                      []RegionData          `json:"regiondata,omitempty"`
+	Controllers                   []Controller          `json:"controllers,omitempty"`
+	BillingOrgs                   []BillingOrganization `json:"billingorgs,omitempty"`
+	AlertReceivers                []AlertReceiver       `json:"alertreceivers,omitempty"`
+	Orgs                          []Organization        `json:"orgs,omitempty"`
+	Roles                         []Role                `json:"roles,omitempty"`
+	CloudletPoolAccessInvitations []OrgCloudletPool     `json:"cloudletpoolaccessinvitations,omitempty"`
+	CloudletPoolAccessResponses   []OrgCloudletPool     `json:"cloudletpoolaccessresponses,omitempty"`
+	RegionData                    []RegionData          `json:"regiondata,omitempty"`
 }
 
 type RegionData struct {
@@ -388,18 +401,20 @@ type MetricData struct {
 }
 
 type MetricSeries struct {
-	Columns []string        `json:"columns"`
-	Name    string          `json:"name"`
-	Values  [][]interface{} `json:"values"`
+	Columns []string          `json:"columns"`
+	Name    string            `json:"name"`
+	Tags    map[string]string `json:"tags"`
+	Values  [][]interface{}   `json:"values"`
 }
 
 type RegionAppInstMetrics struct {
 	Region    string
-	AppInst   edgeproto.AppInstKey
 	Selector  string
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
+	AppInst   edgeproto.AppInstKey   `json:",omitempty"`
+	AppInsts  []edgeproto.AppInstKey `json:",omitempty"`
+	StartTime time.Time              `json:",omitempty"`
+	EndTime   time.Time              `json:",omitempty"`
+	Last      int                    `json:",omitempty"`
 }
 
 type RegionClusterInstMetrics struct {
@@ -545,4 +560,74 @@ type AlertReceiver struct {
 	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
 	// AppInst spec for alerts
 	AppInst edgeproto.AppInstKey `json:",omitempty"`
+}
+
+// Reporter to generate period reports
+type Reporter struct {
+	// Reporter name. Can only contain letters, digits, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen
+	// required: true
+	Name string `gorm:"primary_key;type:citext"`
+	// Organization name
+	// required: true
+	Org string `gorm:"primary_key;type:citext REFERENCES organizations(name)"`
+	// Email to send generated reports
+	Email string `json:",omitempty"`
+	// Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days, EveryMonth
+	Schedule edgeproto.ReportSchedule `json:",omitempty"`
+	// Start date (in RFC3339 format with intended timezone) when the report is scheduled to be generated (Default: today)
+	StartScheduleDate string `json:",omitempty"`
+	// Date when the next report is scheduled to be generated (for internal use only)
+	// read only: true
+	NextScheduleDate string `json:",omitempty"`
+	// User name (for internal use only)
+	// read only: true
+	Username string
+	// Last report status
+	// read only: true
+	Status string
+}
+
+type DownloadReport struct {
+	// Organization name
+	// required: true
+	Org string
+	// Name of the report file to be downloaded
+	// required: true
+	Filename string
+}
+
+type GenerateReport struct {
+	// Organization name
+	// required: true
+	Org string
+	// Absolute time (in RFC3339 format with intended timezone) to start report capture
+	// required: true
+	StartTime time.Time `json:",omitempty"`
+	// Absolute time (in RFC3339 format with intended timezone) to end report capture
+	// required: true
+	EndTime time.Time `json:",omitempty"`
+	// Region name (for internal use only)
+	// read only: true
+	Region string
+}
+
+func GetReportFileName(reporterName string, report *GenerateReport) string {
+	// File name should be of this format: "<orgname>_<startdate>_<enddate>_<reportername>_report.pdf"
+	startDate := report.StartTime.Format(TimeFormatDateName) // YYYYMMDD
+	endDate := report.EndTime.Format(TimeFormatDateName)
+	subStr := ""
+	if reporterName != "" {
+		subStr = "_" + reporterName
+	}
+	return report.Org + "_" + startDate + "_" + endDate + subStr + "_report.pdf"
+}
+
+func GetOrgFromReportFileName(fileName string) string {
+	pattern := `(.*)_\d{8}_\d{8}_[a-zA-Z0-9-.]*_report.pdf`
+	regObj := regexp.MustCompile(pattern)
+	allStrs := regObj.FindStringSubmatch(fileName)
+	if len(allStrs) < 2 {
+		return ""
+	}
+	return allStrs[1]
 }

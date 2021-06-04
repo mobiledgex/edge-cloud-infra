@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
@@ -13,15 +14,6 @@ const CUSTOMER_TYPE_CHILD = "child"
 const CUSTOMER_TYPE_SELF = "self"
 const PAYMENT_TYPE_CC = "credit_card"
 const BillingTypeFake = "fake"
-
-type AccountInfo struct {
-	OrgName               string `gorm:"primary_key;type:citext"`
-	AccountId             string
-	SubscriptionId        string
-	ParentId              string
-	Type                  string
-	DefaultPaymentProfile int
-}
 
 type CustomerDetails struct {
 	OrgName   string
@@ -40,28 +32,6 @@ type CustomerDetails struct {
 	ParentId  string
 }
 
-type PaymentMethod struct {
-	PaymentType    string
-	PaymentProfile int
-	CreditCard     CreditCard
-}
-
-type CreditCard struct {
-	FirstName       string
-	LastName        string
-	CardNumber      string
-	CardType        string
-	ExpirationMonth int
-	ExpirationYear  int
-	Cvv             int
-	BillingAddress  string
-	BillingAddress2 string
-	City            string
-	State           string
-	Zip             string
-	Country         string
-}
-
 type UsageRecord struct {
 	FlavorName  string
 	NodeCount   int
@@ -76,7 +46,7 @@ type InvoiceData struct {
 	IssueDate           string `json:"issue_date,omitempty"`
 	DueDate             string `json:"due_date,omitempty"`
 	PaidDate            string `json:"paid_date,omitempty"`
-	Status              string `json:"status_omitempty"`
+	Status              string `json:"status,omitempty"`
 	CollectionMethod    string `json:"collection_method,omitempty"`
 	PaymentInstructions string `json:"payment_instructions,omitempty"`
 	Currency            string `json:"currency,omitempty"`
@@ -103,6 +73,7 @@ type InvoiceData struct {
 	RefundAmount        string          `json:"refund_amount,omitempty"`
 	PaidAmount          string          `json:"paid_amount,omitempty"`
 	DueAmount           string          `json:"due_amount,omitempty"`
+	TotalAmount         string          `json:"total_amount,omitempty"`
 	LineItems           []LineItems     `json:"line_items,omitempty"`
 	Discounts           []Discounts     `json:"discounts,omitempty"`
 	Taxes               []Taxes         `json:"taxes,omitempty"`
@@ -219,23 +190,33 @@ type PrevBalanceData struct {
 	} `json:"invoices,omitempty"`
 }
 
+type PaymentProfile struct {
+	ProfileId  int    `json:"profile_id,omitempty"`
+	CardNumber string `json:"card_number,omitempty"`
+	CardType   string `json:"card_type,omitempty"`
+}
+
 type BillingService interface {
 	// Init is called once during startup
 	Init(ctx context.Context, vaultConfig *vault.Config) error
 	// The Billing service's type ie. "chargify" or "zuora"
 	GetType() string
 	// Create Customer, and fills out the accountInfo for that customer
-	CreateCustomer(ctx context.Context, customer *CustomerDetails, account *AccountInfo, payment *PaymentMethod) error
+	CreateCustomer(ctx context.Context, customer *CustomerDetails, account *ormapi.AccountInfo) error
 	// Delete Customer
-	DeleteCustomer(ctx context.Context, account *AccountInfo) error
+	DeleteCustomer(ctx context.Context, account *ormapi.AccountInfo) error
 	// Update Customer
-	UpdateCustomer(ctx context.Context, account *AccountInfo, customerDetails *CustomerDetails) error
+	UpdateCustomer(ctx context.Context, account *ormapi.AccountInfo, customerDetails *CustomerDetails) error
 	// Add a child to a parent
-	AddChild(ctx context.Context, parentAccount, childAccount *AccountInfo, childDetails *CustomerDetails) error
+	AddChild(ctx context.Context, parentAccount, childAccount *ormapi.AccountInfo, childDetails *CustomerDetails) error
 	// Remove a child from a parent
-	RemoveChild(ctx context.Context, parent, child *AccountInfo) error
+	RemoveChild(ctx context.Context, parent, child *ormapi.AccountInfo) error
 	// Records usage
-	RecordUsage(ctx context.Context, account *AccountInfo, usageRecords []UsageRecord) error
+	RecordUsage(ctx context.Context, account *ormapi.AccountInfo, usageRecords []UsageRecord) error
 	// Grab invoice data
-	GetInvoice(ctx context.Context, account *AccountInfo, startDate, endDate string) ([]InvoiceData, error)
+	GetInvoice(ctx context.Context, account *ormapi.AccountInfo, startDate, endDate string) ([]InvoiceData, error)
+	// Show payment profiles
+	ShowPaymentProfiles(ctx context.Context, account *ormapi.AccountInfo) ([]PaymentProfile, error)
+	// Delete payment profile
+	DeletePaymentProfile(ctx context.Context, account *ormapi.AccountInfo, profile *PaymentProfile) error
 }

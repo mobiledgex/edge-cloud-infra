@@ -19,6 +19,7 @@ import (
 var VmHardwareVersion = 14
 
 var ResolvedStateMaxWait = 4 * 60 // 4 mins
+var ResolvedStateTickTime time.Duration = time.Second * 3
 
 // Compose a new vapp from the given template, using vmgrp orch params
 // Creates one or more vms.
@@ -41,7 +42,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp", "name", vmgp.GroupName, "tmpl", vappTmpl.VAppTemplate.Name)
 
 	vappName := vmgp.GroupName + "-vapp"
-	vapp, err = v.FindVApp(ctx, vappName, vcdClient)
+	vapp, err = v.FindVApp(ctx, vappName, vcdClient, vdc)
 	if err == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp vapp alredy exists", "name", vmgp.GroupName, "vapp", vapp)
 		return vapp, nil
@@ -84,8 +85,7 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	}
 
 	// wait before adding vms
-	err = vapp.BlockWhileStatus("UNRESOLVED", ResolvedStateMaxWait) // upto seconds
-
+	err = v.BlockWhileStatusWithTickTime(ctx, vapp, "UNRESOLVED", ResolvedStateMaxWait, ResolvedStateTickTime)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "wait for RESOLVED error", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
@@ -97,22 +97,9 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	if err != nil {
 		return nil, err
 	}
-	// ensure we have a clean slate  xxx needed? speed up fodder potentially
-
-	task, err = vapp.RemoveAllNetworks()
-
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "remove networks failed", "VAppName", vmgp.GroupName, "error", err)
-		return nil, err
-	}
-	err = task.WaitTaskCompletion()
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "task completion failed", "VAppName", vmgp.GroupName, "error", err)
-	}
-
 	updateCallback(edgeproto.UpdateTask, "Updating vApp Ports")
 	updatePortsStart := time.Now()
-	// Get the VApp network in place, all vapps need an external network at least
+	// Get the VApp network(s) in place.
 	nextCidr, err := v.AddPortsToVapp(ctx, vapp, *vmgp, updateCallback, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp failed", "VAppName", vmgp.GroupName, "error", err)
@@ -209,10 +196,13 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	vappName := vapp.VApp.Name
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp", "name", vappName)
-
+	vdc, err := v.GetVdc(ctx, vcdClient)
+	if err != nil {
+		return fmt.Errorf("GetVdc Failed - %v", err)
+	}
 	// First, does this guy even exist?
 	// If not, ok, its deleted
-	vapp, err := v.FindVApp(ctx, vappName, vcdClient)
+	vapp, err = v.FindVApp(ctx, vappName, vcdClient, vdc)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vapp not found return success", "vapp", vappName)
 		return nil
@@ -222,71 +212,131 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	// DetachPortFromServer has already been called, and can't delete the network
 	// because it's still in use, possibly by this vapp (shared clusterInst)
 
-	vdc, err := v.GetVdc(ctx, vcdClient)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp err getting vdc", "vapp", vappName, "err", err)
-		return err
-	}
-	// If GetVappIsoNetwork actually fails (GetNetworkList() unlikely)
-	// don't fail the delete cluster operation here.
+	// Notes on deletion order related to isolated Org VDC networks:
+	// - GetVappIsoNetwork must happen before VMs are deleted or the network will not be found
+	// - VMs are deleted next
+	// - The network must then be removed from the vApp (RemoveAllNetworks) and then the vApp is deleted. This
+	//   ensures that the vApp is not associated with the network, so it can be deleted
+	// - Deleting the network (RemoveOrgVdcNetworkIfExists) must happen last, as if there
+	//   are any users of the network this will fail
+
+	// find the org vcd isolated network if one exists.  Do this before deleting VMs
 	netName, err := v.GetVappIsoNetwork(ctx, vdc, vapp)
-	// if one of these is an isolated orgvdcnetwork
-	if err == nil && netName != "" {
-		task, err := vapp.RemoveAllNetworks()
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveAllNetworks failed ", "err", err)
-		} else {
-			err = task.WaitTaskCompletion()
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait task for RemoveAllNetworks failed", "error", err)
-			}
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp removing iosNetworks", "vapp", vappName)
-		err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, netName)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists failed ", "vapp", vappName, "netName", netName, "err", err)
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists success", "netName", netName)
-		}
-	} else if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring ", "vapp", vappName, "netName", netName, "err", err)
-	}
-
-	status, err := vapp.GetStatus()
 	if err != nil {
-		return err
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get org VCD net", "err", err)
 	}
 
-	if status == "POWERED_ON" {
-		task, err := vapp.Undeploy()
-		if err != nil {
-			return err
+	task, err := vapp.Undeploy()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp err vapp.Undeploy ignoring", "vapp", vappName, "err", err)
+	} else {
+		_ = task.WaitTaskCompletion()
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeployed", "Vapp", vappName)
+	if vapp.VApp != nil && vapp.VApp.Children != nil && vapp.VApp.Children.VM != nil {
+		vms := vapp.VApp.Children.VM
+		for _, tvm := range vms {
+			vmName := tvm.Name
+			vm, err := vapp.GetVMByName(vmName, true)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vm not found", "vm", vmName, "for server", vappName)
+				return err
+			}
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeploy/poweroff/delete", "vm", vmName)
+			task, err := vm.Undeploy()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp unDeploy failed", "vm", vmName, "error", err)
+			} else {
+				if err = task.WaitTaskCompletion(); err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for undeploy failed", "vm", vmName, "error", err)
+				}
+			}
+			// undeployed
+			task, err = vm.PowerOff()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
+			} else {
+				if err = task.WaitTaskCompletion(); err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait for PowerOff failed", "vm", vmName, "error", err)
+				}
+			}
+			// powered off
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp delete powered off", "vm", vmName)
+			err = vm.Delete()
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp PowerOff failed", "vm", vmName, "error", err)
+			}
+			// deleted
 		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveAllNetworks")
+	task, err = vapp.RemoveAllNetworks()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveAllNetworks failed ", "err", err)
+	} else {
 		err = task.WaitTaskCompletion()
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait task for RemoveAllNetworks failed", "error", err)
+		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "vapp Delete")
+	task, err = vapp.Delete()
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "netName", netName, "err", err)
+	} else {
+		err = task.WaitTaskCompletion()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp wait task failed vapp.Delete", "vapp", vappName, "err", err)
 			return err
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp undeployed", "Vapp", vappName)
 	}
-	task, err := vapp.Delete()
-	if err != nil {
-		return err
-	}
-	err = task.WaitTaskCompletion()
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName)
-	return nil
-}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName, "netName", netName)
+	// check if we're using a isolated orgvdcnetwork /  sharedLB
+	if netName != "" {
+		if v.GetNsxType() == NSXV {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-v removing iosNetworks if exists", "vapp", vappName, "netName", netName, "isNsxt?", vdc.IsNsxt(), "isNsxv?", vdc.IsNsxv())
+			err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, netName)
+			if err != nil {
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists failed for", "netName", netName, "error", err)
+					return err
+				}
+			}
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-t marking network free", "vapp", vappName, "netName", netName)
 
-func (v *VcdPlatform) FindVApp(ctx context.Context, vappName string, vcdClient *govcd.VCDClient) (*govcd.VApp, error) {
+			// place the network on the free list for resue. Should be an nsx-t backed vdc
+			orgvdcnetwork, err := vdc.GetOrgVdcNetworkByName(netName, false)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetOrgVdcNetworkByName failed for", "netName", netName)
+				return err
+			}
+			v.FreeIsoNets[netName] = orgvdcnetwork
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists nsx-t, add to free list for reuse", "vapp", vappName, "netName", netName, "err", err)
+
+		}
+
+	} else if err != nil {
+		// If GetVappIsoNetwork actually fails
+		// don't fail the delete cluster operation here, dedicated LBs don't use type 2 orgvcdnetworks.
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "netName", netName, "err", err)
+	}
+
+	if netName != "" {
+		// finally, remove the IsoNamesMap entry for shared LBs.
+		key, err := v.updateIsoNamesMap(ctx, IsoMapActionDelete, "", netName)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp updateIsoNamesMap", "error", err)
+			return err
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp removed namemap entry ", "cidr", netName, "subnetId", key)
+	}
+	return nil
+
+}
+func (v *VcdPlatform) FindVApp(ctx context.Context, vappName string, vcdClient *govcd.VCDClient, vdc *govcd.Vdc) (*govcd.VApp, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "FindVApp", "vappName", vappName)
 
-	vdc, err := v.GetVdc(ctx, vcdClient)
-	if err != nil {
-		return nil, err
-	}
 	vapp, err := vdc.GetVAppByName(vappName, true)
 	return vapp, err
 }
@@ -348,6 +398,7 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	}
 	guestCustomSec.Enabled = TakeBoolPointer(true)
 	guestCustomSec.ComputerName = vmparams.HostName
+	guestCustomSec.AdminPasswordEnabled = TakeBoolPointer(false) // we have our own baseimage password
 	_, err = vm.SetGuestCustomizationSection(guestCustomSec)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SetGuestCustomizationSection failed", "err", err)
@@ -355,7 +406,7 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 	}
 	// find the master, which can be either the first or second vm in the vapp, or none
 	masterIP := ""
-	if vmparams.Role == vmlayer.RoleNode { // k8s-node
+	if vmparams.Role == vmlayer.RoleK8sNode { // k8s-node
 		log.SpanLog(ctx, log.DebugLevelInfra, "Have k8s-node find masterIP ", "vm", vm.VM.Name)
 		vapp, err := vm.GetParentVApp()
 
@@ -480,4 +531,30 @@ func (v *VcdPlatform) validateVMSpecSection(ctx context.Context, vapp govcd.VApp
 		}
 	}
 	return nil
+}
+
+// BlockWhileStatusWithTickTime is the same as the govcd version vapp.BlockWhileStatus.  The only difference is that it
+// allows a variable tickTime instead of every 200msec so that the number of API calls can be reduced
+func (v *VcdPlatform) BlockWhileStatusWithTickTime(ctx context.Context, vapp *govcd.VApp, unwantedStatus string, timeOutAfterSeconds int, tickTime time.Duration) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "BlockWhileStatusWithTimer", "timeOutAfterSeconds", timeOutAfterSeconds, "tickTime", tickTime)
+
+	timeoutAfter := time.After(time.Duration(timeOutAfterSeconds) * time.Second)
+	tick := time.NewTicker(tickTime)
+
+	for {
+		select {
+		case <-timeoutAfter:
+			return fmt.Errorf("timed out waiting for vApp to exit state %s after %d seconds",
+				unwantedStatus, timeOutAfterSeconds)
+		case <-tick.C:
+			currentStatus, err := vapp.GetStatus()
+
+			if err != nil {
+				return fmt.Errorf("could not get vApp status %s", err)
+			}
+			if currentStatus != unwantedStatus {
+				return nil
+			}
+		}
+	}
 }

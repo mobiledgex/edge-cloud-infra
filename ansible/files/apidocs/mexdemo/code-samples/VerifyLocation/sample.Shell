@@ -1,11 +1,11 @@
-REGCLIENT=$( curl -s -X POST https://eu-mexdemo.dme.mobiledgex.net:38001/v1/registerclient \
+REGCLIENT=$( curl -s -X POST https://wifi.dme.mobiledgex.net:38001/v1/registerclient \
         -d '{"app_name": "MobiledgeX SDK Demo", "app_vers": "2.0", "org_name": "MobiledgeX"}' )
 
 SESSCOOKIE=$( echo "$REGCLIENT" | jq -r .session_cookie )
 TOKSRV=$( echo "$REGCLIENT" | jq -r .token_server_uri )
 TOKEN=$( curl -si "$TOKSRV" | grep "^Location: " | cut -d= -f2- | tr -dc '[[:print:]]' )
 
-curl -s -X POST https://eu-mexdemo.dme.mobiledgex.net:38001/v1/verifylocation \
+curl -s -X POST https://wifi.dme.mobiledgex.net:38001/v1/verifylocation \
         -d '{
                 "session_cookie": "'${SESSCOOKIE}'",
                 "carrier_name": "TDG",

@@ -24,7 +24,8 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var CreateClusterInstCmd = &cli.Command{
+var CreateClusterInstCmd = &ApiCommand{
+	Name:                 "CreateClusterInst",
 	Use:                  "create",
 	Short:                "Create Cluster Instance. Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key. ClusterInst is a collection of compute resources on a Cloudlet on which AppInsts are deployed.",
 	RequiredArgs:         "region " + strings.Join(ClusterInstRequiredArgs, " "),
@@ -32,14 +33,17 @@ var CreateClusterInstCmd = &cli.Command{
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
 	Comments:             addRegionComment(ClusterInstComments),
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes",
 	ReqData:              &ormapi.RegionClusterInst{},
 	ReplyData:            &edgeproto.Result{},
-	Run:                  runRest("/auth/ctrl/CreateClusterInst"),
+	Path:                 "/auth/ctrl/CreateClusterInst",
 	StreamOut:            true,
 	StreamOutIncremental: true,
+	ProtobufApi:          true,
 }
 
-var DeleteClusterInstCmd = &cli.Command{
+var DeleteClusterInstCmd = &ApiCommand{
+	Name:                 "DeleteClusterInst",
 	Use:                  "delete",
 	Short:                "Delete Cluster Instance. Deletes an instance of a Cluster deployed on a Cloudlet.",
 	RequiredArgs:         "region " + strings.Join(ClusterInstRequiredArgs, " "),
@@ -47,33 +51,37 @@ var DeleteClusterInstCmd = &cli.Command{
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
 	Comments:             addRegionComment(ClusterInstComments),
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes",
 	ReqData:              &ormapi.RegionClusterInst{},
 	ReplyData:            &edgeproto.Result{},
-	Run:                  runRest("/auth/ctrl/DeleteClusterInst"),
+	Path:                 "/auth/ctrl/DeleteClusterInst",
 	StreamOut:            true,
 	StreamOutIncremental: true,
+	ProtobufApi:          true,
 }
 
-var UpdateClusterInstCmd = &cli.Command{
-	Use:          "update",
-	Short:        "Update Cluster Instance. Updates an instance of a Cluster deployed on a Cloudlet.",
-	RequiredArgs: "region " + strings.Join(UpdateClusterInstRequiredArgs, " "),
-	OptionalArgs: strings.Join(UpdateClusterInstOptionalArgs, " "),
-	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
-	SpecialArgs:  &ClusterInstSpecialArgs,
-	Comments:     addRegionComment(ClusterInstComments),
-	ReqData:      &ormapi.RegionClusterInst{},
-	ReplyData:    &edgeproto.Result{},
-	Run: runRest("/auth/ctrl/UpdateClusterInst",
-		withSetFieldsFunc(setUpdateClusterInstFields),
-	),
+var UpdateClusterInstCmd = &ApiCommand{
+	Name:                 "UpdateClusterInst",
+	Use:                  "update",
+	Short:                "Update Cluster Instance. Updates an instance of a Cluster deployed on a Cloudlet.",
+	RequiredArgs:         "region " + strings.Join(UpdateClusterInstRequiredArgs, " "),
+	OptionalArgs:         strings.Join(UpdateClusterInstOptionalArgs, " "),
+	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
+	SpecialArgs:          &ClusterInstSpecialArgs,
+	Comments:             addRegionComment(ClusterInstComments),
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,Flavor,NumMasters,AvailabilityZone,Reservable,SharedVolumeSize,IpAccess,Deployment,ImageName",
+	ReqData:              &ormapi.RegionClusterInst{},
+	ReplyData:            &edgeproto.Result{},
+	Path:                 "/auth/ctrl/UpdateClusterInst",
+	SetFieldsFunc:        SetUpdateClusterInstFields,
 	StreamOut:            true,
 	StreamOutIncremental: true,
+	ProtobufApi:          true,
 }
 
-func setUpdateClusterInstFields(in map[string]interface{}) {
+func SetUpdateClusterInstFields(in map[string]interface{}) {
 	// get map for edgeproto object in region struct
-	obj := in[strings.ToLower("ClusterInst")]
+	obj := in["ClusterInst"]
 	if obj == nil {
 		return
 	}
@@ -91,7 +99,8 @@ func setUpdateClusterInstFields(in map[string]interface{}) {
 	objmap["fields"] = fields
 }
 
-var ShowClusterInstCmd = &cli.Command{
+var ShowClusterInstCmd = &ApiCommand{
+	Name:         "ShowClusterInst",
 	Use:          "show",
 	Short:        "Show Cluster Instances. Lists all the cluster instances managed by Edge Controller.",
 	RequiredArgs: "region",
@@ -99,13 +108,16 @@ var ShowClusterInstCmd = &cli.Command{
 	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:  &ClusterInstSpecialArgs,
 	Comments:     addRegionComment(ClusterInstComments),
+	NoConfig:     "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes",
 	ReqData:      &ormapi.RegionClusterInst{},
 	ReplyData:    &edgeproto.ClusterInst{},
-	Run:          runRest("/auth/ctrl/ShowClusterInst"),
+	Path:         "/auth/ctrl/ShowClusterInst",
 	StreamOut:    true,
+	ProtobufApi:  true,
 }
 
-var DeleteIdleReservableClusterInstsCmd = &cli.Command{
+var DeleteIdleReservableClusterInstsCmd = &ApiCommand{
+	Name:         "DeleteIdleReservableClusterInsts",
 	Use:          "deleteidlereservables",
 	Short:        "Cleanup Reservable Cluster Instances. Deletes reservable cluster instances that are not in use.",
 	RequiredArgs: "region " + strings.Join(IdleReservableClusterInstsRequiredArgs, " "),
@@ -115,10 +127,11 @@ var DeleteIdleReservableClusterInstsCmd = &cli.Command{
 	Comments:     addRegionComment(IdleReservableClusterInstsComments),
 	ReqData:      &ormapi.RegionIdleReservableClusterInsts{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/DeleteIdleReservableClusterInsts"),
+	Path:         "/auth/ctrl/DeleteIdleReservableClusterInsts",
+	ProtobufApi:  true,
 }
 
-var ClusterInstApiCmds = []*cli.Command{
+var ClusterInstApiCmds = []*ApiCommand{
 	CreateClusterInstCmd,
 	DeleteClusterInstCmd,
 	UpdateClusterInstCmd,
@@ -126,7 +139,11 @@ var ClusterInstApiCmds = []*cli.Command{
 	DeleteIdleReservableClusterInstsCmd,
 }
 
-var ClusterInstApiCmdsGroup = cli.GenGroup("clusterinst", "Manage ClusterInsts", ClusterInstApiCmds)
+const ClusterInstGroup = "ClusterInst"
+
+func init() {
+	AllApis.AddGroup(ClusterInstGroup, "Manage ClusterInsts", ClusterInstApiCmds)
+}
 
 var UpdateClusterInstRequiredArgs = []string{
 	"cluster",
@@ -141,6 +158,7 @@ var UpdateClusterInstOptionalArgs = []string{
 	"skipcrmcleanuponfailure",
 	"reservationendedat.seconds",
 	"reservationendedat.nanos",
+	"multitenant",
 }
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
@@ -182,6 +200,7 @@ var ClusterInstOptionalArgs = []string{
 	"skipcrmcleanuponfailure",
 	"reservationendedat.seconds",
 	"reservationendedat.nanos",
+	"multitenant",
 }
 var ClusterInstAliasArgs = []string{
 	"fields=clusterinst.fields",
@@ -234,6 +253,7 @@ var ClusterInstAliasArgs = []string{
 	"updatedat.nanos=clusterinst.updatedat.nanos",
 	"reservationendedat.seconds=clusterinst.reservationendedat.seconds",
 	"reservationendedat.nanos=clusterinst.reservationendedat.nanos",
+	"multitenant=clusterinst.multitenant",
 }
 var ClusterInstComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -264,7 +284,7 @@ var ClusterInstComments = map[string]string{
 	"skipcrmcleanuponfailure":                "Prevents cleanup of resources on failure within CRM, used for diagnostic purposes",
 	"optres":                                 "Optional Resources required by OS flavor if any",
 	"resources.vms:#.name":                   "Virtual machine name",
-	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-node, vmapp",
+	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-k8s-node, cluster-docker-node, appvm",
 	"resources.vms:#.status":                 "Runtime status of the VM",
 	"resources.vms:#.infraflavor":            "Flavor allocated within the cloudlet infrastructure, distinct from the control plane flavor",
 	"resources.vms:#.containers:#.name":      "Name of the container",
@@ -272,6 +292,7 @@ var ClusterInstComments = map[string]string{
 	"resources.vms:#.containers:#.status":    "Runtime status of the container",
 	"resources.vms:#.containers:#.clusterip": "IP within the CNI and is applicable to kubernetes only",
 	"resources.vms:#.containers:#.restarts":  "Restart count, applicable to kubernetes only",
+	"multitenant":                            "Multi-tenant kubernetes cluster",
 }
 var ClusterInstSpecialArgs = map[string]string{
 	"clusterinst.errors":      "StringArray",
@@ -354,7 +375,7 @@ var ClusterInstInfoComments = map[string]string{
 	"state":                                  "State of the cluster instance, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"errors":                                 "Any errors trying to create, update, or delete the ClusterInst on the Cloudlet.",
 	"resources.vms:#.name":                   "Virtual machine name",
-	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-node, vmapp",
+	"resources.vms:#.type":                   "Type can be platform, rootlb, cluster-master, cluster-k8s-node, cluster-docker-node, appvm",
 	"resources.vms:#.status":                 "Runtime status of the VM",
 	"resources.vms:#.infraflavor":            "Flavor allocated within the cloudlet infrastructure, distinct from the control plane flavor",
 	"resources.vms:#.containers:#.name":      "Name of the container",

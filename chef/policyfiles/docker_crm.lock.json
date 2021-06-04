@@ -1,13 +1,13 @@
 {
-  "revision_id": "f68e71698199b6278201ded65862b6b2ab0cf62741665bb92adb156b3af16479",
+  "revision_id": "5dfccd9375fefbd040949c3fc8112239607e8cb01c1f90c244ab8c3369f6d4bc",
   "name": "docker_crm",
   "run_list": [
     "recipe[runstatus_handler::default]",
+    "recipe[run_cmd::default]",
     "recipe[setup_infra::default]",
     "recipe[preflight_crm_checks::default]",
     "recipe[run_diagnostics::default]",
-    "recipe[setup_services::docker]",
-    "recipe[run_cmd::default]"
+    "recipe[setup_services::docker]"
   ],
   "included_policy_locks": [
 
@@ -80,14 +80,14 @@
       }
     },
     "setup_services": {
-      "version": "1.0.25",
-      "identifier": "2c9d536fb63d82a2116d9699219caf8861b25708",
-      "dotted_decimal_identifier": "12557880657329538.45618108602851740.193000289490696",
-      "cache_key": "setup_services-1.0.25",
+      "version": "1.0.27",
+      "identifier": "d83c1f8bc1d18e7d0daf58f1ec7a59c599f7212f",
+      "dotted_decimal_identifier": "60864701155889550.35199418851519610.98705226539311",
+      "cache_key": "setup_services-1.0.27",
       "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
         "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
-        "version": "1.0.25"
+        "version": "1.0.27"
       }
     }
   },
@@ -96,7 +96,7 @@
   },
   "override_attributes": {
     "main": {
-      "edgeCloudVersion": "2020-09-23-5",
+      "edgeCloudVersion": "2021-04-15-1",
       "crmserver": {
         "args": {
           "commercialCerts": ""
@@ -132,7 +132,7 @@
       ],
       [
         "setup_services",
-        "= 1.0.25"
+        "= 1.0.27"
       ]
     ],
     "dependencies": {
@@ -154,7 +154,7 @@
       "setup_infra (1.0.0)": [
 
       ],
-      "setup_services (1.0.25)": [
+      "setup_services (1.0.27)": [
         [
           "docker",
           ">= 0.0.0"

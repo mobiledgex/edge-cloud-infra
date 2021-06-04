@@ -67,7 +67,30 @@ done
 #    exit 1
 #fi
 # the pod network plugin has to be done for coredns to come up
+
+
+echo Checking Weave CNI download URL is available
+TIMEOUT=$((SECONDS+300))
+nc cloud.weave.works 443 -v -z -w 5 
+while [ $? -ne 0 ] ; do
+    # retry until timeout
+    if [ $SECONDS -gt $TIMEOUT ] ; then
+        echo Timed out waiting for Weave CNI
+        exit 1
+    fi
+    echo Waiting to check Weave URL available - now $SECONDS timeout $TIMEOUT
+    sleep 5
+    nc cloud.weave.works 443 -v -z -w 5
+done
+
+echo Weave URL is reachable, install CNI
+
 kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+if [ $? -ne 0 ] ; then
+    echo Failed to install Weave
+    exit 1
+fi
+
 kubectl get pods --all-namespaces
 kubectl get nodes | grep NotReady
 while [ $? -eq 0 ] ; do

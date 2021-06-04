@@ -24,7 +24,8 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var CreateAppCmd = &cli.Command{
+var CreateAppCmd = &ApiCommand{
+	Name:         "CreateApp",
 	Use:          "create",
 	Short:        "Create Application. Creates a definition for an application instance for Cloudlet deployment.",
 	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
@@ -32,12 +33,15 @@ var CreateAppCmd = &cli.Command{
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
 	SpecialArgs:  &AppSpecialArgs,
 	Comments:     addRegionComment(AppComments),
+	NoConfig:     "DeletePrepare,CreatedAt,UpdatedAt,DelOpt,AutoProvPolicy",
 	ReqData:      &ormapi.RegionApp{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/CreateApp"),
+	Path:         "/auth/ctrl/CreateApp",
+	ProtobufApi:  true,
 }
 
-var DeleteAppCmd = &cli.Command{
+var DeleteAppCmd = &ApiCommand{
+	Name:         "DeleteApp",
 	Use:          "delete",
 	Short:        "Delete Application. Deletes a definition of an Application instance. Make sure no other application instances exist with that definition. If they do exist, you must delete those Application instances first.",
 	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
@@ -45,29 +49,33 @@ var DeleteAppCmd = &cli.Command{
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
 	SpecialArgs:  &AppSpecialArgs,
 	Comments:     addRegionComment(AppComments),
+	NoConfig:     "DeletePrepare,CreatedAt,UpdatedAt,DelOpt,AutoProvPolicy",
 	ReqData:      &ormapi.RegionApp{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/DeleteApp"),
+	Path:         "/auth/ctrl/DeleteApp",
+	ProtobufApi:  true,
 }
 
-var UpdateAppCmd = &cli.Command{
-	Use:          "update",
-	Short:        "Update Application. Updates the definition of an Application instance.",
-	RequiredArgs: "region " + strings.Join(AppRequiredArgs, " "),
-	OptionalArgs: strings.Join(AppOptionalArgs, " "),
-	AliasArgs:    strings.Join(AppAliasArgs, " "),
-	SpecialArgs:  &AppSpecialArgs,
-	Comments:     addRegionComment(AppComments),
-	ReqData:      &ormapi.RegionApp{},
-	ReplyData:    &edgeproto.Result{},
-	Run: runRest("/auth/ctrl/UpdateApp",
-		withSetFieldsFunc(setUpdateAppFields),
-	),
+var UpdateAppCmd = &ApiCommand{
+	Name:          "UpdateApp",
+	Use:           "update",
+	Short:         "Update Application. Updates the definition of an Application instance.",
+	RequiredArgs:  "region " + strings.Join(AppRequiredArgs, " "),
+	OptionalArgs:  strings.Join(AppOptionalArgs, " "),
+	AliasArgs:     strings.Join(AppAliasArgs, " "),
+	SpecialArgs:   &AppSpecialArgs,
+	Comments:      addRegionComment(AppComments),
+	NoConfig:      "DeletePrepare,CreatedAt,UpdatedAt,DelOpt,AutoProvPolicy",
+	ReqData:       &ormapi.RegionApp{},
+	ReplyData:     &edgeproto.Result{},
+	Path:          "/auth/ctrl/UpdateApp",
+	SetFieldsFunc: SetUpdateAppFields,
+	ProtobufApi:   true,
 }
 
-func setUpdateAppFields(in map[string]interface{}) {
+func SetUpdateAppFields(in map[string]interface{}) {
 	// get map for edgeproto object in region struct
-	obj := in[strings.ToLower("App")]
+	obj := in["App"]
 	if obj == nil {
 		return
 	}
@@ -85,7 +93,8 @@ func setUpdateAppFields(in map[string]interface{}) {
 	objmap["fields"] = fields
 }
 
-var ShowAppCmd = &cli.Command{
+var ShowAppCmd = &ApiCommand{
+	Name:         "ShowApp",
 	Use:          "show",
 	Short:        "Show Applications. Lists all Application definitions managed from the Edge Controller. Any fields specified will be used to filter results.",
 	RequiredArgs: "region",
@@ -93,13 +102,16 @@ var ShowAppCmd = &cli.Command{
 	AliasArgs:    strings.Join(AppAliasArgs, " "),
 	SpecialArgs:  &AppSpecialArgs,
 	Comments:     addRegionComment(AppComments),
+	NoConfig:     "DeletePrepare,CreatedAt,UpdatedAt,DelOpt,AutoProvPolicy",
 	ReqData:      &ormapi.RegionApp{},
 	ReplyData:    &edgeproto.App{},
-	Run:          runRest("/auth/ctrl/ShowApp"),
+	Path:         "/auth/ctrl/ShowApp",
 	StreamOut:    true,
+	ProtobufApi:  true,
 }
 
-var AddAppAutoProvPolicyCmd = &cli.Command{
+var AddAppAutoProvPolicyCmd = &ApiCommand{
+	Name:         "AddAppAutoProvPolicy",
 	Use:          "addautoprovpolicy",
 	Short:        "Add an AutoProvPolicy to the App",
 	RequiredArgs: "region " + strings.Join(AppAutoProvPolicyRequiredArgs, " "),
@@ -109,10 +121,12 @@ var AddAppAutoProvPolicyCmd = &cli.Command{
 	Comments:     addRegionComment(AppAutoProvPolicyComments),
 	ReqData:      &ormapi.RegionAppAutoProvPolicy{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/AddAppAutoProvPolicy"),
+	Path:         "/auth/ctrl/AddAppAutoProvPolicy",
+	ProtobufApi:  true,
 }
 
-var RemoveAppAutoProvPolicyCmd = &cli.Command{
+var RemoveAppAutoProvPolicyCmd = &ApiCommand{
+	Name:         "RemoveAppAutoProvPolicy",
 	Use:          "removeautoprovpolicy",
 	Short:        "Remove an AutoProvPolicy from the App",
 	RequiredArgs: "region " + strings.Join(AppAutoProvPolicyRequiredArgs, " "),
@@ -122,10 +136,11 @@ var RemoveAppAutoProvPolicyCmd = &cli.Command{
 	Comments:     addRegionComment(AppAutoProvPolicyComments),
 	ReqData:      &ormapi.RegionAppAutoProvPolicy{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/RemoveAppAutoProvPolicy"),
+	Path:         "/auth/ctrl/RemoveAppAutoProvPolicy",
+	ProtobufApi:  true,
 }
 
-var AppApiCmds = []*cli.Command{
+var AppApiCmds = []*ApiCommand{
 	CreateAppCmd,
 	DeleteAppCmd,
 	UpdateAppCmd,
@@ -134,7 +149,11 @@ var AppApiCmds = []*cli.Command{
 	RemoveAppAutoProvPolicyCmd,
 }
 
-var AppApiCmdsGroup = cli.GenGroup("app", "Manage Apps", AppApiCmds)
+const AppGroup = "App"
+
+func init() {
+	AllApis.AddGroup(AppGroup, "Manage Apps", AppApiCmds)
+}
 
 var RemoteConnectionRequiredArgs = []string{}
 var RemoteConnectionOptionalArgs = []string{
@@ -180,8 +199,8 @@ var ConfigFileAliasArgs = []string{
 	"config=configfile.config",
 }
 var ConfigFileComments = map[string]string{
-	"kind":   "kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
-	"config": "config file contents or URI reference",
+	"kind":   "Kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
+	"config": "Config file contents or URI reference",
 }
 var ConfigFileSpecialArgs = map[string]string{}
 var AppRequiredArgs = []string{
@@ -216,6 +235,10 @@ var AppOptionalArgs = []string{
 	"requiredoutboundconnections:#.protocol",
 	"requiredoutboundconnections:#.port",
 	"requiredoutboundconnections:#.remoteip",
+	"allowserverless",
+	"serverlessconfig.vcpus",
+	"serverlessconfig.ram",
+	"serverlessconfig.minreplicas",
 }
 var AppAliasArgs = []string{
 	"fields=app.fields",
@@ -255,6 +278,10 @@ var AppAliasArgs = []string{
 	"requiredoutboundconnections:#.protocol=app.requiredoutboundconnections:#.protocol",
 	"requiredoutboundconnections:#.port=app.requiredoutboundconnections:#.port",
 	"requiredoutboundconnections:#.remoteip=app.requiredoutboundconnections:#.remoteip",
+	"allowserverless=app.allowserverless",
+	"serverlessconfig.vcpus=app.serverlessconfig.vcpus",
+	"serverlessconfig.ram=app.serverlessconfig.ram",
+	"serverlessconfig.minreplicas=app.serverlessconfig.minreplicas",
 }
 var AppComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -265,16 +292,16 @@ var AppComments = map[string]string{
 	"imagetype":                              "Image type (see ImageType), one of ImageTypeUnknown, ImageTypeDocker, ImageTypeQcow, ImageTypeHelm",
 	"accessports":                            "Comma separated list of protocol:port pairs that the App listens on. Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
 	"defaultflavor":                          "Flavor name",
-	"authpublickey":                          "public key used for authentication",
+	"authpublickey":                          "Public key used for authentication",
 	"command":                                "Command that the container runs to start service",
 	"annotations":                            "Annotations is a comma separated map of arbitrary key value pairs, for example: key1=val1,key2=val2,key3=val 3",
 	"deployment":                             "Deployment type (kubernetes, docker, or vm)",
-	"deploymentmanifest":                     "Deployment manifest is the deployment specific manifest file/config For docker deployment, this can be a docker-compose or docker run file For kubernetes deployment, this can be a kubernetes yaml or helm chart file",
+	"deploymentmanifest":                     "Deployment manifest is the deployment specific manifest file/config. For docker deployment, this can be a docker-compose or docker run file. For kubernetes deployment, this can be a kubernetes yaml or helm chart file.",
 	"deploymentgenerator":                    "Deployment generator target to generate a basic deployment manifest",
 	"androidpackagename":                     "Android package name used to match the App name from the Android package",
 	"delopt":                                 "Override actions to Controller, one of NoAutoDelete, AutoDelete",
-	"configs:#.kind":                         "kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
-	"configs:#.config":                       "config file contents or URI reference",
+	"configs:#.kind":                         "Kind (type) of config, i.e. envVarsYaml, helmCustomizationYaml",
+	"configs:#.config":                       "Config file contents or URI reference",
 	"scalewithcluster":                       "Option to run App on all nodes of the cluster",
 	"internalports":                          "Should this app have access to outside world?",
 	"revision":                               "Revision can be specified or defaults to current timestamp when app is updated",
@@ -285,16 +312,37 @@ var AppComments = map[string]string{
 	"deleteprepare":                          "Preparing to be deleted",
 	"autoprovpolicies":                       "Auto provisioning policy names, may be specified multiple times",
 	"templatedelimiter":                      "Delimiter to be used for template parsing, defaults to [[ ]]",
-	"skiphcports":                            "Comma separated list of protocol:port pairs that we should not run health check on Should be configured in case app does not always listen on these ports all can be specified if no health check to be run for this app Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
+	"skiphcports":                            "Comma separated list of protocol:port pairs that we should not run health check on. Should be configured in case app does not always listen on these ports. all can be specified if no health check to be run for this app. Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443.",
 	"trusted":                                "Indicates that an instance of this app can be started on a trusted cloudlet",
 	"requiredoutboundconnections:#.protocol": "tcp, udp or icmp",
 	"requiredoutboundconnections:#.port":     "TCP or UDP port",
 	"requiredoutboundconnections:#.remoteip": "remote IP X.X.X.X",
+	"allowserverless":                        "App is allowed to deploy as serverless containers",
+	"serverlessconfig.vcpus":                 "Virtual CPUs allocation per container when serverless, may be fractional in increments of 0.001",
+	"serverlessconfig.ram":                   "RAM allocation in megabytes per container when serverless",
+	"serverlessconfig.minreplicas":           "Minimum number of replicas when serverless",
 }
 var AppSpecialArgs = map[string]string{
 	"app.autoprovpolicies": "StringArray",
 	"app.fields":           "StringArray",
 }
+var ServerlessConfigRequiredArgs = []string{}
+var ServerlessConfigOptionalArgs = []string{
+	"vcpus",
+	"ram",
+	"minreplicas",
+}
+var ServerlessConfigAliasArgs = []string{
+	"vcpus=serverlessconfig.vcpus",
+	"ram=serverlessconfig.ram",
+	"minreplicas=serverlessconfig.minreplicas",
+}
+var ServerlessConfigComments = map[string]string{
+	"vcpus":       "Virtual CPUs allocation per container when serverless, may be fractional in increments of 0.001",
+	"ram":         "RAM allocation in megabytes per container when serverless",
+	"minreplicas": "Minimum number of replicas when serverless",
+}
+var ServerlessConfigSpecialArgs = map[string]string{}
 var AppAutoProvPolicyRequiredArgs = []string{
 	"app-org",
 	"appname",

@@ -8,10 +8,11 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-func (bs *BillingService) RecordUsage(ctx context.Context, account *billing.AccountInfo, usageRecords []billing.UsageRecord) error {
+func (bs *BillingService) RecordUsage(ctx context.Context, account *ormapi.AccountInfo, usageRecords []billing.UsageRecord) error {
 	for _, record := range usageRecords {
 		var memo string
 		var cloudlet *edgeproto.CloudletKey
@@ -27,7 +28,12 @@ func (bs *BillingService) RecordUsage(ctx context.Context, account *billing.Acco
 		componentId := getComponentCode(record.FlavorName, cloudlet, record.StartTime, record.EndTime)
 		endpoint := "/subscriptions/" + account.SubscriptionId + "/components/" + componentId + "/usages.json"
 
-		duration := int(record.EndTime.Sub(record.StartTime).Minutes() * float64(record.NodeCount))
+		nodeCount := record.NodeCount
+		// in docker, nodeCount isn't used, but we can't have multiplication by 0
+		if nodeCount == 0 {
+			nodeCount = 1
+		}
+		duration := int(record.EndTime.Sub(record.StartTime).Minutes() * float64(nodeCount))
 		newUsage := Usage{
 			Quantity: duration,
 			Memo:     memo,

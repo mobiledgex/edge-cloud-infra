@@ -16,6 +16,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vmpool"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vsphere"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_edgebox"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
@@ -48,10 +49,13 @@ var region = flag.String("region", "local", "Region name")
 var promTargetsFile = flag.String("targetsFile", "/tmp/prom_targets.json", "Prometheus targets file")
 var appDNSRoot = flag.String("appDNSRoot", "mobiledgex.net", "App domain name root")
 var chefServerPath = flag.String("chefServerPath", "", "Chef server path")
+var promScrapeInterval = flag.Duration("promScrapeInterval", defaultScrapeInterval, "Prometheus Scraping Interval")
+
+var metricsScrapingInterval time.Duration
 
 var defaultPrometheusPort = cloudcommon.PrometheusPort
 
-//map keeping track of all the currently running prometheuses
+// map keeping track of all the currently running prometheuses
 var workerMap map[string]*ClusterWorker
 var workerMapMutex *sync.Mutex
 var vmAppWorkerMap map[string]*AppInstWorker
@@ -64,6 +68,7 @@ var VMPoolCache edgeproto.VMPoolCache
 var VMPoolInfoCache edgeproto.VMPoolInfoCache
 var CloudletCache edgeproto.CloudletCache
 var CloudletInfoCache edgeproto.CloudletInfoCache
+var CloudletInternalCache edgeproto.CloudletInternalCache
 var MetricSender *notify.MetricSend
 var AlertCache edgeproto.AlertCache
 var AutoProvPoliciesCache edgeproto.AutoProvPolicyCache
@@ -76,6 +81,7 @@ var appInstAlertWorkers tasks.KeyWorkers
 var cloudletKey edgeproto.CloudletKey
 var myPlatform platform.Platform
 var nodeMgr node.NodeMgr
+var infraProps infracommon.InfraProperties
 
 var sigChan chan os.Signal
 var notifyClient *notify.Client
@@ -93,6 +99,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		targetFileWorkers.NeedsWork(ctx, targetsFileWorkerKey)
 		appInstAlertWorkers.NeedsWork(ctx, new.Key)
 	}
+	ChangeSinceLastPlatformStats = true
 	var port int32
 	var exists bool
 	var mapKey string
@@ -153,7 +160,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
 		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
 		if !exists {
-			stats, err = NewClusterWorker(ctx, promAddress, collectInterval, MetricSender.Update, &clusterInst, myPlatform)
+			stats, err = NewClusterWorker(ctx, promAddress, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, myPlatform)
 			if err == nil {
 				workerMap[mapKey] = stats
 				stats.Start(ctx)
@@ -177,7 +184,12 @@ func appInstDeletedCb(ctx context.Context, old *edgeproto.AppInst) {
 	appInstCb(ctx, old, old)
 }
 
+func clusterInstDeletedCb(ctx context.Context, old *edgeproto.ClusterInst) {
+	ChangeSinceLastPlatformStats = true
+}
+
 func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgeproto.ClusterInst) {
+	ChangeSinceLastPlatformStats = true
 	var mapKey = k8smgmt.GetK8sNodeNameSuffix(&new.Key)
 	workerMapMutex.Lock()
 	defer workerMapMutex.Unlock()
@@ -199,7 +211,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 	collectInterval := settings.ShepherdMetricsCollectionInterval.TimeDuration()
 	if new.State == edgeproto.TrackedState_READY {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New Docker cluster detected", "clustername", mapKey, "clusterInst", new)
-		stats, err := NewClusterWorker(ctx, "", collectInterval, MetricSender.Update, new, myPlatform)
+		stats, err := NewClusterWorker(ctx, "", metricsScrapingInterval, collectInterval, MetricSender.Update, new, myPlatform)
 		if err == nil {
 			workerMap[mapKey] = stats
 			stats.Start(ctx)
@@ -224,6 +236,15 @@ func autoProvPolicyCb(ctx context.Context, old *edgeproto.AutoProvPolicy, new *e
 	}
 }
 
+func updateClusterWorkers(ctx context.Context, newInterval edgeproto.Duration) {
+	workerMapMutex.Lock()
+	for _, worker := range workerMap {
+		worker.UpdateIntervals(ctx, metricsScrapingInterval, time.Duration(newInterval))
+	}
+	workerMapMutex.Unlock()
+	updateProxyScraperIntervals(ctx, metricsScrapingInterval, time.Duration(newInterval))
+}
+
 func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Settings) {
 	old := settings
 	settings = *new
@@ -239,6 +260,12 @@ func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Setti
 			reloadCloudletProm(ctx)
 		}
 	}
+
+	if old.ShepherdMetricsCollectionInterval !=
+		new.ShepherdMetricsCollectionInterval {
+		updateClusterWorkers(ctx, new.ShepherdMetricsCollectionInterval)
+	}
+
 	if old.AutoDeployIntervalSec != new.AutoDeployIntervalSec {
 		// re-write undeploy rules since they all depend on AutoDeployIntervalSec
 		s := &AppInstByAutoProvPolicy
@@ -265,11 +292,16 @@ func vmPoolInfoCb(ctx context.Context, old *edgeproto.VMPoolInfo, new *edgeproto
 }
 
 func cloudletCb(ctx context.Context, old *edgeproto.Cloudlet, new *edgeproto.Cloudlet) {
+	ChangeSinceLastPlatformStats = true
 	select {
 	case cloudletWait <- true:
 		// Got cloudlet object
 	default:
 	}
+}
+
+func cloudletInternalCb(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
+	log.SpanLog(ctx, log.DebugLevelInfo, "cloudletInternalCb")
 }
 
 func getPlatform() (platform.Platform, error) {
@@ -336,6 +368,7 @@ func main() {
 	nodeMgr.InitFlags()
 	nodeMgr.AccessKeyClient.InitFlags()
 	flag.Parse()
+	metricsScrapingInterval = *promScrapeInterval
 	start()
 	defer stop()
 
@@ -364,17 +397,8 @@ func start() {
 	if !nodeMgr.AccessKeyClient.IsEnabled() {
 		log.FatalLog("access key client is not enabled")
 	}
-	log.SpanLog(ctx, log.DebugLevelInfo, "Setup persistent access connection to Controller")
-	_ctrlConn, err := nodeMgr.AccessKeyClient.ConnectController(ctx)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to connect to controller", "err", err)
-		span.Finish()
-		log.FatalLog(err.Error())
-	}
-	ctrlConn = _ctrlConn
 
-	accessClient := edgeproto.NewCloudletAccessApiClient(ctrlConn)
-	accessApi := accessapi.NewControllerClient(accessClient)
+	accessApi := accessapi.NewControllerClient(nodeMgr.AccessApiClient)
 
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),
@@ -396,6 +420,10 @@ func start() {
 		log.FatalLog("Failed to start prometheus metrics proxy", "err", err)
 	}
 
+	workerMap = make(map[string]*ClusterWorker)
+	workerMapMutex = &sync.Mutex{}
+	vmAppWorkerMap = make(map[string]*AppInstWorker)
+
 	// register shepherd to receive appinst and clusterinst notifications from crm
 	edgeproto.InitFlavorCache(&FlavorCache)
 	edgeproto.InitAppInstCache(&AppInstCache)
@@ -403,6 +431,8 @@ func start() {
 	AppInstCache.SetDeletedCb(appInstDeletedCb)
 	edgeproto.InitClusterInstCache(&ClusterInstCache)
 	ClusterInstCache.SetUpdatedCb(clusterInstCb)
+	ClusterInstCache.SetDeletedCb(clusterInstDeletedCb)
+
 	edgeproto.InitAppCache(&AppCache)
 	edgeproto.InitAutoProvPolicyCache(&AutoProvPoliciesCache)
 	AutoProvPoliciesCache.SetUpdatedCb(autoProvPolicyCb)
@@ -412,7 +442,6 @@ func start() {
 	edgeproto.InitVMPoolCache(&VMPoolCache)
 	edgeproto.InitVMPoolInfoCache(&VMPoolInfoCache)
 	edgeproto.InitCloudletCache(&CloudletCache)
-
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient = notify.NewClient(nodeMgr.Name(), addrs,
 		tls.GetGrpcDialOption(clientTlsConfig),
@@ -428,10 +457,14 @@ func start() {
 	notifyClient.RegisterRecvClusterInstCache(&ClusterInstCache)
 	notifyClient.RegisterRecvAppCache(&AppCache)
 	notifyClient.RegisterRecvCloudletCache(&CloudletCache)
+	notifyClient.RegisterRecvCloudletInternalCache(&CloudletInternalCache)
 	notifyClient.RegisterRecvAutoProvPolicyCache(&AutoProvPoliciesCache)
 	SettingsCache.SetUpdatedCb(settingsCb)
 	VMPoolInfoCache.SetUpdatedCb(vmPoolInfoCb)
 	CloudletCache.SetUpdatedCb(cloudletCb)
+	edgeproto.InitCloudletInternalCache(&CloudletInternalCache)
+	CloudletInternalCache.SetUpdatedCb(cloudletInternalCb)
+
 	// register to send metrics
 	MetricSender = notify.NewMetricSend()
 	notifyClient.RegisterSend(MetricSender)
@@ -443,6 +476,9 @@ func start() {
 
 	nodeMgr.RegisterClient(notifyClient)
 	notifyClient.RegisterSendAllRecv(&sendAllRecv{})
+
+	// Add debug commands
+	InitDebug(&nodeMgr)
 
 	notifyClient.Start()
 
@@ -467,8 +503,7 @@ func start() {
 	case <-time.After(CRMTimeout):
 		log.FatalLog("Timed out waiting for cloudlet cache from controller")
 	}
-	log.SpanLog(ctx, log.DebugLevelInfo, "fetched cloudlet cache from controller", "cloudlet", cloudlet)
-
+	log.SpanLog(ctx, log.DebugLevelInfo, "fetched cloudlet cache from CRM", "cloudlet", cloudlet)
 	if cloudlet.PlatformType == edgeproto.PlatformType_PLATFORM_TYPE_VM_POOL {
 		if cloudlet.VmPool == "" {
 			log.FatalLog("Cloudlet is missing VM pool name")
@@ -494,15 +529,18 @@ func start() {
 		AccessApi:      accessApi,
 	}
 
-	err = myPlatform.Init(ctx, &pc)
+	caches := pf.Caches{
+		CloudletInternalCache: &CloudletInternalCache,
+	}
+	// get access to infra properties
+	infraProps.Init()
+	infraProps.SetPropsFromVars(ctx, cloudlet.EnvVar)
+	err = myPlatform.Init(ctx, &pc, &caches)
 	if err != nil {
 		log.FatalLog("Failed to initialize platform", "platformName", platformName, "err", err)
 	}
-	workerMap = make(map[string]*ClusterWorker)
-	workerMapMutex = &sync.Mutex{}
-	vmAppWorkerMap = make(map[string]*AppInstWorker)
 	// LB metrics are not supported in fake mode
-	InitProxyScraper()
+	InitProxyScraper(metricsScrapingInterval, settings.ShepherdMetricsCollectionInterval.TimeDuration())
 	if pf.GetType(*platformName) != "fake" {
 		StartProxyScraper(stopCh)
 	}

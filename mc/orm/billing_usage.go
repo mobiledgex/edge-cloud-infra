@@ -31,13 +31,13 @@ func CollectBillingUsage(collectInterval time.Duration) {
 				nextCollectTime = getNextCollectTime(nextCollectTime, collectInterval)
 				continue
 			}
-			controllers, err := ShowControllerObj(ctx, nil)
+			controllers, err := ShowControllerObj(ctx, NoUserClaims, NoShowFilter)
 			if err != nil {
 				retryCount := 0
 				for retryCount < retryMax {
 					log.SpanLog(ctx, log.DebugLevelInfo, fmt.Sprintf("Unable to get regions to query influx, retrying in %v", retryInterval), "err", err)
 					time.Sleep(retryInterval)
-					controllers, err = ShowControllerObj(ctx, nil)
+					controllers, err = ShowControllerObj(ctx, NoUserClaims, NoShowFilter)
 					if err == nil {
 						break
 					}
@@ -85,8 +85,8 @@ func recordRegionUsage(ctx context.Context, region string, start, end time.Time)
 		EndTime:   end,
 		VmOnly:    true,
 	}
-	eventCmd := AppInstUsageEventsQuery(&appIn)
-	checkpointCmd := AppInstCheckpointsQuery(&appIn)
+	eventCmd := AppInstUsageEventsQuery(&appIn, []string{})
+	checkpointCmd := AppInstCheckpointsQuery(&appIn, []string{})
 	eventResp, checkResp, err := GetEventAndCheckpoint(ctx, &rc, eventCmd, checkpointCmd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Error gathering app usage for billing", "region", region, "err", err)
@@ -104,8 +104,8 @@ func recordRegionUsage(ctx context.Context, region string, start, end time.Time)
 		StartTime: start,
 		EndTime:   end,
 	}
-	eventCmd = ClusterUsageEventsQuery(&clusterIn)
-	checkpointCmd = ClusterCheckpointsQuery(&clusterIn)
+	eventCmd = ClusterUsageEventsQuery(&clusterIn, []string{})
+	checkpointCmd = ClusterCheckpointsQuery(&clusterIn, []string{})
 	eventResp, checkResp, err = GetEventAndCheckpoint(ctx, &rc, eventCmd, checkpointCmd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Error gathering cluster usage for billing", "region", region, "err", err)
@@ -168,7 +168,7 @@ func recordAppUsages(ctx context.Context, usage *ormapi.MetricData, cloudletPool
 		orgTracker[newAppInst.AppKey.Organization] = append(records, newRecord)
 	}
 	for org, record := range orgTracker {
-		var accountInfo *billing.AccountInfo
+		var accountInfo *ormapi.AccountInfo
 		accountInfo, err := GetAccountObj(ctx, org)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)
@@ -229,7 +229,7 @@ func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData, cloudlet
 		orgTracker[newClusterInst.Organization] = append(records, newRecord)
 	}
 	for org, record := range orgTracker {
-		var accountInfo *billing.AccountInfo
+		var accountInfo *ormapi.AccountInfo
 		accountInfo, err := GetAccountObj(ctx, org)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get account info", "org", org, "err", err)

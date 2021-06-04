@@ -13,6 +13,9 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
+const NSXT = "NSX-T"
+const NSXV = "NSX-V"
+
 // model VcdProps after vsphere to start
 
 // This is now an edgeproto object
@@ -49,6 +52,15 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 	},
 	"MEX_TEMPLATE_URL": {
 		Description: "Optional HTTP URL to retrieve template",
+		Internal:    true,
+	},
+	"VCD_NSX_TYPE": {
+		Description: "NSX-T or NSX-V",
+		Mandatory:   true,
+	},
+	"VCD_CLEANUP_ORPHAN_NETS": {
+		Description: "Indicates Isolated Org VDC networks with no VApps to be deleted on startup",
+		Value:       "false",
 		Internal:    true,
 	},
 }
@@ -162,12 +174,31 @@ func (v *VcdPlatform) GetVcdVerbose() bool {
 }
 
 func (v *VcdPlatform) GetCatalogName() string {
+	if v.TestMode {
+		return os.Getenv("MEX_CATALOG")
+	}
+
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_CATALOG")
 	return val
 }
 
 func (v *VcdPlatform) GetEnableVcdDiskResize() bool {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_ENABLE_VCD_DISK_RESIZE")
+	return strings.ToLower(val) == "true"
+}
+
+// the normal methods of querying this seem sometimes unreliable e.g. vdc.IsNsxv()
+func (v *VcdPlatform) GetNsxType() string {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_NSX_TYPE")
+	if val != NSXT && val != NSXV {
+		log.FatalLog("VCD_NSX_TYPE must be " + NSXT + " or " + NSXV)
+	}
+	return val
+}
+
+// the normal methods of querying this seem sometimes unreliable e.g. vdc.IsNsxv()
+func (v *VcdPlatform) GetCleanupOrphanedNetworks() bool {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_CLEANUP_ORPHAN_NETS")
 	return strings.ToLower(val) == "true"
 }
 
@@ -178,6 +209,29 @@ func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, accessApi pla
 	err := v.GetVcdVars(ctx, accessApi)
 	if err != nil {
 		return err
+	}
+	if v.GetVcdOauthSgwUrl() != "" {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Need to get oauth token", "Stage", stage)
+		switch stage {
+		case vmlayer.ProviderInitPlatformStartCrm:
+			fallthrough
+		case vmlayer.ProviderInitCreateCloudletDirect:
+			fallthrough
+		case vmlayer.ProviderInitDeleteCloudlet:
+			err := v.UpdateOauthToken(ctx, v.Creds)
+			if err != nil {
+				return fmt.Errorf("UpdateOauthToken failed - %v", err)
+			}
+			if stage == vmlayer.ProviderInitPlatformStartCrm {
+				go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
+			}
+		case vmlayer.ProviderInitPlatformStartShepherd:
+			err := v.WaitForOauthTokenViaNotify(ctx, v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
+			if err != nil {
+				return err
+			}
+		}
+
 	}
 	return nil
 }
@@ -223,6 +277,7 @@ func (v *VcdPlatform) GetLeaseOverride() bool {
 		return false
 	}
 }
+
 func (v *VcdPlatform) GetTemplateUrl() string {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_TEMPLATE_URL")
 	return val

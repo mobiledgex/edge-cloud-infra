@@ -26,32 +26,25 @@ func CreateBillingOrg(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	org := ormapi.CreateBillingOrganization{}
+	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
 
 	err = CreateBillingOrgObj(ctx, claims, &org)
-	return setReply(c, err, Msg("Billing Organization created"))
+	if err != nil {
+		return err
+	}
+	return setReply(c, Msg("Billing Organization created"))
 }
 
 // Parent billing orgs will have a billing Group, self billing orgs will just use the existing developer group from the org
-func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, createOrg *ormapi.CreateBillingOrganization) error {
-	org := ormapi.BillingOrganization{
-		Name:       createOrg.Name,
-		Type:       createOrg.Type,
-		FirstName:  createOrg.FirstName,
-		LastName:   createOrg.LastName,
-		Email:      createOrg.Email,
-		Address:    createOrg.Address,
-		Address2:   createOrg.Address2,
-		City:       createOrg.City,
-		Country:    createOrg.Country,
-		State:      createOrg.State,
-		PostalCode: createOrg.PostalCode,
-		Phone:      createOrg.Phone,
+func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
+	// TODO: remove this later, for now only mexadmin the permission to create billingOrgs
+	if !isAdmin(ctx, claims.Username) && billingEnabled(ctx) {
+		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
 	}
 	if org.Name == "" {
 		return fmt.Errorf("Name not specified")
@@ -112,7 +105,7 @@ func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, createOrg *orm
 		}
 	}
 
-	err = createBillingAccount(ctx, createOrg)
+	err = createBillingAccount(ctx, org)
 	if err != nil {
 		// reset
 		db.Delete(&org)
@@ -126,11 +119,11 @@ func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, createOrg *orm
 	return nil
 }
 
-func createBillingAccount(ctx context.Context, info *ormapi.CreateBillingOrganization) error {
+func createBillingAccount(ctx context.Context, info *ormapi.BillingOrganization) error {
 	if !billingEnabled(ctx) {
 		return nil
 	}
-	accountInfo := billing.AccountInfo{OrgName: info.Name}
+	accountInfo := ormapi.AccountInfo{OrgName: info.Name}
 	billTo := billing.CustomerDetails{
 		FirstName: info.FirstName,
 		LastName:  info.LastName,
@@ -146,8 +139,7 @@ func createBillingAccount(ctx context.Context, info *ormapi.CreateBillingOrganiz
 		Type:      info.Type,
 	}
 	var err error
-	err = serverConfig.BillingService.CreateCustomer(ctx, &billTo, &accountInfo, &info.Payment)
-
+	err = serverConfig.BillingService.CreateCustomer(ctx, &billTo, &accountInfo)
 	if err != nil {
 		return err
 	}
@@ -177,10 +169,10 @@ func UpdateBillingOrg(c echo.Context) error {
 	in := ormapi.BillingOrganization{}
 	err = json.Unmarshal(body, &in)
 	if err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	if in.Name == "" {
-		return c.JSON(http.StatusBadRequest, Msg("BillingOrganization name not specified"))
+		return fmt.Errorf("BillingOrganization name not specified")
 	}
 
 	lookup := ormapi.BillingOrganization{
@@ -190,10 +182,10 @@ func UpdateBillingOrg(c echo.Context) error {
 	db := loggedDB(ctx)
 	res := db.Where(&lookup).First(&org)
 	if res.RecordNotFound() {
-		return c.JSON(http.StatusBadRequest, Msg("BillingOrganization not found"))
+		return fmt.Errorf("BillingOrganization not found")
 	}
 	if res.Error != nil {
-		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(res.Error)))
+		return newHTTPError(http.StatusInternalServerError, dbErr(res.Error).Error())
 	}
 	oldType := org.Type
 
@@ -204,10 +196,10 @@ func UpdateBillingOrg(c echo.Context) error {
 	// apply specified fields
 	err = json.Unmarshal(body, &org)
 	if err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	if org.Type != oldType {
-		return c.JSON(http.StatusBadRequest, Msg("Cannot change BillingOrganization type"))
+		return fmt.Errorf("Cannot change BillingOrganization type")
 	}
 
 	err = updateBillingInfo(ctx, &org)
@@ -217,7 +209,7 @@ func UpdateBillingOrg(c echo.Context) error {
 
 	err = db.Save(&org).Error
 	if err != nil {
-		return c.JSON(http.StatusInternalServerError, MsgErr(dbErr(err)))
+		return newHTTPError(http.StatusInternalServerError, dbErr(err).Error())
 	}
 	return nil
 }
@@ -230,13 +222,16 @@ func AddChildOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
 
 	err = AddChildOrgObj(ctx, claims, &org)
-	return setReply(c, err, Msg("Organization added"))
+	if err != nil {
+		return err
+	}
+	return setReply(c, Msg("Organization added"))
 }
 
 func AddChildOrgObj(ctx context.Context, claims *UserClaims, parentOrg *ormapi.BillingOrganization) error {
@@ -315,13 +310,16 @@ func RemoveChildOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
 
 	err = RemoveChildOrgObj(ctx, claims, &org)
-	return setReply(c, err, Msg("Organization removed"))
+	if err != nil {
+		return err
+	}
+	return setReply(c, Msg("Organization removed"))
 }
 
 func RemoveChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.BillingOrganization) error {
@@ -406,16 +404,23 @@ func DeleteBillingOrg(c echo.Context) error {
 	ctx := GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
 
 	err = DeleteBillingOrgObj(ctx, claims, &org)
-	return setReply(c, err, Msg("Billing Organization deleted"))
+	if err != nil {
+		return err
+	}
+	return setReply(c, Msg("Billing Organization deleted"))
 }
 
 func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
+	// TODO: remove this check later, for now to keep consistent with create, only allow admins to delete billingOrgs
+	if !isAdmin(ctx, claims.Username) && billingEnabled(ctx) {
+		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
+	}
 	if org.Name == "" {
 		return fmt.Errorf("Organization name not specified")
 	}
@@ -501,14 +506,21 @@ func ShowBillingOrg(c echo.Context) error {
 		return err
 	}
 	orgs, err := ShowBillingOrgObj(ctx, claims)
-	return setReply(c, err, orgs)
+	if err != nil {
+		return err
+	}
+	return setReply(c, orgs)
 }
 
 func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.BillingOrganization, error) {
 	orgs := []ormapi.BillingOrganization{}
 	db := loggedDB(ctx)
-	err := authorized(ctx, claims.Username, "", ResourceUsers, ActionView)
-	if err == nil {
+	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceBilling, ActionView)
+	if err != nil {
+		return nil, err
+	}
+	_, isAdmin := authOrgs[""]
+	if isAdmin {
 		// super user, show all orgs
 		err := db.Find(&orgs).Error
 		if err != nil {
@@ -516,37 +528,152 @@ func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Billin
 		}
 	} else {
 		// show orgs for current user
-		groupings, err := enforcer.GetGroupingPolicy()
-		if err != nil {
-			return nil, dbErr(err)
-		}
-		for _, grp := range groupings {
-			if len(grp) < 2 {
-				continue
+		for orgName, _ := range authOrgs {
+			org := ormapi.BillingOrganization{}
+			org.Name = orgName
+			err := db.Where(&org).First(&org).Error
+			show := true
+			if err != nil {
+				// check to make sure it wasnt a regular org with no billing before throwing an error
+				regOrg := ormapi.Organization{Name: orgName}
+				regErr := db.Where(&regOrg).First(&regOrg).Error
+				if regErr == nil {
+					show = false
+				} else {
+					return nil, dbErr(err)
+				}
 			}
-			orguser := strings.Split(grp[0], "::")
-			if len(orguser) > 1 && orguser[1] == claims.Username {
-				org := ormapi.BillingOrganization{}
-				org.Name = orguser[0]
-				err := db.Where(&org).First(&org).Error
-				show := true
-				if err != nil {
-					// check to make sure it wasnt a regular org before throwing an error
-					regOrg := ormapi.Organization{Name: orguser[0]}
-					regErr := db.Where(&regOrg).First(&regOrg).Error
-					if regErr == nil {
-						show = false
-					} else {
-						return nil, dbErr(err)
-					}
-				}
-				if show {
-					orgs = append(orgs, org)
-				}
+			if show {
+				orgs = append(orgs, org)
 			}
 		}
 	}
 	return orgs, nil
+}
+
+func ShowAccountInfo(c echo.Context) error {
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	accs, err := ShowAccountInfoObj(ctx, claims)
+	if err != nil {
+		return err
+	}
+	return setReply(c, accs)
+}
+
+func ShowAccountInfoObj(ctx context.Context, claims *UserClaims) ([]ormapi.AccountInfo, error) {
+	accs := []ormapi.AccountInfo{}
+	db := loggedDB(ctx)
+	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceBilling, ActionManage)
+	if err != nil {
+		return nil, err
+	}
+	_, isAdmin := authOrgs[""]
+	if isAdmin {
+		// super user, show all accs
+		err := db.Find(&accs).Error
+		if err != nil {
+			return nil, dbErr(err)
+		}
+	} else {
+		// show accs for current user
+		for org, _ := range authOrgs {
+			acc := ormapi.AccountInfo{}
+			acc.OrgName = org
+			err = db.Where(&acc).First(&acc).Error
+			show := true
+			if err != nil {
+				// check to make sure it wasnt a regular orge with no billing before throwing an error
+				regOrg := ormapi.Organization{Name: org}
+				regErr := db.Where(&regOrg).First(&regOrg).Error
+				if regErr == nil {
+					show = false
+				} else {
+					return nil, dbErr(err)
+				}
+			}
+			if show {
+				accs = append(accs, acc)
+			}
+		}
+	}
+	return accs, nil
+}
+
+func ShowPaymentInfo(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+	org := ormapi.BillingOrganization{}
+	if err := c.Bind(&org); err != nil {
+		return bindErr(err)
+	}
+	profiles, err := ShowPaymentInfoObj(ctx, claims, &org)
+	if err != nil {
+		return err
+	}
+	return setReply(c, profiles)
+}
+
+func ShowPaymentInfoObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) ([]billing.PaymentProfile, error) {
+	// TODO: remove this later, for now only mexadmin has the permission to manipulate payment info
+	isAdmin, err := isUserAdmin(ctx, claims.Username)
+	if err != nil {
+		return nil, err
+	}
+	if !isAdmin && billingEnabled(ctx) {
+		return nil, fmt.Errorf("Currently only admins may create and commit billingOrgs")
+	}
+	if err := authorized(ctx, claims.Username, org.Name, ResourceBilling, ActionView); err != nil {
+		return nil, err
+	}
+	acc, err := GetAccountObj(ctx, org.Name)
+	if err != nil {
+		return nil, err
+	}
+	profiles, err := serverConfig.BillingService.ShowPaymentProfiles(ctx, acc)
+	return profiles, err
+}
+
+func DeletePaymentInfo(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+	profile := ormapi.PaymentProfileDeletion{}
+	if err := c.Bind(&profile); err != nil {
+		return bindErr(err)
+	}
+	err = deletePaymentProfileObj(ctx, claims, &profile)
+	if err != nil {
+		return err
+	}
+	return setReply(c, nil)
+}
+
+func deletePaymentProfileObj(ctx context.Context, claims *UserClaims, profile *ormapi.PaymentProfileDeletion) error {
+	// TODO: remove this later, for now only mexadmin has the permission to manipulare payment info
+	isAdmin, err := isUserAdmin(ctx, claims.Username)
+	if err != nil {
+		return err
+	}
+	if !isAdmin && billingEnabled(ctx) {
+		return fmt.Errorf("Currently only admins may create and commit billingOrgs")
+	}
+	if err := authorized(ctx, claims.Username, profile.Org, ResourceBilling, ActionManage); err != nil {
+		return err
+	}
+	acc, err := GetAccountObj(ctx, profile.Org)
+	if err != nil {
+		return err
+	}
+	return serverConfig.BillingService.DeletePaymentProfile(ctx, acc, &billing.PaymentProfile{ProfileId: profile.Id})
 }
 
 func billingOrgExists(ctx context.Context, orgName string) (*ormapi.BillingOrganization, error) {
@@ -565,12 +692,12 @@ func billingOrgExists(ctx context.Context, orgName string) (*ormapi.BillingOrgan
 	return &org, nil
 }
 
-func accountInfoExists(ctx context.Context, orgName string) (*billing.AccountInfo, error) {
-	lookup := billing.AccountInfo{
+func accountInfoExists(ctx context.Context, orgName string) (*ormapi.AccountInfo, error) {
+	lookup := ormapi.AccountInfo{
 		OrgName: orgName,
 	}
 	db := loggedDB(ctx)
-	info := billing.AccountInfo{}
+	info := ormapi.AccountInfo{}
 	res := db.Where(&lookup).First(&info)
 	if res.RecordNotFound() {
 		return nil, nil
@@ -613,11 +740,11 @@ func deleteBillingAccount(ctx context.Context, orgName, deleteType string) error
 	return nil
 }
 
-func GetAccountObj(ctx context.Context, orgName string) (*billing.AccountInfo, error) {
+func GetAccountObj(ctx context.Context, orgName string) (*ormapi.AccountInfo, error) {
 	if orgName == "" {
 		return nil, fmt.Errorf("no orgName specified")
 	}
-	acc := billing.AccountInfo{
+	acc := ormapi.AccountInfo{
 		OrgName: orgName,
 	}
 	db := loggedDB(ctx)
@@ -647,14 +774,14 @@ func markBillingOrgForDelete(db *gorm.DB, name string, mark bool) (reterr error)
 	findOrg := ormapi.BillingOrganization{}
 	res := tx.Where(&lookup).First(&findOrg)
 	if res.RecordNotFound() {
-		return echo.NewHTTPError(http.StatusBadRequest, "org not found")
+		return fmt.Errorf("org not found")
 	}
 	if res.Error != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, res.Error.Error())
+		return newHTTPError(http.StatusInternalServerError, res.Error.Error())
 	}
 	if mark {
 		if findOrg.DeleteInProgress {
-			return echo.NewHTTPError(http.StatusBadRequest, "org already being deleted")
+			return fmt.Errorf("org already being deleted")
 		}
 		findOrg.DeleteInProgress = true
 	} else {
@@ -662,7 +789,7 @@ func markBillingOrgForDelete(db *gorm.DB, name string, mark bool) (reterr error)
 	}
 	err := tx.Save(&findOrg).Error
 	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, err.Error())
+		return newHTTPError(http.StatusInternalServerError, err.Error())
 	}
 	return tx.Commit().Error
 }
@@ -723,7 +850,7 @@ func linkChildAccount(ctx context.Context, parent *ormapi.BillingOrganization, c
 
 	// chargify (and zuora) requires you to have billToContact info even if you are linked to a parent
 	// so for now just use parent first and last name
-	childAccountInfo := billing.AccountInfo{OrgName: child}
+	childAccountInfo := ormapi.AccountInfo{OrgName: child}
 	billTo := billing.CustomerDetails{
 		OrgName:   child,
 		FirstName: parent.FirstName,
@@ -799,7 +926,7 @@ func GetInvoice(c echo.Context) error {
 	ctx := GetContext(c)
 	req := ormapi.InvoiceRequest{}
 	if err := c.Bind(&req); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("invoice", req.Name)
@@ -811,5 +938,8 @@ func GetInvoice(c echo.Context) error {
 		return err
 	}
 	invoice, err := serverConfig.BillingService.GetInvoice(ctx, acc, req.StartDate, req.EndDate)
-	return setReply(c, err, invoice)
+	if err != nil {
+		return err
+	}
+	return setReply(c, invoice)
 }

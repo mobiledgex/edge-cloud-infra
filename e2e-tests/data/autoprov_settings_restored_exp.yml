@@ -18,7 +18,6 @@ regiondata:
       createcloudlettimeout: 10s
       updatecloudlettimeout: 2s
       masternodeflavor: x1.small
-      loadbalancermaxportrange: 100
       maxtrackeddmeclients: 100
       chefclientinterval: 10m0s
       influxdbmetricsretention: 672h0m0s
@@ -30,7 +29,7 @@ regiondata:
       influxdbcloudletusagemetricsretention: 8760h0m0s
       appinstclientcleanupinterval: 24h
       locationtilesidelengthkm: 2
-      edgeeventsmetricscollectioninterval: 1s
+      edgeeventsmetricscollectioninterval: 3s
       influxdbedgeeventsmetricsretention: 672h0m0s
       influxdbdownsampledmetricsretention: 672h0m0s
       edgeeventsmetricscontinuousqueriescollectionintervals:

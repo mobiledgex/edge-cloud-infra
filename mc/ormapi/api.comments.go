@@ -1,5 +1,7 @@
 package ormapi
 
+// This is an auto-generated file. DO NOT EDIT directly.
+
 var UserComments = map[string]string{
 	"name":       `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
 	"email":      `User email`,
@@ -11,7 +13,6 @@ var UserComments = map[string]string{
 }
 
 var CreateUserApiKeyComments = map[string]string{
-	"userapikey.id":          `API key ID used as an identifier for API keys`,
 	"userapikey.description": `Description of the purpose of this API key`,
 	"userapikey.org":         `Org to which API key has permissions to access its objects`,
 	"apikey":                 `API key`,
@@ -21,17 +22,21 @@ var CreateUserApiKeyComments = map[string]string{
 }
 
 var UserApiKeyComments = map[string]string{
-	"id":          `API key ID used as an identifier for API keys`,
 	"description": `Description of the purpose of this API key`,
 	"org":         `Org to which API key has permissions to access its objects`,
 }
 
 var OrganizationComments = map[string]string{
-	"name":        `Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
-	"type":        `Organization type: "developer" or "operator"`,
-	"address":     `Organization address`,
-	"phone":       `Organization phone number`,
-	"edgeboxonly": `Edgebox only organization: true or false`,
+	"name":    `Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
+	"type":    `Organization type: "developer" or "operator"`,
+	"address": `Organization address`,
+	"phone":   `Organization phone number`,
+}
+
+var InvoiceRequestComments = map[string]string{
+	"name":      `Billing Organization name to retrieve invoices for`,
+	"startdate": `Date filter for invoice selection, YYYY-MM-DD format`,
+	"enddate":   `Date filter for invoice selection, YYYY-MM-DD format`,
 }
 
 var BillingOrganizationComments = map[string]string{
@@ -48,6 +53,17 @@ var BillingOrganizationComments = map[string]string{
 	"postalcode": `Organization postal code`,
 	"phone":      `Organization phone number`,
 	"children":   `Children belonging to this BillingOrganization`,
+}
+
+var AccountInfoComments = map[string]string{
+	"orgname":        `Billing Organization name to commit`,
+	"accountid":      `Account ID given by the billing platform`,
+	"subscriptionid": `Subscription ID given by the billing platform`,
+}
+
+var PaymentProfileDeletionComments = map[string]string{
+	"org": `Billing Organization Name associated with the payment profile`,
+	"id":  `Payment Profile Id`,
 }
 
 var ControllerComments = map[string]string{
@@ -73,7 +89,8 @@ var OrgCloudletPoolComments = map[string]string{
 	"region":          `Region`,
 	"cloudletpool":    `Operator's CloudletPool name`,
 	"cloudletpoolorg": `Operator's Organization`,
-	"type":            `Type is an internal-only field which is either invitation or confirmation`,
+	"type":            `Type is an internal-only field which is either invitation or response`,
+	"decision":        `Decision is to either accept or reject an invitation`,
 }
 
 var RolePermComments = map[string]string{
@@ -137,4 +154,23 @@ var AlertReceiverComments = map[string]string{
 	"slackwebhook":            `Custom slack webhook`,
 	"pagerdutyintegrationkey": `PagerDuty integration key`,
 	"pagerdutyapiversion":     `PagerDuty API version`,
+}
+
+var ReporterComments = map[string]string{
+	"name":              `Reporter name. Can only contain letters, digits, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
+	"org":               `Organization name`,
+	"email":             `Email to send generated reports`,
+	"schedule":          `Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days, EveryMonth`,
+	"startscheduledate": `Start date (in RFC3339 format with intended timezone) when the report is scheduled to be generated (Default: today)`,
+}
+
+var DownloadReportComments = map[string]string{
+	"org":      `Organization name`,
+	"filename": `Name of the report file to be downloaded`,
+}
+
+var GenerateReportComments = map[string]string{
+	"org":       `Organization name`,
+	"starttime": `Absolute time (in RFC3339 format with intended timezone) to start report capture`,
+	"endtime":   `Absolute time (in RFC3339 format with intended timezone) to end report capture`,
 }

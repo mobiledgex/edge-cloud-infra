@@ -61,7 +61,7 @@ controllers:
   notifyrootaddrs: "127.0.0.1:53001"
   vaultaddr: "http://127.0.0.1:8200"
   hostname: "127.0.0.1"
-  testmode: true
+  testmode: false
   checkpointinterval: 3m
   requirenotifyaccesskey: true
   envvars:
@@ -112,6 +112,7 @@ mcs:
   alertmgrapiaddr: "https://127.0.0.1:9094"
   apitlscert: "{{tlsoutdir}}/mex-server.crt"
   apitlskey: "{{tlsoutdir}}/mex-server.key"
+  deploymenttag: "dev"
   envvars:
     E2ETEST_TLS: true
 

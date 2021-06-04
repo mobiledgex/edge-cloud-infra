@@ -41,25 +41,24 @@ func CreateAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
-	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.AppInst.GetKey().GetTags())
 	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
 
-	err = CreateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+	err = CreateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		WriteStream(c, &payload)
+		return WriteStream(c, &payload)
 	})
 	if err != nil {
-		WriteError(c, err)
+		return err
 	}
 	return nil
 }
 
-func CreateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
+func CreateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForCreateAppInst(); err != nil {
 		return err
@@ -95,15 +94,19 @@ func CreateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.
 		if err != nil {
 			return err
 		}
-		cb(res)
+		err = cb(res)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func CreateAppInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) ([]edgeproto.Result, error) {
 	arr := []edgeproto.Result{}
-	err := CreateAppInstStream(ctx, rc, obj, func(res *edgeproto.Result) {
+	err := CreateAppInstStream(ctx, rc, obj, func(res *edgeproto.Result) error {
 		arr = append(arr, *res)
+		return nil
 	})
 	return arr, err
 }
@@ -122,25 +125,24 @@ func DeleteAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
-	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.AppInst.GetKey().GetTags())
 	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
 
-	err = DeleteAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+	err = DeleteAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		WriteStream(c, &payload)
+		return WriteStream(c, &payload)
 	})
 	if err != nil {
-		WriteError(c, err)
+		return err
 	}
 	return nil
 }
 
-func DeleteAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
+func DeleteAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForDeleteAppInst(); err != nil {
 		return err
@@ -176,15 +178,19 @@ func DeleteAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.
 		if err != nil {
 			return err
 		}
-		cb(res)
+		err = cb(res)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func DeleteAppInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) ([]edgeproto.Result, error) {
 	arr := []edgeproto.Result{}
-	err := DeleteAppInstStream(ctx, rc, obj, func(res *edgeproto.Result) {
+	err := DeleteAppInstStream(ctx, rc, obj, func(res *edgeproto.Result) error {
 		arr = append(arr, *res)
+		return nil
 	})
 	return arr, err
 }
@@ -203,25 +209,24 @@ func RefreshAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
-	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.AppInst.GetKey().GetTags())
 	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
 
-	err = RefreshAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+	err = RefreshAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		WriteStream(c, &payload)
+		return WriteStream(c, &payload)
 	})
 	if err != nil {
-		WriteError(c, err)
+		return err
 	}
 	return nil
 }
 
-func RefreshAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
+func RefreshAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForRefreshAppInst(); err != nil {
 		return err
@@ -257,15 +262,19 @@ func RefreshAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto
 		if err != nil {
 			return err
 		}
-		cb(res)
+		err = cb(res)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func RefreshAppInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) ([]edgeproto.Result, error) {
 	arr := []edgeproto.Result{}
-	err := RefreshAppInstStream(ctx, rc, obj, func(res *edgeproto.Result) {
+	err := RefreshAppInstStream(ctx, rc, obj, func(res *edgeproto.Result) error {
 		arr = append(arr, *res)
+		return nil
 	})
 	return arr, err
 }
@@ -284,25 +293,24 @@ func UpdateAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
-	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.AppInst.GetKey().GetTags())
 	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
 
-	err = UpdateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) {
+	err = UpdateAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		WriteStream(c, &payload)
+		return WriteStream(c, &payload)
 	})
 	if err != nil {
-		WriteError(c, err)
+		return err
 	}
 	return nil
 }
 
-func UpdateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result)) error {
+func UpdateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForUpdateAppInst(); err != nil {
 		return err
@@ -338,15 +346,19 @@ func UpdateAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.
 		if err != nil {
 			return err
 		}
-		cb(res)
+		err = cb(res)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func UpdateAppInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) ([]edgeproto.Result, error) {
 	arr := []edgeproto.Result{}
-	err := UpdateAppInstStream(ctx, rc, obj, func(res *edgeproto.Result) {
+	err := UpdateAppInstStream(ctx, rc, obj, func(res *edgeproto.Result) error {
 		arr = append(arr, *res)
+		return nil
 	})
 	return arr, err
 }
@@ -365,29 +377,33 @@ func ShowAppInst(c echo.Context) error {
 	if !success {
 		return err
 	}
-	defer CloseConn(c)
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.AppInst.GetKey().GetTags())
 	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
 
-	err = ShowAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.AppInst) {
+	err = ShowAppInstStream(ctx, rc, &in.AppInst, func(res *edgeproto.AppInst) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
-		WriteStream(c, &payload)
+		return WriteStream(c, &payload)
 	})
 	if err != nil {
-		WriteError(c, err)
+		return err
 	}
 	return nil
 }
 
-func ShowAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.AppInst)) error {
-	var authz *AuthzShow
+type ShowAppInstAuthz interface {
+	Ok(obj *edgeproto.AppInst) (bool, bool)
+	Filter(obj *edgeproto.AppInst)
+}
+
+func ShowAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.AppInst) error) error {
+	var authz ShowAppInstAuthz
 	var err error
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceAppInsts, ActionView)
+		authz, err = newShowAppInstAuthz(ctx, rc.region, rc.username, ResourceAppInsts, ActionView)
 		if err != nil {
 			return err
 		}
@@ -418,19 +434,27 @@ func ShowAppInstStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Ap
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.AppKey.Organization) {
+			authzOk, filterOutput := authz.Ok(res)
+			if !authzOk {
 				continue
 			}
+			if filterOutput {
+				authz.Filter(res)
+			}
 		}
-		cb(res)
+		err = cb(res)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
 func ShowAppInstObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInst) ([]edgeproto.AppInst, error) {
 	arr := []edgeproto.AppInst{}
-	err := ShowAppInstStream(ctx, rc, obj, func(res *edgeproto.AppInst) {
+	err := ShowAppInstStream(ctx, rc, obj, func(res *edgeproto.AppInst) error {
 		arr = append(arr, *res)
+		return nil
 	})
 	return arr, err
 }
@@ -446,7 +470,7 @@ func RequestAppInstLatency(c echo.Context) error {
 
 	in := ormapi.RegionAppInstLatency{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(c, err)
+		return bindErr(err)
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -458,8 +482,9 @@ func RequestAppInstLatency(c echo.Context) error {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
 		}
+		return err
 	}
-	return setReply(c, err, resp)
+	return setReply(c, resp)
 }
 
 func RequestAppInstLatencyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstLatency) (*edgeproto.Result, error) {

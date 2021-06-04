@@ -39,6 +39,7 @@ func main() {
 	// generate comments
 	buf := &bytes.Buffer{}
 	fmt.Fprintf(buf, "package %s", allStructs.pkgName)
+	fmt.Fprintf(buf, "\n// This is an auto-generated file. DO NOT EDIT directly.\n")
 	for _, apiSt := range allStructs.apiStructs {
 		comments := []Field{}
 		apiSt.genComments(&allStructs, []string{}, &comments)
@@ -142,6 +143,14 @@ func (s *ApiStruct) Visit(node ast.Node) ast.Visitor {
 			}
 			field.typeName = mapTypeStringString
 			extraComment = ", value is key=value format"
+		case *ast.SelectorExpr:
+			switch t.Sel.Name {
+			case "Time":
+			case "ReportSchedule":
+			default:
+				return nil
+			}
+			field.typeName = t.Sel.Name
 		default:
 			return nil
 		}
@@ -169,7 +178,10 @@ func getComments(doc *ast.CommentGroup) string {
 	}
 	for _, comment := range doc.List {
 		str := comment.Text
-		if strings.HasPrefix(str, "// read only: true") || strings.HasPrefix(str, "// required: true") {
+		if strings.HasPrefix(str, "// read only: true") {
+			return ""
+		}
+		if strings.HasPrefix(str, "// required: true") {
 			continue
 		}
 		str = strings.TrimPrefix(str, "//")

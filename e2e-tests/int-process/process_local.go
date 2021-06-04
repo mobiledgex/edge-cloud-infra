@@ -22,7 +22,7 @@ import (
 // Master Controller
 
 func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
-	args := []string{}
+	args := p.GetNodeMgrArgs()
 	if p.Addr != "" {
 		args = append(args, "--addr")
 		args = append(args, p.Addr)
@@ -31,11 +31,6 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--sqlAddr")
 		args = append(args, p.SqlAddr)
 	}
-	if p.VaultAddr != "" {
-		args = append(args, "--vaultAddr")
-		args = append(args, p.VaultAddr)
-	}
-	args = p.TLS.AddInternalPkiArgs(args)
 	if p.TLS.ClientCert != "" {
 		args = append(args, "--clientCert")
 		args = append(args, p.TLS.ClientCert)
@@ -62,9 +57,6 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--alertResolveTimeout")
 		args = append(args, p.AlertResolveTimeout)
 	}
-	if p.UseVaultPki {
-		args = append(args, "--useVaultPki")
-	}
 	if p.BillingPlatform != "" {
 		args = append(args, "--billingPlatform")
 		args = append(args, p.BillingPlatform)
@@ -80,6 +72,9 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 	if p.AlertMgrApiAddr != "" {
 		args = append(args, "--alertMgrApiAddr")
 		args = append(args, p.AlertMgrApiAddr)
+	}
+	if p.StaticDir != "" {
+		args = append(args, "--staticDir", p.StaticDir)
 	}
 	args = append(args, "--hostname", p.Name)
 	options := process.StartOptions{}
@@ -262,7 +257,7 @@ func (p *Sql) runPsql(args []string) ([]byte, error) {
 }
 
 func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
-	args := []string{}
+	args := p.GetNodeMgrArgs()
 	if p.Name != "" {
 		args = append(args, "--name")
 		args = append(args, p.Name)
@@ -275,10 +270,6 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--platform")
 		args = append(args, p.Platform)
 	}
-	if p.VaultAddr != "" {
-		args = append(args, "--vaultAddr")
-		args = append(args, p.VaultAddr)
-	}
 	if p.PhysicalName != "" {
 		args = append(args, "--physicalName")
 		args = append(args, p.PhysicalName)
@@ -287,7 +278,6 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--cloudletKey")
 		args = append(args, p.CloudletKey)
 	}
-	args = p.TLS.AddInternalPkiArgs(args)
 	if p.Span != "" {
 		args = append(args, "--span")
 		args = append(args, p.Span)
@@ -295,9 +285,6 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 	if p.Region != "" {
 		args = append(args, "--region")
 		args = append(args, p.Region)
-	}
-	if p.UseVaultPki {
-		args = append(args, "--useVaultPki")
 	}
 	if p.MetricsAddr != "" {
 		args = append(args, "--metricsAddr")
@@ -307,19 +294,9 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--appDNSRoot")
 		args = append(args, p.AppDNSRoot)
 	}
-	if p.DeploymentTag != "" {
-		args = append(args, "--deploymentTag")
-		args = append(args, p.DeploymentTag)
-	}
 	if p.ChefServerPath != "" {
 		args = append(args, "--chefServerPath")
 		args = append(args, p.ChefServerPath)
-	}
-	if p.AccessKeyFile != "" {
-		args = append(args, "--accessKeyFile", p.AccessKeyFile)
-	}
-	if p.AccessApiAddr != "" {
-		args = append(args, "--accessApiAddr", p.AccessApiAddr)
 	}
 
 	options := process.StartOptions{}
@@ -367,25 +344,18 @@ func (p *Shepherd) Wait() {
 
 func (p *AutoProv) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{"--notifyAddrs", p.NotifyAddrs}
+	args = append(args, p.GetNodeMgrArgs()...)
 	if p.CtrlAddrs != "" {
 		args = append(args, "--ctrlAddrs")
 		args = append(args, p.CtrlAddrs)
-	}
-	if p.VaultAddr != "" {
-		args = append(args, "--vaultAddr")
-		args = append(args, p.VaultAddr)
 	}
 	if p.InfluxAddr != "" {
 		args = append(args, "--influxAddr")
 		args = append(args, p.InfluxAddr)
 	}
-	args = p.TLS.AddInternalPkiArgs(args)
 	if p.Region != "" {
 		args = append(args, "--region")
 		args = append(args, p.Region)
-	}
-	if p.UseVaultPki {
-		args = append(args, "--useVaultPki")
 	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
@@ -553,12 +523,12 @@ func (p *PromE2e) StartLocal(logfile string, opts ...process.StartOp) error {
 			return fmt.Errorf("Failed to build docker image for e2e prometheus: %v", err)
 		}
 	}
-	args := []string{
-		"run", "--rm", "-p", fmt.Sprintf("%d:%d", p.Port, p.Port), "--name", p.Name, p.Name,
-	}
-
-	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	args := p.GetRunArgs()
+	args = append(args,
+		"-p", fmt.Sprintf("%d:%d", p.Port, p.Port),
+		p.Name)
+	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	p.SetCmd(cmd)
 	return err
 }
 
@@ -576,14 +546,6 @@ func imageFound(name string) bool {
 	}
 	return false
 }
-
-func (p *PromE2e) StopLocal() {
-	process.StopLocal(p.cmd)
-}
-
-func (p *PromE2e) GetExeName() string { return "docker" }
-
-func (p *PromE2e) LookupArgs() string { return p.Name }
 
 func (p *HttpServer) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{
@@ -656,55 +618,34 @@ func (p *Alertmanager) StartLocal(logfile string, opts ...process.StartOp) error
 	if p.TemplateFile != "" {
 		templateFile = p.TemplateFile
 	}
-	args := []string{
-		"run", "--rm", "-p", fmt.Sprintf("%d:%d", p.Port, p.Port),
-		"-v", configFile + ":/etc/prometheus/alertmanager.yml",
-		"-v", templateFile + ":/etc/alertmanager/templates/alertmanager.tmpl",
-		"--name", p.Name,
+	args := p.GetRunArgs()
+	args = append(args,
+		"-p", fmt.Sprintf("%d:%d", p.Port, p.Port),
+		"-v", configFile+":/etc/prometheus/alertmanager.yml",
+		"-v", templateFile+":/etc/alertmanager/templates/alertmanager.tmpl",
 		"prom/alertmanager:v0.21.0",
 		"--web.listen-address", fmt.Sprintf(":%d", p.Port),
 		"--log.level", "debug",
 		"--config.file", "/etc/prometheus/alertmanager.yml",
-	}
+	)
 
-	var err error
 	log.Printf("Start Alertmanager: %v\n", args)
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	p.SetCmd(cmd)
 	return err
 }
-
-func (p *Alertmanager) StopLocal() {
-	process.StopLocal(p.cmd)
-	cmd := exec.Command("docker", "kill", p.Name)
-	cmd.Run()
-}
-
-func (p *Alertmanager) GetExeName() string { return "docker" }
-
-func (p *Alertmanager) LookupArgs() string { return p.Name }
 
 func (p *Maildev) StartLocal(logfile string, opts ...process.StartOp) error {
-	args := []string{
-		"run", "--rm",
+	args := p.GetRunArgs()
+	args = append(args,
 		"-p", fmt.Sprintf("%d:%d", p.UiPort, 80),
 		"-p", fmt.Sprintf("%d:%d", p.MailPort, 25),
-		"--name", p.Name,
 		"maildev/maildev:1.1.0",
-	}
-	var err error
-	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	)
+	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	p.SetCmd(cmd)
 	return err
 }
-
-func (p *Maildev) StopLocal() {
-	process.StopLocal(p.cmd)
-	cmd := exec.Command("docker", "kill", p.Name)
-	cmd.Run()
-}
-
-func (p *Maildev) GetExeName() string { return "docker" }
-
-func (p *Maildev) LookupArgs() string { return p.Name }
 
 func (p *AlertmanagerSidecar) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := []string{"--httpAddr", p.HttpAddr}

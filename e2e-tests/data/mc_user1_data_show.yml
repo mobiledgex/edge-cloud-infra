@@ -12,22 +12,18 @@ orgs:
   type: operator
   address: tmus headquarters
   phone: 123-123-1234
-  adminusername: user1
 - name: azure
   type: operator
   address: amazon jungle
   phone: 123-123-1234
-  adminusername: user1
 - name: gcp
   type: operator
   address: mountain view
   phone: 123-123-1234
-  adminusername: user1
 - name: enterprise
   type: operator
   address: enterprise headquarters
   phone: 123-123-1234
-  adminusername: user1
 roles:
 - org: tmus
   username: user1
@@ -196,10 +192,6 @@ regiondata:
         - name: vCPUs
           value: 4
           inframaxvalue: 50
-        - name: Disk
-          value: 80
-          inframaxvalue: 5000
-          units: GB
         - name: External IPs
           value: 1
           inframaxvalue: 30
@@ -248,10 +240,6 @@ regiondata:
         - name: vCPUs
           value: 4
           inframaxvalue: 50
-        - name: Disk
-          value: 80
-          inframaxvalue: 5000
-          units: GB
         - name: External IPs
           value: 1
           inframaxvalue: 30
@@ -300,10 +288,6 @@ regiondata:
         - name: vCPUs
           value: 4
           inframaxvalue: 50
-        - name: Disk
-          value: 80
-          inframaxvalue: 5000
-          units: GB
         - name: External IPs
           value: 1
           inframaxvalue: 30
@@ -352,10 +336,6 @@ regiondata:
         - name: vCPUs
           value: 4
           inframaxvalue: 50
-        - name: Disk
-          value: 80
-          inframaxvalue: 5000
-          units: GB
         - name: External IPs
           value: 1
           inframaxvalue: 30
@@ -404,10 +384,6 @@ regiondata:
         - name: vCPUs
           value: 4
           inframaxvalue: 50
-        - name: Disk
-          value: 80
-          inframaxvalue: 5000
-          units: GB
         - name: External IPs
           value: 1
           inframaxvalue: 30
@@ -532,10 +508,6 @@ regiondata:
         - name: vCPUs
           value: 4
           inframaxvalue: 50
-        - name: Disk
-          value: 80
-          inframaxvalue: 5000
-          units: GB
         - name: External IPs
           value: 1
           inframaxvalue: 30
@@ -584,10 +556,6 @@ regiondata:
         - name: vCPUs
           value: 4
           inframaxvalue: 50
-        - name: Disk
-          value: 80
-          inframaxvalue: 5000
-          units: GB
         - name: External IPs
           value: 1
           inframaxvalue: 30
@@ -636,10 +604,6 @@ regiondata:
         - name: vCPUs
           value: 4
           inframaxvalue: 50
-        - name: Disk
-          value: 80
-          inframaxvalue: 5000
-          units: GB
         - name: External IPs
           value: 1
           inframaxvalue: 30

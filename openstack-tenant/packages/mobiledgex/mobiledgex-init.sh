@@ -6,11 +6,9 @@ set -x
 
 . /etc/mex-release
 
-if [[ "$MEX_PLATFORM_FLAVOR" == vsphere ]]; then
-        # this should be revisited to see if it is really needed
-	systemctl status open-vm-tools > /var/log/openvmtool.status.log
-	systemctl start open-vm-tools
-fi
+# this should be revisited to see if it is really needed
+systemctl status open-vm-tools > /var/log/openvmtool.status.log
+systemctl start open-vm-tools
 
 INIT_COMPLETE_FLAG=/etc/mobiledgex/init-complete
 if [[ -f "$INIT_COMPLETE_FLAG" ]]; then
@@ -50,20 +48,18 @@ chmod u-x,go-rwx /etc/shadow-
 chmod og-rwx /boot/grub/grub.cfg
 find /var/log -type f -exec chmod g-wx,o-rwx "{}" + -o -type d -exec chmod g-w,o-rwx "{}" +
 
-case "$MEX_PLATFORM_FLAVOR" in
-vsphere)
-	log "VMware vSphere case, fetch metadata from vmtoolsd"
-	# check that metadata exists, if it does not then exit.
-	if ! vmtoolsd --cmd "info-get guestinfo.metadata";
-	then
-		log "VMware metadata is empty, quitting"
+# Customise for vCD, vSphere, or OpenStack
+if vmtoolsd --cmd "info-get guestinfo.ovfEnv" > /var/log/userdata.log; then
+	log "Running in vCD"
+	mkdir -p $METADIR
+	if ! /usr/local/bin/parseovfenv > $METADATA; then
+		log "error in parseovfenv, quitting"
 		log "Finished mobiledgex init"
-		exit 0
+		exit
 	fi
-
-	log "dump userdata"
-	if ! vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log;
-	then
+elif vmtoolsd --cmd "info-get guestinfo.metadata"; then
+	log "Running in vSphere"
+	if ! vmtoolsd --cmd "info-get guestinfo.userdata" > /var/log/userdata.log; then
 		log "error getting guestinfo.userdata, quitting"
 		log "Finished mobiledgex init"
 		exit 1
@@ -76,35 +72,22 @@ vsphere)
                 log "Finished mobiledgex init"
                 exit 1
         fi
-
-		;;
-
-vcd)
-	log "VMware vCD case, fetch metadata from userdata.ovfenv"
-	log "dump ovfEnv userdata"
-	if ! vmtoolsd --cmd "info-get guestinfo.ovfEnv" > /var/log/userdata.log;
-	then
-		log "error getting guestinfo.ovfEnv, quitting"
-		log "Finished mobiledgex init"
-		exit 1
+else
+	log "Running in OpenStack"
+	mkdir -p $MCONF
+	START=$( date +'%s' )
+	while (( $( date +'%s' ) - START < 180 )); do
+		MCONF_DEV=$( blkid -t LABEL="config-2" -odevice )
+		[[ -n "$MCONF_DEV" ]] && break
+		log "Waiting for config device..."
+		sleep 5
+	done
+	if [[ -z "$MCONF_DEV" ]]; then
+		log "Failed to identify config device"
+		exit 2
 	fi
-	mkdir -p $METADIR
-	if ! /usr/local/bin/parseovfenv > $METADATA;
-	then
-		log "error in parseovfenv, quitting"
-		log "Finished mobiledgex init"
-		exit 1
-	fi
-		;;
-
-*)
-	log "openstack case"
-                ;;
-
-esac
-
-mkdir -p $MCONF
-mount `blkid -t LABEL="config-2" -odevice` $MCONF
+	mount "$MCONF_DEV" "$MCONF"
+fi
 
 # Load parameters
 set_param() {

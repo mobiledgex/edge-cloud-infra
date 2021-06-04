@@ -2,29 +2,38 @@ package ormctl
 
 import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud/cli"
-	"github.com/spf13/cobra"
 )
 
-func GetControllerCommand() *cobra.Command {
-	cmds := []*cli.Command{&cli.Command{
+const ControllerGroup = "Controller"
+
+func init() {
+	cmds := []*ApiCommand{&ApiCommand{
+		Name:         "CreateController",
 		Use:          "create",
-		Short:        "Register a new regional controller",
+		Short:        "Create a new regional controller",
 		RequiredArgs: "region address",
 		OptionalArgs: "influxdb",
+		Comments:     ormapi.ControllerComments,
 		ReqData:      &ormapi.Controller{},
-		Run:          runRest("/auth/controller/create"),
-	}, &cli.Command{
+		Path:         "/auth/controller/create",
+	}, &ApiCommand{
+		Name:         "DeleteController",
 		Use:          "delete",
-		Short:        "Deregister a new regional controller",
+		Short:        "Delete a regional controller",
 		RequiredArgs: "region",
+		Comments:     ormapi.ControllerComments,
 		ReqData:      &ormapi.Controller{},
-		Run:          runRest("/auth/controller/delete"),
-	}, &cli.Command{
-		Use:       "show",
-		Short:     "Show registered regional controllers",
-		ReplyData: &[]ormapi.Controller{},
-		Run:       runRest("/auth/controller/show"),
+		Path:         "/auth/controller/delete",
+	}, &ApiCommand{
+		Name:         "ShowController",
+		Use:          "show",
+		Short:        "Show regional controllers",
+		OptionalArgs: "region address notifyaddr influxdb",
+		Comments:     ormapi.ControllerComments,
+		ReqData:      &ormapi.Controller{},
+		ReplyData:    &[]ormapi.Controller{},
+		ShowFilter:   true,
+		Path:         "/auth/controller/show",
 	}}
-	return cli.GenGroup("controller", "Register regional controllers", cmds)
+	AllApis.AddGroup(ControllerGroup, "Manage regional controllers", cmds)
 }

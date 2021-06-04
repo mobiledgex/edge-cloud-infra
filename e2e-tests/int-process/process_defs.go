@@ -8,14 +8,13 @@ import (
 
 type MC struct {
 	process.Common          `yaml:",inline"`
+	process.NodeCommon      `yaml:",inline"`
 	Addr                    string
 	SqlAddr                 string
-	VaultAddr               string
 	RolesFile               string
 	LdapAddr                string
 	NotifySrvAddr           string
 	ConsoleProxyAddr        string
-	UseVaultPki             bool
 	AlertResolveTimeout     string
 	BillingPlatform         string
 	UsageCollectionInterval string
@@ -23,7 +22,7 @@ type MC struct {
 	AlertMgrApiAddr         string
 	ApiTlsCert              string
 	ApiTlsKey               string
-	TLS                     process.TLSCerts
+	StaticDir               string
 	cmd                     *exec.Cmd
 }
 type Sql struct {
@@ -36,40 +35,32 @@ type Sql struct {
 	cmd            *exec.Cmd
 }
 type Shepherd struct {
-	process.Common `yaml:",inline"`
-	NotifyAddrs    string
-	Platform       string
-	VaultAddr      string
-	MetricsAddr    string
-	PhysicalName   string
-	CloudletKey    string
-	UseVaultPki    bool
-	TLS            process.TLSCerts
-	cmd            *exec.Cmd
-	Span           string
-	Region         string
-	AppDNSRoot     string
-	DeploymentTag  string
-	ChefServerPath string
-	AccessKeyFile  string
-	AccessApiAddr  string
+	process.Common     `yaml:",inline"`
+	process.NodeCommon `yaml:",inline"`
+	NotifyAddrs        string
+	Platform           string
+	MetricsAddr        string
+	PhysicalName       string
+	CloudletKey        string
+	cmd                *exec.Cmd
+	Span               string
+	Region             string
+	AppDNSRoot         string
+	ChefServerPath     string
 }
 type AutoProv struct {
-	process.Common `yaml:",inline"`
-	NotifyAddrs    string
-	CtrlAddrs      string
-	VaultAddr      string
-	InfluxAddr     string
-	Region         string
-	UseVaultPki    bool
-	TLS            process.TLSCerts
-	cmd            *exec.Cmd
+	process.Common     `yaml:",inline"`
+	process.NodeCommon `yaml:",inline"`
+	NotifyAddrs        string
+	CtrlAddrs          string
+	InfluxAddr         string
+	Region             string
+	cmd                *exec.Cmd
 }
 
 type PromE2e struct {
-	process.Common `yaml:",inline"`
-	Port           int
-	cmd            *exec.Cmd
+	process.DockerGeneric `yaml:",inline"`
+	Port                  int
 }
 
 type HttpServer struct {
@@ -86,18 +77,16 @@ type ChefServer struct {
 }
 
 type Alertmanager struct {
-	process.Common `yaml:",inline"`
-	ConfigFile     string
-	TemplateFile   string
-	Port           int
-	cmd            *exec.Cmd
+	process.DockerGeneric `yaml:",inline"`
+	ConfigFile            string
+	TemplateFile          string
+	Port                  int
 }
 
 type Maildev struct {
-	process.Common `yaml:",inline"`
-	UiPort         int
-	MailPort       int
-	cmd            *exec.Cmd
+	process.DockerGeneric `yaml:",inline"`
+	UiPort                int
+	MailPort              int
 }
 
 type AlertmanagerSidecar struct {

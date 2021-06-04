@@ -25,6 +25,9 @@ const (
 	VMDomainAny      VMDomain = "any" // used for matching only
 )
 
+var CloudletAccessToken = "CloudletAccessToken"
+var CloudletNetworkNamesMap = "CloudletNetworkNamesMap"
+
 func (v *VMPlatform) IsCloudletServicesLocal() bool {
 	return false
 }
@@ -252,7 +255,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if err != nil {
 		return err
 	}
-	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, string(VMTypePlatform), chefApi)
+	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, cloudcommon.VMTypePlatform, chefApi)
 	if err != nil {
 		return err
 	}
@@ -408,30 +411,36 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting Cloudlet Security Rules %s", rootLBName))
 		err = v.VMProvider.ConfigureCloudletSecurityRules(ctx, false, &edgeproto.TrustPolicy{}, ActionDelete, edgeproto.DummyUpdateCallback)
 		if err != nil {
-			return fmt.Errorf("DeleteCloudlet error: %v", err)
+			if v.VMProperties.IptablesBasedFirewall {
+				// iptables based security rules can fail on one clusterInst LB or other VM not responding
+				log.SpanLog(ctx, log.DebugLevelInfra, "Warning: error in ConfigureCloudletSecurityRules", "err", err)
+			} else {
+				return err
+			}
 		}
 	}
 
-	if err == nil {
-		nodes := v.GetPlatformNodes(cloudlet)
-		for _, nodeName := range nodes {
-			clientName := v.GetChefClientName(nodeName)
-			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting %s client from Chef Server", clientName))
-			err = chefmgmt.ChefClientDelete(ctx, chefClient, clientName)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
-			}
-		}
-
-		// Delete rootLB object from Chef Server
-		clientName := v.GetChefClientName(rootLBName)
+	nodes := v.GetPlatformNodes(cloudlet)
+	for _, nodeName := range nodes {
+		clientName := v.GetChefClientName(nodeName)
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting %s client from Chef Server", clientName))
 		err = chefmgmt.ChefClientDelete(ctx, chefClient, clientName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 		}
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "failed to fetch chef auth keys", "err", err)
+	}
+
+	// Delete rootLB object from Chef Server
+	clientName := v.GetChefClientName(rootLBName)
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting %s client from Chef Server", clientName))
+	err = chefmgmt.ChefClientDelete(ctx, chefClient, clientName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
+	}
+
+	// Delete FQDN of shared RootLB
+	if err = v.VMProperties.CommonPf.DeleteDNSRecords(ctx, rootLBName); err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete sharedRootLB DNS record", "fqdn", rootLBName, "err", err)
 	}
 
 	// Not sure if it's safe to remove vars from Vault due to testing/virtual cloudlets,
@@ -526,16 +535,24 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 			return nil, err
 		}
 		if cloudlet.InfraConfig.FlavorName == "" {
+			var spec *vmspec.VMCreationSpec = &vmspec.VMCreationSpec{}
 			cli := edgeproto.CloudletInfo{}
 			cli.Flavors = flavorList
 			cli.Key = cloudlet.Key
-			restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
-			vmspec, err := vmspec.GetVMSpec(ctx, *pfFlavor, cli, restbls)
-
-			if err != nil {
-				return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
+			if len(flavorList) == 0 {
+				flavInfo, err := v.GetDefaultRootLBFlavor(ctx)
+				if err != nil {
+					return nil, fmt.Errorf("unable to find DefaultShared RootLB flavor: %v", err)
+				}
+				spec.FlavorName = flavInfo.Name
+			} else {
+				restbls := v.GetResTablesForCloudlet(ctx, &cli.Key)
+				spec, err = vmspec.GetVMSpec(ctx, *pfFlavor, cli, restbls)
+				if err != nil {
+					return nil, fmt.Errorf("unable to find VM spec for Shared RootLB: %v", err)
+				}
 			}
-			flavorName = vmspec.FlavorName
+			flavorName = spec.FlavorName
 		} else {
 			// Validate infra flavor name provided by user
 			for _, finfo := range flavorList {
@@ -569,7 +586,7 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 	if err != nil {
 		return nil, err
 	}
-	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, string(VMTypePlatform), chefApi)
+	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, cloudcommon.VMTypePlatform, chefApi)
 	if err != nil {
 		return nil, err
 	}
@@ -594,7 +611,7 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 		chefParams := v.GetServerChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyDocker, chefAttributes)
 		platvm, err := v.GetVMRequestSpec(
 			ctx,
-			VMTypePlatform,
+			cloudcommon.VMTypePlatform,
 			platformVmName,
 			flavorName,
 			pfImageName,
@@ -613,11 +630,11 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 			var vmSpec *VMRequestSpec
 			if strings.HasSuffix(nodeName, "-master") {
 				masterAttributes := chefAttributes
-				masterAttributes["tags"] = chefmgmt.GetChefCloudletTags(cloudlet, pfConfig, string(VMTypePlatformClusterMaster))
+				masterAttributes["tags"] = chefmgmt.GetChefCloudletTags(cloudlet, pfConfig, cloudcommon.VMTypePlatformClusterMaster)
 				chefParams := v.GetServerChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyK8s, chefAttributes)
 				vmSpec, err = v.GetVMRequestSpec(
 					ctx,
-					VMTypeClusterMaster,
+					cloudcommon.VMTypeClusterMaster,
 					nodeName,
 					flavorName,
 					pfImageName,
@@ -628,10 +645,10 @@ func (v *VMPlatform) getCloudletVMsSpec(ctx context.Context, accessApi platform.
 				)
 			} else {
 				nodeAttributes := make(map[string]interface{})
-				nodeAttributes["tags"] = chefmgmt.GetChefCloudletTags(cloudlet, pfConfig, string(VMTypePlatformClusterNode))
+				nodeAttributes["tags"] = chefmgmt.GetChefCloudletTags(cloudlet, pfConfig, cloudcommon.VMTypePlatformClusterNode)
 				chefParams := v.GetServerChefParams(clientName, cloudlet.ChefClientKey[clientName], chefmgmt.ChefPolicyK8s, nodeAttributes)
 				vmSpec, err = v.GetVMRequestSpec(ctx,
-					VMTypeClusterNode,
+					cloudcommon.VMTypeClusterK8sNode,
 					nodeName,
 					flavorName,
 					pfImageName,

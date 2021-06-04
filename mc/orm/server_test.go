@@ -2,13 +2,15 @@ package orm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/cliwrapper"
+	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
@@ -27,6 +29,8 @@ func TestServer(t *testing.T) {
 	uri := "http://" + addr + "/api/v1"
 	ctx := log.StartTestSpan(context.Background())
 
+	vault.DefaultJwkRefreshDelay = time.Hour
+
 	vaultServer, vaultConfig := vault.DummyServer()
 	defer vaultServer.Close()
 
@@ -44,6 +48,7 @@ func TestServer(t *testing.T) {
 		vaultConfig:             vaultConfig,
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
+		DeploymentTag:           "local",
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
@@ -59,14 +64,20 @@ func TestServer(t *testing.T) {
 	err = server.WaitUntilReady()
 	require.Nil(t, err, "server online")
 
-	mcClient := &ormclient.Client{}
+	for _, clientRun := range getUnitTestClientRuns() {
+		testServerClientRun(t, ctx, clientRun, uri)
+	}
+}
+
+func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, uri string) {
+	mcClient := mctestclient.NewClient(clientRun)
 
 	// login as super user
 	token, isSuper, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 	require.True(t, isSuper)
 
-	super, status, err := showCurrentUser(mcClient, uri, token)
+	super, status, err := mcClient.CurrentUser(uri, token)
 	require.Nil(t, err, "show super")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, DefaultSuperuser, super.Name, "super user name")
@@ -74,7 +85,7 @@ func TestServer(t *testing.T) {
 	require.Equal(t, "", super.Salt, "empty salt")
 	require.Equal(t, 0, super.Iter, "empty iter")
 
-	roleAssignments, status, err := mcClient.ShowRoleAssignment(uri, token)
+	roleAssignments, status, err := mcClient.ShowRoleAssignment(uri, token, NoShowFilter)
 	require.Nil(t, err, "show roles")
 	require.Equal(t, http.StatusOK, status, "show role status")
 	require.Equal(t, 1, len(roleAssignments), "num role assignments")
@@ -82,7 +93,7 @@ func TestServer(t *testing.T) {
 	require.Equal(t, super.Name, roleAssignments[0].Username)
 
 	// show users - only super user at this point
-	users, status, err := mcClient.ShowUser(uri, token, &ormapi.ShowUser{})
+	users, status, err := mcClient.ShowUser(uri, token, NoShowFilter)
 	require.Equal(t, http.StatusOK, status, "show user status")
 	require.Equal(t, 1, len(users))
 	require.Equal(t, DefaultSuperuser, users[0].Name, "super user name")
@@ -90,14 +101,42 @@ func TestServer(t *testing.T) {
 	require.Equal(t, "", users[0].Salt, "empty salt")
 	require.Equal(t, 0, users[0].Iter, "empty iter")
 
-	policies, status, err := showRolePerms(mcClient, uri, token)
+	policies, status, err := mcClient.ShowRolePerm(uri, token, NoShowFilter)
 	require.Nil(t, err, "show role perms err")
 	require.Equal(t, http.StatusOK, status, "show role perms status")
 	require.Equal(t, 163, len(policies), "number of role perms")
-	roles, status, err := showRoles(mcClient, uri, token)
+	roles, status, err := mcClient.ShowRoleNames(uri, token)
 	require.Nil(t, err, "show roles err")
 	require.Equal(t, http.StatusOK, status, "show roles status")
 	require.Equal(t, 10, len(roles), "number of roles")
+	// test show roleperm filtering
+	showRolePerm := map[string]interface{}{
+		"Role": RoleDeveloperViewer,
+	}
+	policies, status, err = mcClient.ShowRolePerm(uri, token, showRolePerm)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	for ii, rp := range policies {
+		require.Equal(t, RoleDeveloperViewer, rp.Role, "%d: %v", ii, rp)
+	}
+	showRolePerm = map[string]interface{}{
+		"Resource": ResourceUsers,
+	}
+	policies, status, err = mcClient.ShowRolePerm(uri, token, showRolePerm)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	for ii, rp := range policies {
+		require.Equal(t, ResourceUsers, rp.Resource, "%d: %v", ii, rp)
+	}
+	showRolePerm = map[string]interface{}{
+		"Action": ActionManage,
+	}
+	policies, status, err = mcClient.ShowRolePerm(uri, token, showRolePerm)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	for ii, rp := range policies {
+		require.Equal(t, ActionManage, rp.Action, "%d: %v", ii, rp)
+	}
 
 	// create new user1
 	user1 := ormapi.User{
@@ -105,7 +144,7 @@ func TestServer(t *testing.T) {
 		Email:    "misterx@gmail.com",
 		Passhash: "misterx-password-super",
 	}
-	resp, status, err := mcClient.CreateUser(uri, &user1)
+	resp, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: user1})
 	require.Nil(t, err, "create user")
 	require.Equal(t, http.StatusOK, status, "create user status")
 	// login as new user1, should work as 2fa is not enabled
@@ -116,9 +155,7 @@ func TestServer(t *testing.T) {
 	mapData := map[string]interface{}{
 		"EnableTOTP": true,
 	}
-	jsonData, err := json.Marshal(mapData)
-	require.Nil(t, err)
-	resp, status, err = mcClient.UpdateUser(uri, tokenMisterX, string(jsonData))
+	resp, status, err = mcClient.UpdateUser(uri, tokenMisterX, mapData)
 	require.Nil(t, err)
 	tokenMisterX, _, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, NoOTP, NoApiKeyId, NoApiKey)
 	require.NotNil(t, err, "login should fail, missing otp")
@@ -128,11 +165,11 @@ func TestServer(t *testing.T) {
 	require.Nil(t, err, "login as mister X")
 	// disable 2fa for user1
 	mapData = map[string]interface{}{
-		"EnableTOTP": false,
+		"User": map[string]interface{}{
+			"EnableTOTP": false,
+		},
 	}
-	jsonData, err = json.Marshal(mapData)
-	require.Nil(t, err)
-	_, status, err = mcClient.UpdateUser(uri, tokenMisterX, string(jsonData))
+	_, status, err = mcClient.UpdateUser(uri, tokenMisterX, mapData)
 	require.Nil(t, err)
 	// login, should work as 2fa is now disabled
 	tokenMisterX, _, err = mcClient.DoLogin(uri, user1.Name, user1.Passhash, NoOTP, NoApiKeyId, NoApiKey)
@@ -166,7 +203,7 @@ func TestServer(t *testing.T) {
 		Passhash:   "misterX-password-long-super-tough-crazy-difficult",
 		EnableTOTP: true,
 	}
-	_, status, err = mcClient.CreateUser(uri, &userX)
+	_, status, err = mcClient.CreateUser(uri, &ormapi.CreateUser{User: userX})
 	require.NotNil(t, err, "cannot create user with same name as org")
 
 	// create new user2
@@ -177,7 +214,7 @@ func TestServer(t *testing.T) {
 		EnableTOTP: true,
 		Metadata:   "{timezone:PST,theme:Dark}",
 	}
-	resp, status, err = mcClient.CreateUser(uri, &user2)
+	resp, status, err = mcClient.CreateUser(uri, &ormapi.CreateUser{User: user2})
 	require.Nil(t, err, "create user")
 	require.Equal(t, http.StatusOK, status, "create user status")
 	// login as new user2
@@ -194,7 +231,7 @@ func TestServer(t *testing.T) {
 		Passhash:   "mistery-password",
 		EnableTOTP: true,
 	}
-	_, status, err = mcClient.CreateUser(uri, &user2ci)
+	_, status, err = mcClient.CreateUser(uri, &ormapi.CreateUser{User: user2ci})
 	require.NotNil(t, err, "create duplicate user (case-insensitive)")
 	require.Equal(t, http.StatusBadRequest, status, "create dup user")
 
@@ -204,17 +241,17 @@ func TestServer(t *testing.T) {
 	updateNewNickname := "mistery"
 	updateNewMetadata := "{timezone:PST,theme:Light}"
 	mapData = map[string]interface{}{
-		"Email":    updateNewEmail,
-		"Picture":  updateNewPicture,
-		"Nickname": updateNewNickname,
-		"Metadata": updateNewMetadata,
+		"User": map[string]interface{}{
+			"Email":    updateNewEmail,
+			"Picture":  updateNewPicture,
+			"Nickname": updateNewNickname,
+			"Metadata": updateNewMetadata,
+		},
 	}
-	jsonData, err = json.Marshal(mapData)
-	require.Nil(t, err)
-	_, status, err = mcClient.UpdateUser(uri, tokenMisterY, string(jsonData))
+	_, status, err = mcClient.UpdateUser(uri, tokenMisterY, mapData)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
-	checkUser, status, err := showCurrentUser(mcClient, uri, tokenMisterY)
+	checkUser, status, err := mcClient.CurrentUser(uri, tokenMisterY)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, updateNewEmail, checkUser.Email)
@@ -224,18 +261,19 @@ func TestServer(t *testing.T) {
 
 	// update user: disallowed fields
 	mapData = map[string]interface{}{
-		"Passhash": "uhoh",
+		"User": map[string]interface{}{
+			"Passhash": "uhoh",
+		},
 	}
-	jsonData, err = json.Marshal(mapData)
-	require.Nil(t, err)
-	_, status, err = mcClient.UpdateUser(uri, tokenMisterY, string(jsonData))
+	_, status, err = mcClient.UpdateUser(uri, tokenMisterY, mapData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusBadRequest, status)
 
 	// create an Organization
 	org2 := ormapi.Organization{
-		Type: "developer",
-		Name: "DevY",
+		Type:         "developer",
+		Name:         "DevY",
+		PublicImages: true,
 	}
 	status, err = mcClient.CreateOrg(uri, tokenMisterY, &org2)
 	require.Nil(t, err, "create org")
@@ -262,7 +300,7 @@ func TestServer(t *testing.T) {
 		Passhash:   "admin-password-long-super-tough-crazy-difficult",
 		EnableTOTP: true,
 	}
-	resp, status, err = mcClient.CreateUser(uri, &admin)
+	resp, status, err = mcClient.CreateUser(uri, &ormapi.CreateUser{User: admin})
 	require.Nil(t, err, "create admin user")
 	require.Equal(t, http.StatusOK, status, "create admin user status")
 	// add admin user as admin role
@@ -293,28 +331,51 @@ func TestServer(t *testing.T) {
 	require.NotNil(t, err, "delete reserved mobiledgex org")
 
 	// check org membership as mister x
-	orgs, status, err := mcClient.ShowOrg(uri, tokenMisterX)
+	orgs, status, err := mcClient.ShowOrg(uri, tokenMisterX, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(orgs))
 	require.Equal(t, org1.Name, orgs[0].Name)
 	require.Equal(t, org1.Type, orgs[0].Type)
 	// check org membership as mister y
-	orgs, status, err = mcClient.ShowOrg(uri, tokenMisterY)
+	orgs, status, err = mcClient.ShowOrg(uri, tokenMisterY, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(orgs))
 	require.Equal(t, org2.Name, orgs[0].Name)
 	require.Equal(t, org2.Type, orgs[0].Type)
 	// super user should be able to show all orgs
-	orgs, status, err = mcClient.ShowOrg(uri, token)
+	orgs, status, err = mcClient.ShowOrg(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 3, len(orgs))
-	orgs, status, err = mcClient.ShowOrg(uri, tokenAdmin)
+	orgs, status, err = mcClient.ShowOrg(uri, tokenAdmin, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 3, len(orgs))
+	// show org by type
+	orgFilter := map[string]interface{}{
+		"Type": "developer",
+	}
+	orgs, status, err = mcClient.ShowOrg(uri, tokenAdmin, orgFilter)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 3, len(orgs))
+	orgFilter = map[string]interface{}{
+		"Type": "operator",
+	}
+	orgs, status, err = mcClient.ShowOrg(uri, tokenAdmin, orgFilter)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 0, len(orgs))
+	// show org by empty value
+	showOrg := map[string]interface{}{
+		"PublicImages": false,
+	}
+	orgs, status, err = mcClient.ShowOrg(uri, tokenAdmin, showOrg)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 2, len(orgs))
 
 	// users should be able to update their own orgs
 	testUpdateOrg(t, mcClient, uri, tokenMisterX, org1.Name)
@@ -325,32 +386,65 @@ func TestServer(t *testing.T) {
 	testUpdateOrgFail(t, mcClient, uri, tokenMisterY, org1.Name)
 
 	// check role assignments as mister x
-	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterX)
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterX, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(roleAssignments))
 	require.Equal(t, user1.Name, roleAssignments[0].Username)
 	// check role assignments as mister y
-	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterY)
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterY, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(roleAssignments))
 	require.Equal(t, user2.Name, roleAssignments[0].Username)
 	// super user should be able to see all role assignments
-	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, token)
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 5, len(roleAssignments))
-	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenAdmin)
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenAdmin, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 5, len(roleAssignments))
-
-	showUserOrg1 := &ormapi.ShowUser{
-		Org: org1.Name,
+	// test show role filtering
+	// two admins, "mexadmin" and "Admin"
+	showRole := map[string]interface{}{
+		"Org": "",
 	}
-	showUserOrg2 := &ormapi.ShowUser{
-		Org: org2.Name,
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenAdmin, showRole)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 2, len(roleAssignments))
+	require.True(t, roleAssignments[0].Username == "Admin" || roleAssignments[0].Username == "mexadmin", "%v", roleAssignments)
+	require.True(t, roleAssignments[1].Username == "Admin" || roleAssignments[1].Username == "mexadmin", "%v", roleAssignments)
+	// two developer managers
+	showRole = map[string]interface{}{
+		"Role": "DeveloperManager",
+	}
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenAdmin, showRole)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 3, len(roleAssignments))
+	require.Equal(t, "DeveloperManager", roleAssignments[0].Role)
+	require.Equal(t, "DeveloperManager", roleAssignments[1].Role)
+	require.Equal(t, "DeveloperManager", roleAssignments[2].Role)
+	// multiple roles for admin
+	showRole = map[string]interface{}{
+		"Username": "Admin",
+	}
+	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenAdmin, showRole)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 2, len(roleAssignments))
+	for ii, ra := range roleAssignments {
+		require.Equal(t, "Admin", ra.Username, "%d: %v", ii, ra)
+	}
+
+	showUserOrg1 := map[string]interface{}{
+		"Org": org1.Name,
+	}
+	showUserOrg2 := map[string]interface{}{
+		"Org": org2.Name,
 	}
 	// show org users as mister x
 	users, status, err = mcClient.ShowUser(uri, tokenMisterX, showUserOrg1)
@@ -365,19 +459,19 @@ func TestServer(t *testing.T) {
 	require.Equal(t, 1, len(users))
 	require.Equal(t, user2.Name, users[0].Name)
 	// super user can see all users with org = ""
-	users, status, err = mcClient.ShowUser(uri, token, &ormapi.ShowUser{})
+	users, status, err = mcClient.ShowUser(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 4, len(users))
-	users, status, err = mcClient.ShowUser(uri, tokenAdmin, &ormapi.ShowUser{})
+	users, status, err = mcClient.ShowUser(uri, tokenAdmin, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 4, len(users))
 	// super user can see other users by email
-	showUserEmail := func(email string) *ormapi.ShowUser {
-		showUser := &ormapi.ShowUser{}
-		showUser.User.Email = email
-		return showUser
+	showUserEmail := func(email string) map[string]interface{} {
+		return map[string]interface{}{
+			"Email": email,
+		}
 	}
 	users, status, err = mcClient.ShowUser(uri, tokenAdmin, showUserEmail(user1.Email))
 	require.Nil(t, err)
@@ -385,8 +479,8 @@ func TestServer(t *testing.T) {
 	require.Equal(t, 1, len(users))
 	require.Equal(t, user1.Name, users[0].Name)
 	// super user can see users by role
-	showUser := &ormapi.ShowUser{
-		Role: RoleAdminManager,
+	showUser := map[string]interface{}{
+		"Role": RoleAdminManager,
 	}
 	users, status, err = mcClient.ShowUser(uri, tokenAdmin, showUser)
 	require.Nil(t, err)
@@ -394,8 +488,8 @@ func TestServer(t *testing.T) {
 	require.Equal(t, 2, len(users))
 	require.Equal(t, DefaultSuperuser, users[0].Name)
 	require.Equal(t, admin.Name, users[1].Name)
-	showUser = &ormapi.ShowUser{
-		Role: RoleDeveloperManager,
+	showUser = map[string]interface{}{
+		"Role": RoleDeveloperManager,
 	}
 	users, status, err = mcClient.ShowUser(uri, tokenAdmin, showUser)
 	require.Nil(t, err)
@@ -404,6 +498,24 @@ func TestServer(t *testing.T) {
 	require.Equal(t, user1.Name, users[0].Name)
 	require.Equal(t, user2.Name, users[1].Name)
 	require.Equal(t, admin.Name, users[2].Name)
+	// check show with invalid field name
+	showUser = map[string]interface{}{
+		"BadField": "val",
+	}
+	users, status, err = mcClient.ShowUser(uri, tokenAdmin, showUser)
+	require.NotNil(t, err)
+	require.True(t, strings.Contains(err.Error(), "Field BadField (StructNamespace) not found in struct ShowUser") || strings.Contains(err.Error(), "invalid args: badfield"))
+
+	// show user by empty value
+	showUser = map[string]interface{}{
+		"EnableTOTP": false,
+	}
+	users, status, err = mcClient.ShowUser(uri, tokenAdmin, showUser)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 2, len(users))
+	require.Equal(t, false, users[0].EnableTOTP)
+	require.Equal(t, false, users[1].EnableTOTP)
 
 	// check that x and y cannot see each other's org users
 	users, status, err = mcClient.ShowUser(uri, tokenMisterX, showUserOrg2)
@@ -412,10 +524,10 @@ func TestServer(t *testing.T) {
 	users, status, err = mcClient.ShowUser(uri, tokenMisterY, showUserOrg1)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
-	foobar := &ormapi.Organization{
-		Name: "foobar",
+	foobar := map[string]interface{}{
+		"Org": "foobar",
 	}
-	users, status, err = mcClient.ShowUser(uri, tokenMisterX, &ormapi.ShowUser{Org: foobar.Name})
+	users, status, err = mcClient.ShowUser(uri, tokenMisterX, foobar)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 	// check that x and y cannot see each other's users filtered by email
@@ -487,15 +599,18 @@ func TestServer(t *testing.T) {
 	testRoleOrgCombos(t, uri, token, mcClient)
 
 	// check that org cannot be deleted if it's already DeleteInProgress
-	dat := fmt.Sprintf(updateOrgDeleteInProgress, org1.Name, true)
+	dat := map[string]interface{}{
+		"Name":             org1.Name,
+		"DeleteInProgress": true,
+	}
 	status, err = mcClient.UpdateOrg(uri, tokenMisterX, dat)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	status, err = mcClient.DeleteOrg(uri, tokenMisterX, &org1)
 	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "org already being deleted")
+	require.Contains(t, err.Error(), "Org already being deleted")
 	require.Equal(t, http.StatusBadRequest, status)
-	dat = fmt.Sprintf(updateOrgDeleteInProgress, org1.Name, false)
+	dat["DeleteInProgress"] = false
 	status, err = mcClient.UpdateOrg(uri, tokenMisterX, dat)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
@@ -528,12 +643,12 @@ func TestServer(t *testing.T) {
 	require.Equal(t, http.StatusOK, status)
 
 	// check orgs are gone
-	orgs, status, err = mcClient.ShowOrg(uri, token)
+	orgs, status, err = mcClient.ShowOrg(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(orgs))
 	// check users are gone
-	users, status, err = mcClient.ShowUser(uri, token, &ormapi.ShowUser{})
+	users, status, err = mcClient.ShowUser(uri, token, NoShowFilter)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(users))
@@ -542,24 +657,6 @@ func TestServer(t *testing.T) {
 	testLockedUsers(t, uri, mcClient)
 	testPasswordStrength(t, ctx, mcClient, uri, token)
 	testEdgeboxOnlyOrgs(t, uri, mcClient)
-}
-
-func showCurrentUser(mcClient *ormclient.Client, uri, token string) (*ormapi.User, int, error) {
-	user := ormapi.User{}
-	status, err := mcClient.PostJson(uri+"/auth/user/current", token, nil, &user)
-	return &user, status, err
-}
-
-func showRolePerms(mcClient *ormclient.Client, uri, token string) ([]ormapi.RolePerm, int, error) {
-	perms := []ormapi.RolePerm{}
-	status, err := mcClient.PostJson(uri+"/auth/role/perms/show", token, nil, &perms)
-	return perms, status, err
-}
-
-func showRoles(mcClient *ormclient.Client, uri, token string) ([]string, int, error) {
-	roles := []string{}
-	status, err := mcClient.PostJson(uri+"/auth/role/show", token, nil, &roles)
-	return roles, status, err
 }
 
 func waitServerOnline(addr string) error {
@@ -580,7 +677,7 @@ func dumpTables() {
 	}
 }
 
-func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
+func testLockedUsers(t *testing.T, uri string, mcClient *mctestclient.Client) {
 	// login as super user
 	superTok, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
@@ -604,7 +701,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 		Passhash:   "user1-password-super-long-crazy-hard-difficult",
 		EnableTOTP: true,
 	}
-	resp, status, err := mcClient.CreateUser(uri, &user1)
+	resp, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: user1})
 	require.Nil(t, err, "create user")
 	require.Equal(t, http.StatusOK, status, "create user status")
 	// login as new user1
@@ -618,7 +715,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	userReq := make(map[string]interface{})
 	userReq["email"] = user1.Email
 	userReq["locked"] = false
-	status, err = mcClient.RestrictedUserUpdate(uri, superTok, userReq)
+	status, err = mcClient.RestrictedUpdateUser(uri, superTok, userReq)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 
@@ -635,7 +732,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 		Passhash:   "user2-password-super-long-crazy-hard-difficult",
 		EnableTOTP: true,
 	}
-	resp, status, err = mcClient.CreateUser(uri, &user2)
+	resp, status, err = mcClient.CreateUser(uri, &ormapi.CreateUser{User: user2})
 	require.Nil(t, err, "create user")
 	require.Equal(t, http.StatusOK, status, "create user status")
 	// login as new user2
@@ -649,7 +746,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	userReq = make(map[string]interface{})
 	userReq["email"] = user2.Email
 	userReq["locked"] = false
-	status, err = mcClient.RestrictedUserUpdate(uri, tok1, userReq)
+	status, err = mcClient.RestrictedUpdateUser(uri, tok1, userReq)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -675,7 +772,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	status, err = mcClient.DeleteUser(uri, superTok, &user2)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
-	resp, status, err = mcClient.CreateUser(uri, &user2)
+	resp, status, err = mcClient.CreateUser(uri, &ormapi.CreateUser{User: user2})
 	require.Nil(t, err, "create user")
 	require.Equal(t, http.StatusOK, status, "create user status")
 	// login as new user2
@@ -690,7 +787,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, notifyEmail, config.NotifyEmailAddress)
 	// show public config, make sure certain fields are hidden
-	publicConfig, status, err := mcClient.PublicConfig(uri)
+	publicConfig, status, err := mcClient.ShowPublicConfig(uri)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, config.PasswordMinCrackTimeSec, publicConfig.PasswordMinCrackTimeSec)
@@ -714,7 +811,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *ormclient.Client) {
 	require.Equal(t, http.StatusOK, status)
 }
 
-func testRoleOrgCombos(t *testing.T, uri, token string, mcClient *ormclient.Client) {
+func testRoleOrgCombos(t *testing.T, uri, token string, mcClient *mctestclient.Client) {
 	devOrg := ormapi.Organization{
 		Name: "rcDev",
 		Type: "developer",
@@ -795,7 +892,7 @@ func testRoleOrgCombos(t *testing.T, uri, token string, mcClient *ormclient.Clie
 	require.Equal(t, http.StatusOK, status)
 }
 
-func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient.Client, uri, token string) {
+func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *mctestclient.Client, uri, token string) {
 	// Create user in db to simulate old user with existing weak password
 	db := loggedDB(ctx)
 	adminOldPw := "oldpwd1"
@@ -831,7 +928,7 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 		Passhash:   "admin123",
 		EnableTOTP: true,
 	}
-	_, status, err := mcClient.CreateUser(uri, &userBad)
+	_, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: userBad})
 	require.NotNil(t, err, "bad user password")
 	require.Contains(t, err.Error(), "Password too weak")
 
@@ -842,7 +939,7 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 		Passhash:   "misterx-password-supe",
 		EnableTOTP: true,
 	}
-	resp, status, err := mcClient.CreateUser(uri, &user1)
+	resp, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: user1})
 	require.Nil(t, err, "create user")
 	require.Equal(t, http.StatusOK, status, "create user status")
 	// login as new user1
@@ -852,11 +949,15 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	require.Nil(t, err, "login as mister X")
 
 	// change user password
-	status, err = mcClient.NewPassword(uri, tokenMisterX, user1.Passhash+"1")
+	newPass := &ormapi.NewPassword{
+		Password: user1.Passhash + "1",
+	}
+	status, err = mcClient.NewPassword(uri, tokenMisterX, newPass)
 	require.Nil(t, err, "new password")
 	require.Equal(t, http.StatusOK, status, "new password status")
 	// fail password change if new password is too weak
-	status, err = mcClient.NewPassword(uri, tokenMisterX, "weakweak")
+	newPass.Password = "weakweak"
+	status, err = mcClient.NewPassword(uri, tokenMisterX, newPass)
 	require.NotNil(t, err, "new password")
 	require.Contains(t, err.Error(), "Password too weak")
 
@@ -929,7 +1030,7 @@ func testPasswordStrength(t *testing.T, ctx context.Context, mcClient *ormclient
 	require.Equal(t, http.StatusOK, status)
 }
 
-func testEdgeboxOnlyOrgs(t *testing.T, uri string, mcClient *ormclient.Client) {
+func testEdgeboxOnlyOrgs(t *testing.T, uri string, mcClient *mctestclient.Client) {
 	// login as super user
 	superTok, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
@@ -940,7 +1041,7 @@ func testEdgeboxOnlyOrgs(t *testing.T, uri string, mcClient *ormclient.Client) {
 		Email:    "user@gmail.com",
 		Passhash: "user-password-super-long-crazy-hard-difficult",
 	}
-	_, status, err := mcClient.CreateUser(uri, &user)
+	_, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: user})
 	require.Nil(t, err, "create user")
 	require.Equal(t, http.StatusOK, status, "create user status")
 
@@ -984,6 +1085,17 @@ func testEdgeboxOnlyOrgs(t *testing.T, uri string, mcClient *ormclient.Client) {
 	require.Equal(t, http.StatusForbidden, status)
 
 	// cleanup org
-	_, err = mcClient.DeleteOrg(uri, userTok, &org)
-	require.Nil(t, err, "delete org")
+	testDeleteOrg(t, mcClient, uri, userTok, org.Name)
+	// cleanup user
+	testDeleteUser(t, mcClient, uri, userTok, user.Name)
+}
+
+func getUnitTestClientRuns() []mctestclient.ClientRun {
+	restClient := &ormclient.Client{}
+	cliClient := cliwrapper.NewClient()
+	cliClient.DebugLog = true
+	cliClient.SilenceUsage = true
+	cliClient.RunInline = true
+	cliClient.InjectRequiredArgs = true
+	return []mctestclient.ClientRun{restClient, cliClient}
 }

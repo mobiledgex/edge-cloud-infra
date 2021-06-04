@@ -26,6 +26,7 @@ var serverExternalIpCache map[string]*ServerIP
 type NetworkType string
 
 const ServerDoesNotExistError string = "Server does not exist"
+const ServerIPNotFound string = "unable to find IP"
 
 var ServerActive = "ACTIVE"
 var ServerShutoff = "SHUTOFF"
@@ -77,14 +78,6 @@ func (v *VMPlatform) GetIPFromServerName(ctx context.Context, networkName, subne
 		return nil, err
 	}
 	sip, err := GetIPFromServerDetails(ctx, networkName, portName, sd)
-	if err != nil && subnetName != "" {
-		// Clusters create prior to R2 use a different port naming convention.  For backwards
-		// compatibility, let's try to find the server using the old port format.  This was the
-		// server name plus port.
-		oldFormatPortName := serverName + "-port"
-		log.SpanLog(ctx, log.DebugLevelInfra, "Unable to find server IP, try again with old format port name", "oldFormatPortName", oldFormatPortName)
-		return GetIPFromServerDetails(ctx, networkName, oldFormatPortName, sd)
-	}
 	if err == nil && isExtNet && opts.CachedIP {
 		AddServerExternalIpToCache(ctx, serverName, sip)
 	}
@@ -110,7 +103,7 @@ func GetIPFromServerDetails(ctx context.Context, networkName string, portName st
 	if found {
 		return sipPtr, nil
 	}
-	return nil, fmt.Errorf("unable to find IP for server: %s on network: %s port: %s", sd.Name, networkName, portName)
+	return nil, fmt.Errorf(ServerIPNotFound+" for server: %s on network: %s port: %s", sd.Name, networkName, portName)
 }
 
 func GetCloudletNetworkIfaceFile(netplanEnabled bool) string {
@@ -143,6 +136,17 @@ func (v *VMPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (str
 
 func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	PowerState := appInst.PowerState
+
+	var result OperationInitResult
+	var err error
+	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+	if err != nil {
+		return err
+	}
+	if result == OperationNewlyInitialized {
+		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
+	}
+
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeVM:
 		serverName := cloudcommon.GetAppFQN(&app.Key)
@@ -175,14 +179,6 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 			}
 		default:
 			return fmt.Errorf("unsupported server power action: %s", PowerState)
-		}
-		var result OperationInitResult
-		ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
-		if err != nil {
-			return err
-		}
-		if result == OperationNewlyInitialized {
-			defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 		}
 
 		serverSubnet := v.VMProperties.GetCloudletExternalNetwork()

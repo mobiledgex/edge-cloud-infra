@@ -23,24 +23,25 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var UpdateSettingsCmd = &cli.Command{
-	Use:          "update",
-	Short:        "Update settings",
-	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
-	OptionalArgs: strings.Join(SettingsOptionalArgs, " "),
-	AliasArgs:    strings.Join(SettingsAliasArgs, " "),
-	SpecialArgs:  &SettingsSpecialArgs,
-	Comments:     addRegionComment(SettingsComments),
-	ReqData:      &ormapi.RegionSettings{},
-	ReplyData:    &edgeproto.Result{},
-	Run: runRest("/auth/ctrl/UpdateSettings",
-		withSetFieldsFunc(setUpdateSettingsFields),
-	),
+var UpdateSettingsCmd = &ApiCommand{
+	Name:          "UpdateSettings",
+	Use:           "update",
+	Short:         "Update settings",
+	RequiredArgs:  "region " + strings.Join(SettingsRequiredArgs, " "),
+	OptionalArgs:  strings.Join(SettingsOptionalArgs, " "),
+	AliasArgs:     strings.Join(SettingsAliasArgs, " "),
+	SpecialArgs:   &SettingsSpecialArgs,
+	Comments:      addRegionComment(SettingsComments),
+	ReqData:       &ormapi.RegionSettings{},
+	ReplyData:     &edgeproto.Result{},
+	Path:          "/auth/ctrl/UpdateSettings",
+	SetFieldsFunc: SetUpdateSettingsFields,
+	ProtobufApi:   true,
 }
 
-func setUpdateSettingsFields(in map[string]interface{}) {
+func SetUpdateSettingsFields(in map[string]interface{}) {
 	// get map for edgeproto object in region struct
-	obj := in[strings.ToLower("Settings")]
+	obj := in["Settings"]
 	if obj == nil {
 		return
 	}
@@ -58,7 +59,8 @@ func setUpdateSettingsFields(in map[string]interface{}) {
 	objmap["fields"] = fields
 }
 
-var ResetSettingsCmd = &cli.Command{
+var ResetSettingsCmd = &ApiCommand{
+	Name:         "ResetSettings",
 	Use:          "reset",
 	Short:        "Reset all settings to their defaults",
 	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
@@ -68,10 +70,12 @@ var ResetSettingsCmd = &cli.Command{
 	Comments:     addRegionComment(SettingsComments),
 	ReqData:      &ormapi.RegionSettings{},
 	ReplyData:    &edgeproto.Result{},
-	Run:          runRest("/auth/ctrl/ResetSettings"),
+	Path:         "/auth/ctrl/ResetSettings",
+	ProtobufApi:  true,
 }
 
-var ShowSettingsCmd = &cli.Command{
+var ShowSettingsCmd = &ApiCommand{
+	Name:         "ShowSettings",
 	Use:          "show",
 	Short:        "Show settings",
 	RequiredArgs: "region " + strings.Join(SettingsRequiredArgs, " "),
@@ -81,16 +85,21 @@ var ShowSettingsCmd = &cli.Command{
 	Comments:     addRegionComment(SettingsComments),
 	ReqData:      &ormapi.RegionSettings{},
 	ReplyData:    &edgeproto.Settings{},
-	Run:          runRest("/auth/ctrl/ShowSettings"),
+	Path:         "/auth/ctrl/ShowSettings",
+	ProtobufApi:  true,
 }
 
-var SettingsApiCmds = []*cli.Command{
+var SettingsApiCmds = []*ApiCommand{
 	UpdateSettingsCmd,
 	ResetSettingsCmd,
 	ShowSettingsCmd,
 }
 
-var SettingsApiCmdsGroup = cli.GenGroup("settings", "Manage Settings", SettingsApiCmds)
+const SettingsGroup = "Settings"
+
+func init() {
+	AllApis.AddGroup(SettingsGroup, "Manage Settings", SettingsApiCmds)
+}
 
 var SettingsRequiredArgs = []string{}
 var SettingsOptionalArgs = []string{
@@ -108,7 +117,6 @@ var SettingsOptionalArgs = []string{
 	"updateclusterinsttimeout",
 	"deleteclusterinsttimeout",
 	"masternodeflavor",
-	"loadbalancermaxportrange",
 	"maxtrackeddmeclients",
 	"chefclientinterval",
 	"influxdbmetricsretention",
@@ -143,7 +151,6 @@ var SettingsAliasArgs = []string{
 	"updateclusterinsttimeout=settings.updateclusterinsttimeout",
 	"deleteclusterinsttimeout=settings.deleteclusterinsttimeout",
 	"masternodeflavor=settings.masternodeflavor",
-	"loadbalancermaxportrange=settings.loadbalancermaxportrange",
 	"maxtrackeddmeclients=settings.maxtrackeddmeclients",
 	"chefclientinterval=settings.chefclientinterval",
 	"influxdbmetricsretention=settings.influxdbmetricsretention",
@@ -178,7 +185,6 @@ var SettingsComments = map[string]string{
 	"updateclusterinsttimeout":              "Update ClusterInst timeout (duration)",
 	"deleteclusterinsttimeout":              "Delete ClusterInst timeout (duration)",
 	"masternodeflavor":                      "Default flavor for k8s master VM and > 0  workers",
-	"loadbalancermaxportrange":              "Max IP Port range when using a load balancer",
 	"maxtrackeddmeclients":                  "Max DME clients to be tracked at the same time.",
 	"chefclientinterval":                    "Default chef client interval (duration)",
 	"influxdbmetricsretention":              "Default influxDB metrics retention policy (duration)",
@@ -192,9 +198,10 @@ var SettingsComments = map[string]string{
 	"createcloudlettimeout":                 "Create Cloudlet timeout (duration)",
 	"updatecloudlettimeout":                 "Update Cloudlet timeout (duration)",
 	"locationtilesidelengthkm":              "Length of location tiles side for latency metrics (km)",
-	"influxdbdownsampledmetricsretention":   "Default retention policy for downsampled influx db (duration)",
-	"influxdbedgeeventsmetricsretention":    "Default retention policy for edgeevents metrics influx db (duration)",
-	"appinstclientcleanupinterval":          "AppInstClient cleanup thread run interval",
+	"edgeeventsmetricscontinuousqueriescollectionintervals:#.interval": "Collection interval for Influxdb (Specifically used for continuous query intervals)",
+	"influxdbdownsampledmetricsretention":                              "Default retention policy for downsampled influx db (duration)",
+	"influxdbedgeeventsmetricsretention":                               "Default retention policy for edgeevents metrics influx db (duration)",
+	"appinstclientcleanupinterval":                                     "AppInstClient cleanup thread run interval",
 }
 var SettingsSpecialArgs = map[string]string{
 	"settings.fields": "StringArray",
@@ -206,5 +213,7 @@ var CollectionIntervalOptionalArgs = []string{
 var CollectionIntervalAliasArgs = []string{
 	"interval=collectioninterval.interval",
 }
-var CollectionIntervalComments = map[string]string{}
+var CollectionIntervalComments = map[string]string{
+	"interval": "Collection interval for Influxdb (Specifically used for continuous query intervals)",
+}
 var CollectionIntervalSpecialArgs = map[string]string{}

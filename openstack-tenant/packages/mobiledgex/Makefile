@@ -1,26 +1,17 @@
 PACKAGE = mobiledgex
-VERSION = 4.3.3
+VERSION = 4.4.1
 DISTRIBUTION = cirrus
 COMPONENT = main
 
 PKGDIR = $(PACKAGE)_$(VERSION)
 
-all: openstack vsphere vcd
+all: build-vers package
 
-openstack:
-	$(MAKE) package
-
-vsphere:
-	$(MAKE) package FLAVOR=vsphere VERSION=$(VERSION)-vsphere
-
-vcd:
-	$(MAKE) package FLAVOR=vsphere VERSION=$(VERSION)-vcd
+build-vers:
+	mkdir -p ../../../version
+	(cd ../../../version; ../openstack-tenant/packages/mobiledgex/version.sh "$(VERSION)")
 
 package: builddir setup_files
-	cp dependencies.common dependencies
-ifdef FLAVOR
-	cat dependencies.$(FLAVOR) >>dependencies
-endif
 	../build.sh $(PACKAGE) $(VERSION) $(DISTRIBUTION) $(COMPONENT)
 
 builddir:
@@ -45,5 +36,5 @@ setup_files: \
 	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh
 
 clean:
-	$(RM) -r $(PKGDIR) $(PKGDIR)-vsphere $(PKGDIR)-vcd
-	$(RM) $(PKGDIR).deb $(PKGDIR)-vsphere.deb $(PKGDIR)-vcd.deb dependencies
+	$(RM) -r $(PKGDIR)
+	$(RM) $(PKGDIR).deb

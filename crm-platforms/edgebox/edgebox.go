@@ -36,12 +36,10 @@ var edgeboxProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_EDGEBOX_DOCKER_USER": &edgeproto.PropertyInfo{
 		Name:        "EdgeBox Docker Username",
 		Description: "Username to login to docker registry server",
-		Mandatory:   true,
 	},
 	"MEX_EDGEBOX_DOCKER_PASS": &edgeproto.PropertyInfo{
 		Name:        "EdgeBox Docker Password",
 		Description: "Password to login to docker registry server",
-		Mandatory:   true,
 		Secret:      true,
 	},
 }
@@ -50,6 +48,7 @@ func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.Pla
 	err := e.generic.Init(ctx, platformConfig, caches, updateCallback)
 	// Set the test Mode based on what is in PlatformConfig
 	infracommon.SetTestMode(platformConfig.TestMode)
+	infracommon.SetEdgeboxMode(true)
 
 	if err := e.commonPf.InitInfraCommon(ctx, platformConfig, edgeboxProps); err != nil {
 		return err
@@ -93,8 +92,8 @@ func (s *EdgeboxPlatform) GetNodePlatformClient(ctx context.Context, node *edgep
 	return s.generic.GetNodePlatformClient(ctx, node)
 }
 
-func (s *EdgeboxPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst) ([]edgeproto.CloudletMgmtNode, error) {
-	return s.generic.ListCloudletMgmtNodes(ctx, clusterInsts)
+func (s *EdgeboxPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst, vmAppInsts []edgeproto.AppInst) ([]edgeproto.CloudletMgmtNode, error) {
+	return s.generic.ListCloudletMgmtNodes(ctx, clusterInsts, vmAppInsts)
 }
 
 func (s *EdgeboxPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletProps, error) {

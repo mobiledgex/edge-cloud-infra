@@ -1797,12 +1797,12 @@ func (s *Client) RemoveFlavorRes(uri string, token string, in *ormapi.RegionFlav
 
 // Generating group GPUDriver
 
-func (s *Client) CreateGPUDriver(uri string, token string, in *ormapi.RegionGPUDriver) (*edgeproto.Result, int, error) {
+func (s *Client) CreateGPUDriver(uri string, token string, in *ormapi.RegionGPUDriver) ([]edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out edgeproto.Result
+	var out []edgeproto.Result
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("CreateGPUDriver")
@@ -1810,15 +1810,15 @@ func (s *Client) CreateGPUDriver(uri string, token string, in *ormapi.RegionGPUD
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
 	}
-	return &out, rundata.RetStatus, rundata.RetError
+	return out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) DeleteGPUDriver(uri string, token string, in *ormapi.RegionGPUDriver) (*edgeproto.Result, int, error) {
+func (s *Client) DeleteGPUDriver(uri string, token string, in *ormapi.RegionGPUDriver) ([]edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out edgeproto.Result
+	var out []edgeproto.Result
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("DeleteGPUDriver")
@@ -1826,15 +1826,15 @@ func (s *Client) DeleteGPUDriver(uri string, token string, in *ormapi.RegionGPUD
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
 	}
-	return &out, rundata.RetStatus, rundata.RetError
+	return out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) UpdateGPUDriver(uri string, token string, in *ormapi.RegionGPUDriver) (*edgeproto.Result, int, error) {
+func (s *Client) UpdateGPUDriver(uri string, token string, in *ormapi.RegionGPUDriver) ([]edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out edgeproto.Result
+	var out []edgeproto.Result
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("UpdateGPUDriver")
@@ -1842,7 +1842,7 @@ func (s *Client) UpdateGPUDriver(uri string, token string, in *ormapi.RegionGPUD
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
 	}
-	return &out, rundata.RetStatus, rundata.RetError
+	return out, rundata.RetStatus, rundata.RetError
 }
 
 func (s *Client) ShowGPUDriver(uri string, token string, in *ormapi.RegionGPUDriver) ([]edgeproto.GPUDriver, int, error) {
@@ -1861,12 +1861,12 @@ func (s *Client) ShowGPUDriver(uri string, token string, in *ormapi.RegionGPUDri
 	return out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) AddGPUDriverBuild(uri string, token string, in *ormapi.RegionGPUDriverBuildMember) (*edgeproto.Result, int, error) {
+func (s *Client) AddGPUDriverBuild(uri string, token string, in *ormapi.RegionGPUDriverBuildMember) ([]edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out edgeproto.Result
+	var out []edgeproto.Result
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("AddGPUDriverBuild")
@@ -1874,15 +1874,15 @@ func (s *Client) AddGPUDriverBuild(uri string, token string, in *ormapi.RegionGP
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
 	}
-	return &out, rundata.RetStatus, rundata.RetError
+	return out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) RemoveGPUDriverBuild(uri string, token string, in *ormapi.RegionGPUDriverBuildMember) (*edgeproto.Result, int, error) {
+func (s *Client) RemoveGPUDriverBuild(uri string, token string, in *ormapi.RegionGPUDriverBuildMember) ([]edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out edgeproto.Result
+	var out []edgeproto.Result
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("RemoveGPUDriverBuild")
@@ -1890,7 +1890,7 @@ func (s *Client) RemoveGPUDriverBuild(uri string, token string, in *ormapi.Regio
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
 	}
-	return &out, rundata.RetStatus, rundata.RetError
+	return out, rundata.RetStatus, rundata.RetError
 }
 
 func (s *Client) GetGPUDriverBuildURL(uri string, token string, in *ormapi.RegionGPUDriverBuildMember) (*edgeproto.Result, int, error) {

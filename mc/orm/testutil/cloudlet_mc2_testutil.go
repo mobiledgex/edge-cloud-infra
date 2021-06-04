@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestCreateGPUDriver(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriver, modFuncs ...func(*edgeproto.GPUDriver)) (*edgeproto.Result, int, error) {
+func TestCreateGPUDriver(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriver, modFuncs ...func(*edgeproto.GPUDriver)) ([]edgeproto.Result, int, error) {
 	dat := &ormapi.RegionGPUDriver{}
 	dat.Region = region
 	dat.GPUDriver = *in
@@ -33,13 +33,13 @@ func TestCreateGPUDriver(mcClient *mctestclient.Client, uri, token, region strin
 	}
 	return mcClient.CreateGPUDriver(uri, token, dat)
 }
-func TestPermCreateGPUDriver(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriver)) (*edgeproto.Result, int, error) {
+func TestPermCreateGPUDriver(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriver)) ([]edgeproto.Result, int, error) {
 	in := &edgeproto.GPUDriver{}
 	in.Key.Organization = org
 	return TestCreateGPUDriver(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestDeleteGPUDriver(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriver, modFuncs ...func(*edgeproto.GPUDriver)) (*edgeproto.Result, int, error) {
+func TestDeleteGPUDriver(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriver, modFuncs ...func(*edgeproto.GPUDriver)) ([]edgeproto.Result, int, error) {
 	dat := &ormapi.RegionGPUDriver{}
 	dat.Region = region
 	dat.GPUDriver = *in
@@ -48,13 +48,13 @@ func TestDeleteGPUDriver(mcClient *mctestclient.Client, uri, token, region strin
 	}
 	return mcClient.DeleteGPUDriver(uri, token, dat)
 }
-func TestPermDeleteGPUDriver(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriver)) (*edgeproto.Result, int, error) {
+func TestPermDeleteGPUDriver(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriver)) ([]edgeproto.Result, int, error) {
 	in := &edgeproto.GPUDriver{}
 	in.Key.Organization = org
 	return TestDeleteGPUDriver(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestUpdateGPUDriver(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriver, modFuncs ...func(*edgeproto.GPUDriver)) (*edgeproto.Result, int, error) {
+func TestUpdateGPUDriver(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriver, modFuncs ...func(*edgeproto.GPUDriver)) ([]edgeproto.Result, int, error) {
 	dat := &ormapi.RegionGPUDriver{}
 	dat.Region = region
 	dat.GPUDriver = *in
@@ -63,7 +63,7 @@ func TestUpdateGPUDriver(mcClient *mctestclient.Client, uri, token, region strin
 	}
 	return mcClient.UpdateGPUDriver(uri, token, dat)
 }
-func TestPermUpdateGPUDriver(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriver)) (*edgeproto.Result, int, error) {
+func TestPermUpdateGPUDriver(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriver)) ([]edgeproto.Result, int, error) {
 	in := &edgeproto.GPUDriver{}
 	in.Key.Organization = org
 	return TestUpdateGPUDriver(mcClient, uri, token, region, in, modFuncs...)
@@ -84,7 +84,7 @@ func TestPermShowGPUDriver(mcClient *mctestclient.Client, uri, token, region, or
 	return TestShowGPUDriver(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestAddGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriverBuildMember, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) (*edgeproto.Result, int, error) {
+func TestAddGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriverBuildMember, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) ([]edgeproto.Result, int, error) {
 	dat := &ormapi.RegionGPUDriverBuildMember{}
 	dat.Region = region
 	dat.GPUDriverBuildMember = *in
@@ -93,13 +93,13 @@ func TestAddGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region str
 	}
 	return mcClient.AddGPUDriverBuild(uri, token, dat)
 }
-func TestPermAddGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) (*edgeproto.Result, int, error) {
+func TestPermAddGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) ([]edgeproto.Result, int, error) {
 	in := &edgeproto.GPUDriverBuildMember{}
 	in.Key.Organization = org
 	return TestAddGPUDriverBuild(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestRemoveGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriverBuildMember, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) (*edgeproto.Result, int, error) {
+func TestRemoveGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriverBuildMember, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) ([]edgeproto.Result, int, error) {
 	dat := &ormapi.RegionGPUDriverBuildMember{}
 	dat.Region = region
 	dat.GPUDriverBuildMember = *in
@@ -108,7 +108,7 @@ func TestRemoveGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region 
 	}
 	return mcClient.RemoveGPUDriverBuild(uri, token, dat)
 }
-func TestPermRemoveGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) (*edgeproto.Result, int, error) {
+func TestPermRemoveGPUDriverBuild(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) ([]edgeproto.Result, int, error) {
 	in := &edgeproto.GPUDriverBuildMember{}
 	in.Key.Organization = org
 	return TestRemoveGPUDriverBuild(mcClient, uri, token, region, in, modFuncs...)
@@ -129,7 +129,7 @@ func TestPermGetGPUDriverBuildURL(mcClient *mctestclient.Client, uri, token, reg
 	return TestGetGPUDriverBuildURL(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func (s *TestClient) CreateGPUDriver(ctx context.Context, in *edgeproto.GPUDriver) (*edgeproto.Result, error) {
+func (s *TestClient) CreateGPUDriver(ctx context.Context, in *edgeproto.GPUDriver) ([]edgeproto.Result, error) {
 	inR := &ormapi.RegionGPUDriver{
 		Region:    s.Region,
 		GPUDriver: *in,
@@ -141,7 +141,7 @@ func (s *TestClient) CreateGPUDriver(ctx context.Context, in *edgeproto.GPUDrive
 	return out, err
 }
 
-func (s *TestClient) DeleteGPUDriver(ctx context.Context, in *edgeproto.GPUDriver) (*edgeproto.Result, error) {
+func (s *TestClient) DeleteGPUDriver(ctx context.Context, in *edgeproto.GPUDriver) ([]edgeproto.Result, error) {
 	inR := &ormapi.RegionGPUDriver{
 		Region:    s.Region,
 		GPUDriver: *in,
@@ -153,7 +153,7 @@ func (s *TestClient) DeleteGPUDriver(ctx context.Context, in *edgeproto.GPUDrive
 	return out, err
 }
 
-func (s *TestClient) UpdateGPUDriver(ctx context.Context, in *edgeproto.GPUDriver) (*edgeproto.Result, error) {
+func (s *TestClient) UpdateGPUDriver(ctx context.Context, in *edgeproto.GPUDriver) ([]edgeproto.Result, error) {
 	inR := &ormapi.RegionGPUDriver{
 		Region:    s.Region,
 		GPUDriver: *in,
@@ -177,7 +177,7 @@ func (s *TestClient) ShowGPUDriver(ctx context.Context, in *edgeproto.GPUDriver)
 	return out, err
 }
 
-func (s *TestClient) AddGPUDriverBuild(ctx context.Context, in *edgeproto.GPUDriverBuildMember) (*edgeproto.Result, error) {
+func (s *TestClient) AddGPUDriverBuild(ctx context.Context, in *edgeproto.GPUDriverBuildMember) ([]edgeproto.Result, error) {
 	inR := &ormapi.RegionGPUDriverBuildMember{
 		Region:               s.Region,
 		GPUDriverBuildMember: *in,
@@ -189,7 +189,7 @@ func (s *TestClient) AddGPUDriverBuild(ctx context.Context, in *edgeproto.GPUDri
 	return out, err
 }
 
-func (s *TestClient) RemoveGPUDriverBuild(ctx context.Context, in *edgeproto.GPUDriverBuildMember) (*edgeproto.Result, error) {
+func (s *TestClient) RemoveGPUDriverBuild(ctx context.Context, in *edgeproto.GPUDriverBuildMember) ([]edgeproto.Result, error) {
 	inR := &ormapi.RegionGPUDriverBuildMember{
 		Region:               s.Region,
 		GPUDriverBuildMember: *in,

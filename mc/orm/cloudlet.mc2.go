@@ -37,39 +37,42 @@ func CreateGPUDriver(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionGPUDriver{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriver.GetKey().GetTags())
 	span.SetTag("org", in.GPUDriver.Key.Organization)
-	resp, err := CreateGPUDriverObj(ctx, rc, &in.GPUDriver)
+
+	err = CreateGPUDriverStream(ctx, rc, &in.GPUDriver, func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
 		return err
 	}
-	return setReply(c, resp)
+	return nil
 }
 
-func CreateGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver) (*edgeproto.Result, error) {
+func CreateGPUDriverStream(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForCreateGPUDriver(); err != nil {
-		return nil, err
+		return err
 	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -78,7 +81,34 @@ func CreateGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.G
 		}()
 	}
 	api := edgeproto.NewGPUDriverApiClient(rc.conn)
-	return api.CreateGPUDriver(ctx, obj)
+	stream, err := api.CreateGPUDriver(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		err = cb(res)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func CreateGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := CreateGPUDriverStream(ctx, rc, obj, func(res *edgeproto.Result) error {
+		arr = append(arr, *res)
+		return nil
+	})
+	return arr, err
 }
 
 func DeleteGPUDriver(c echo.Context) error {
@@ -91,39 +121,42 @@ func DeleteGPUDriver(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionGPUDriver{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriver.GetKey().GetTags())
 	span.SetTag("org", in.GPUDriver.Key.Organization)
-	resp, err := DeleteGPUDriverObj(ctx, rc, &in.GPUDriver)
+
+	err = DeleteGPUDriverStream(ctx, rc, &in.GPUDriver, func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
 		return err
 	}
-	return setReply(c, resp)
+	return nil
 }
 
-func DeleteGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver) (*edgeproto.Result, error) {
+func DeleteGPUDriverStream(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForDeleteGPUDriver(); err != nil {
-		return nil, err
+		return err
 	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -132,7 +165,34 @@ func DeleteGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.G
 		}()
 	}
 	api := edgeproto.NewGPUDriverApiClient(rc.conn)
-	return api.DeleteGPUDriver(ctx, obj)
+	stream, err := api.DeleteGPUDriver(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		err = cb(res)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func DeleteGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := DeleteGPUDriverStream(ctx, rc, obj, func(res *edgeproto.Result) error {
+		arr = append(arr, *res)
+		return nil
+	})
+	return arr, err
 }
 
 func UpdateGPUDriver(c echo.Context) error {
@@ -145,39 +205,42 @@ func UpdateGPUDriver(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionGPUDriver{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriver.GetKey().GetTags())
 	span.SetTag("org", in.GPUDriver.Key.Organization)
-	resp, err := UpdateGPUDriverObj(ctx, rc, &in.GPUDriver)
+
+	err = UpdateGPUDriverStream(ctx, rc, &in.GPUDriver, func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
 		return err
 	}
-	return setReply(c, resp)
+	return nil
 }
 
-func UpdateGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver) (*edgeproto.Result, error) {
+func UpdateGPUDriverStream(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForUpdateGPUDriver(); err != nil {
-		return nil, err
+		return err
 	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -186,7 +249,34 @@ func UpdateGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.G
 		}()
 	}
 	api := edgeproto.NewGPUDriverApiClient(rc.conn)
-	return api.UpdateGPUDriver(ctx, obj)
+	stream, err := api.UpdateGPUDriver(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		err = cb(res)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func UpdateGPUDriverObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := UpdateGPUDriverStream(ctx, rc, obj, func(res *edgeproto.Result) error {
+		arr = append(arr, *res)
+		return nil
+	})
+	return arr, err
 }
 
 func ShowGPUDriver(c echo.Context) error {
@@ -295,39 +385,42 @@ func AddGPUDriverBuild(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionGPUDriverBuildMember{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriverBuildMember.GetKey().GetTags())
 	span.SetTag("org", in.GPUDriverBuildMember.Key.Organization)
-	resp, err := AddGPUDriverBuildObj(ctx, rc, &in.GPUDriverBuildMember)
+
+	err = AddGPUDriverBuildStream(ctx, rc, &in.GPUDriverBuildMember, func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
 		return err
 	}
-	return setReply(c, resp)
+	return nil
 }
 
-func AddGPUDriverBuildObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember) (*edgeproto.Result, error) {
+func AddGPUDriverBuildStream(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForAddGPUDriverBuild(); err != nil {
-		return nil, err
+		return err
 	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -336,7 +429,34 @@ func AddGPUDriverBuildObj(ctx context.Context, rc *RegionContext, obj *edgeproto
 		}()
 	}
 	api := edgeproto.NewGPUDriverApiClient(rc.conn)
-	return api.AddGPUDriverBuild(ctx, obj)
+	stream, err := api.AddGPUDriverBuild(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		err = cb(res)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func AddGPUDriverBuildObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := AddGPUDriverBuildStream(ctx, rc, obj, func(res *edgeproto.Result) error {
+		arr = append(arr, *res)
+		return nil
+	})
+	return arr, err
 }
 
 func RemoveGPUDriverBuild(c echo.Context) error {
@@ -349,39 +469,42 @@ func RemoveGPUDriverBuild(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionGPUDriverBuildMember{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriverBuildMember.GetKey().GetTags())
 	span.SetTag("org", in.GPUDriverBuildMember.Key.Organization)
-	resp, err := RemoveGPUDriverBuildObj(ctx, rc, &in.GPUDriverBuildMember)
+
+	err = RemoveGPUDriverBuildStream(ctx, rc, &in.GPUDriverBuildMember, func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
 		return err
 	}
-	return setReply(c, resp)
+	return nil
 }
 
-func RemoveGPUDriverBuildObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember) (*edgeproto.Result, error) {
+func RemoveGPUDriverBuildStream(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember, cb func(res *edgeproto.Result) error) error {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForRemoveGPUDriverBuild(); err != nil {
-		return nil, err
+		return err
 	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
-			return nil, err
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -390,7 +513,34 @@ func RemoveGPUDriverBuildObj(ctx context.Context, rc *RegionContext, obj *edgepr
 		}()
 	}
 	api := edgeproto.NewGPUDriverApiClient(rc.conn)
-	return api.RemoveGPUDriverBuild(ctx, obj)
+	stream, err := api.RemoveGPUDriverBuild(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		err = cb(res)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func RemoveGPUDriverBuildObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember) ([]edgeproto.Result, error) {
+	arr := []edgeproto.Result{}
+	err := RemoveGPUDriverBuildStream(ctx, rc, obj, func(res *edgeproto.Result) error {
+		arr = append(arr, *res)
+		return nil
+	})
+	return arr, err
 }
 
 func GetGPUDriverBuildURL(c echo.Context) error {

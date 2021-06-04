@@ -28,8 +28,8 @@ die() {
         exit 2
 }
 
-TypePassthrough="GPU_TYPE_PASSTHROUGH"
-TypeVGPU="GPU_TYPE_VGPU"
+TypePassthrough="GpuTypePassthrough"
+TypeVGPU="GpuTypeVgpu"
 
 [[ -z $DRIVERNAME ]] && die "Missing GPU driver name"
 [[ -z $DRIVERPATH ]] && die "Missing GPU driver path"

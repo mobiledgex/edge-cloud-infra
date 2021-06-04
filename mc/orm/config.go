@@ -19,7 +19,7 @@ var defaultConfig = ormapi.Config{
 	AdminPasswordMinCrackTimeSec: 2 * 365 * 86400, // 2 years
 	MaxMetricsDataPoints:         10000,
 	UserApiKeyCreateLimit:        10,
-	BillingEnable:                false, // TODO: eventually set the default to true?
+	BillingEnable:                true, // TODO: eventually set the default to true?
 }
 
 func InitConfig(ctx context.Context) error {

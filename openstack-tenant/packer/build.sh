@@ -4,6 +4,10 @@ ARTIFACTORY_USER='packer'
 ARTIFACTORY_ARTIFACTS_TAG='2020-04-27'
 CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
+CHEF_RECIPE="$( dirname $0 )/../../chef/cookbooks/upgrade_mobiledgex_package/recipes/default.rb"
+CHEF_UPDATE_GUIDE="https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/329384023/How+to+create+a+new+MobiledgeX+OS+base+image#chef"
+
+APT_REPO="https://apt.mobiledgex.net/cirrus/2021-05-27"
 
 : ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64}
 : ${VAULT:=vault-main.mobiledgex.net}
@@ -21,7 +25,6 @@ USAGE="usage: $( basename $0 ) <options>
  -f <flavor>      Image flavor (default: \"$FLAVOR\")
  -i <image-tag>   Glance source image tag (default: \"$CLOUD_IMAGE_TAG\")
  -o <output-tag>  Output image tag (default: same as tag below)
- -p <platform>    Output platform flavor; one of \"openstack\" (default), \"vcd\", or \"vsphere\"
  -t <tag>         Image tag name (default: \"$TAG\")
  -F               Ignore source image checksum mismatch
  -T               Print trace debug messages during build
@@ -30,14 +33,13 @@ USAGE="usage: $( basename $0 ) <options>
  -h               Display this help message
 "
 
-while getopts ":dhf:i:o:p:t:FTu:" OPT; do
+while getopts ":dhf:i:o:t:FTu:" OPT; do
 	case "$OPT" in
 	d) DEBUG=true ;;
 	h) echo "$USAGE"; exit 0 ;;
 	i) CLOUD_IMAGE_TAG="$OPTARG" ;;
 	f) FLAVOR="$OPTARG" ;;
 	o) OUTPUT_TAG="$OPTARG" ;;
-	p) OUTPUT_PLATFORM="$OPTARG" ;;
 	t) TAG="$OPTARG" ;;
 	F) FORCE=yes ;;
 	T) TRACE=yes ;;
@@ -51,13 +53,22 @@ die() {
 	exit 2
 }
 
-[[ -z "$OUTPUT_PLATFORM" ]] && OUTPUT_PLATFORM=openstack
-case "$OUTPUT_PLATFORM" in
-	openstack)	true ;;
-	vsphere)	TAG="${TAG%-vsphere}-vsphere" ;;
-	vcd)		TAG="${TAG%-vcd}-vcd" ;;
-	*)		die "Unknown platform type: $OUTPUT_PLATFORM" ;;
-esac
+if ! grep "$APT_REPO" "$CHEF_RECIPE" >/dev/null; then
+	echo
+	echo "APT repo for build not found in chef recipe"
+	echo "    Repo URL: $APT_REPO"
+	echo "      Recipe: $CHEF_RECIPE"
+	echo
+	read -p "Are you sure you want to continue? (yN) " RESP
+	case "$RESP" in
+	y*|Y*)	true ;;
+	*)	echo
+		echo "Check Confluence for instructions on updating chef:"
+		echo "  $CHEF_UPDATE_GUIDE"
+		exit 2
+		;;
+	esac
+fi
 
 TAG=${TAG#v}
 [[ -z "$OUTPUT_TAG" ]] && OUTPUT_TAG="v$TAG"
@@ -98,7 +109,7 @@ for TOOL in jq openstack packer; do
 done
 echo
 
-OUTPUT_IMAGE_NAME="${OUTPUT_IMAGE_NAME}-${OUTPUT_TAG}"
+OUTPUT_IMAGE_NAME="${OUTPUT_IMAGE_NAME}-${OUTPUT_TAG}_uncompressed"
 
 ARTIFACTORY_CLOUD_IMAGE_PATH="baseimage-build/${ARTIFACTORY_ARTIFACTS_TAG}/${CLOUD_IMAGE}"
 ARTIFACTORY_CLOUD_IMAGE_CHECKSUM=$( curl -sSL -u "${ARTIFACTORY_USER}:${ARTIFACTORY_APIKEY}" \
@@ -139,7 +150,6 @@ BUILD PARAMETERS:
      New Image Name: $OUTPUT_IMAGE_NAME
              Flavor: $FLAVOR
    Artifactory User: $ARTIFACTORY_USER
-    Output Platform: $OUTPUT_PLATFORM
 
 EOT
 
@@ -152,13 +162,14 @@ esac
 CMDLINE=( packer build -on-error=ask )
 $DEBUG && CMDLINE+=( -debug )
 PACKER_LOG=1 "${CMDLINE[@]}" \
-	-var "OUTPUT_IMAGE_NAME=$OUTPUT_IMAGE_NAME" \
+	-var "OUTPUT_IMAGE_NAME=${OUTPUT_IMAGE_NAME}" \
 	-var "SRC_IMG=$SRC_IMG" \
 	-var "SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM" \
 	-var "NETWORK=$NETWORK" \
 	-var "ARTIFACTORY_USER=$ARTIFACTORY_USER" \
 	-var "ARTIFACTORY_APIKEY=$ARTIFACTORY_APIKEY" \
 	-var "ARTIFACTORY_ARTIFACTS_TAG=$ARTIFACTORY_ARTIFACTS_TAG" \
+	-var "APT_REPO=$APT_REPO" \
 	-var "ROOT_PASS=$ROOT_PASS" \
 	-var "GRUB_PW_HASH=$GRUB_PW_HASH" \
 	-var "TOTP_KEY=$TOTP_KEY" \
@@ -168,7 +179,6 @@ PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "VAULT=$VAULT" \
 	-var "TRACE=$TRACE" \
 	-var "MEX_BUILD=$( git describe --long --tags )" \
-	-var "OUTPUT_PLATFORM=$OUTPUT_PLATFORM" \
 	packer_template.mobiledgex.json
 
 if [[ $? -ne 0 ]]; then
@@ -176,37 +186,14 @@ if [[ $? -ne 0 ]]; then
 	exit 2
 fi
 
-echo
-read -p "Upload to Artifactory? (yN) " RESP
-case "$RESP" in
-	y*|Y*)	true ;;
-	*)	echo "NOT uploading to Artifactory"; exit 0 ;;
-esac
+cat <<EOT
 
-IMAGE_FNAME="${OUTPUT_IMAGE_NAME}.qcow2"
+IMPORTANT FOLLOW-UP TASKS
 
-echo
-echo "Downloading image from glance: $IMAGE_FNAME ..."
-openstack image save --file "$IMAGE_FNAME" "$OUTPUT_IMAGE_NAME"
+- Run this Jenkins job to compress and upload this image to Artifactory:
+  https://nightly.mobiledgex.net/job/upload-baseimage/parambuild/?OPENSTACK_INSTANCE=&BASE_IMAGE_NAME=${OUTPUT_IMAGE_NAME}
 
-GLANCE_CHECKSUM=$( openstack image show -c checksum -f value "$OUTPUT_IMAGE_NAME" )
-LOCAL_CHECKSUM=$( openssl md5 "$IMAGE_FNAME" | awk '{print $NF}' )
-if [[ "$LOCAL_CHECKSUM" != "$GLANCE_CHECKSUM" ]]; then
-	echo "Error downloading \"$OUTPUT_IMAGE_NAME\" image; checksum mismatch" >&2
-	exit 2
-fi
+- Update and push the chef policy for the mobiledgex package upgrade:
+  $CHEF_UPDATE_GUIDE
 
-echo
-echo "Uploading image to Artifactory..."
-LOCAL_SHA1SUM=$( openssl sha1 "$IMAGE_FNAME" | awk '{print $NF}' )
-curl -sSL -XPUT -u "${ARTIFACTORY_USER}:${ARTIFACTORY_APIKEY}" \
-	-H "X-Checksum-MD5:$LOCAL_CHECKSUM" \
-	-H "X-Checksum-Sha1:$LOCAL_SHA1SUM" \
-	-T "$IMAGE_FNAME" \
-	"${ARTIFACTORY_BASEURL}/baseimages/${IMAGE_FNAME}"
-if [[ $? -ne 0 ]]; then
-	echo "Error uploading image to Artifactory" >&2
-	exit 2
-fi
-
-rm "$IMAGE_FNAME"
+EOT

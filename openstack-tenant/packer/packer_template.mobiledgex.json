@@ -4,13 +4,13 @@
 	"TAG": "master",
 	"FLAVOR": "m4.small",
 	"VAULT": "main",
-	"OUTPUT_PLATFORM": "openstack",
 	"APT_USER": "apt",
 	"APT_PASS": "mobiledgex",
 	"ROOT_PASS": "",
 	"GRUB_PW_HASH": "",
 	"TOTP_KEY": "",
-	"ARTIFACTORY_ARTIFACTS_TAG": ""
+	"ARTIFACTORY_ARTIFACTS_TAG": "",
+	"APT_REPO": ""
     },
     "builders": [{
 	"type": "openstack",
@@ -43,13 +43,13 @@
 		"MEX_BUILD={{ user `MEX_BUILD` }}",
 		"FLAVOR={{ user `FLAVOR` }}",
 		"VAULT={{ user `VAULT` }}",
-		"OUTPUT_PLATFORM={{ user `OUTPUT_PLATFORM` }}",
 		"APT_USER={{ user `APT_USER` }}",
 		"APT_PASS={{ user `APT_PASS` }}",
 		"ROOT_PASS={{ user `ROOT_PASS` }}",
 		"GRUB_PW_HASH={{ user `GRUB_PW_HASH` }}",
 		"TOTP_KEY={{ user `TOTP_KEY` }}",
 		"ARTIFACTORY_ARTIFACTS_TAG={{ user `ARTIFACTORY_ARTIFACTS_TAG` }}",
+		"APT_REPO={{ user `APT_REPO` }}",
 		"SRC_IMG={{ user `SRC_IMG` }}",
 		"SRC_IMG_CHECKSUM={{ user `SRC_IMG_CHECKSUM` }}"
 	    ]
@@ -59,8 +59,15 @@
 	    "script": "harden.sh"
 	},
 	{
-	"type": "shell",
-	"script": "cleanup.sh"
+	    "type": "shell",
+	    "script": "reboot.sh",
+	    "expect_disconnect": true
+	},
+	{
+	    "type": "shell",
+	    "script": "cleanup.sh",
+	    "remote_folder": "/var/tmp",
+	    "pause_before": "10s"
 	}   
     ]
 }

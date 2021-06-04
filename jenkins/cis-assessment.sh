@@ -116,6 +116,7 @@ EOT
 openstack server create \
     --image "$IMAGE_ID" \
     --flavor m4.medium \
+    --config-drive true \
     --network external-network-shared \
     --user-data "${PWD}/cis-init.yml" \
     "$SRVNAME"

@@ -27,7 +27,7 @@ func getUsability(maintenanceState dme.MaintenanceState, cloudletState dme.Cloud
 }
 
 // Helper function to create the ServerEdgeEvent when AppInst state is bad
-func (e *EdgeEventsHandlerPlugin) createAppInstStateEdgeEvent(ctx context.Context, appInst dmecommon.DmeAppInst, appInstKey edgeproto.AppInstKey, clientinfo *ClientInfo, eventType dme.ServerEdgeEvent_ServerEventType, usability Usability) *dme.ServerEdgeEvent {
+func (e *EdgeEventsHandlerPlugin) createAppInstStateEdgeEvent(ctx context.Context, appInst *dmecommon.DmeAppInst, appInstKey edgeproto.AppInstKey, clientinfo *ClientInfo, eventType dme.ServerEdgeEvent_ServerEventType, usability Usability) *dme.ServerEdgeEvent {
 	serverEdgeEvent := new(dme.ServerEdgeEvent)
 	serverEdgeEvent.EventType = eventType
 	// Populate the corresponding ServerEdgeEvent field based on eventType
@@ -48,7 +48,7 @@ func (e *EdgeEventsHandlerPlugin) createAppInstStateEdgeEvent(ctx context.Contex
 }
 
 // Helper function to create the ServerEdgeEvent when CloudletState is bad
-func (e *EdgeEventsHandlerPlugin) createCloudletStateEdgeEvent(ctx context.Context, cloudlet dmecommon.DmeCloudlet, appInstKey edgeproto.AppInstKey, clientinfo *ClientInfo, usability Usability) *dme.ServerEdgeEvent {
+func (e *EdgeEventsHandlerPlugin) createCloudletStateEdgeEvent(ctx context.Context, cloudlet *dmecommon.DmeCloudlet, appInstKey edgeproto.AppInstKey, clientinfo *ClientInfo, usability Usability) *dme.ServerEdgeEvent {
 	serverEdgeEvent := new(dme.ServerEdgeEvent)
 	serverEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_CLOUDLET_STATE
 	serverEdgeEvent.CloudletState = cloudlet.State
@@ -60,7 +60,7 @@ func (e *EdgeEventsHandlerPlugin) createCloudletStateEdgeEvent(ctx context.Conte
 }
 
 // Helper function to create the ServerEdgeEvent when CloudletMaintenanceState is bad
-func (e *EdgeEventsHandlerPlugin) createCloudletMaintenanceStateEdgeEvent(ctx context.Context, cloudlet dmecommon.DmeCloudlet, appInstKey edgeproto.AppInstKey, clientinfo *ClientInfo, usability Usability) *dme.ServerEdgeEvent {
+func (e *EdgeEventsHandlerPlugin) createCloudletMaintenanceStateEdgeEvent(ctx context.Context, cloudlet *dmecommon.DmeCloudlet, appInstKey edgeproto.AppInstKey, clientinfo *ClientInfo, usability Usability) *dme.ServerEdgeEvent {
 	serverEdgeEvent := new(dme.ServerEdgeEvent)
 	serverEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_CLOUDLET_MAINTENANCE
 	serverEdgeEvent.MaintenanceState = cloudlet.MaintenanceState

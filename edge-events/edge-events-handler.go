@@ -176,7 +176,7 @@ func (e *EdgeEventsHandlerPlugin) SendAppInstStateEdgeEvent(ctx context.Context,
 	// Build map of AppInstStateEdgeEvents mapped to the sendFunc that will send the event to the correct client
 	m := make(map[*dme.ServerEdgeEvent]func(event *dme.ServerEdgeEvent))
 	for _, clientinfo := range clients.ClientsMap {
-		appInstStateEdgeEvent := e.createAppInstStateEdgeEvent(ctx, appInst, appInstKey, clientinfo, eventType, usability)
+		appInstStateEdgeEvent := e.createAppInstStateEdgeEvent(ctx, &appInst, appInstKey, clientinfo, eventType, usability)
 		m[appInstStateEdgeEvent] = clientinfo.sendFunc
 	}
 	// Send appinst state event to each client on affected appinst
@@ -198,7 +198,7 @@ func (e *EdgeEventsHandlerPlugin) SendCloudletStateEdgeEvent(ctx context.Context
 	m := make(map[*dme.ServerEdgeEvent]func(event *dme.ServerEdgeEvent))
 	for key, clients := range appinsts.AppInstsMap {
 		for _, clientinfo := range clients.ClientsMap {
-			cloudletStateEdgeEvent := e.createCloudletStateEdgeEvent(ctx, cloudlet, key, clientinfo, usability)
+			cloudletStateEdgeEvent := e.createCloudletStateEdgeEvent(ctx, &cloudlet, key, clientinfo, usability)
 			m[cloudletStateEdgeEvent] = clientinfo.sendFunc
 		}
 	}
@@ -221,7 +221,7 @@ func (e *EdgeEventsHandlerPlugin) SendCloudletMaintenanceStateEdgeEvent(ctx cont
 	m := make(map[*dme.ServerEdgeEvent]func(event *dme.ServerEdgeEvent))
 	for key, clients := range appinsts.AppInstsMap {
 		for _, clientinfo := range clients.ClientsMap {
-			cloudletMaintenanceStateEdgeEvent := e.createCloudletMaintenanceStateEdgeEvent(ctx, cloudlet, key, clientinfo, usability)
+			cloudletMaintenanceStateEdgeEvent := e.createCloudletMaintenanceStateEdgeEvent(ctx, &cloudlet, key, clientinfo, usability)
 			m[cloudletMaintenanceStateEdgeEvent] = clientinfo.sendFunc
 		}
 	}

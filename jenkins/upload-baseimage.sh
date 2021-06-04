@@ -66,7 +66,11 @@ fi
 
 log "Uploading image"
 COMPRESSED_IMAGE_CHECKSUM=$( md5sum "$COMPRESSED_IMAGE" | awk '{print $1}' )
-ARTF_CHECKSUM=$( artf_call "${ARTIFACT_PATH}" -T "$COMPRESSED_IMAGE" | jq -r .checksums.md5 )
+COMPRESSED_IMAGE_SHASUM=$( sha1sum "$COMPRESSED_IMAGE" | awk '{print $1}' )
+ARTF_CHECKSUM=$( artf_call "${ARTIFACT_PATH}" -T "$COMPRESSED_IMAGE" \
+	-H "X-Checksum-MD5:${COMPRESSED_IMAGE_CHECKSUM}" \
+	-H "X-Checksum-Sha1:${COMPRESSED_IMAGE_SHASUM}" \
+	| jq -r .checksums.md5 )
 [[ -z "$ARTF_CHECKSUM" ]] && die "Error uploading image: $ARTIFACT_PATH"
 [[ "$ARTF_CHECKSUM" != "$COMPRESSED_IMAGE_CHECKSUM" ]] \
 	&& die "Upload error; checksum mismatch: $ARTIFACT_PATH"

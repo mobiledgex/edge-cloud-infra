@@ -158,7 +158,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 					return echo.ErrForbidden
 				}
 			} else {
-				return fmt.Errorf("Billing Org must be set up to deploy to public cloudlets, contact MobiledgeX support")
+				return fmt.Errorf("Billing Org must be set up to deploy to public cloudlets, please contact MobiledgeX support")
 			}
 		}
 	}

@@ -68,17 +68,22 @@ die() {
 }
 
 # Main
-echo "[$(date)] Starting setup.sh for platform \"$OUTPUT_PLATFORM\" ($( pwd ))"
+[[ -z "$APT_REPO" ]] && die "APT_REPO not set"
+
+echo "[$(date)] Starting setup.sh ($( pwd ))"
 
 echo "127.0.0.1 $( hostname )" | sudo tee -a /etc/hosts >/dev/null
 log_file_contents /etc/hosts
 
 sudo tee /etc/systemd/resolved.conf <<EOT
 [Resolve]
-DNS=1.1.1.1
-FallbackDNS=1.0.0.1
+DNS=1.1.1.1 1.0.0.1
+FallbackDNS=8.8.8.8
 EOT
-echo "nameserver 1.1.1.1" | sudo tee -a /etc/resolv.conf >/dev/null
+sudo tee -a /etc/resolv.conf >/dev/null <<EOT
+nameserver 1.1.1.1
+nameserver 1.0.0.1
+EOT
 log_file_contents /etc/resolv.conf
 
 log "Setting up $MEX_RELEASE"
@@ -88,7 +93,6 @@ MEX_BUILD_TAG=$TAG
 MEX_BUILD_FLAVOR=$FLAVOR
 MEX_BUILD_SRC_IMG=$SRC_IMG
 MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
-MEX_PLATFORM_FLAVOR=$OUTPUT_PLATFORM
 EOT
 
 SSH_CA_KEY_FILE=/etc/ssh/trusted-user-ca-keys.pem
@@ -124,7 +128,7 @@ ps -ef | grep cloud
 log "Set up APT sources"
 sudo rm -rf /etc/apt/sources.list.d/*
 sudo tee /etc/apt/sources.list <<EOT
-deb https://apt.mobiledgex.net/cirrus/2021-02-01 bionic main
+deb ${APT_REPO} bionic main
 deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
 EOT
 sudo apt-get update
@@ -176,29 +180,24 @@ sudo apt-get install -y mobiledgex
 
 sudo apt-mark hold mobiledgex linux-image-generic linux-image-virtual
 
-if [[ "$OUTPUT_PLATFORM" == vsphere ]]; then
-	log "Adding VMWare cloud-init Guestinfo"
-	sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
-fi
+log "Adding VMWare cloud-init Guestinfo"
+sudo curl  -sSL https://raw.githubusercontent.com/vmware/cloud-init-vmware-guestinfo/v1.3.1/install.sh |sudo sh -
+sudo rm -f /etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
+sudo tee /etc/cloud/cloud.cfg.d/99-mobiledgex.cfg <<'EOT'
+datasource_list: [ "ConfigDrive", "OVF", "VMwareGuestInfo" ]
+EOT
 
 log "dhclient $INTERFACE"
 sudo dhclient "$INTERFACE"
 ip addr
 ip route
 
-log "Enabling the mobiledgex service"
-sudo systemctl enable mobiledgex
-
 log "Updating dhclient timeout"
 sudo perl -i -p -e s/'timeout 300;'/'timeout 15;'/g /etc/dhcp/dhclient.conf
 
-case "$OUTPUT_PLATFORM" in
-vsphere|vcd)
-	log "Removing serial console from grub"
-	sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
-	sudo grub-mkconfig -o /boot/grub/grub.cfg
-	;;
-esac
+log "Removing serial console from grub"
+sudo perl -i -p -e s/'"console=tty1 console=ttyS0"'/'""'/g /etc/default/grub.d/50-cloudimg-settings.cfg
+sudo grub-mkconfig -o /boot/grub/grub.cfg
 
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd
@@ -319,9 +318,7 @@ Restart=always
 WantedBy=multi-user.target
 EOT
 
-case "$OUTPUT_PLATFORM" in
-vsphere|vcd)
-	sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
+sudo tee /lib/systemd/system/open-vm-tools.service <<'EOT'
 [Unit]
 Description=Service for virtual machines hosted on VMware
 Documentation=http://open-vm-tools.sourceforge.net/about.php
@@ -337,10 +334,8 @@ TimeoutStopSec=10
 WantedBy=multi-user.target
 EOT
 
-	log "Enabling the open-vm-tools service"
-	sudo systemctl enable open-vm-tools
-	;;
-esac
+log "Enabling the open-vm-tools service"
+sudo systemctl enable open-vm-tools
 
 # Clear /etc/machine-id so that it is uniquely generated on every clone
 echo "" | sudo tee /etc/machine-id

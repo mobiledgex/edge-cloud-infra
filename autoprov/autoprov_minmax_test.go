@@ -23,7 +23,7 @@ func TestChoose(t *testing.T) {
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 
-	// init without nodeMgr
+	// init with null nodeMgr
 	cacheData.init(nil)
 	autoProvAggr = NewAutoProvAggr(300, 0, &cacheData)
 	autoProvAggr.allStats = make(map[edgeproto.AppKey]*apAppStats)

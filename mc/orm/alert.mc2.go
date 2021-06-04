@@ -577,6 +577,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveGPUDriverBuild", RemoveGPUDriverBuild)
+	// swagger:route POST /auth/ctrl/GetGPUDriverBuildURL GPUDriverBuildMember GetGPUDriverBuildURL
+	// Get GPU Driver Build URL.
+	//  Returns a time-limited signed URL to download GPU driver.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetGPUDriverBuildURL", GetGPUDriverBuildURL)
 	// swagger:route POST /auth/ctrl/CreateCloudlet Cloudlet CreateCloudlet
 	// Create Cloudlet.
 	//  Sets up Cloudlet services on the Operators compute resources, and integrated as part of MobiledgeX edge resource portfolio. These resources are managed from the Edge Controller.
@@ -671,6 +682,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigDeploymentTag: 21.19
 	// ConfigCrmAccessPrivateKey: 21.22
 	// ConfigAccessApiAddr: 21.23
+	// ConfigCacheDir: 21.24
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2

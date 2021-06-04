@@ -138,6 +138,22 @@ var RemoveGPUDriverBuildCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
+var GetGPUDriverBuildURLCmd = &ApiCommand{
+	Name:         "GetGPUDriverBuildURL",
+	Use:          "getbuildurl",
+	Short:        "Get GPU Driver Build URL. Returns a time-limited signed URL to download GPU driver.",
+	RequiredArgs: "region " + strings.Join(GetGPUDriverBuildURLRequiredArgs, " "),
+	OptionalArgs: strings.Join(GetGPUDriverBuildURLOptionalArgs, " "),
+	AliasArgs:    strings.Join(GPUDriverBuildMemberAliasArgs, " "),
+	SpecialArgs:  &GPUDriverBuildMemberSpecialArgs,
+	Comments:     addRegionComment(GPUDriverBuildMemberComments),
+	NoConfig:     "Build.DriverPath,Build.OperatingSystem,Build.KernelVersion,Build.Hypervisor",
+	ReqData:      &ormapi.RegionGPUDriverBuildMember{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/GetGPUDriverBuildURL",
+	ProtobufApi:  true,
+}
+
 var GPUDriverApiCmds = []*ApiCommand{
 	CreateGPUDriverCmd,
 	DeleteGPUDriverCmd,
@@ -145,6 +161,7 @@ var GPUDriverApiCmds = []*ApiCommand{
 	ShowGPUDriverCmd,
 	AddGPUDriverBuildCmd,
 	RemoveGPUDriverBuildCmd,
+	GetGPUDriverBuildURLCmd,
 }
 
 const GPUDriverGroup = "GPUDriver"
@@ -181,6 +198,13 @@ var RemoveGPUDriverBuildRequiredArgs = []string{
 	"build.name",
 }
 var RemoveGPUDriverBuildOptionalArgs = []string{}
+var GetGPUDriverBuildURLRequiredArgs = []string{
+	"gpudrivername",
+	"gpudriver-org",
+	"gpudrivertype",
+	"build.name",
+}
+var GetGPUDriverBuildURLOptionalArgs = []string{}
 
 var CreateCloudletCmd = &ApiCommand{
 	Name:                 "CreateCloudlet",
@@ -756,6 +780,7 @@ var PlatformConfigOptionalArgs = []string{
 	"deploymenttag",
 	"crmaccessprivatekey",
 	"accessapiaddr",
+	"cachedir",
 }
 var PlatformConfigAliasArgs = []string{
 	"containerregistrypath=platformconfig.containerregistrypath",
@@ -778,6 +803,7 @@ var PlatformConfigAliasArgs = []string{
 	"deploymenttag=platformconfig.deploymenttag",
 	"crmaccessprivatekey=platformconfig.crmaccessprivatekey",
 	"accessapiaddr=platformconfig.accessapiaddr",
+	"cachedir=platformconfig.cachedir",
 }
 var PlatformConfigComments = map[string]string{
 	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
@@ -800,6 +826,7 @@ var PlatformConfigComments = map[string]string{
 	"deploymenttag":         "Deployment Tag",
 	"crmaccessprivatekey":   "crm access private key",
 	"accessapiaddr":         "controller access API address",
+	"cachedir":              "cache dir",
 }
 var PlatformConfigSpecialArgs = map[string]string{
 	"platformconfig.envvar": "StringToString",
@@ -1093,6 +1120,7 @@ var CloudletAliasArgs = []string{
 	"config.deploymenttag=cloudlet.config.deploymenttag",
 	"config.crmaccessprivatekey=cloudlet.config.crmaccessprivatekey",
 	"config.accessapiaddr=cloudlet.config.accessapiaddr",
+	"config.cachedir=cloudlet.config.cachedir",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
@@ -1173,6 +1201,7 @@ var CloudletComments = map[string]string{
 	"config.deploymenttag":                "Deployment Tag",
 	"config.crmaccessprivatekey":          "crm access private key",
 	"config.accessapiaddr":                "controller access API address",
+	"config.cachedir":                     "cache dir",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
 	"accessvars":                          "Variables required to access cloudlet",

@@ -137,16 +137,17 @@ func (v *VMPlatform) GetCloudletGPUDriverBuilds(ctx context.Context, cloudletOrg
 	if v.Caches == nil {
 		return nil, fmt.Errorf("caches is nil")
 	}
+	// Get all public GPU drivers
 	var gpuDriver edgeproto.GPUDriver
 	driverKey := edgeproto.GPUDriverKey{
-		Name:         v.GPUConfig.DriverName,
-		Organization: cloudcommon.OrganizationMobiledgeX,
-		Type:         v.GPUConfig.GpuType,
+		Name: v.GPUConfig.DriverName,
+		Type: v.GPUConfig.GpuType,
 	}
 	gpuDrivers[driverKey] = []edgeproto.GPUDriverBuild{}
 	if v.Caches.GPUDriverCache.Get(&driverKey, &gpuDriver) {
 		gpuDrivers[driverKey] = append(gpuDrivers[driverKey], gpuDriver.Builds...)
 	}
+	// Get all operator owned GPU drivers
 	driverKey.Organization = cloudletOrg
 	gpuDrivers[driverKey] = []edgeproto.GPUDriverBuild{}
 	if v.Caches.GPUDriverCache.Get(&driverKey, &gpuDriver) {

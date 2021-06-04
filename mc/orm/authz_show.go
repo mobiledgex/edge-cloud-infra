@@ -2,6 +2,7 @@ package orm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -143,4 +144,87 @@ func (s *AuthzAppInstShow) Ok(obj *edgeproto.AppInst) (bool, bool) {
 
 func (s *AuthzAppInstShow) Filter(obj *edgeproto.AppInst) {
 	// nothing to filter for Operator, show all fields for Developer & Operator
+}
+
+type AuthzGPUDriverShow struct {
+	allowAll          bool
+	admin             bool
+	allowedOrgs       map[string]struct{}
+	allowedGPUDrivers map[edgeproto.GPUDriverKey]struct{}
+}
+
+func newShowGPUDriverAuthz(ctx context.Context, region, username string, resource, action string) (ShowGPUDriverAuthz, error) {
+	authzCloudletObj := AuthzCloudlet{}
+	err := authzCloudletObj.populate(ctx, region, username, "", resource, action)
+	if err != nil {
+		return nil, err
+	}
+	allowedGPUDrivers := make(map[edgeproto.GPUDriverKey]struct{})
+	rc := RegionContext{
+		region:    region,
+		username:  username,
+		skipAuthz: false,
+	}
+	err = ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, func(cl *edgeproto.Cloudlet) error {
+		// ignore non-GPU cloudlets
+		if cl.GpuConfig.GpuType == edgeproto.GPUType_GPU_TYPE_NONE {
+			return nil
+		}
+		// ignore if not authorized to access cloudlet
+		if authzOk, _ := authzCloudletObj.Ok(cl); !authzOk {
+			return nil
+		}
+		driverKey := edgeproto.GPUDriverKey{
+			Name:         cl.GpuConfig.DriverName,
+			Organization: cl.Key.Organization,
+			Type:         cl.GpuConfig.GpuType,
+		}
+		allowedGPUDrivers[driverKey] = struct{}{}
+		return nil
+	})
+	return &AuthzGPUDriverShow{
+		allowAll:          authzCloudletObj.allowAll,
+		admin:             authzCloudletObj.admin,
+		allowedOrgs:       authzCloudletObj.orgs,
+		allowedGPUDrivers: allowedGPUDrivers,
+	}, nil
+}
+
+func (s *AuthzGPUDriverShow) Ok(obj *edgeproto.GPUDriver) (bool, bool) {
+	filterOutput := false
+	if s.allowAll {
+		return true, filterOutput
+	}
+	if _, found := s.allowedOrgs[obj.Key.Organization]; found {
+		// operator has access to GPU drivers created by their org
+		return true, filterOutput
+	}
+	// All public drivers are accessible by any Developer/Operator
+	if obj.Key.Organization == "" {
+		return true, filterOutput
+	}
+	for driverKey, _ := range s.allowedGPUDrivers {
+		if obj.Key.Matches(&driverKey) {
+			return true, filterOutput
+		}
+	}
+	return false, filterOutput
+}
+
+func (s *AuthzGPUDriverShow) Filter(obj *edgeproto.GPUDriver) {
+	// nothing to filter for Operator, show all fields for Developer & Operator
+}
+
+func authzGetGPUDriverBuildURL(ctx context.Context, region, username string, obj *edgeproto.GPUDriverBuildMember, resource, action string) error {
+	authz, err := newShowGPUDriverAuthz(ctx, region, username, resource, action)
+	if err != nil {
+		return err
+	}
+	gpuDriver := edgeproto.GPUDriver{
+		Key: obj.Key,
+	}
+	if authzOk, _ := authz.Ok(&gpuDriver); !authzOk {
+		return fmt.Errorf("No permissions for GPU driver %s", obj.Key.GetKeyString())
+	}
+	return nil
 }

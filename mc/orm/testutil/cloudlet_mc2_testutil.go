@@ -114,6 +114,21 @@ func TestPermRemoveGPUDriverBuild(mcClient *mctestclient.Client, uri, token, reg
 	return TestRemoveGPUDriverBuild(mcClient, uri, token, region, in, modFuncs...)
 }
 
+func TestGetGPUDriverBuildURL(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.GPUDriverBuildMember, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionGPUDriverBuildMember{}
+	dat.Region = region
+	dat.GPUDriverBuildMember = *in
+	for _, fn := range modFuncs {
+		fn(&dat.GPUDriverBuildMember)
+	}
+	return mcClient.GetGPUDriverBuildURL(uri, token, dat)
+}
+func TestPermGetGPUDriverBuildURL(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.GPUDriverBuildMember{}
+	in.Key.Organization = org
+	return TestGetGPUDriverBuildURL(mcClient, uri, token, region, in, modFuncs...)
+}
+
 func (s *TestClient) CreateGPUDriver(ctx context.Context, in *edgeproto.GPUDriver) (*edgeproto.Result, error) {
 	inR := &ormapi.RegionGPUDriver{
 		Region:    s.Region,
@@ -180,6 +195,18 @@ func (s *TestClient) RemoveGPUDriverBuild(ctx context.Context, in *edgeproto.GPU
 		GPUDriverBuildMember: *in,
 	}
 	out, status, err := s.McClient.RemoveGPUDriverBuild(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) GetGPUDriverBuildURL(ctx context.Context, in *edgeproto.GPUDriverBuildMember) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionGPUDriverBuildMember{
+		Region:               s.Region,
+		GPUDriverBuildMember: *in,
+	}
+	out, status, err := s.McClient.GetGPUDriverBuildURL(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}

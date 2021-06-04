@@ -77,6 +77,13 @@ type swaggerRemoveGPUDriverBuild struct {
 	Body RegionGPUDriverBuildMember
 }
 
+// Request summary for GetGPUDriverBuildURL
+// swagger:parameters GetGPUDriverBuildURL
+type swaggerGetGPUDriverBuildURL struct {
+	// in: body
+	Body RegionGPUDriverBuildMember
+}
+
 // Request summary for CreateCloudlet
 // swagger:parameters CreateCloudlet
 type swaggerCreateCloudlet struct {

@@ -16,7 +16,6 @@ kubectl                         =1.16.3-00
 kubelet                         =1.16.3-00
 linux-image-virtual             =4.15.0.135.122
 nfs-kernel-server               =1:1.3.4-2.1ubuntu5.3
-nvidia-450                      =450.102.04.1-4.15.0-135-generic-1
 nvidia-container-runtime        =3.4.1-1
 nvidia-container-toolkit        =1.4.1-1
 python                          =2.7.15~rc1-1

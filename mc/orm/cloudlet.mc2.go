@@ -220,11 +220,16 @@ func ShowGPUDriver(c echo.Context) error {
 	return nil
 }
 
+type ShowGPUDriverAuthz interface {
+	Ok(obj *edgeproto.GPUDriver) (bool, bool)
+	Filter(obj *edgeproto.GPUDriver)
+}
+
 func ShowGPUDriverStream(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriver, cb func(res *edgeproto.GPUDriver) error) error {
-	var authz *AuthzShow
+	var authz ShowGPUDriverAuthz
 	var err error
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudletAnalytics, ActionView)
+		authz, err = newShowGPUDriverAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
 		if err != nil {
 			return err
 		}
@@ -255,8 +260,12 @@ func ShowGPUDriverStream(ctx context.Context, rc *RegionContext, obj *edgeproto.
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.Organization) {
+			authzOk, filterOutput := authz.Ok(res)
+			if !authzOk {
 				continue
+			}
+			if filterOutput {
+				authz.Filter(res)
 			}
 		}
 		err = cb(res)
@@ -382,6 +391,57 @@ func RemoveGPUDriverBuildObj(ctx context.Context, rc *RegionContext, obj *edgepr
 	}
 	api := edgeproto.NewGPUDriverApiClient(rc.conn)
 	return api.RemoveGPUDriverBuild(ctx, obj)
+}
+
+func GetGPUDriverBuildURL(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionGPUDriverBuildMember{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.GPUDriverBuildMember.GetKey().GetTags())
+	span.SetTag("org", in.GPUDriverBuildMember.Key.Organization)
+	resp, err := GetGPUDriverBuildURLObj(ctx, rc, &in.GPUDriverBuildMember)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func GetGPUDriverBuildURLObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authzGetGPUDriverBuildURL(ctx, rc.region, rc.username, obj,
+			ResourceCloudlets, ActionView); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewGPUDriverApiClient(rc.conn)
+	return api.GetGPUDriverBuildURL(ctx, obj)
 }
 
 func CreateCloudlet(c echo.Context) error {

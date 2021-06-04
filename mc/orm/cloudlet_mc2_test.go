@@ -152,6 +152,27 @@ func goodPermRemoveGPUDriverBuild(t *testing.T, mcClient *mctestclient.Client, u
 	require.Equal(t, http.StatusOK, status)
 }
 
+var _ = edgeproto.GetFields
+
+func badPermGetGPUDriverBuildURL(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) {
+	_, status, err := testutil.TestPermGetGPUDriverBuildURL(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Forbidden")
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func badGetGPUDriverBuildURL(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, status int, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) {
+	_, st, err := testutil.TestPermGetGPUDriverBuildURL(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Equal(t, status, st)
+}
+
+func goodPermGetGPUDriverBuildURL(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriverBuildMember)) {
+	_, status, err := testutil.TestPermGetGPUDriverBuildURL(mcClient, uri, token, region, org, modFuncs...)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
 // This tests the user cannot modify the object because the obj belongs to
 // an organization that the user does not have permissions for.
 func badPermTestGPUDriver(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.GPUDriver)) {

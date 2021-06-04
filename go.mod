@@ -300,3 +300,5 @@ replace github.com/uber/jaeger-lib => github.com/uber/jaeger-lib v2.4.0+incompat
 replace cloud.google.com/go => cloud.google.com/go v0.39.0
 
 replace google.golang.org/api => google.golang.org/api v0.14.0
+
+replace golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45

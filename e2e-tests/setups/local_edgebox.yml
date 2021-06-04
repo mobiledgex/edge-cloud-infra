@@ -106,7 +106,7 @@ mcs:
   notifysrvaddr: "127.0.0.1:52001"
   usevaultpki: true
   hostname: "127.0.0.1"
-  billingplatform: chargify
+  billingplatform: fake
   usagecollectioninterval: 3m
   usagecheckpointinterval: 5m
   alertmgrapiaddr: "https://127.0.0.1:9094"

@@ -231,6 +231,7 @@ var ClientAppUsageMetricOptionalArgs = []string{
 	"devicemodel",
 	"devicecarrier",
 	"datanetworktype",
+	"signalstrength",
 	"rawdata",
 	"last",
 	"starttime",
@@ -259,6 +260,7 @@ var ClientCloudletUsageMetricOptionalArgs = []string{
 	"devicemodel",
 	"devicecarrier",
 	"datanetworktype",
+	"signalstrength",
 	"rawdata",
 	"last",
 	"starttime",
@@ -304,6 +306,7 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 	var devicemodelSelectorPermission string
 	var devicecarrierSelectorPermission string
 	var datanetworktypeSelectorPermission string
+	var signalstrengthSelectorPermission string
 	var availableMetrics string
 
 	switch typ {
@@ -313,6 +316,7 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		devicecarrierSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		datanetworktypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
+		signalstrengthSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
 		availableMetrics = strings.Join(ormapi.ClientAppUsageSelectors, "\", \"")
 	case "cloudlet":
 		locationtileSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency, deviceinfo")
@@ -320,6 +324,7 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		devicecarrierSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency, deviceinfo")
 		datanetworktypeSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
+		signalstrengthSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
 		availableMetrics = strings.Join(ormapi.ClientCloudletUsageSelectors, "\", \"")
 	default:
 		return map[string]string{}
@@ -331,6 +336,7 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 		"devicemodel":     fmt.Sprintf("Device model. %s", devicemodelSelectorPermission),
 		"devicecarrier":   fmt.Sprintf("Device carrier. %s", devicecarrierSelectorPermission),
 		"datanetworktype": fmt.Sprintf("Data network type used by client device. %s", datanetworktypeSelectorPermission),
+		"signalstrength":  fmt.Sprintf("Signal strength of client device. %s", signalstrengthSelectorPermission),
 		"rawdata":         "Set to true for additional raw data (not downsampled)",
 		"selector":        fmt.Sprintf("Comma separated list of metrics to view. Available metrics: \"%s\"", availableMetrics),
 	}

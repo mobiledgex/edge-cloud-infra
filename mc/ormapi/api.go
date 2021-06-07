@@ -582,6 +582,8 @@ type Reporter struct {
 	// User name (for internal use only)
 	// read only: true
 	Username string
+	// Timezone in which to show the reports, defaults to UTC
+	Timezone string
 	// Last report status
 	// read only: true
 	Status string
@@ -609,6 +611,8 @@ type GenerateReport struct {
 	// Region name (for internal use only)
 	// read only: true
 	Region string
+	// Timezone in which to show the reports, defaults to UTC
+	Timezone string
 }
 
 func GetReportFileName(reporterName string, report *GenerateReport) string {

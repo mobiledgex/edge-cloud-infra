@@ -123,11 +123,10 @@ func (r *PDFReport) AddOperatorInfo(report *ormapi.GenerateReport) {
 	r.pdf.Cell(40, 10, fmt.Sprintf("Region: %s", report.Region))
 	r.pdf.Ln(5)
 	startDate := report.StartTime.Format(ormapi.TimeFormatDate)
-	endDate := report.EndTime.Format(ormapi.TimeFormatDateTZ)
-	if ormapi.IsUTCTimezone(report.EndTime) {
-		endDate = report.EndTime.Format(ormapi.TimeFormatDate) + " (UTC)"
-	}
+	endDate := report.EndTime.Format(ormapi.TimeFormatDate)
 	r.pdf.Cell(40, 10, fmt.Sprintf("Report Period: %s - %s", startDate, endDate))
+	r.pdf.Ln(5)
+	r.pdf.Cell(40, 10, fmt.Sprintf("Timezone: %s", report.Timezone))
 	r.pdf.Ln(-1)
 }
 

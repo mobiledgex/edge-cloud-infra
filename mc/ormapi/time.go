@@ -17,7 +17,6 @@ const (
 
 	TimeFormatDate        = "2006/01/02"
 	TimeFormatDateName    = "20060102"
-	TimeFormatDateTZ      = "2006/01/02 (GMTZ07:00)"
 	TimeFormatDateTime    = "01-02 15:04:05"
 	TimeFormatDayDateTime = "Mon Jan 2 15:04:05"
 )

@@ -393,13 +393,14 @@ type operatorReportTmplArg struct {
 	Boundary     string
 	FileName     string
 	Attachment   string
+	Timezone     string
 }
 
 var operatorReportT = `Content-Type: multipart/mixed; boundary="{{.Boundary}}"
 MIME-Version: 1.0
 From: {{.From}}
 To: {{.To}}
-Subject: [{{.ReporterName}}] Cloudlet Usage Report for {{.Org}} for the period {{.StartDate}} to {{.EndDate}}
+Subject: [{{.ReporterName}}] Cloudlet Usage Report for {{.Org}} for the period {{.StartDate}} to {{.EndDate}} (Timezone: {{.Timezone}})
 
 --{{.Boundary}}
 Content-Type: text/plain; charset="utf-8"
@@ -446,13 +447,11 @@ func sendOperatorReportEmail(ctx context.Context, username, email, reporterName 
 		ReporterName: reporterName,
 		Org:          report.Org,
 		StartDate:    report.StartTime.Format(ormapi.TimeFormatDate),
-		EndDate:      report.EndTime.Format(ormapi.TimeFormatDateTZ),
+		EndDate:      report.EndTime.Format(ormapi.TimeFormatDate),
 		Boundary:     boundary,
 		FileName:     pdfFileName,
 		Attachment:   attachment,
-	}
-	if ormapi.IsUTCTimezone(report.EndTime) {
-		arg.EndDate = report.EndTime.Format(ormapi.TimeFormatDate) + " (UTC)"
+		Timezone:     report.Timezone,
 	}
 	buf := bytes.Buffer{}
 	if err := operatorReportTmpl.Execute(&buf, &arg); err != nil {

@@ -201,6 +201,7 @@ func GenerateReports() {
 				Org:       reporter.Org,
 				StartTime: StartTime,
 				EndTime:   EndTime,
+				Timezone:  reporter.Timezone,
 			}
 			wg.Add(1)
 			go func(inReporter ormapi.Reporter, genReport ormapi.GenerateReport, wg *sync.WaitGroup) {
@@ -288,6 +289,19 @@ func validScheduleDate(scheduleDate time.Time, schedule edgeproto.ReportSchedule
 	return nil
 }
 
+func tzMatch(timezone string, reportTime time.Time) (bool, error) {
+	location, err := time.LoadLocation(timezone)
+	if err != nil {
+		return false, fmt.Errorf("Invalid timezone %s, %v", timezone, err)
+	}
+	_, tzOffset := time.Now().In(location).Zone()
+	_, reportTimeOffset := reportTime.Zone()
+	if tzOffset != reportTimeOffset {
+		return false, nil
+	}
+	return true, nil
+}
+
 // Create reporter to generate usage reports
 func CreateReporter(c echo.Context) error {
 	ctx := GetContext(c)
@@ -351,6 +365,17 @@ func CreateReporter(c echo.Context) error {
 
 	if reporter.NextScheduleDate != "" {
 		return fmt.Errorf("NextScheduleDate is for internal-use only")
+	}
+	if reporter.Timezone == "" {
+		reporter.Timezone = "UTC"
+	}
+
+	match, err := tzMatch(reporter.Timezone, scheduleDate)
+	if err != nil {
+		return err
+	}
+	if !match {
+		return fmt.Errorf("Timezone must match start schedule date timezone")
 	}
 
 	// Schedule date should only be date with no time value
@@ -454,6 +479,7 @@ func UpdateReporter(c echo.Context) error {
 		return err
 	}
 
+	validateTZ := false
 	if reporter.StartScheduleDate != oldReporter.StartScheduleDate {
 		if err := validScheduleDate(scheduleDate, reporter.Schedule); err != nil {
 			return err
@@ -461,7 +487,21 @@ func UpdateReporter(c echo.Context) error {
 		// Schedule date should only be date with no time value
 		reporter.StartScheduleDate = ormapi.TimeToStr(ormapi.StripTime(scheduleDate))
 		reporter.NextScheduleDate = reporter.StartScheduleDate
+		validateTZ = true
 		applyUpdate = true
+	}
+
+	if reporter.Timezone != oldReporter.Timezone {
+		validateTZ = true
+	}
+	if validateTZ {
+		match, err := tzMatch(reporter.Timezone, scheduleDate)
+		if err != nil {
+			return err
+		}
+		if !match {
+			return fmt.Errorf("Timezone must match start schedule date timezone")
+		}
 	}
 
 	if !applyUpdate {
@@ -615,6 +655,18 @@ func GenerateReportObj(c echo.Context, dataOnly bool) error {
 	if startTimeZoneOffset != endTimeZoneOffset {
 		return fmt.Errorf("StartTime and EndTime must be in same timezone")
 	}
+
+	if report.Timezone == "" {
+		report.Timezone = "UTC"
+	}
+	match, err := tzMatch(report.Timezone, report.StartTime)
+	if err != nil {
+		return err
+	}
+	if !match {
+		return fmt.Errorf("Timezone must match start time's timezone")
+	}
+
 	if !report.StartTime.Before(report.EndTime) {
 		return fmt.Errorf("start time must be before end time")
 	}

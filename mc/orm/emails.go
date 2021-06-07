@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net/smtp"
+	"strings"
 	"text/template"
 	"time"
 
@@ -439,6 +440,7 @@ func sendOperatorReportEmail(ctx context.Context, username, email, reporterName 
 	boundary := writer.Boundary()
 
 	attachment := base64.StdEncoding.EncodeToString(pdfFileBytes)
+	pdfFileName = strings.ReplaceAll(pdfFileName, "/", "_")
 
 	arg := operatorReportTmplArg{
 		From:         noreply.Email,

@@ -167,6 +167,7 @@ var ReporterComments = map[string]string{
 
 var DownloadReportComments = map[string]string{
 	"org":      `Organization name`,
+	"reporter": `Reporter name`,
 	"filename": `Name of the report file to be downloaded`,
 }
 

@@ -222,7 +222,7 @@ func GenerateReports() {
 				}
 				errStrs := []string{}
 				// Upload PDF report to cloudlet
-				filename := ormapi.GetReportFileName(inReporter.Name, &genReport)
+				filename := ormapi.GetReporterFileName(inReporter.Name, &genReport)
 				err = storageClient.UploadObject(ctx, filename, &output)
 				if err != nil {
 					nodeMgr.Event(ctx, "Cloudlet report upload failure", genReport.Org, tags, err)
@@ -296,10 +296,7 @@ func tzMatch(timezone string, reportTime time.Time) (bool, error) {
 	}
 	_, tzOffset := time.Now().In(location).Zone()
 	_, reportTimeOffset := reportTime.Zone()
-	if tzOffset != reportTimeOffset {
-		return false, nil
-	}
-	return true, nil
+	return tzOffset == reportTimeOffset, nil
 }
 
 // Create reporter to generate usage reports
@@ -334,7 +331,7 @@ func CreateReporter(c echo.Context) error {
 	}
 
 	// check if user is authorized to create reporter
-	if err := authorized(ctx, claims.Username, reporter.Org, ResourceUsers, ActionManage); err != nil {
+	if err := authorized(ctx, claims.Username, reporter.Org, ResourceCloudlets, ActionManage); err != nil {
 		return err
 	}
 
@@ -351,9 +348,16 @@ func CreateReporter(c echo.Context) error {
 	if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
 		return fmt.Errorf("Invalid reporter schedule")
 	}
+	if reporter.Timezone == "" {
+		reporter.Timezone = "UTC"
+	}
 	// StartScheduleDate defaults to now
 	if reporter.StartScheduleDate == "" {
-		reporter.StartScheduleDate = ormapi.TimeToStr(time.Now())
+		location, err := time.LoadLocation(reporter.Timezone)
+		if err != nil {
+			return fmt.Errorf("Invalid timezone %s, %v", reporter.Timezone, err)
+		}
+		reporter.StartScheduleDate = ormapi.TimeToStr(time.Now().In(location))
 	}
 	scheduleDate, err := ormapi.StrToTime(reporter.StartScheduleDate)
 	if err != nil {
@@ -365,9 +369,6 @@ func CreateReporter(c echo.Context) error {
 
 	if reporter.NextScheduleDate != "" {
 		return fmt.Errorf("NextScheduleDate is for internal-use only")
-	}
-	if reporter.Timezone == "" {
-		reporter.Timezone = "UTC"
 	}
 
 	match, err := tzMatch(reporter.Timezone, scheduleDate)
@@ -439,7 +440,7 @@ func UpdateReporter(c echo.Context) error {
 	}
 
 	// check if user is authorized to update reporter
-	if err := authorized(ctx, claims.Username, reporter.Org, ResourceUsers, ActionManage); err != nil {
+	if err := authorized(ctx, claims.Username, reporter.Org, ResourceCloudlets, ActionManage); err != nil {
 		return err
 	}
 
@@ -465,13 +466,23 @@ func UpdateReporter(c echo.Context) error {
 	if reporter.Username != oldReporter.Username {
 		return fmt.Errorf("Cannot change username")
 	}
+	if reporter.Timezone == "" {
+		reporter.Timezone = "UTC"
+	}
 
 	if reporter.Schedule != oldReporter.Schedule {
 		// validate report schedule
 		if _, ok := edgeproto.ReportSchedule_name[int32(reporter.Schedule)]; !ok {
 			return fmt.Errorf("invalid schedule")
 		}
-		reporter.StartScheduleDate = ormapi.TimeToStr(time.Now())
+		if reporter.StartScheduleDate == oldReporter.StartScheduleDate {
+			// user has not specified start schedule date, reset it to today
+			location, err := time.LoadLocation(reporter.Timezone)
+			if err != nil {
+				return fmt.Errorf("Invalid timezone %s, %v", reporter.Timezone, err)
+			}
+			reporter.StartScheduleDate = ormapi.TimeToStr(time.Now().In(location))
+		}
 		applyUpdate = true
 	}
 	scheduleDate, err := ormapi.StrToTime(reporter.StartScheduleDate)
@@ -546,7 +557,11 @@ func DeleteReporter(c echo.Context) error {
 	tx := db.BeginTx(ctx, nil)
 	defer tx.RollbackUnlessCommitted()
 
-	res := tx.Where(&reporter).First(&reporter)
+	lookup := ormapi.Reporter{
+		Name: reporter.Name,
+		Org:  reporter.Org,
+	}
+	res := tx.Where(&lookup).First(&reporter)
 	if res.RecordNotFound() {
 		return fmt.Errorf("Reporter not found")
 	}
@@ -554,7 +569,7 @@ func DeleteReporter(c echo.Context) error {
 		return newHTTPError(http.StatusInternalServerError, dbErr(res.Error).Error())
 	}
 	// check if user is authorized to delete reporter
-	if err := authorized(ctx, claims.Username, reporter.Org, ResourceUsers, ActionManage); err != nil {
+	if err := authorized(ctx, claims.Username, reporter.Org, ResourceCloudlets, ActionManage); err != nil {
 		return err
 	}
 	err = tx.Delete(&reporter).Error
@@ -582,7 +597,7 @@ func ShowReporter(c echo.Context) error {
 			return bindErr(err)
 		}
 	}
-	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceCloudlets, ActionView)
+	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceCloudletAnalytics, ActionView)
 	if err != nil {
 		return dbErr(err)
 	}
@@ -646,7 +661,7 @@ func GenerateReportObj(c echo.Context, dataOnly bool) error {
 	}
 
 	// check if user is authorized to generate cloudlet reports
-	if err := authorized(ctx, claims.Username, report.Org, ResourceUsers, ActionManage); err != nil {
+	if err := authorized(ctx, claims.Username, report.Org, ResourceCloudletAnalytics, ActionView); err != nil {
 		return err
 	}
 
@@ -1108,7 +1123,8 @@ func GetCloudletAppUsageData(ctx context.Context, username string, report *ormap
 				},
 			},
 		},
-		State: edgeproto.TrackedState_READY,
+		State:    edgeproto.TrackedState_READY,
+		Liveness: edgeproto.Liveness_LIVENESS_STATIC,
 	}
 	appInsts, err := ShowAppInstObj(ctx, rc, obj)
 	if err != nil {
@@ -1584,7 +1600,7 @@ func ShowReport(c echo.Context) error {
 		return fmt.Errorf("Org name has to be specified")
 	}
 	// check if user is authorized to view reports
-	if err := authorized(ctx, claims.Username, reportQuery.Org, ResourceCloudlets, ActionManage); err != nil {
+	if err := authorized(ctx, claims.Username, reportQuery.Org, ResourceCloudletAnalytics, ActionView); err != nil {
 		return err
 	}
 
@@ -1599,12 +1615,16 @@ func ShowReport(c echo.Context) error {
 	}
 	out := []string{}
 	for _, obj := range objs {
-		orgPrefix := ormapi.GetOrgFromReportFileName(obj)
-		if orgPrefix == "" {
+		orgName, reporterName := ormapi.GetInfoFromReportFileName(obj)
+		if orgName == "" || reporterName == "" {
 			continue
 		}
-		if orgPrefix != reportQuery.Org &&
-			orgPrefix != strings.ToLower(reportQuery.Org) {
+		if orgName != reportQuery.Org &&
+			orgName != strings.ToLower(reportQuery.Org) {
+			continue
+		}
+		if reportQuery.Reporter != "" &&
+			reporterName != reportQuery.Reporter {
 			continue
 		}
 		out = append(out, obj)
@@ -1630,16 +1650,16 @@ func DownloadReport(c echo.Context) error {
 	if reportQuery.Filename == "" {
 		return fmt.Errorf("Report filename has to be specified")
 	}
-	fileOrgPrefix := ormapi.GetOrgFromReportFileName(reportQuery.Filename)
-	if fileOrgPrefix == "" {
+	orgName, _ := ormapi.GetInfoFromReportFileName(reportQuery.Filename)
+	if orgName == "" {
 		return fmt.Errorf("Unable to get org name from filename: %s", reportQuery.Filename)
 	}
-	if fileOrgPrefix != reportQuery.Org &&
-		fileOrgPrefix != strings.ToLower(reportQuery.Org) {
+	if orgName != reportQuery.Org &&
+		orgName != strings.ToLower(reportQuery.Org) {
 		return fmt.Errorf("Only org %s related reports can be accessed", reportQuery.Org)
 	}
 	// check if user is authorized to view reports
-	if err := authorized(ctx, claims.Username, reportQuery.Org, ResourceCloudlets, ActionManage); err != nil {
+	if err := authorized(ctx, claims.Username, reportQuery.Org, ResourceCloudletAnalytics, ActionView); err != nil {
 		return err
 	}
 

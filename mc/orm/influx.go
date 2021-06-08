@@ -838,6 +838,9 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 	if _, found := authDevOrgs[""]; found {
 		// admin
 		devOrgPermOk = true
+	} else if len(devOrgs) == 0 {
+		// If no orgs are specified, no developer permissions
+		devOrgPermOk = false
 	} else {
 		devOrgPermOk = true
 		for _, devOrg := range devOrgs {

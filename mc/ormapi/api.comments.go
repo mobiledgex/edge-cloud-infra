@@ -170,10 +170,12 @@ var ReporterComments = map[string]string{
 	"nextscheduledate":  `Date when the next report is scheduled to be generated (for internal use only)`,
 	"username":          `User name (for internal use only)`,
 	"status":            `Last report status`,
+	"timezone":          `Timezone in which to show the reports, defaults to UTC`,
 }
 
 var DownloadReportComments = map[string]string{
 	"org":      `Organization name`,
+	"reporter": `Reporter name`,
 	"filename": `Name of the report file to be downloaded`,
 }
 
@@ -182,4 +184,5 @@ var GenerateReportComments = map[string]string{
 	"starttime": `Absolute time (in RFC3339 format with intended timezone) to start report capture`,
 	"endtime":   `Absolute time (in RFC3339 format with intended timezone) to end report capture`,
 	"region":    `Region name (for internal use only)`,
+	"timezone":  `Timezone in which to show the reports, defaults to UTC`,
 }

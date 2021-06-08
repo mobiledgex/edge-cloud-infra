@@ -454,6 +454,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ServerlessConfigVcpus: 40.1
 	// ServerlessConfigRam: 40.2
 	// ServerlessConfigMinReplicas: 40.3
+	// VmAppOsType: 41
 	// ```
 	// Security:
 	//   Bearer:
@@ -624,6 +625,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// ResourceQuotasAlertThreshold: 39.3
 	// DefaultResourceAlertThreshold: 40
 	// HostController: 41
+	// KafkaCluster: 42
+	// KafkaUser: 43
+	// KafkaPassword: 44
 	// ```
 	// Security:
 	//   Bearer:

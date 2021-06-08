@@ -99,11 +99,12 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		targetFileWorkers.NeedsWork(ctx, targetsFileWorkerKey)
 		appInstAlertWorkers.NeedsWork(ctx, new.Key)
 	}
-	ChangeSinceLastPlatformStats = true
+
 	var port int32
 	var exists bool
 	var mapKey string
 
+	ChangeSinceLastPlatformStats = true
 	collectInterval := settings.ShepherdMetricsCollectionInterval.TimeDuration()
 	// check cluster name if this is a VM App
 	app := edgeproto.App{}
@@ -397,17 +398,8 @@ func start() {
 	if !nodeMgr.AccessKeyClient.IsEnabled() {
 		log.FatalLog("access key client is not enabled")
 	}
-	log.SpanLog(ctx, log.DebugLevelInfo, "Setup persistent access connection to Controller")
-	_ctrlConn, err := nodeMgr.AccessKeyClient.ConnectController(ctx)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to connect to controller", "err", err)
-		span.Finish()
-		log.FatalLog(err.Error())
-	}
-	ctrlConn = _ctrlConn
 
-	accessClient := edgeproto.NewCloudletAccessApiClient(ctrlConn)
-	accessApi := accessapi.NewControllerClient(accessClient)
+	accessApi := accessapi.NewControllerClient(nodeMgr.AccessApiClient)
 
 	clientTlsConfig, err := nodeMgr.InternalPki.GetClientTlsConfig(ctx,
 		nodeMgr.CommonName(),

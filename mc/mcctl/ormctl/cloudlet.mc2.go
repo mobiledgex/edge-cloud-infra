@@ -527,125 +527,6 @@ var CloudletKeyComments = map[string]string{
 	"cloudlet":     "Name of the cloudlet",
 }
 var CloudletKeySpecialArgs = map[string]string{}
-var OperationTimeLimitsRequiredArgs = []string{}
-var OperationTimeLimitsOptionalArgs = []string{
-	"createclusterinsttimeout",
-	"updateclusterinsttimeout",
-	"deleteclusterinsttimeout",
-	"createappinsttimeout",
-	"updateappinsttimeout",
-	"deleteappinsttimeout",
-}
-var OperationTimeLimitsAliasArgs = []string{
-	"createclusterinsttimeout=operationtimelimits.createclusterinsttimeout",
-	"updateclusterinsttimeout=operationtimelimits.updateclusterinsttimeout",
-	"deleteclusterinsttimeout=operationtimelimits.deleteclusterinsttimeout",
-	"createappinsttimeout=operationtimelimits.createappinsttimeout",
-	"updateappinsttimeout=operationtimelimits.updateappinsttimeout",
-	"deleteappinsttimeout=operationtimelimits.deleteappinsttimeout",
-}
-var OperationTimeLimitsComments = map[string]string{
-	"createclusterinsttimeout": "override default max time to create a cluster instance (duration)",
-	"updateclusterinsttimeout": "override default max time to update a cluster instance (duration)",
-	"deleteclusterinsttimeout": "override default max time to delete a cluster instance (duration)",
-	"createappinsttimeout":     "override default max time to create an app instance (duration)",
-	"updateappinsttimeout":     "override default max time to update an app instance (duration)",
-	"deleteappinsttimeout":     "override default max time to delete an app instance (duration)",
-}
-var OperationTimeLimitsSpecialArgs = map[string]string{}
-var CloudletInternalRequiredArgs = []string{
-	"key.organization",
-	"key.name",
-}
-var CloudletInternalOptionalArgs = []string{
-	"props",
-}
-var CloudletInternalAliasArgs = []string{
-	"fields=cloudletinternal.fields",
-	"key.organization=cloudletinternal.key.organization",
-	"key.name=cloudletinternal.key.name",
-	"props=cloudletinternal.props",
-}
-var CloudletInternalComments = map[string]string{
-	"fields":           "Fields are used for the Update API to specify which fields to apply.",
-	"key.organization": "Organization of the cloudlet site",
-	"key.name":         "Name of the cloudlet",
-	"props":            "Map of key value pairs for data exchanged between components",
-}
-var CloudletInternalSpecialArgs = map[string]string{
-	"cloudletinternal.fields": "StringArray",
-	"cloudletinternal.props":  "StringToString",
-}
-var PlatformConfigRequiredArgs = []string{}
-var PlatformConfigOptionalArgs = []string{
-	"containerregistrypath",
-	"cloudletvmimagepath",
-	"notifyctrladdrs",
-	"tlscertfile",
-	"tlskeyfile",
-	"tlscafile",
-	"envvar",
-	"platformtag",
-	"testmode",
-	"span",
-	"cleanupmode",
-	"region",
-	"commercialcerts",
-	"usevaultpki",
-	"appdnsroot",
-	"chefserverpath",
-	"chefclientinterval",
-	"deploymenttag",
-	"crmaccessprivatekey",
-	"accessapiaddr",
-}
-var PlatformConfigAliasArgs = []string{
-	"containerregistrypath=platformconfig.containerregistrypath",
-	"cloudletvmimagepath=platformconfig.cloudletvmimagepath",
-	"notifyctrladdrs=platformconfig.notifyctrladdrs",
-	"tlscertfile=platformconfig.tlscertfile",
-	"tlskeyfile=platformconfig.tlskeyfile",
-	"tlscafile=platformconfig.tlscafile",
-	"envvar=platformconfig.envvar",
-	"platformtag=platformconfig.platformtag",
-	"testmode=platformconfig.testmode",
-	"span=platformconfig.span",
-	"cleanupmode=platformconfig.cleanupmode",
-	"region=platformconfig.region",
-	"commercialcerts=platformconfig.commercialcerts",
-	"usevaultpki=platformconfig.usevaultpki",
-	"appdnsroot=platformconfig.appdnsroot",
-	"chefserverpath=platformconfig.chefserverpath",
-	"chefclientinterval=platformconfig.chefclientinterval",
-	"deploymenttag=platformconfig.deploymenttag",
-	"crmaccessprivatekey=platformconfig.crmaccessprivatekey",
-	"accessapiaddr=platformconfig.accessapiaddr",
-}
-var PlatformConfigComments = map[string]string{
-	"containerregistrypath": "Path to Docker registry holding edge-cloud image",
-	"cloudletvmimagepath":   "Path to platform base image",
-	"notifyctrladdrs":       "Address of controller notify port (can be multiple of these)",
-	"tlscertfile":           "TLS cert file",
-	"tlskeyfile":            "TLS key file",
-	"tlscafile":             "TLS ca file",
-	"envvar":                "Environment variables",
-	"platformtag":           "Tag of edge-cloud image",
-	"testmode":              "Internal Test flag",
-	"span":                  "Span string",
-	"cleanupmode":           "Internal cleanup flag",
-	"region":                "Region",
-	"commercialcerts":       "Get certs from vault or generate your own for the root load balancer",
-	"usevaultpki":           "Use Vault certs and CAs for internal TLS communication",
-	"appdnsroot":            "App domain name root",
-	"chefserverpath":        "Path to Chef Server",
-	"chefclientinterval":    "Chef client interval",
-	"deploymenttag":         "Deployment Tag",
-	"crmaccessprivatekey":   "crm access private key",
-	"accessapiaddr":         "controller access API address",
-}
-var PlatformConfigSpecialArgs = map[string]string{
-	"platformconfig.envvar": "StringToString",
-}
 var CloudletResMapRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
@@ -665,37 +546,6 @@ var CloudletResMapComments = map[string]string{
 var CloudletResMapSpecialArgs = map[string]string{
 	"cloudletresmap.mapping": "StringToString",
 }
-var InfraConfigRequiredArgs = []string{}
-var InfraConfigOptionalArgs = []string{
-	"externalnetworkname",
-	"flavorname",
-}
-var InfraConfigAliasArgs = []string{
-	"externalnetworkname=infraconfig.externalnetworkname",
-	"flavorname=infraconfig.flavorname",
-}
-var InfraConfigComments = map[string]string{
-	"externalnetworkname": "Infra specific external network name",
-	"flavorname":          "Infra specific flavor name",
-}
-var InfraConfigSpecialArgs = map[string]string{}
-var ResourceQuotaRequiredArgs = []string{}
-var ResourceQuotaOptionalArgs = []string{
-	"name",
-	"value",
-	"alertthreshold",
-}
-var ResourceQuotaAliasArgs = []string{
-	"name=resourcequota.name",
-	"value=resourcequota.value",
-	"alertthreshold=resourcequota.alertthreshold",
-}
-var ResourceQuotaComments = map[string]string{
-	"name":           "Resource name on which to set quota",
-	"value":          "Quota value of the resource",
-	"alertthreshold": "Generate alert when more than threshold percentage of resource is used",
-}
-var ResourceQuotaSpecialArgs = map[string]string{}
 var CloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
@@ -932,43 +782,6 @@ var FlavorMatchComments = map[string]string{
 	"cloudlet":     "Name of the cloudlet",
 }
 var FlavorMatchSpecialArgs = map[string]string{}
-var CloudletManifestRequiredArgs = []string{}
-var CloudletManifestOptionalArgs = []string{
-	"manifest",
-}
-var CloudletManifestAliasArgs = []string{
-	"manifest=cloudletmanifest.manifest",
-}
-var CloudletManifestComments = map[string]string{
-	"manifest": "Manifest to bringup cloudlet VM and services.",
-}
-var CloudletManifestSpecialArgs = map[string]string{}
-var PropertyInfoRequiredArgs = []string{}
-var PropertyInfoOptionalArgs = []string{
-	"name",
-	"description",
-	"value",
-	"secret",
-	"mandatory",
-	"internal",
-}
-var PropertyInfoAliasArgs = []string{
-	"name=propertyinfo.name",
-	"description=propertyinfo.description",
-	"value=propertyinfo.value",
-	"secret=propertyinfo.secret",
-	"mandatory=propertyinfo.mandatory",
-	"internal=propertyinfo.internal",
-}
-var PropertyInfoComments = map[string]string{
-	"name":        "Name of the property",
-	"description": "Description of the property",
-	"value":       "Default value of the property",
-	"secret":      "Is the property a secret value, will be hidden",
-	"mandatory":   "Is the property mandatory",
-	"internal":    "Is the property internal, not to be set by Operator",
-}
-var PropertyInfoSpecialArgs = map[string]string{}
 var CloudletPropsRequiredArgs = []string{}
 var CloudletPropsOptionalArgs = []string{
 	"platformtype",
@@ -1077,62 +890,6 @@ var CloudletResourceUsageComments = map[string]string{
 	"info:#.alertthreshold": "Generate alert when more than threshold percentage of resource is used",
 }
 var CloudletResourceUsageSpecialArgs = map[string]string{}
-var FlavorInfoRequiredArgs = []string{}
-var FlavorInfoOptionalArgs = []string{
-	"name",
-	"vcpus",
-	"ram",
-	"disk",
-	"propmap",
-}
-var FlavorInfoAliasArgs = []string{
-	"name=flavorinfo.name",
-	"vcpus=flavorinfo.vcpus",
-	"ram=flavorinfo.ram",
-	"disk=flavorinfo.disk",
-	"propmap=flavorinfo.propmap",
-}
-var FlavorInfoComments = map[string]string{
-	"name":    "Name of the flavor on the Cloudlet",
-	"vcpus":   "Number of VCPU cores on the Cloudlet",
-	"ram":     "Ram in MB on the Cloudlet",
-	"disk":    "Amount of disk in GB on the Cloudlet",
-	"propmap": "OS Flavor Properties, if any",
-}
-var FlavorInfoSpecialArgs = map[string]string{
-	"flavorinfo.propmap": "StringToString",
-}
-var OSAZoneRequiredArgs = []string{}
-var OSAZoneOptionalArgs = []string{
-	"name",
-	"status",
-}
-var OSAZoneAliasArgs = []string{
-	"name=osazone.name",
-	"status=osazone.status",
-}
-var OSAZoneComments = map[string]string{}
-var OSAZoneSpecialArgs = map[string]string{}
-var OSImageRequiredArgs = []string{}
-var OSImageOptionalArgs = []string{
-	"name",
-	"tags",
-	"properties",
-	"diskformat",
-}
-var OSImageAliasArgs = []string{
-	"name=osimage.name",
-	"tags=osimage.tags",
-	"properties=osimage.properties",
-	"diskformat=osimage.diskformat",
-}
-var OSImageComments = map[string]string{
-	"name":       "image name",
-	"tags":       "optional tags present on image",
-	"properties": "image properties/metadata",
-	"diskformat": "format qcow2, img, etc",
-}
-var OSImageSpecialArgs = map[string]string{}
 var CloudletInfoRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",

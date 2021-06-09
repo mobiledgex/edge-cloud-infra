@@ -16,5 +16,6 @@
     - policies/_region.dme-jwtkeys.write.v1.hcl.j2
     - policies/_region.influxdb.read.v1.hcl.j2
     - policies/_region.influxdb.write.v1.hcl.j2
+    - policies/_region.kafka.write.v1.hcl.j2
     - policies/_region.pki-regional-cloudlet.issue.v1.hcl.j2
     - policies/_region.pki-regional.issue.v1.hcl.j2

@@ -41,6 +41,7 @@
       - "{{ region_prefix }}.cloudlets.delete.v1"
       - "{{ region_prefix }}.accounts.read.v1"
       - "{{ region_prefix }}.influxdb.read.v1"
+      - "{{ region_prefix }}.kafka.write.v1"
       - "{{ region_prefix }}.pki-regional.issue.v1"
       - "{{ region_prefix }}.pki-regional-cloudlet.issue.v1"
     token_type: batch

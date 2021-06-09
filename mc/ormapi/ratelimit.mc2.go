@@ -20,9 +20,9 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-// Request summary for UpdateRateLimitSettings
-// swagger:parameters UpdateRateLimitSettings
-type swaggerUpdateRateLimitSettings struct {
+// Request summary for CreateRateLimitSettings
+// swagger:parameters CreateRateLimitSettings
+type swaggerCreateRateLimitSettings struct {
 	// in: body
 	Body RegionRateLimitSettings
 }
@@ -32,6 +32,13 @@ type RegionRateLimitSettings struct {
 	// Region name
 	Region            string
 	RateLimitSettings edgeproto.RateLimitSettings
+}
+
+// Request summary for UpdateRateLimitSettings
+// swagger:parameters UpdateRateLimitSettings
+type swaggerUpdateRateLimitSettings struct {
+	// in: body
+	Body RegionRateLimitSettings
 }
 
 // Request summary for DeleteRateLimitSettings

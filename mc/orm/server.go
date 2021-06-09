@@ -84,7 +84,6 @@ type ServerConfig struct {
 	DomainName              string
 	StaticDir               string
 	DeploymentTag           string
-	RemoveRateLimit         bool
 }
 
 var DefaultDBUser = "mcuser"
@@ -117,7 +116,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	nodeMgr = config.NodeMgr
 	server.done = make(chan struct{})
 
+	// Init RateLimitMgr and add Global settings
 	rateLimitMgr = ratelimit.NewRateLimitManager()
+	rateLimitMgr.AddApiEndpointLimiter(GlobalMcApiFullEndpointRateLimitSettings, GlobalMcApiPerIpRateLimitSettings, GlobalMcApiPerUserRateLimitSettings)
 
 	dbuser := os.Getenv("db_username")
 	dbpass := os.Getenv("db_password")
@@ -296,7 +297,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	// responses:
 	//   200: authToken
 	//   400: loginBadRequest
-	createMcApi(e, root, "/login", Login, NoAuth, Default)
+	e.POST(root+"/login", Login)
 	// swagger:route POST /usercreate User CreateUser
 	// Create User.
 	// Creates a new user and allows them to access and manage resources.
@@ -305,8 +306,12 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createMcApi(e, root, "/usercreate", CreateUser, Auth, Default)
-	createMcApi(e, root, "/passwordresetrequest", PasswordResetRequest, NoAuth, Default)
+	e.POST(root+"/usercreate", CreateUser)
+	// Add RateLimiting for UserCreate
+	UserCreateFullEndpointRateLimitSettings.Key.ApiName = root + "/usercreate"
+	UserCreatePerIpRateLimitSettings.Key.ApiName = root + "/usercreate"
+	rateLimitMgr.AddApiEndpointLimiter(UserCreateFullEndpointRateLimitSettings, UserCreatePerIpRateLimitSettings, nil)
+	e.POST(root+"/passwordresetrequest", PasswordResetRequest)
 	// swagger:route POST /publicconfig Config PublicConfig
 	// Show Public Configuration.
 	// Show Public Configuration for UI
@@ -314,22 +319,21 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   200: success
 	//   400: badRequest
 	//   404: notFound
-	createMcApi(e, root, "/publicconfig", PublicConfig, NoAuth, Default)
+	e.POST(root+"/publicconfig", PublicConfig)
 	// swagger:route POST /passwordreset Security PasswdReset
 	// Reset Login Password.
 	// This resets your login password.
 	// responses:
 	//   200: success
 	//   400: badRequest
-	createMcApi(e, root, "/passwordreset", PasswordReset, NoAuth, Default)
-	createMcApi(e, root, "/verifyemail", VerifyEmail, NoAuth, Default)
-	createMcApi(e, root, "/resendverify", ResendVerify, NoAuth, Default)
+	e.POST(root+"/passwordreset", PasswordReset)
+	e.POST(root+"/verifyemail", VerifyEmail)
+	e.POST(root+"/resendverify", ResendVerify)
 	// authenticated routes - jwt middleware
-	authPrefix := root + "/auth"
-	auth := e.Group(authPrefix)
+	auth := e.Group(root + "/auth")
 	auth.Use(AuthCookie)
 	// refresh auth cookie
-	createAuthMcApi(auth, authPrefix, "/refresh", RefreshAuthCookie, Default)
+	auth.POST("/refresh", RefreshAuthCookie)
 
 	// swagger:route POST /auth/user/show User ShowUser
 	// Show Users.
@@ -341,8 +345,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/user/show", ShowUser, Show)
-	createAuthMcApi(auth, authPrefix, "/user/current", CurrentUser, Show)
+	auth.POST("/user/show", ShowUser)
+	auth.POST("/user/current", CurrentUser)
 	// swagger:route POST /auth/user/delete User DeleteUser
 	// Delete User.
 	// Deletes existing user.
@@ -353,7 +357,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/user/delete", DeleteUser, Delete)
+	auth.POST("/user/delete", DeleteUser)
 	// swagger:route POST /auth/user/update User UpdateUser
 	// Update User.
 	// Updates current user.
@@ -364,17 +368,17 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/user/update", UpdateUser, Update)
-	createAuthMcApi(auth, authPrefix, "/user/newpass", NewPassword, Update)
-	createAuthMcApi(auth, authPrefix, "/user/create/apikey", CreateUserApiKey, Create)
-	createAuthMcApi(auth, authPrefix, "/user/delete/apikey", DeleteUserApiKey, Delete)
-	createAuthMcApi(auth, authPrefix, "/user/show/apikey", ShowUserApiKey, Show)
-	createAuthMcApi(auth, authPrefix, "/role/assignment/show", ShowRoleAssignment, Show)
-	createAuthMcApi(auth, authPrefix, "/role/perms/show", ShowRolePerms, Show)
-	createAuthMcApi(auth, authPrefix, "/role/show", ShowRole, Show)
-	createAuthMcApi(auth, authPrefix, "/role/adduser", AddUserRole, Default)
-	createAuthMcApi(auth, authPrefix, "/role/removeuser", RemoveUserRole, Default)
-	createAuthMcApi(auth, authPrefix, "/role/showuser", ShowUserRole, Show)
+	auth.POST("/user/update", UpdateUser)
+	auth.POST("/user/newpass", NewPassword)
+	auth.POST("/user/create/apikey", CreateUserApiKey)
+	auth.POST("/user/delete/apikey", DeleteUserApiKey)
+	auth.POST("/user/show/apikey", ShowUserApiKey)
+	auth.POST("/role/assignment/show", ShowRoleAssignment)
+	auth.POST("/role/perms/show", ShowRolePerms)
+	auth.POST("/role/show", ShowRole)
+	auth.POST("/role/adduser", AddUserRole)
+	auth.POST("/role/removeuser", RemoveUserRole)
+	auth.POST("/role/showuser", ShowUserRole)
 	// swagger:route POST /auth/org/create Organization CreateOrg
 	// Create Organization.
 	// Create an Organization to access operator/cloudlet APIs.
@@ -385,7 +389,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/org/create", CreateOrg, Create)
+	auth.POST("/org/create", CreateOrg)
 	// swagger:route POST /auth/org/update Organization UpdateOrg
 	// Update Organization.
 	// API to update an existing Organization.
@@ -396,7 +400,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/org/update", UpdateOrg, Update)
+	auth.POST("/org/update", UpdateOrg)
 	// swagger:route POST /auth/org/show Organization ShowOrg
 	// Show Organizations.
 	// Displays existing Organizations in which you are authorized to access.
@@ -407,7 +411,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/org/show", ShowOrg, Show)
+	auth.POST("/org/show", ShowOrg)
 	// swagger:route POST /auth/org/delete Organization DeleteOrg
 	// Delete Organization.
 	// Deletes an existing Organization.
@@ -418,9 +422,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/org/delete", DeleteOrg, Delete)
+	auth.POST("/org/delete", DeleteOrg)
 
-	createAuthMcApi(auth, authPrefix, "/billingorg/create", CreateBillingOrg, Create)
+	auth.POST("/billingorg/create", CreateBillingOrg)
 	// swagger:route POST /auth/billingorg/update BillingOrganization UpdateBillingOrg
 	// Update BillingOrganization.
 	// API to update an existing BillingOrganization.
@@ -431,7 +435,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/billingorg/update", UpdateBillingOrg, Update)
+	auth.POST("/billingorg/update", UpdateBillingOrg)
 	// swagger:route POST /auth/billingorg/addchild BillingOrganization AddChildOrg
 	// Add Child to BillingOrganization.
 	// Adds an Organization to an existing parent BillingOrganization.
@@ -442,7 +446,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/billingorg/addchild", AddChildOrg, Default)
+	auth.POST("/billingorg/addchild", AddChildOrg)
 	// swagger:route POST /auth/billingorg/removechild BillingOrganization RemoveChildOrg
 	// Remove Child from BillingOrganization.
 	// Removes an Organization from an existing parent BillingOrganization.
@@ -453,7 +457,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/billingorg/removechild", RemoveChildOrg, Default)
+	auth.POST("/billingorg/removechild", RemoveChildOrg)
 	// swagger:route POST /auth/billingorg/show BillingOrganization ShowBillingOrg
 	// Show BillingOrganizations.
 	// Displays existing BillingOrganizations in which you are authorized to access.
@@ -464,7 +468,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/billingorg/show", ShowBillingOrg, Show)
+	auth.POST("/billingorg/show", ShowBillingOrg)
 	// swagger:route POST /auth/billingorg/delete BillingOrganization DeleteBillingOrg
 	// Delete BillingOrganization.
 	// Deletes an existing BillingOrganization.
@@ -475,40 +479,40 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/billingorg/delete", DeleteBillingOrg, Delete)
-	createAuthMcApi(auth, authPrefix, "/billingorg/invoice", GetInvoice, Default)
-	createAuthMcApi(auth, authPrefix, "/billingorg/showaccount", ShowAccountInfo, Show)
-	createAuthMcApi(auth, authPrefix, "/billingorg/showpaymentprofiles", ShowPaymentInfo, Show)
-	createAuthMcApi(auth, authPrefix, "/billingorg/deletepaymentprofile", DeletePaymentInfo, Delete)
+	auth.POST("/billingorg/delete", DeleteBillingOrg)
+	auth.POST("/billingorg/invoice", GetInvoice)
+	auth.POST("/billingorg/showaccount", ShowAccountInfo)
+	auth.POST("/billingorg/showpaymentprofiles", ShowPaymentInfo)
+	auth.POST("/billingorg/deletepaymentprofile", DeletePaymentInfo)
 
-	createAuthMcApi(auth, authPrefix, "/controller/create", CreateController, Create)
-	createAuthMcApi(auth, authPrefix, "/controller/delete", DeleteController, Delete)
-	createAuthMcApi(auth, authPrefix, "/controller/show", ShowController, Show)
-	createAuthMcApi(auth, authPrefix, "/gitlab/resync", GitlabResync, Default)
-	createAuthMcApi(auth, authPrefix, "/artifactory/resync", ArtifactoryResync, Default)
-	createAuthMcApi(auth, authPrefix, "/artifactory/summary", ArtifactorySummary, Default)
-	createAuthMcApi(auth, authPrefix, "/config/update", UpdateConfig, Update)
-	createAuthMcApi(auth, authPrefix, "/config/reset", ResetConfig, Default)
-	createAuthMcApi(auth, authPrefix, "/config/show", ShowConfig, Show)
-	createAuthMcApi(auth, authPrefix, "/config/version", ShowVersion, Show)
-	createAuthMcApi(auth, authPrefix, "/restricted/user/update", RestrictedUserUpdate, Update)
-	createAuthMcApi(auth, authPrefix, "/restricted/org/update", RestrictedUpdateOrg, Update)
-	createAuthMcApi(auth, authPrefix, "/audit/showself", ShowAuditSelf, Show)
-	createAuthMcApi(auth, authPrefix, "/audit/showorg", ShowAuditOrg, Show)
-	createAuthMcApi(auth, authPrefix, "/audit/operations", GetAuditOperations, Default)
-	createAuthMcApi(auth, authPrefix, "/cloudletpoolaccessinvitation/create", CreateCloudletPoolAccessInvitation, Create)
-	createAuthMcApi(auth, authPrefix, "/cloudletpoolaccessinvitation/delete", DeleteCloudletPoolAccessInvitation, Delete)
-	createAuthMcApi(auth, authPrefix, "/cloudletpoolaccessinvitation/show", ShowCloudletPoolAccessInvitation, Show)
-	createAuthMcApi(auth, authPrefix, "/cloudletpoolaccessresponse/create", CreateCloudletPoolAccessResponse, Create)
-	createAuthMcApi(auth, authPrefix, "/cloudletpoolaccessresponse/delete", DeleteCloudletPoolAccessResponse, Delete)
-	createAuthMcApi(auth, authPrefix, "/cloudletpoolaccessresponse/show", ShowCloudletPoolAccessResponse, Show)
-	createAuthMcApi(auth, authPrefix, "/cloudletpoolaccessgranted/show", ShowCloudletPoolAccessGranted, Show)
-	createAuthMcApi(auth, authPrefix, "/cloudletpoolaccesspending/show", ShowCloudletPoolAccessPending, Show)
-	createAuthMcApi(auth, authPrefix, "/orgcloudlet/show", ShowOrgCloudlet, Show)
-	createAuthMcApi(auth, authPrefix, "/orgcloudletinfo/show", ShowOrgCloudletInfo, Show)
+	auth.POST("/controller/create", CreateController)
+	auth.POST("/controller/delete", DeleteController)
+	auth.POST("/controller/show", ShowController)
+	auth.POST("/gitlab/resync", GitlabResync)
+	auth.POST("/artifactory/resync", ArtifactoryResync)
+	auth.POST("/artifactory/summary", ArtifactorySummary)
+	auth.POST("/config/update", UpdateConfig)
+	auth.POST("/config/reset", ResetConfig)
+	auth.POST("/config/show", ShowConfig)
+	auth.POST("/config/version", ShowVersion)
+	auth.POST("/restricted/user/update", RestrictedUserUpdate)
+	auth.POST("/restricted/org/update", RestrictedUpdateOrg)
+	auth.POST("/audit/showself", ShowAuditSelf)
+	auth.POST("/audit/showorg", ShowAuditOrg)
+	auth.POST("/audit/operations", GetAuditOperations)
+	auth.POST("/cloudletpoolaccessinvitation/create", CreateCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessinvitation/delete", DeleteCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessinvitation/show", ShowCloudletPoolAccessInvitation)
+	auth.POST("/cloudletpoolaccessresponse/create", CreateCloudletPoolAccessResponse)
+	auth.POST("/cloudletpoolaccessresponse/delete", DeleteCloudletPoolAccessResponse)
+	auth.POST("/cloudletpoolaccessresponse/show", ShowCloudletPoolAccessResponse)
+	auth.POST("/cloudletpoolaccessgranted/show", ShowCloudletPoolAccessGranted)
+	auth.POST("/cloudletpoolaccesspending/show", ShowCloudletPoolAccessPending)
+	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
+	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
 
 	// Support multiple connection types: HTTP(s), Websockets
-	addControllerApis("POST", auth, authPrefix)
+	addControllerApis("POST", auth)
 
 	// Metrics api route use auth to serve a query to influxDB
 
@@ -522,7 +526,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/metrics/app", GetMetricsCommon, ShowMetrics)
+	auth.POST("/metrics/app", GetMetricsCommon)
 
 	// swagger:route POST /auth/metrics/cluster DeveloperMetrics ClusterMetrics
 	// Cluster related metrics.
@@ -534,7 +538,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/metrics/cluster", GetMetricsCommon, ShowMetrics)
+	auth.POST("/metrics/cluster", GetMetricsCommon)
 
 	// swagger:route POST /auth/metrics/cloudlet OperatorMetrics CloudletMetrics
 	// Cloudlet related metrics.
@@ -546,7 +550,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/metrics/cloudlet", GetMetricsCommon, ShowMetrics)
+	auth.POST("/metrics/cloudlet", GetMetricsCommon)
 
 	// swagger:route POST /auth/metrics/cloudlet/usage OperatorMetrics CloudletUsageMetrics
 	// Cloudlet usage related metrics.
@@ -558,7 +562,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/metrics/cloudlet/usage", GetMetricsCommon, ShowMetrics)
+	auth.POST("/metrics/cloudlet/usage", GetMetricsCommon)
 
 	// swagger:route POST /auth/metrics/clientapiusage DeveloperMetrics ClientApiUsageMetrics
 	// Client api usage related metrics.
@@ -570,7 +574,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/metrics/clientapiusage", GetMetricsCommon, ShowMetrics)
+	auth.POST("/metrics/clientapiusage", GetMetricsCommon)
 
 	// swagger:route POST /auth/metrics/clientappusage DeveloperMetrics ClientAppUsageMetrics
 	// Client app usage related metrics.
@@ -582,7 +586,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/metrics/clientappusage", GetMetricsCommon, ShowMetrics)
+	auth.POST("/metrics/clientappusage", GetMetricsCommon)
 
 	// swagger:route POST /auth/metrics/clientcloudletusage DeveloperMetrics ClientCloudletUsageMetrics
 	// Client cloudlet usage related metrics.
@@ -594,11 +598,11 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/metrics/clientcloudletusage", GetMetricsCommon, ShowMetrics)
+	auth.POST("/metrics/clientcloudletusage", GetMetricsCommon)
 
-	createAuthMcApi(auth, authPrefix, "/events/app", GetEventsCommon, Default)
-	createAuthMcApi(auth, authPrefix, "/events/cluster", GetEventsCommon, Default)
-	createAuthMcApi(auth, authPrefix, "/events/cloudlet", GetEventsCommon, Default)
+	auth.POST("/events/app", GetEventsCommon)
+	auth.POST("/events/cluster", GetEventsCommon)
+	auth.POST("/events/cloudlet", GetEventsCommon)
 
 	// new events/audit apis
 	// swagger:route POST /auth/events/show Events SearchEvents
@@ -611,7 +615,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/events/show", ShowEvents, Show)
+	auth.POST("/events/show", ShowEvents)
 	// swagger:route POST /auth/events/find Events FindEvents
 	// Find events
 	// Display events based on find filter.
@@ -622,7 +626,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/events/find", FindEvents, Default)
+	auth.POST("/events/find", FindEvents)
 	// swagger:route POST /auth/events/terms Events TermsEvents
 	// Terms Events
 	// Display events terms.
@@ -633,11 +637,11 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/events/terms", EventTerms, Default)
+	auth.POST("/events/terms", EventTerms)
 
-	createAuthMcApi(auth, authPrefix, "/spans/terms", SpanTerms, Default)
-	createAuthMcApi(auth, authPrefix, "/spans/show", ShowSpans, Show)
-	createAuthMcApi(auth, authPrefix, "/spans/showverbose", ShowSpansVerbose, Show)
+	auth.POST("/spans/terms", SpanTerms)
+	auth.POST("/spans/show", ShowSpans)
+	auth.POST("/spans/showverbose", ShowSpansVerbose)
 
 	// swagger:route POST /auth/usage/app DeveloperUsage AppUsage
 	// App Usage
@@ -649,7 +653,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/usage/app", GetUsageCommon, ShowUsage)
+	auth.POST("/usage/app", GetUsageCommon)
 	// swagger:route POST /auth/usage/cluster DeveloperUsage ClusterUsage
 	// Cluster Usage
 	// Display cluster usage.
@@ -660,7 +664,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/usage/cluster", GetUsageCommon, ShowUsage)
+	auth.POST("/usage/cluster", GetUsageCommon)
 	// swagger:route POST /auth/usage/cloudletpool OperatorUsage CloudletPoolUsage
 	// CloudletPool Usage
 	// Display cloudletpool usage.
@@ -671,7 +675,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/usage/cloudletpool", GetCloudletPoolUsageCommon, ShowUsage)
+	auth.POST("/usage/cloudletpool", GetCloudletPoolUsageCommon)
 
 	// Alertmanager apis
 	// swagger:route POST /auth/alertreceiver/create AlertReceiver CreateAlertReceiver
@@ -684,7 +688,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/alertreceiver/create", CreateAlertReceiver, Create)
+	auth.POST("/alertreceiver/create", CreateAlertReceiver)
 	// swagger:route POST /auth/alertreceiver/delete AlertReceiver DeleteAlertReceiver
 	// Delete Alert Receiver
 	// Delete alert receiver.
@@ -695,7 +699,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/alertreceiver/delete", DeleteAlertReceiver, Delete)
+	auth.POST("/alertreceiver/delete", DeleteAlertReceiver)
 	// swagger:route POST /auth/alertreceiver/show AlertReceiver ShowAlertReceiver
 	// Show Alert Receiver
 	// Show alert receiver.
@@ -706,16 +710,16 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	createAuthMcApi(auth, authPrefix, "/alertreceiver/show", ShowAlertReceiver, Show)
+	auth.POST("/alertreceiver/show", ShowAlertReceiver)
 
-	createAuthMcApi(auth, authPrefix, "/reporter/create", CreateReporter, Create)
-	createAuthMcApi(auth, authPrefix, "/reporter/update", UpdateReporter, Update)
-	createAuthMcApi(auth, authPrefix, "/reporter/delete", DeleteReporter, Delete)
-	createAuthMcApi(auth, authPrefix, "/reporter/show", ShowReporter, Show)
-	createAuthMcApi(auth, authPrefix, "/report/generatedata", GenerateReportData, Default)
-	createAuthMcApi(auth, authPrefix, "/report/generate", GenerateReport, Default)
-	createAuthMcApi(auth, authPrefix, "/report/show", ShowReport, Show)
-	createAuthMcApi(auth, authPrefix, "/report/download", DownloadReport, Default)
+	auth.POST("/reporter/create", CreateReporter)
+	auth.POST("/reporter/update", UpdateReporter)
+	auth.POST("/reporter/delete", DeleteReporter)
+	auth.POST("/reporter/show", ShowReporter)
+	auth.POST("/report/generatedata", GenerateReportData)
+	auth.POST("/report/generate", GenerateReport)
+	auth.POST("/report/show", ShowReport)
+	auth.POST("/report/download", DownloadReport)
 
 	// Generate new short-lived token to authenticate websocket connections
 	// Note: Web-client should not store auth token as part of local storage,
@@ -730,17 +734,16 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	// Use GET method for websockets as thats the method used
 	// in setting up TCP connection by most of the clients
 	// Also, authorization is handled as part of websocketUpgrade
-	wsPrefix := "ws/" + root + "/auth"
-	ws := e.Group(wsPrefix, server.websocketUpgrade)
-	addControllerApis("GET", ws, wsPrefix)
+	ws := e.Group("ws/"+root+"/auth", server.websocketUpgrade)
+	addControllerApis("GET", ws)
 	// Metrics api route use ws to serve a query to influxDB
-	createMcWebsocketsApi(ws, wsPrefix, "/metrics/app", GetMetricsCommon, Auth, ShowMetrics)
-	createMcWebsocketsApi(ws, wsPrefix, "/metrics/cluster", GetMetricsCommon, Auth, ShowMetrics)
-	createMcWebsocketsApi(ws, wsPrefix, "/metrics/cloudlet", GetMetricsCommon, Auth, ShowMetrics)
-	createMcWebsocketsApi(ws, wsPrefix, "/metrics/cloudlet/usage", GetMetricsCommon, Auth, ShowMetrics)
-	createMcWebsocketsApi(ws, wsPrefix, "/metrics/clientapiusage", GetMetricsCommon, Auth, ShowMetrics)
-	createMcWebsocketsApi(ws, wsPrefix, "/metrics/clientappusage", GetMetricsCommon, Auth, ShowMetrics)
-	createMcWebsocketsApi(ws, wsPrefix, "/metrics/clientcloudletusage", GetMetricsCommon, Auth, ShowMetrics)
+	ws.GET("/metrics/app", GetMetricsCommon)
+	ws.GET("/metrics/cluster", GetMetricsCommon)
+	ws.GET("/metrics/cloudlet", GetMetricsCommon)
+	ws.GET("/metrics/cloudlet/usage", GetMetricsCommon)
+	ws.GET("/metrics/clientapiusage", GetMetricsCommon)
+	ws.GET("/metrics/clientappusage", GetMetricsCommon)
+	ws.GET("/metrics/clientcloudletusage", GetMetricsCommon)
 
 	if config.NotifySrvAddr != "" {
 		server.notifyServer = &notify.ServerMgr{}
@@ -1068,72 +1071,4 @@ func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
 		c.Response().Flush()
 	}
 	return nil
-}
-
-// Create MC API Echo Route and Adds API to ratelimitmgr
-func createMcApi(e *echo.Echo, prefix string, path string, h echo.HandlerFunc, apiAuthType ApiAuthType, apiActionType ApiActionType) {
-	e.POST(prefix+path, h)
-	addApiRateLimit(prefix, path, apiAuthType, Mc, apiActionType)
-}
-
-// Create MC API in the AUTH group and Adds API to ratelimitmgr
-func createAuthMcApi(auth *echo.Group, prefix string, path string, h echo.HandlerFunc, apiActionType ApiActionType) {
-	auth.POST(path, h)
-	addApiRateLimit(prefix, path, Auth, Mc, apiActionType)
-}
-
-// Create MC API that uses websockets route and Adds API to ratelimitmgr
-func createMcWebsocketsApi(ws *echo.Group, prefix string, path string, h echo.HandlerFunc, apiAuthType ApiAuthType, apiActionType ApiActionType) {
-	ws.GET(path, h)
-	addApiRateLimit(prefix, path, apiAuthType, Mc, apiActionType)
-}
-
-// add api to ratelimitmgr
-func addApiRateLimit(prefix string, path string, apiAuthType ApiAuthType, apiType ApiType, apiActionType ApiActionType) {
-	// If RemoveRateLimit, do not add to ratelimitmgr
-	if serverConfig.RemoveRateLimit {
-		return
-	}
-	methodName := "/" + prefix + path
-	var fullEpRateLimitSettings *edgeproto.RateLimitSettings
-	var perIpRateLimitSettings *edgeproto.RateLimitSettings
-	if apiType == Controller {
-		// If controller API, use LeakyBucket to "leak" requests to controller and let controller accept or reject
-		fullEpRateLimitSettings = McControllerApiFullEndpointRateLimitSettings
-		perIpRateLimitSettings = McControllerApiPerIpRateLimitSettings
-	} else {
-		if apiAuthType == Auth {
-			// Switch through different MC API action types
-			switch apiActionType {
-			case Create:
-				fullEpRateLimitSettings = McCreateApiFullEndpointRateLimitSettings
-				perIpRateLimitSettings = McCreateApiPerIpRateLimitSettings
-			case Delete:
-				fullEpRateLimitSettings = McDeleteApiFullEndpointRateLimitSettings
-				perIpRateLimitSettings = McDeleteApiPerIpRateLimitSettings
-			case Show:
-				fullEpRateLimitSettings = McShowApiFullEndpointRateLimitSettings
-				perIpRateLimitSettings = McShowApiPerIpRateLimitSettings
-			case Update:
-				fullEpRateLimitSettings = McUpdateApiFullEndpointRateLimitSettings
-				perIpRateLimitSettings = McUpdateApiPerIpRateLimitSettings
-			case ShowMetrics:
-				fullEpRateLimitSettings = McShowMetricsApiFullEndpointRateLimitSettings
-				perIpRateLimitSettings = McShowMetricsApiPerIpRateLimitSettings
-			case ShowUsage:
-				fullEpRateLimitSettings = McShowUsageApiFullEndpointRateLimitSettings
-				perIpRateLimitSettings = McShowUsageApiPerIpRateLimitSettings
-			case Default:
-				fallthrough
-			default:
-				fullEpRateLimitSettings = McDefaultApiFullEndpointRateLimitSettings
-				perIpRateLimitSettings = McDefaultApiPerIpRateLimitSettings
-			}
-		} else {
-			// No auth MC APIs
-			fullEpRateLimitSettings = NoAuthMcApiFullEndpointRateLimitSettings
-			perIpRateLimitSettings = NoAuthMcApiPerIpRateLimitSettings
-		}
-	}
-	rateLimitMgr.AddApiEndpointLimiter(methodName, fullEpRateLimitSettings, perIpRateLimitSettings, nil, nil)
 }

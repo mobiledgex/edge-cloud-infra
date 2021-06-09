@@ -26,6 +26,59 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+func CreateRateLimitSettings(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionRateLimitSettings{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.RateLimitSettings.GetKey().GetTags())
+	resp, err := CreateRateLimitSettingsObj(ctx, rc, &in.RateLimitSettings)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func CreateRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateRateLimitSettings(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceConfig, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewRateLimitSettingsApiClient(rc.conn)
+	return api.CreateRateLimitSettings(ctx, obj)
+}
+
 func UpdateRateLimitSettings(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}

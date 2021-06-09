@@ -2180,6 +2180,22 @@ func (s *Client) ShowOrgCloudletInfo(uri string, token string, in *ormapi.OrgClo
 
 // Generating group RateLimitSettings
 
+func (s *Client) CreateRateLimitSettings(uri string, token string, in *ormapi.RegionRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
 func (s *Client) UpdateRateLimitSettings(uri string, token string, in *ormapi.RegionRateLimitSettings) (*edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri

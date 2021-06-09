@@ -23,6 +23,20 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
+func TestCreateRateLimitSettings(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.RateLimitSettings, modFuncs ...func(*edgeproto.RateLimitSettings)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionRateLimitSettings{}
+	dat.Region = region
+	dat.RateLimitSettings = *in
+	for _, fn := range modFuncs {
+		fn(&dat.RateLimitSettings)
+	}
+	return mcClient.CreateRateLimitSettings(uri, token, dat)
+}
+func TestPermCreateRateLimitSettings(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.RateLimitSettings{}
+	return TestCreateRateLimitSettings(mcClient, uri, token, region, in, modFuncs...)
+}
+
 func TestUpdateRateLimitSettings(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.RateLimitSettings, modFuncs ...func(*edgeproto.RateLimitSettings)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionRateLimitSettings{}
 	dat.Region = region
@@ -77,6 +91,18 @@ func TestShowRateLimitSettings(mcClient *mctestclient.Client, uri, token, region
 func TestPermShowRateLimitSettings(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) ([]edgeproto.RateLimitSettings, int, error) {
 	in := &edgeproto.RateLimitSettings{}
 	return TestShowRateLimitSettings(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func (s *TestClient) CreateRateLimitSettings(ctx context.Context, in *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionRateLimitSettings{
+		Region:            s.Region,
+		RateLimitSettings: *in,
+	}
+	out, status, err := s.McClient.CreateRateLimitSettings(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
 }
 
 func (s *TestClient) UpdateRateLimitSettings(ctx context.Context, in *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {

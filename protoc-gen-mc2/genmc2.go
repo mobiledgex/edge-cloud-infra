@@ -251,8 +251,6 @@ func (g *GenMC2) generatePosts() {
 
 				g.P("group.Match([]string{method}, \"/ctrl/", method.Name,
 					"\", ", method.Name, ")")
-
-				g.P("addApiRateLimit(groupPrefix, \"/ctrl/", method.Name, "\", Auth, Controller, Default)")
 			}
 		}
 	}

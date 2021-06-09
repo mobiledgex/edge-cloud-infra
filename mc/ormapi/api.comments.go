@@ -89,6 +89,7 @@ var ConfigComments = map[string]string{
 	"maxmetricsdatapoints":         `InfluxDB max number of data points returned`,
 	"userapikeycreatelimit":        `Max number of API keys a user can create`,
 	"billingenable":                `Toggle for enabling billing (primarily for testing purposes)`,
+	"ratelimitenable":              `Toggle to enable and disable MC API rate limiting`,
 }
 
 var OrgCloudletPoolComments = map[string]string{

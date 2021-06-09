@@ -81,7 +81,6 @@ func main() {
 		DomainName:              nodeMgr.CommonName(),
 		StaticDir:               *staticDir,
 		DeploymentTag:           nodeMgr.DeploymentTag,
-		RemoveRateLimit:         *removeRateLimit,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {

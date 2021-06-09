@@ -210,6 +210,8 @@ type Config struct {
 	UserApiKeyCreateLimit int
 	// Toggle for enabling billing (primarily for testing purposes)
 	BillingEnable bool
+	// Toggle to enable and disable MC API rate limiting
+	RateLimitEnable bool
 }
 
 type OrgCloudletPool struct {

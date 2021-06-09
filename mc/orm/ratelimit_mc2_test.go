@@ -27,6 +27,27 @@ var _ = math.Inf
 
 var _ = edgeproto.GetFields
 
+func badPermCreateRateLimitSettings(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) {
+	_, status, err := testutil.TestPermCreateRateLimitSettings(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Forbidden")
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func badCreateRateLimitSettings(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, status int, modFuncs ...func(*edgeproto.RateLimitSettings)) {
+	_, st, err := testutil.TestPermCreateRateLimitSettings(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Equal(t, status, st)
+}
+
+func goodPermCreateRateLimitSettings(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) {
+	_, status, err := testutil.TestPermCreateRateLimitSettings(mcClient, uri, token, region, org, modFuncs...)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
+var _ = edgeproto.GetFields
+
 func badPermUpdateRateLimitSettings(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) {
 	_, status, err := testutil.TestPermUpdateRateLimitSettings(mcClient, uri, token, region, org, modFuncs...)
 	require.NotNil(t, err)

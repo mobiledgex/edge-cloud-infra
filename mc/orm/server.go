@@ -146,7 +146,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		return nil, fmt.Errorf("Missing deployment tag")
 	}
 
-	ctx, span, err := nodeMgr.Init(node.NodeTypeMC, node.CertIssuerGlobal, node.WithName(config.Hostname), node.WithCloudletPoolLookup(&allRegionCaches))
+	ctx, span, err := nodeMgr.Init(node.NodeTypeMC, node.CertIssuerGlobal, node.WithName(config.Hostname), node.WithCloudletPoolLookup(&allRegionCaches), node.WithCloudletLookup(&allRegionCaches))
 	if err != nil {
 		return nil, err
 	}
@@ -991,6 +991,11 @@ func ReadConn(c echo.Context, in interface{}) (bool, error) {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			return false, fmt.Errorf("Invalid data")
 		}
+		// echo returns HTTPError which may include "code: ..., message:", chop code
+		if errObj, ok := err.(*echo.HTTPError); ok {
+			err = fmt.Errorf("%v", errObj.Message)
+		}
+
 		errStr := checkForTimeError(fmt.Sprintf("Invalid data: %v", err))
 		return false, fmt.Errorf(errStr)
 	}

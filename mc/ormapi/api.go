@@ -1,7 +1,7 @@
 package ormapi
 
 import (
-	"regexp"
+	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -16,6 +16,7 @@ type User struct {
 	Name string `gorm:"primary_key;type:citext"`
 	// User email
 	Email string `gorm:"unique;not null"`
+	// Email address has been verified
 	// read only: true
 	EmailVerified bool
 	// read only: true
@@ -36,6 +37,7 @@ type User struct {
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
+	// Account is locked
 	// read only: true
 	Locked bool
 	// read only: true
@@ -262,7 +264,9 @@ type OrgCloudlet struct {
 
 type ShowUser struct {
 	User `json:",inline"`
-	Org  string `form:"org" json:"org"`
+	// Organization name
+	Org string `form:"org" json:"org"`
+	// Role name
 	Role string `form:"role" json:"role"`
 }
 
@@ -582,6 +586,8 @@ type Reporter struct {
 	// User name (for internal use only)
 	// read only: true
 	Username string
+	// Timezone in which to show the reports, defaults to UTC
+	Timezone string
 	// Last report status
 	// read only: true
 	Status string
@@ -591,8 +597,9 @@ type DownloadReport struct {
 	// Organization name
 	// required: true
 	Org string
+	// Reporter name
+	Reporter string
 	// Name of the report file to be downloaded
-	// required: true
 	Filename string
 }
 
@@ -609,25 +616,26 @@ type GenerateReport struct {
 	// Region name (for internal use only)
 	// read only: true
 	Region string
+	// Timezone in which to show the reports, defaults to UTC
+	Timezone string
 }
 
-func GetReportFileName(reporterName string, report *GenerateReport) string {
-	// File name should be of this format: "<orgname>_<startdate>_<enddate>_<reportername>_report.pdf"
+func GetReporterFileName(reporterName string, report *GenerateReport) string {
 	startDate := report.StartTime.Format(TimeFormatDateName) // YYYYMMDD
 	endDate := report.EndTime.Format(TimeFormatDateName)
-	subStr := ""
-	if reporterName != "" {
-		subStr = "_" + reporterName
-	}
-	return report.Org + "_" + startDate + "_" + endDate + subStr + "_report.pdf"
+	return report.Org + "/" + reporterName + "/" + startDate + "_" + endDate + ".pdf"
 }
 
-func GetOrgFromReportFileName(fileName string) string {
-	pattern := `(.*)_\d{8}_\d{8}_[a-zA-Z0-9-.]*_report.pdf`
-	regObj := regexp.MustCompile(pattern)
-	allStrs := regObj.FindStringSubmatch(fileName)
-	if len(allStrs) < 2 {
-		return ""
+func GetReportFileName(report *GenerateReport) string {
+	startDate := report.StartTime.Format(TimeFormatDateName) // YYYYMMDD
+	endDate := report.EndTime.Format(TimeFormatDateName)
+	return report.Org + "_" + startDate + "_" + endDate + ".pdf"
+}
+
+func GetInfoFromReportFileName(fileName string) (string, string) {
+	parts := strings.Split(fileName, "/")
+	if len(parts) > 1 {
+		return parts[0], parts[1]
 	}
-	return allStrs[1]
+	return "", ""
 }

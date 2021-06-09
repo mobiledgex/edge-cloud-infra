@@ -454,6 +454,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ServerlessConfigVcpus: 40.1
 	// ServerlessConfigRam: 40.2
 	// ServerlessConfigMinReplicas: 40.3
+	// VmAppOsType: 41
 	// ```
 	// Security:
 	//   Bearer:
@@ -719,12 +720,15 @@ func addControllerApis(method string, group *echo.Group) {
 	// ResourceQuotasAlertThreshold: 39.3
 	// DefaultResourceAlertThreshold: 40
 	// HostController: 41
-	// GpuConfig: 42
-	// GpuConfigGpuType: 42.1
-	// GpuConfigDriverName: 42.2
-	// GpuConfigProperties: 42.3
-	// GpuConfigPropertiesKey: 42.3.1
-	// GpuConfigPropertiesValue: 42.3.2
+	// KafkaCluster: 42
+	// KafkaUser: 43
+	// KafkaPassword: 44
+	// GpuConfig: 45
+	// GpuConfigGpuType: 45.1
+	// GpuConfigDriverName: 45.2
+	// GpuConfigProperties: 45.3
+	// GpuConfigPropertiesKey: 45.3.1
+	// GpuConfigPropertiesValue: 45.3.2
 	// ```
 	// Security:
 	//   Bearer:

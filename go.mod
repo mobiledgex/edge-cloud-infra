@@ -302,3 +302,5 @@ replace cloud.google.com/go => cloud.google.com/go v0.39.0
 replace google.golang.org/api => google.golang.org/api v0.14.0
 
 replace golang.org/x/oauth2 => golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
+
+replace github.com/Shopify/sarama => github.com/Shopify/sarama v1.22.2-0.20190604114437-cd910a683f9f

@@ -3,16 +3,19 @@ package ormapi
 // This is an auto-generated file. DO NOT EDIT directly.
 
 var UserComments = map[string]string{
-	"name":       `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
-	"email":      `User email`,
-	"familyname": `Family Name`,
-	"givenname":  `Given Name`,
-	"nickname":   `Nick Name`,
-	"enabletotp": `Enable or disable temporary one-time passwords for the account`,
-	"metadata":   `Metadata`,
+	"name":          `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
+	"email":         `User email`,
+	"emailverified": `Email address has been verified`,
+	"familyname":    `Family Name`,
+	"givenname":     `Given Name`,
+	"nickname":      `Nick Name`,
+	"locked":        `Account is locked`,
+	"enabletotp":    `Enable or disable temporary one-time passwords for the account`,
+	"metadata":      `Metadata`,
 }
 
 var CreateUserApiKeyComments = map[string]string{
+	"userapikey.id":          `API key ID used as an identifier for API keys`,
 	"userapikey.description": `Description of the purpose of this API key`,
 	"userapikey.org":         `Org to which API key has permissions to access its objects`,
 	"apikey":                 `API key`,
@@ -22,15 +25,19 @@ var CreateUserApiKeyComments = map[string]string{
 }
 
 var UserApiKeyComments = map[string]string{
+	"id":          `API key ID used as an identifier for API keys`,
 	"description": `Description of the purpose of this API key`,
 	"org":         `Org to which API key has permissions to access its objects`,
 }
 
 var OrganizationComments = map[string]string{
-	"name":    `Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
-	"type":    `Organization type: "developer" or "operator"`,
-	"address": `Organization address`,
-	"phone":   `Organization phone number`,
+	"name":             `Organization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
+	"type":             `Organization type: "developer" or "operator"`,
+	"address":          `Organization address`,
+	"phone":            `Organization phone number`,
+	"publicimages":     `Images are made available to other organization`,
+	"deleteinprogress": `Delete of this organization is in progress`,
+	"edgeboxonly":      `Edgebox only operator organization`,
 }
 
 var InvoiceRequestComments = map[string]string{
@@ -106,13 +113,17 @@ var RoleComments = map[string]string{
 }
 
 var ShowUserComments = map[string]string{
-	"user.name":       `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
-	"user.email":      `User email`,
-	"user.familyname": `Family Name`,
-	"user.givenname":  `Given Name`,
-	"user.nickname":   `Nick Name`,
-	"user.enabletotp": `Enable or disable temporary one-time passwords for the account`,
-	"user.metadata":   `Metadata`,
+	"user.name":          `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
+	"user.email":         `User email`,
+	"user.emailverified": `Email address has been verified`,
+	"user.familyname":    `Family Name`,
+	"user.givenname":     `Given Name`,
+	"user.nickname":      `Nick Name`,
+	"user.locked":        `Account is locked`,
+	"user.enabletotp":    `Enable or disable temporary one-time passwords for the account`,
+	"user.metadata":      `Metadata`,
+	"org":                `Organization name`,
+	"role":               `Role name`,
 }
 
 var UserLoginComments = map[string]string{
@@ -121,13 +132,15 @@ var UserLoginComments = map[string]string{
 }
 
 var CreateUserComments = map[string]string{
-	"user.name":       `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
-	"user.email":      `User email`,
-	"user.familyname": `Family Name`,
-	"user.givenname":  `Given Name`,
-	"user.nickname":   `Nick Name`,
-	"user.enabletotp": `Enable or disable temporary one-time passwords for the account`,
-	"user.metadata":   `Metadata`,
+	"user.name":          `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
+	"user.email":         `User email`,
+	"user.emailverified": `Email address has been verified`,
+	"user.familyname":    `Family Name`,
+	"user.givenname":     `Given Name`,
+	"user.nickname":      `Nick Name`,
+	"user.locked":        `Account is locked`,
+	"user.enabletotp":    `Enable or disable temporary one-time passwords for the account`,
+	"user.metadata":      `Metadata`,
 }
 
 var EmailRequestComments = map[string]string{
@@ -162,10 +175,15 @@ var ReporterComments = map[string]string{
 	"email":             `Email to send generated reports`,
 	"schedule":          `Indicates how often a report should be generated, one of EveryWeek, Every15Days, Every30Days, EveryMonth`,
 	"startscheduledate": `Start date (in RFC3339 format with intended timezone) when the report is scheduled to be generated (Default: today)`,
+	"nextscheduledate":  `Date when the next report is scheduled to be generated (for internal use only)`,
+	"username":          `User name (for internal use only)`,
+	"timezone":          `Timezone in which to show the reports, defaults to UTC`,
+	"status":            `Last report status`,
 }
 
 var DownloadReportComments = map[string]string{
 	"org":      `Organization name`,
+	"reporter": `Reporter name`,
 	"filename": `Name of the report file to be downloaded`,
 }
 
@@ -173,4 +191,6 @@ var GenerateReportComments = map[string]string{
 	"org":       `Organization name`,
 	"starttime": `Absolute time (in RFC3339 format with intended timezone) to start report capture`,
 	"endtime":   `Absolute time (in RFC3339 format with intended timezone) to end report capture`,
+	"region":    `Region name (for internal use only)`,
+	"timezone":  `Timezone in which to show the reports, defaults to UTC`,
 }

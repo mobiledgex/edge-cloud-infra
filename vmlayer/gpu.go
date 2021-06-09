@@ -6,6 +6,8 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -17,6 +19,9 @@ import (
 
 type GPUDrivers map[edgeproto.GPUDriverKey][]edgeproto.GPUDriverBuild
 
+const DriverInstallationTimeout = 30 * time.Minute
+
+// Must call GCSClient.Close() when done.
 func (v *VMPlatform) getGCSStorageClient(ctx context.Context) (*gcs.GCSClient, error) {
 	deploymentTag := v.VMProperties.GetDeploymentTag()
 	bucketName := cloudcommon.GetGPUDriverBucketName(deploymentTag)
@@ -74,7 +79,7 @@ func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageC
 		log.SpanLog(ctx, log.DebugLevelInfra, "GPU driver license not found in local cache, fetch it from GCS", "fileName", fileName)
 		outBytes, err := storageClient.DownloadObject(ctx, fileName)
 		if err != nil {
-			if err.Error() == gcs.NotFoundError {
+			if strings.Contains(err.Error(), gcs.NotFoundError) {
 				// license config doesn't exist
 				return "", nil
 			}
@@ -91,12 +96,13 @@ func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageC
 func (v *VMPlatform) setupGPUDrivers(ctx context.Context, rootLBClient ssh.Client, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, action ActionType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "setupGPUDrivers", "clusterInst", clusterInst.Key)
 	updateCallback(edgeproto.UpdateTask, "Gathering supported list of GPU drivers")
-	gpuDrivers, err := v.GetCloudletGPUDriverBuilds(ctx, clusterInst.Key.CloudletKey.Organization)
+	gpuDriver, err := v.GetCloudletGPUDriver(ctx)
 	if err != nil {
 		return err
 	}
-	if len(gpuDrivers) == 0 {
-		return fmt.Errorf("No GPU drivers available")
+	if gpuDriver == nil {
+		// GPU not supported on this cloudlet, just return
+		return nil
 	}
 
 	targetNodes := []string{}
@@ -118,6 +124,9 @@ func (v *VMPlatform) setupGPUDrivers(ctx context.Context, rootLBClient ssh.Clien
 		return err
 	}
 	defer storageClient.Close()
+	wgError := make(chan error)
+	wgDone := make(chan bool)
+	var wg sync.WaitGroup
 	for _, node := range targetNodes {
 		vmIP, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), node)
 		if err != nil {
@@ -128,48 +137,56 @@ func (v *VMPlatform) setupGPUDrivers(ctx context.Context, rootLBClient ssh.Clien
 		if err != nil {
 			return err
 		}
-		err = v.installGPUDriverBuild(ctx, storageClient, node, client, gpuDrivers, updateCallback)
-		if err != nil {
-			return err
-		}
+		wg.Add(1)
+		go func(clientIn ssh.Client, nodeName string, wg *sync.WaitGroup) {
+			err = v.installGPUDriverBuild(ctx, storageClient, nodeName, clientIn, gpuDriver, updateCallback)
+			if err != nil {
+				wgError <- err
+				return
+			}
+			wg.Done()
+		}(client, node, &wg)
+	}
+
+	go func() {
+		wg.Wait()
+		close(wgDone)
+	}()
+
+	// Wait until either WaitGroup is done or an error is received through the channel
+	select {
+	case <-wgDone:
+		break
+	case err := <-wgError:
+		close(wgError)
+		return err
+	case <-time.After(DriverInstallationTimeout):
+		return fmt.Errorf("Timed out installing GPU driver on cluster VMs")
 	}
 	return nil
 }
 
-func (v *VMPlatform) GetCloudletGPUDriverBuilds(ctx context.Context, cloudletOrg string) (GPUDrivers, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletGPUDriverBuilds", "cloudletOrg", cloudletOrg)
-	gpuDrivers := make(GPUDrivers)
-	if v.GPUConfig.GpuType == edgeproto.GPUType_GPU_TYPE_NONE {
-		return gpuDrivers, nil
+func (v *VMPlatform) GetCloudletGPUDriver(ctx context.Context) (*edgeproto.GPUDriver, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletGPUDriver")
+	if v.GPUConfig.Driver.Name == "" {
+		return nil, nil
 	}
 	if v.Caches == nil {
 		return nil, fmt.Errorf("caches is nil")
 	}
-	// Get all public GPU drivers
 	var gpuDriver edgeproto.GPUDriver
-	driverKey := edgeproto.GPUDriverKey{
-		Name: v.GPUConfig.DriverName,
-		Type: v.GPUConfig.GpuType,
+	if !v.Caches.GPUDriverCache.Get(&v.GPUConfig.Driver, &gpuDriver) {
+		return nil, fmt.Errorf("Unable to find GPU driver details for %s", v.GPUConfig.Driver.String())
 	}
-	gpuDrivers[driverKey] = []edgeproto.GPUDriverBuild{}
-	if v.Caches.GPUDriverCache.Get(&driverKey, &gpuDriver) {
-		gpuDrivers[driverKey] = append(gpuDrivers[driverKey], gpuDriver.Builds...)
-	}
-	// Get all operator owned GPU drivers
-	driverKey.Organization = cloudletOrg
-	gpuDrivers[driverKey] = []edgeproto.GPUDriverBuild{}
-	if v.Caches.GPUDriverCache.Get(&driverKey, &gpuDriver) {
-		gpuDrivers[driverKey] = append(gpuDrivers[driverKey], gpuDriver.Builds...)
-	}
-	return gpuDrivers, nil
+	return &gpuDriver, nil
 }
 
-func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *gcs.GCSClient, nodeName string, client ssh.Client, drivers GPUDrivers, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "installGPUDriverBuild", "nodeName", nodeName, "num drivers", len(drivers))
+func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *gcs.GCSClient, nodeName string, client ssh.Client, driver *edgeproto.GPUDriver, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "installGPUDriverBuild", "nodeName", nodeName, "driver", driver.Key)
 	// fetch linux kernel version
 	out, err := client.Output("uname -sr")
 	if err != nil {
-		return err
+		return fmt.Errorf("%s, %v", out, err)
 	}
 	if out == "" {
 		return fmt.Errorf("failed to get kernel version for %s", nodeName)
@@ -184,33 +201,31 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 		return fmt.Errorf("unsupported os for %s: %s, only Linux is supported for now", nodeName, os)
 	}
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching GPU driver supported for Linux kernel version %s", kernVers))
-	var reqdDriverKey edgeproto.GPUDriverKey
+	found := false
 	var reqdBuild edgeproto.GPUDriverBuild
-	for driverKey, builds := range drivers {
-		for _, build := range builds {
-			if build.OperatingSystem == edgeproto.OSType_LINUX &&
-				build.KernelVersion == kernVers {
-				reqdBuild = build
-				reqdDriverKey = driverKey
-				break
-			}
+	for _, build := range driver.Builds {
+		if build.OperatingSystem == edgeproto.OSType_LINUX &&
+			build.KernelVersion == kernVers {
+			reqdBuild = build
+			found = true
+			break
 		}
 	}
-	if reqdDriverKey.Name == "" {
+	if !found {
 		return fmt.Errorf("Unable to find Linux GPU driver build for kernel version %s, node %s", kernVers, nodeName)
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "found matching GPU driver", "nodename", nodeName, "driverkey", reqdDriverKey, "build", reqdBuild.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "found matching GPU driver", "nodename", nodeName, "driverkey", driver.Key, "build", reqdBuild.Name)
 	// Get path to GPU driver package file
 	pkgPath, err := v.getGPUDriverPackagePath(ctx, storageClient, &reqdBuild)
 	if err != nil {
 		return err
 	}
 	// Get path to GPU driver license config file
-	licenseConfigPath, err := v.getGPUDriverLicenseConfigPath(ctx, storageClient, &reqdDriverKey)
+	licenseConfigPath, err := v.getGPUDriverLicenseConfigPath(ctx, storageClient, &driver.Key)
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Copying GPU driver %s (%s) to node %s", reqdDriverKey.Name, reqdBuild.Name, nodeName))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Copying GPU driver %s (%s) to node %s", driver.Key.Name, reqdBuild.Name, nodeName))
 	// Upload driver and license config to target node
 	err = infracommon.SCPFilePath(client, pkgPath, "/tmp/")
 	if err != nil {
@@ -223,12 +238,12 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 		}
 	}
 	// Install GPU driver, setup license and verify it
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Installing GPU driver %s (%s) on node %s", reqdDriverKey.Name, reqdBuild.Name, nodeName))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Installing GPU driver %s (%s) on node %s", driver.Key.Name, reqdBuild.Name, nodeName))
 	cmd := fmt.Sprintf(
 		"sudo bash /etc/mobiledgex/install-gpu-driver.sh -n %s -d %s -t %s",
-		reqdDriverKey.Name,
+		driver.Key.Name,
 		pkgPath,
-		edgeproto.GPUType_CamelName[int32(reqdDriverKey.Type)],
+		edgeproto.GPUType_CamelName[int32(v.GPUConfig.GpuType)],
 	)
 	if licenseConfigPath != "" {
 		cmd += " -l " + licenseConfigPath

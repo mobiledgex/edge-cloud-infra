@@ -571,7 +571,7 @@ func GetGPUDriverBuildURL(c echo.Context) error {
 	return setReply(c, resp)
 }
 
-func GetGPUDriverBuildURLObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember) (*edgeproto.Result, error) {
+func GetGPUDriverBuildURLObj(ctx context.Context, rc *RegionContext, obj *edgeproto.GPUDriverBuildMember) (*edgeproto.GPUDriverBuildURL, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
 		if err := authzGetGPUDriverBuildURL(ctx, rc.region, rc.username, obj,

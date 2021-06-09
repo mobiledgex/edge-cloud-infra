@@ -1588,6 +1588,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 	return nil, nil
 }
 
+// Must call GCSClient.Close() when done
 func getGCSStorageClient(ctx context.Context) (*gcs.GCSClient, error) {
 	bucketName := getOperatorReportsBucketName(serverConfig.DeploymentTag)
 	credsObj, err := gcs.GetGCSCreds(ctx, serverConfig.vaultConfig)

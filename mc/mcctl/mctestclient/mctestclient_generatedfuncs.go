@@ -1893,12 +1893,12 @@ func (s *Client) RemoveGPUDriverBuild(uri string, token string, in *ormapi.Regio
 	return out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) GetGPUDriverBuildURL(uri string, token string, in *ormapi.RegionGPUDriverBuildMember) (*edgeproto.Result, int, error) {
+func (s *Client) GetGPUDriverBuildURL(uri string, token string, in *ormapi.RegionGPUDriverBuildMember) (*edgeproto.GPUDriverBuildURL, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out edgeproto.Result
+	var out edgeproto.GPUDriverBuildURL
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("GetGPUDriverBuildURL")

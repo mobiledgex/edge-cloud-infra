@@ -525,17 +525,20 @@ func addControllerApis(method string, group *echo.Group) {
 	// Key: 2
 	// KeyName: 2.1
 	// KeyOrganization: 2.2
-	// KeyType: 2.3
-	// Builds: 3
-	// BuildsName: 3.1
-	// BuildsDriverPath: 3.2
-	// BuildsOperatingSystem: 3.3
-	// BuildsKernelVersion: 3.4
-	// BuildsHypervisor: 3.5
-	// LicenseConfig: 4
-	// Properties: 5
-	// PropertiesKey: 5.1
-	// PropertiesValue: 5.2
+	// Type: 3
+	// Builds: 4
+	// BuildsName: 4.1
+	// BuildsDriverPath: 4.2
+	// BuildsDriverPathCreds: 4.3
+	// BuildsOperatingSystem: 4.4
+	// BuildsKernelVersion: 4.5
+	// BuildsHypervisorInfo: 4.6
+	// LicenseConfig: 5
+	// Properties: 6
+	// PropertiesKey: 6.1
+	// PropertiesValue: 6.2
+	// State: 7
+	// IgnoreState: 8
 	// ```
 	// Security:
 	//   Bearer:
@@ -724,8 +727,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// KafkaUser: 43
 	// KafkaPassword: 44
 	// GpuConfig: 45
-	// GpuConfigGpuType: 45.1
-	// GpuConfigDriverName: 45.2
+	// GpuConfigDriver: 45.1
+	// GpuConfigDriverName: 45.1.1
+	// GpuConfigDriverOrganization: 45.1.2
+	// GpuConfigGpuType: 45.2
 	// GpuConfigProperties: 45.3
 	// GpuConfigPropertiesKey: 45.3.1
 	// GpuConfigPropertiesValue: 45.3.2

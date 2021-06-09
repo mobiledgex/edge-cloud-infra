@@ -280,8 +280,11 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		},
 		EnvVar: map[string]string{"key1": "val1"},
 		GpuConfig: edgeproto.GPUConfig{
-			DriverName: "0gpudriver",
-			GpuType:    edgeproto.GPUType_GPU_TYPE_PASSTHROUGH,
+			Driver: edgeproto.GPUDriverKey{
+				Name:         "0gpudriver",
+				Organization: org3,
+			},
+			GpuType: edgeproto.GPUType_GPU_TYPE_PASSTHROUGH,
 		},
 	}
 	ds.CloudletCache.Update(ctx, &org3Cloudlet, 0)
@@ -780,9 +783,9 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 			Region: ctrl.Region,
 			GPUDriver: edgeproto.GPUDriver{
 				Key: edgeproto.GPUDriverKey{
-					Type: edgeproto.GPUType_GPU_TYPE_PASSTHROUGH,
 					Name: "testgpudriver",
 				},
+				Type: edgeproto.GPUType_GPU_TYPE_PASSTHROUGH,
 			},
 		}
 		// operator-manager cannot create a public GPU driver

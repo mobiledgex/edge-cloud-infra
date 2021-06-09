@@ -47,6 +47,19 @@ if [[ ! -z $LICENSECFGPATH ]] && [[ ! -f $LICENSECFGPATH ]]; then
 	die "GPU driver license file '$LICENSECFGPATH' does not exist"
 fi
 
+PKGNAME=$(dpkg -f $DRIVERPATH package)
+PKGVERS=$(dpkg -f $DRIVERPATH version)
+if [[ $? -ne 0 ]]; then
+	die "Invalid driver package file '$DRIVERPATH', failed to extract package/version details"
+fi
+
+curPkgName=$(dpkg-query --showformat='${Package}' --show $PKGNAME)
+curPkgVers=$(dpkg-query --showformat='${Version}' --show $PKGNAME)
+if [[ $? -eq 0 ]] && [[ $curPkgName == $PKGNAME ]] && [[ $curPkgVerrs == $PKGVERS ]]; then
+	echo ">> Skip installing GPU driver, as package '$PKGNAME' of version '$PKGVERS' already exists"
+	exit 0
+fi
+
 echo ">> Installing GPU driver $DRIVERPATH..."
 dpkg -i $DRIVERPATH
 [[ $? -ne 0 ]] && die "Failed to install $DRIVERPATH package"
@@ -58,15 +71,33 @@ nvidia-smi -L
 echo ""
 
 if [[ ! -z $LICENSECFGPATH ]]; then
-	echo ">> Setup GPU driver license config $LICENSECFGPATH..."
-	cp $LICENSECFGPATH /etc/nvidia/gridd.conf
-	service nvidia-gridd restart
-	[[ $? -ne 0 ]] && die "Failed to restart nvidia-gridd service"
-	echo ""
+	# License configuration for nvidia-gridd service
+	systemctl is-active --quiet nvidia-gridd
+	if [[ $? -eq 0 ]]; then
+		echo ">> Setup GPU driver license config $LICENSECFGPATH for nvidia-gridd..."
+		echo ""
+		cp $LICENSECFGPATH /etc/nvidia/gridd.conf
+		service nvidia-gridd restart
+		[[ $? -ne 0 ]] && die "Failed to restart nvidia-gridd service"
 
-	echo ">> Verify GPU driver license is acquired..."
-	cat /var/log/syslog | grep -i "license.*success"
-	[[ $? -ne 0 ]] && die "Failed to verify if nvidia-gridd license is configured"
+		LOGTIME=$(date +"%b %e %H:%M")
+
+		echo ">> Verifying if GPU driver license is acquired..."
+		TIMEOUT=$((SECONDS+300))
+		cat /var/log/syslog | grep -i "$LOGTIME.*license.*success"
+		while [ $? -ne 0 ] ; do
+			# retry until timeout
+			if [ $SECONDS -gt $TIMEOUT ] ; then
+				die "Timed out waiting for nvidia-gridd service to acquire license"
+			fi
+			echo ">> Waiting for license to be acquired - now $SECONDS, timeout $TIMEOUT"
+			sleep 5
+			cat /var/log/syslog | grep -i "$LOGTIME.*license.*success"
+		done
+		echo ">> GPU driver license acquired"
+	else
+		echo ">> Skip license configuration as there is no valid GPU service available..."
+	fi
 	echo ""
 fi
 

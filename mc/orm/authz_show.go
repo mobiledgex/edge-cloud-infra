@@ -2,7 +2,6 @@ package orm
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -147,9 +146,7 @@ func (s *AuthzAppInstShow) Filter(obj *edgeproto.AppInst) {
 }
 
 type AuthzGPUDriverShow struct {
-	allowAll          bool
-	admin             bool
-	allowedOrgs       map[string]struct{}
+	authzCloudlet     AuthzCloudlet
 	allowedGPUDrivers map[edgeproto.GPUDriverKey]struct{}
 }
 
@@ -174,28 +171,23 @@ func newShowGPUDriverAuthz(ctx context.Context, region, username string, resourc
 		if authzOk, _ := authzCloudletObj.Ok(cl); !authzOk {
 			return nil
 		}
-		driverKey := edgeproto.GPUDriverKey{
-			Name:         cl.GpuConfig.DriverName,
-			Organization: cl.Key.Organization,
-			Type:         cl.GpuConfig.GpuType,
-		}
+		driverKey := cl.GpuConfig.Driver
 		allowedGPUDrivers[driverKey] = struct{}{}
 		return nil
 	})
 	return &AuthzGPUDriverShow{
-		allowAll:          authzCloudletObj.allowAll,
-		admin:             authzCloudletObj.admin,
-		allowedOrgs:       authzCloudletObj.orgs,
+		authzCloudlet:     authzCloudletObj,
 		allowedGPUDrivers: allowedGPUDrivers,
 	}, nil
 }
 
 func (s *AuthzGPUDriverShow) Ok(obj *edgeproto.GPUDriver) (bool, bool) {
 	filterOutput := false
-	if s.allowAll {
+	if s.authzCloudlet.allowAll {
 		return true, filterOutput
 	}
-	if _, found := s.allowedOrgs[obj.Key.Organization]; found {
+	filterOutput = true
+	if _, found := s.authzCloudlet.orgs[obj.Key.Organization]; found {
 		// operator has access to GPU drivers created by their org
 		return true, filterOutput
 	}
@@ -213,6 +205,15 @@ func (s *AuthzGPUDriverShow) Ok(obj *edgeproto.GPUDriver) (bool, bool) {
 
 func (s *AuthzGPUDriverShow) Filter(obj *edgeproto.GPUDriver) {
 	// nothing to filter for Operator, show all fields for Developer & Operator
+	output := *obj
+	*obj = edgeproto.GPUDriver{}
+	obj.Key = output.Key
+	obj.Properties = output.Properties
+	obj.Builds = output.Builds
+	for ii := range obj.Builds {
+		obj.Builds[ii].DriverPath = ""
+		obj.Builds[ii].DriverPathCreds = ""
+	}
 }
 
 func authzGetGPUDriverBuildURL(ctx context.Context, region, username string, obj *edgeproto.GPUDriverBuildMember, resource, action string) error {
@@ -224,7 +225,7 @@ func authzGetGPUDriverBuildURL(ctx context.Context, region, username string, obj
 		Key: obj.Key,
 	}
 	if authzOk, _ := authz.Ok(&gpuDriver); !authzOk {
-		return fmt.Errorf("No permissions for GPU driver %s", obj.Key.GetKeyString())
+		return echo.ErrForbidden
 	}
 	return nil
 }

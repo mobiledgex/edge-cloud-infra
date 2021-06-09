@@ -41,8 +41,7 @@ type influxClientMetricsQueryArgs struct {
 	DataNetworkType string
 	DeviceModel     string
 	DeviceOs        string
-	//SignalStrength  string
-	LocationTile string
+	LocationTile    string
 }
 
 // ClientApiUsageFields is DME metrics
@@ -86,7 +85,6 @@ var ClientCloudletUsageFields = []string{
 }
 
 var LatencyFields = []string{
-	//"\"signalstrength\"",
 	//"\"0ms\"", // TODO: make sure this is ms
 	"\"0s\"",
 	"\"5ms\"",
@@ -148,7 +146,6 @@ var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
 	`{{if .DataNetworkType}} AND "datanetworktype"='{{.DataNetworkType}}'{{end}}` +
 	`{{if .DeviceOs}} AND "deviceos"='{{.DeviceOs}}'{{end}}` +
 	`{{if .DeviceModel}} AND "devicemodel"='{{.DeviceModel}}'{{end}}` +
-	//`{{if .SignalStrength}} AND "signalstrength"='{{.SignalStrength}}'{{end}}` +
 	`{{if .LocationTile}} AND "locationtile"='{{.LocationTile}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
@@ -161,7 +158,6 @@ var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}
 	`{{if .DataNetworkType}} AND "datanetworktype"='{{.DataNetworkType}}'{{end}}` +
 	`{{if .DeviceOs}} AND "deviceos"='{{.DeviceOs}}'{{end}}` +
 	`{{if .DeviceModel}} AND "devicemodel"='{{.DeviceModel}}'{{end}}` +
-	//`{{if .SignalStrength}} AND "signalstrength"='{{.SignalStrength}}'{{end}}` +
 	`{{if .LocationTile}} AND "locationtile"='{{.LocationTile}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
@@ -248,9 +244,8 @@ func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics, cloudle
 		DataNetworkType: obj.DataNetworkType,
 		DeviceOs:        obj.DeviceOs,
 		DeviceModel:     obj.DeviceModel,
-		//SignalStrength:  obj.SignalStrength,
-		LocationTile: obj.LocationTile,
-		Last:         obj.Last,
+		LocationTile:    obj.LocationTile,
+		Last:            obj.Last,
 	}
 	if obj.AppInst.AppKey.Organization != "" {
 		arg.OrgField = "apporg"
@@ -281,9 +276,8 @@ func ClientCloudletUsageMetricsQuery(obj *ormapi.RegionClientCloudletUsageMetric
 		DataNetworkType: obj.DataNetworkType,
 		DeviceOs:        obj.DeviceOs,
 		DeviceModel:     obj.DeviceModel,
-		//SignalStrength:  obj.SignalStrength,
-		LocationTile: obj.LocationTile,
-		Last:         obj.Last,
+		LocationTile:    obj.LocationTile,
+		Last:            obj.Last,
 	}
 	return fillTimeAndGetCmdForClientMetricsQuery(&arg, operatorInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime)
 }

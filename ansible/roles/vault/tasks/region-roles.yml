@@ -11,6 +11,7 @@
     policies:
       - approle.login.v1
       - "{{ region_prefix }}.influxdb.read.v1"
+      - "{{ region_prefix }}.kafka.read.v1"
       - "{{ region_prefix }}.pki-regional.issue.v1"
     token_type: batch
 

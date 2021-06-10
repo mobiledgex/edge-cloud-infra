@@ -27,6 +27,7 @@
     - policies/gcs.read.v1.hcl.j2
     - policies/influxdb.read.v1.hcl.j2
     - policies/influxdb-internal.read.v1.hcl.j2
+    - policies/kafka.read.v1.hcl.j2
     - policies/logins.read.v1.hcl.j2
     - policies/noreplyemail.read.v1.hcl.j2
     - policies/gcp-auth.read.v1.hcl.j2

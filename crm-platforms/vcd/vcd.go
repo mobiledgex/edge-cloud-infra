@@ -340,7 +340,7 @@ func (v *VcdPlatform) GetVappServerSuffix() string {
 }
 
 func (v *VcdPlatform) GetCloudletImageSuffix(ctx context.Context) string {
-	return "-vcd.qcow2"
+	return ".qcow2"
 }
 
 func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletImagePath string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {

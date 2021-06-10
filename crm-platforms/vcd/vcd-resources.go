@@ -11,7 +11,6 @@ import (
 
 	prototypes "github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -30,6 +29,8 @@ type VcdResources struct {
 // cachedVdc is used for VM app metrics
 var cachedVdc *govcd.Vdc
 var lastCachedVdcRefreshTime time.Time
+
+var ChangeSinceLastVmAppStats bool
 
 const CurrentVmMetrics string = "application/vnd.vmware.vcloud.metrics.currentUsageSpec+xml"
 
@@ -261,9 +262,9 @@ func (v *VcdPlatform) GetVdcFromCacheForVmStats(ctx context.Context, vcdClient *
 	}
 	maxCacheTime := time.Second * time.Duration(m)
 	elapsed := time.Since(lastCachedVdcRefreshTime)
-	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVdcFromCacheForVmStats", "maxCacheTime", maxCacheTime, "lastCachedVdcRefreshTime", lastCachedVdcRefreshTime, "elapsed", elapsed, "changed", shepherd_vmprovider.ChangeSinceLastVmAppStats)
+	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVdcFromCacheForVmStats", "maxCacheTime", maxCacheTime, "lastCachedVdcRefreshTime", lastCachedVdcRefreshTime, "elapsed", elapsed, "changed", ChangeSinceLastVmAppStats)
 
-	if elapsed < maxCacheTime && cachedVdc != nil && !shepherd_vmprovider.ChangeSinceLastVmAppStats {
+	if elapsed < maxCacheTime && cachedVdc != nil && !ChangeSinceLastVmAppStats {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "GetVdcFromCacheForVmStats return cached vdc")
 		return cachedVdc, nil
 	}
@@ -273,9 +274,13 @@ func (v *VcdPlatform) GetVdcFromCacheForVmStats(ctx context.Context, vcdClient *
 		log.SpanLog(ctx, log.DebugLevelMetrics, "GetVdcFromCacheForVmStats failed to get new VDC", "err", err)
 		return nil, fmt.Errorf("GetVdc Failed - %v", err)
 	}
-	shepherd_vmprovider.ChangeSinceLastVmAppStats = false
+	ChangeSinceLastVmAppStats = false
 	lastCachedVdcRefreshTime = time.Now()
 	return cachedVdc, nil
+}
+
+func (v *VcdPlatform) VmAppChangedCallback(ctx context.Context) {
+	ChangeSinceLastVmAppStats = true
 }
 
 func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
@@ -315,8 +320,8 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 	response, err := vcdClient.Client.ExecuteRequest(link.HREF, http.MethodGet, "", "error GET retriving metrics link: %s", nil, &metricsResponse)
 	log.SpanLog(ctx, log.DebugLevelMetrics, "VCD Get VM Metrics results", "statusCode", response.StatusCode, "metricsResponse", metricsResponse, "err", err)
 	if err != nil || response.StatusCode != http.StatusOK {
-		// sampled spanlogs will miss this error
-		log.InfoLog("Error getting VCD metrics", "statusCode", response.StatusCode, "err", err)
+		log.ForceLogSpan(log.SpanFromContext(ctx))
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Error getting VCD metrics", "statusCode", response.StatusCode, "err", err)
 	}
 	ts, _ := prototypes.TimestampProto(time.Now())
 
@@ -333,7 +338,7 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 		case "mem.usage.average":
 			f, err := strconv.ParseFloat(m.Value, 64)
 			if err != nil {
-				// spanlogs are not helpful to show errors here because they are just sampled
+				log.ForceLogSpan(log.SpanFromContext(ctx))
 				log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats error parse float for mem usage", "value", m.Value, "err", err)
 				continue
 			}

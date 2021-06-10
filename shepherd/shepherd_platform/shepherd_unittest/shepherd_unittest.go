@@ -73,6 +73,9 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	return metrics, nil
 }
 
+func (s *Platform) VmAppChangedCallback(ctx context.Context) {
+}
+
 func (s *Platform) GetMetricsCollectInterval() time.Duration {
 	return 0
 }

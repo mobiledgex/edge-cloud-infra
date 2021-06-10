@@ -21,9 +21,6 @@ var sharedRootLBWait = time.Minute * 5
 
 var caches *platform.Caches
 
-// ChangeSinceLastCloudletStats means a VM appinst changed since last VM App stats collection
-var ChangeSinceLastVmAppStats bool
-
 type ShepherdPlatform struct {
 	rootLbName      string
 	SharedClient    ssh.Client
@@ -219,4 +216,8 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	}
 	appMetrics = shepherd_common.AppMetrics(*vmMetrics)
 	return appMetrics, nil
+}
+
+func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context) {
+	s.VMPlatform.VMProvider.VmAppChangedCallback(ctx)
 }

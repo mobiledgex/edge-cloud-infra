@@ -46,6 +46,10 @@ path "secret/data/accounts/alertmanagersmtp" {
   capabilities = [ "read" ]
 }
 
+path "secret/data/accounts/gcs" {
+  capabilities = [ "read" ]
+}
+
 path "secret/data/registry/*" {
   capabilities = [ "read" ]
 }
@@ -55,6 +59,10 @@ path "pki-global/issue/*" {
 }
 
 path "secret/data/accounts/chargify/*" {
+  capabilities = [ "read" ]
+}
+
+path "secret/data/kafka/*" {
   capabilities = [ "read" ]
 }
 EOF

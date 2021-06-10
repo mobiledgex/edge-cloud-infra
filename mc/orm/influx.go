@@ -876,7 +876,7 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 				orgField = "Cluster"
 			}
 			return []string{}, fmt.Errorf("Developers please specify the %s Organization", orgField)
-		} else if len(cloudletKeys) == 0 && len(authOperOrgs) > 0 {
+		} else if len(cloudletOrgs) == 0 && len(authOperOrgs) > 0 {
 			return []string{}, fmt.Errorf("Operators please specify the Cloudlet Organization")
 		} else {
 			return []string{}, echo.ErrForbidden

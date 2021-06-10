@@ -352,7 +352,9 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	caches.CloudletInternalCache.Update(ctx, &cloudletInternal, 0)
 	v.Caches = caches
 	v.VMProperties.Domain = VMDomainCompute
-	v.GPUConfig = *platformConfig.GPUConfig
+	if platformConfig.GPUConfig != nil {
+		v.GPUConfig = *platformConfig.GPUConfig
+	}
 	v.CacheDir = platformConfig.CacheDir
 	if _, err := os.Stat(v.CacheDir); os.IsNotExist(err) {
 		return fmt.Errorf("CacheDir doesn't exist, please create one")

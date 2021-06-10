@@ -95,7 +95,7 @@ func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageC
 
 func (v *VMPlatform) setupGPUDrivers(ctx context.Context, rootLBClient ssh.Client, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, action ActionType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "setupGPUDrivers", "clusterInst", clusterInst.Key)
-	updateCallback(edgeproto.UpdateTask, "Gathering supported list of GPU drivers")
+	updateCallback(edgeproto.UpdateTask, "Setting up GPU drivers on all cluster nodes")
 	gpuDriver, err := v.GetCloudletGPUDriver(ctx)
 	if err != nil {
 		return err
@@ -200,7 +200,7 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 	if os != "Linux" {
 		return fmt.Errorf("unsupported os for %s: %s, only Linux is supported for now", nodeName, os)
 	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Fetching GPU driver supported for Linux kernel version %s", kernVers))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("%s: Fetching GPU driver supported for Linux kernel version %s", nodeName, kernVers))
 	found := false
 	var reqdBuild edgeproto.GPUDriverBuild
 	for _, build := range driver.Builds {
@@ -225,7 +225,7 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 	if err != nil {
 		return err
 	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Copying GPU driver %s (%s) to node %s", driver.Key.Name, reqdBuild.Name, nodeName))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("%s: Copying GPU driver %s (%s)", nodeName, driver.Key.Name, reqdBuild.Name))
 	// Upload driver and license config to target node
 	err = infracommon.SCPFilePath(client, pkgPath, "/tmp/")
 	if err != nil {
@@ -238,7 +238,7 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 		}
 	}
 	// Install GPU driver, setup license and verify it
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Installing GPU driver %s (%s) on node %s", driver.Key.Name, reqdBuild.Name, nodeName))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("%s: Installing GPU driver %s (%s)", nodeName, driver.Key.Name, reqdBuild.Name))
 	cmd := fmt.Sprintf(
 		"sudo bash /etc/mobiledgex/install-gpu-driver.sh -n %s -d %s -t %s",
 		driver.Key.Name,
@@ -252,6 +252,6 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 	if err != nil {
 		return fmt.Errorf("Failed to setup GPU driver: %s, %v", out, err)
 	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Successfully installed GPU driver on node %s", nodeName))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("%s: Successfully installed GPU driver", nodeName))
 	return nil
 }

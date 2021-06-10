@@ -175,12 +175,6 @@ Package: mobiledgex
 Pin: version ${TAG#v}
 Pin-Priority: 1001
 EOT
-# Pin helm package version
-sudo tee /etc/apt/preferences.d/helm.pref <<EOT
-Package: helm
-Pin: version 2.17.0
-Pin-Priority: 1001
-EOT
 sudo apt-get install -y mobiledgex
 [[ $? -ne 0 ]] && die "Failed to install extra packages"
 

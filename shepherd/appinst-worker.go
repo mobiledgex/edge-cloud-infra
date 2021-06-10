@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -25,10 +26,10 @@ type AppInstWorker struct {
 func NewAppInstWorker(ctx context.Context, interval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, appinst *edgeproto.AppInst, pf platform.Platform) (*AppInstWorker, error) {
 	p := AppInstWorker{}
 	p.pf = pf
-	if int64(interval) > int64(pf.GetMetricsCollectInterval()) {
-		p.interval = interval
-	} else {
-		p.interval = pf.GetMetricsCollectInterval()
+	p.interval = pf.GetMetricsCollectInterval()
+	if p.interval == 0 {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Platform Collection interval is 0, will not create appinst worker", "app", appinst)
+		return nil, fmt.Errorf("Appinst metrics disabled in platform")
 	}
 	p.send = send
 	p.appInstKey = appinst.Key

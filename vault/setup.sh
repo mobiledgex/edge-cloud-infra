@@ -57,6 +57,10 @@ path "pki-global/issue/*" {
 path "secret/data/accounts/chargify/*" {
   capabilities = [ "read" ]
 }
+
+path "secret/data/kafka/*" {
+  capabilities = [ "read" ]
+}
 EOF
 
 vault policy write mcorm /tmp/mcorm-pol.hcl

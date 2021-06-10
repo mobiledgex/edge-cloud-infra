@@ -67,7 +67,7 @@
     name: Docker prune
     minute: "0"
     hour: "2"
-    job: docker system prune >/dev/null
+    job: docker system prune -f >/dev/null
 
 - name: Load registry docker creds
   import_role:

@@ -178,11 +178,10 @@ func ShowRolePerms(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	// is caller an admin
-	admin := false
-	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
-		// admin user can see all roles
-		admin = true
+	// admin user can see all roles
+	isAdmin, err := isUserAdmin(ctx, claims.Username)
+	if err != nil {
+		return err
 	}
 	filter, err := bindMap(c)
 	if err != nil {
@@ -203,7 +202,7 @@ func ShowRolePerms(c echo.Context) error {
 			Resource: policies[ii][1],
 			Action:   policies[ii][2],
 		}
-		if !admin {
+		if !isAdmin {
 			if isApiKeyRole(perm.Role) || isAdminRole(perm.Role) {
 				continue
 			}
@@ -326,12 +325,12 @@ func ShowRole(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	// is caller an admin
-	admin := false
-	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
-		// admin user can see all roles
-		admin = true
+	// admin user can see all roles
+	isAdmin, err := isUserAdmin(ctx, claims.Username)
+	if err != nil {
+		return err
 	}
+
 	rolemap := make(map[string]struct{})
 	policies, err := enforcer.GetPolicy()
 	if err != nil {
@@ -345,7 +344,7 @@ func ShowRole(c echo.Context) error {
 	}
 	roles := make([]string, 0)
 	for role, _ := range rolemap {
-		if !admin {
+		if !isAdmin {
 			if isApiKeyRole(role) || isAdminRole(role) {
 				continue
 			}

@@ -191,6 +191,9 @@ func recordClusterUsages(ctx context.Context, usage *ormapi.MetricData, cloudlet
 		return
 	}
 	for _, value := range usage.Series[0].Values {
+		if len(value) != 12 {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Invalid cluster record", "record", value)
+		}
 		// ordering is from clusterInstDataColumns
 		newClusterInst := edgeproto.ClusterInstKey{
 			Organization: fmt.Sprintf("%v", value[2]),

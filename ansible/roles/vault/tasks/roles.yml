@@ -14,6 +14,10 @@
       - auth-ldap-config.read.v1
       - certs.read.v1
       - chef.read.v1
+      - gcp-bucket-create-key.read.v1
+      - gcp-config.read.v1
+      - gcp-role-create-key.read.v1
+      - gcp-rolesets.read.v1
       - influxdb.read.v1
       - influxdb-internal.read.v1
       - mexenv.read.v1

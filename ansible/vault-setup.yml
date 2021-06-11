@@ -34,6 +34,9 @@
     vault_pki_role:
       vault_addr: "{{ vault_address }}"
       vault_token: "{{ vault_token }}"
+    vault_gcp_roleset:
+      vault_addr: "{{ vault_address }}"
+      vault_token: "{{ vault_token }}"
 
   tasks:
 
@@ -56,7 +59,7 @@
         name: vault
         tasks_from: ssh-secret-engine
 
-    - name: Enable the TOTP secret engine
+    - name: Enable the TOTP secrets engine
       vault_api:
         api: sys/mounts/totp
         method: POST
@@ -66,7 +69,89 @@
       when: '"totp/" not in secret_engines.meta.response'
       notify: Vault TOTP setup prompt
 
-    - name: Enable KV secret engines
+    - name: Enable the GCP secrets engine
+      vault_api:
+        api: sys/mounts/gcp
+        method: POST
+        data:
+          type: gcp
+          config:
+            default_lease_ttl: 1m
+            max_lease_ttl: 1h
+        success_code: 204
+      when: '"gcp/" not in secret_engines.meta.response'
+      register: gcp_secrets_engine
+
+    - name: Check if GCP engine is configured
+      vault_api:
+        api: gcp/config
+        success_code:
+          - 200
+          - 404
+      register: gcp_config
+
+    - block:
+        - pause:
+            prompt: |
+              Configure the GCP secrets engine:
+                - Create a GCP service account with the "Vault GCP Role" custom role
+                - Generate a key for the service account and add it to vault:
+                    $ vault write gcp/config credentials=@the-key.json
+
+              Hit <Enter> when done.
+
+        - name: Ensure that the GCP engine is now configured
+          vault_api:
+            api: gcp/config
+            success_code:
+              - 200
+
+        - debug:
+            msg: |
+              Note that a newly created service account can take several minutes
+              before it is fully active in Google Cloud.
+
+      when: '"data" not in gcp_config.meta.response'
+
+    - name: Set up roleset for creating roles
+      vault_gcp_roleset:
+        name: "{{ vault_gcp_role_create_roleset }}"
+        bindings:
+          - resource: "//cloudresourcemanager.googleapis.com/projects/{{ gcp_project }}"
+            roles:
+              - roles/iam.roleAdmin
+
+    - name: Get service key for creating roles
+      vault_api:
+        api: "gcp/key/{{ vault_gcp_role_create_roleset }}"
+      register: role_create_service_key
+
+    - set_fact:
+        gcp_service_key: "{{ role_create_service_key.meta.response.data.private_key_data | b64decode }}"
+
+    - name: "Set up GCP role for bucket creation: {{ gcp_bucket_create_role }}"
+      gcp_iam_role:
+        name: "{{ gcp_bucket_create_role }}"
+        title: "{{ deploy_environ | title }} role for creating GCS buckets"
+        description: "Ansible-managed custom role for creating GCS buckets"
+        included_permissions:
+          - storage.buckets.create
+          - storage.buckets.get
+          - storage.buckets.list
+        project: "{{ gcp_project }}"
+        auth_kind: serviceaccount
+        service_account_contents: "{{ gcp_service_key }}"
+        state: present
+
+    - name: Set up vault roleset for creating storage buckets
+      vault_gcp_roleset:
+        name: "{{ vault_gcp_bucket_create_roleset }}"
+        bindings:
+          - resource: "//cloudresourcemanager.googleapis.com/projects/{{ gcp_project }}"
+            roles:
+              - "projects/{{ gcp_project }}/roles/{{ gcp_bucket_create_role }}"
+
+    - name: Enable KV secrets engines
       include_role:
         name: vault
         tasks_from: kv-secret-engine

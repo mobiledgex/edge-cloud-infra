@@ -1,5 +1,5 @@
 PACKAGE = mobiledgex
-VERSION = 4.4.0
+VERSION = 4.4.2
 DISTRIBUTION = cirrus
 COMPONENT = main
 
@@ -32,6 +32,7 @@ setup_files: \
 	$(PKGDIR)/etc/mobiledgex/cleanup-vm.sh \
 	$(PKGDIR)/etc/mobiledgex/get-flavor.sh \
 	$(PKGDIR)/etc/mobiledgex/setup-chef.sh \
+	$(PKGDIR)/etc/mobiledgex/install-gpu-driver.sh \
 	$(PKGDIR)/etc/systemd/system/mobiledgex.service \
 	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh
 

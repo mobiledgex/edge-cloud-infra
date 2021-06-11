@@ -3,6 +3,7 @@ package vmlayer
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
@@ -31,7 +32,7 @@ type VMProvider interface {
 	InitProvider(ctx context.Context, caches *platform.Caches, stage ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
 	GetNetworkList(ctx context.Context) ([]string, error)
-	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
+	AddCloudletImageIfNotPresent(ctx context.Context, imgPath, md5Sum string, updateCallback edgeproto.CacheUpdateCallback) error
 	AddAppImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error
 	GetCloudletImageSuffix(ctx context.Context) string
 	DeleteImage(ctx context.Context, folder, image string) error
@@ -70,6 +71,7 @@ type VMProvider interface {
 	GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource
 	GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error
 	InternalCloudletUpdatedCallback(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal)
+	VmAppChangedCallback(ctx context.Context)
 }
 
 // VMPlatform contains the needed by all VM based platforms
@@ -79,6 +81,8 @@ type VMPlatform struct {
 	VMProperties VMProperties
 	FlavorList   []*edgeproto.FlavorInfo
 	Caches       *platform.Caches
+	GPUConfig    edgeproto.GPUConfig
+	CacheDir     string
 	infracommon.CommonEmbedded
 }
 
@@ -349,6 +353,13 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	caches.CloudletInternalCache.Update(ctx, &cloudletInternal, 0)
 	v.Caches = caches
 	v.VMProperties.Domain = VMDomainCompute
+	if platformConfig.GPUConfig != nil {
+		v.GPUConfig = *platformConfig.GPUConfig
+	}
+	v.CacheDir = platformConfig.CacheDir
+	if _, err := os.Stat(v.CacheDir); os.IsNotExist(err) {
+		return fmt.Errorf("CacheDir doesn't exist, please create one")
+	}
 
 	if !platformConfig.TestMode {
 		err := v.VMProperties.CommonPf.InitCloudletSSHKeys(ctx, platformConfig.AccessApi)

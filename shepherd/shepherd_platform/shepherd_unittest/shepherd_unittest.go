@@ -77,7 +77,7 @@ func (s *Platform) VmAppChangedCallback(ctx context.Context) {
 }
 
 func (s *Platform) GetMetricsCollectInterval() time.Duration {
-	return 0
+	return 60
 }
 
 // UTClient hijacks a set of commands and returns predetermined output

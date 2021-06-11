@@ -4,17 +4,18 @@ import (
 	"bufio"
 	"context"
 	"fmt"
-	"infracommon"
 	"io/ioutil"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
 
@@ -89,15 +90,15 @@ func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context, vcdClient *govcd.V
 	return tmpls, nil
 }
 
-func (v *VcdPlatform) AddTemplateIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddTemplateIfNotPresent", "imageInfo", imageInfo, "flavor", flavor)
+func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddImageIfNotPresent", "imageInfo", imageInfo)
 
 	artifactoryPathMinusFile := ""
 	ovfFile := ""
 	artifactoryHost := ""
 	artifactoryOvfPath := ""
 
-	u, err := url.Parse(imageInfo.Imagepath)
+	u, err := url.Parse(imageInfo.ImagePath)
 	if err != nil {
 		return fmt.Errorf("unable to parse app image path - %v", err)
 	}
@@ -139,10 +140,15 @@ func (v *VcdPlatform) AddTemplateIfNotPresent(ctx context.Context, imageInfo *in
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "OVF not yet in artifactory", "artifactoryOvfPath", artifactoryOvfPath)
 		// need to download the qcow, convert to ovf/vmdk and then import to either VCD or Artifactory
-		appFlavor, err := v.GetFlavor(ctx, flavor)
-		if err != nil {
-			return err
+		diskSize := vmlayer.MINIMUM_DISK_SIZE
+		if imageInfo.Flavor != "" {
+			flavor, err := v.GetFlavor(ctx, imageInfo.Flavor)
+			if err != nil {
+				return err
+			}
+			diskSize = flavor.Disk
 		}
+
 		updateCallback(edgeproto.UpdateTask, "Downloading VM Image")
 		fileWithPath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, imageInfo.LocalImageName, imageInfo.ImagePath, imageInfo.Md5sum)
 		if err != nil {
@@ -158,9 +164,9 @@ func (v *VcdPlatform) AddTemplateIfNotPresent(ctx context.Context, imageInfo *in
 		}
 		filesToCleanup = append(filesToCleanup, fileWithPath)
 		vmdkFile := fileWithPath
-		if imageInfo.Imagetype == edgeproto.ImageType_IMAGE_TYPE_QCOW {
+		if imageInfo.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {
 			updateCallback(edgeproto.UpdateTask, "Converting Image to VMDK")
-			vmdkFile, err = vmlayer.ConvertQcowToVmdk(ctx, fileWithPath, appFlavor.Disk)
+			vmdkFile, err = vmlayer.ConvertQcowToVmdk(ctx, fileWithPath, diskSize)
 			filesToCleanup = append(filesToCleanup, vmdkFile)
 			if err != nil {
 				return err
@@ -178,7 +184,7 @@ func (v *VcdPlatform) AddTemplateIfNotPresent(ctx context.Context, imageInfo *in
 		}
 		ovfParams := VmAppOvfParams{
 			ImageBaseFileName: imageFileBaseName,
-			DiskSizeInBytes:   fmt.Sprintf("%d", appFlavor.Disk*1024*1024*1024),
+			DiskSizeInBytes:   fmt.Sprintf("%d", diskSize*1024*1024*1024),
 			OSType:            mappedOs,
 		}
 		ovfBuf, err := infracommon.ExecTemplate("vmwareOvf", vmAppOvfTemplate, ovfParams)

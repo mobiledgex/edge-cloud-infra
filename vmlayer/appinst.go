@@ -64,11 +64,13 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	imageInfo.ImagePath = app.ImagePath
 	imageInfo.ImageType = app.ImageType
 	imageInfo.VmName = objName
+	imageInfo.Flavor = appInst.Flavor.Name
+	imageInfo.ImageCategory = infracommon.ImageCategoryVmApp
 	if err != nil {
 		return &orchVals, err
 	}
 
-	err = v.VMProvider.AddImageIfNotPresent(ctx, &imageInfo, appInst.Flavor.Name, updateCallback)
+	err = v.VMProvider.AddImageIfNotPresent(ctx, &imageInfo, updateCallback)
 	if err != nil {
 		return &orchVals, err
 	}
@@ -806,6 +808,7 @@ func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageNam
 			return "", fmt.Errorf("mismatch in md5sum for downloaded image: %s", imageName)
 		}
 	}
+
 	return filePath, nil
 }
 

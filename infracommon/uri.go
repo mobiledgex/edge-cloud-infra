@@ -22,13 +22,20 @@ import (
 	"gortc.io/stun"
 )
 
+type ImageCategoryType string
+
+const ImageCategoryVmApp ImageCategoryType = "vmapp"
+const ImageCategoryPlatform ImageCategoryType = "platform"
+
 type ImageInfo struct {
 	Md5sum          string
 	LocalImageName  string
 	SourceImageTime time.Time
 	OsType          edgeproto.VmAppOsType
-	ImageType       string
+	ImageType       edgeproto.ImageType
 	ImagePath       string
+	ImageCategory   ImageCategoryType
+	Flavor          string
 	VmName          string // for use only if the image is to be imported directly into a VM
 }
 

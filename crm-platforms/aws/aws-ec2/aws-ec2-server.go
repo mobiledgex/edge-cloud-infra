@@ -419,7 +419,7 @@ func (a *AwsEc2Platform) GetConsoleUrl(ctx context.Context, serverName string) (
 	return "", fmt.Errorf("GetConsoleUrl not implemented")
 }
 
-func (a *AwsEc2Platform) AddImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
+func (a *AwsEc2Platform) AddImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, updateCallback edgeproto.CacheUpdateCallback) error {
 	return fmt.Errorf("AddImageIfNotPresent not implemented")
 }
 

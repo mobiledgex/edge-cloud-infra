@@ -32,11 +32,6 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 	return flavors, nil
 }
 
-func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPath, imgMd5sum string, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPath", imgPath)
-	return fmt.Errorf("AddCloudletImageIfNotPresent TODO")
-}
-
 func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) (string, error) {
 
 	// dne	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)

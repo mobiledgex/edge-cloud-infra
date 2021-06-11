@@ -3,13 +3,11 @@ package vsphere
 import (
 	"context"
 	"fmt"
-	"strings"
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -42,7 +40,7 @@ func (v *VSpherePlatform) GetCloudletImageSuffix(ctx context.Context) string {
 }
 
 //CreateImageFromUrl downloads image from URL and then imports to the datastore
-func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
+func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string, diskSize uint64) error {
 
 	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, imageName, imageUrl, md5Sum)
 	if err != nil {
@@ -55,13 +53,14 @@ func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, ima
 		}
 	}()
 
-	vmdkFile, err := vmlayer.ConvertQcowToVmdk(ctx, filePath, vmlayer.MINIMUM_DISK_SIZE)
+	vmdkFile, err := vmlayer.ConvertQcowToVmdk(ctx, filePath, diskSize)
 	if err != nil {
 		return err
 	}
 	return v.ImportImage(ctx, imageName, vmdkFile)
 }
 
+/*
 func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPath, md5Sum string, updateCallback edgeproto.CacheUpdateCallback) error {
 	// we don't currently have the ability to download and setup the template, but we will verify it is there
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPath", imgPath, "md5Sum", md5Sum)
@@ -96,7 +95,7 @@ func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgP
 		}
 	}
 	return nil
-}
+}*/
 
 func (v *VSpherePlatform) GetFlavor(ctx context.Context, flavorName string) (*edgeproto.FlavorInfo, error) {
 

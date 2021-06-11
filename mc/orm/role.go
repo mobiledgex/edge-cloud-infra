@@ -173,9 +173,16 @@ func addPolicy(ctx context.Context, err *error, params ...string) {
 }
 
 func ShowRolePerms(c echo.Context) error {
-	_, err := getClaims(c)
+	claims, err := getClaims(c)
 	if err != nil {
 		return err
+	}
+	ctx := GetContext(c)
+	// is caller an admin
+	admin := false
+	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
+		// admin user can see all roles
+		admin = true
 	}
 	filter, err := bindMap(c)
 	if err != nil {
@@ -195,6 +202,11 @@ func ShowRolePerms(c echo.Context) error {
 			Role:     policies[ii][0],
 			Resource: policies[ii][1],
 			Action:   policies[ii][2],
+		}
+		if !admin {
+			if isApiKeyRole(perm.Role) || isAdminRole(perm.Role) {
+				continue
+			}
 		}
 		if !rolePermMatchesFilter(&perm, filter) {
 			continue
@@ -309,6 +321,17 @@ func rolePermMatchesFilter(in *ormapi.RolePerm, jsonFilter map[string]interface{
 }
 
 func ShowRole(c echo.Context) error {
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	ctx := GetContext(c)
+	// is caller an admin
+	admin := false
+	if authorized(ctx, claims.Username, "", ResourceUsers, ActionView) == nil {
+		// admin user can see all roles
+		admin = true
+	}
 	rolemap := make(map[string]struct{})
 	policies, err := enforcer.GetPolicy()
 	if err != nil {
@@ -322,6 +345,11 @@ func ShowRole(c echo.Context) error {
 	}
 	roles := make([]string, 0)
 	for role, _ := range rolemap {
+		if !admin {
+			if isApiKeyRole(role) || isAdminRole(role) {
+				continue
+			}
+		}
 		roles = append(roles, role)
 	}
 	sort.Strings(roles)

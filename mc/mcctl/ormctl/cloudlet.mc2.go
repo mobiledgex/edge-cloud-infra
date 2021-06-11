@@ -426,6 +426,22 @@ var FindFlavorMatchCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
+var FindAllFlavorsForCloudletCmd = &ApiCommand{
+	Name:         "FindAllFlavorsForCloudlet",
+	Use:          "findallflavorsfor",
+	Short:        "Find all flavors viable on cloudlet",
+	RequiredArgs: "region " + strings.Join(CloudletRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
+	SpecialArgs:  &CloudletSpecialArgs,
+	Comments:     addRegionComment(CloudletComments),
+	NoConfig:     "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,GpuConfig.GpuType",
+	ReqData:      &ormapi.RegionCloudlet{},
+	ReplyData:    &edgeproto.CloudletFlavorMappingResults{},
+	Path:         "/auth/ctrl/FindAllFlavorsForCloudlet",
+	ProtobufApi:  true,
+}
+
 var RevokeAccessKeyCmd = &ApiCommand{
 	Name:         "RevokeAccessKey",
 	Use:          "revokeaccesskey",
@@ -468,6 +484,7 @@ var CloudletApiCmds = []*ApiCommand{
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
 	FindFlavorMatchCmd,
+	FindAllFlavorsForCloudletCmd,
 	RevokeAccessKeyCmd,
 	GenerateAccessKeyCmd,
 }
@@ -727,20 +744,6 @@ func init() {
 	AllApis.AddGroup(CloudletInfoGroup, "Manage CloudletInfos", CloudletInfoApiCmds)
 }
 
-var CloudletKeyRequiredArgs = []string{}
-var CloudletKeyOptionalArgs = []string{
-	"cloudlet-org",
-	"cloudlet",
-}
-var CloudletKeyAliasArgs = []string{
-	"cloudlet-org=cloudletkey.organization",
-	"cloudlet=cloudletkey.name",
-}
-var CloudletKeyComments = map[string]string{
-	"cloudlet-org": "Organization of the cloudlet site",
-	"cloudlet":     "Name of the cloudlet",
-}
-var CloudletKeySpecialArgs = map[string]string{}
 var CloudletResMapRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",

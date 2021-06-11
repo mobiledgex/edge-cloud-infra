@@ -114,6 +114,21 @@ func TestPermRemoveAppAutoProvPolicy(mcClient *mctestclient.Client, uri, token, 
 	return TestRemoveAppAutoProvPolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
+func TestFindCloudletsForAppDeployment(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.DeploymentCloudletRequest, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) (*edgeproto.DeploymentCloudletResults, int, error) {
+	dat := &ormapi.RegionDeploymentCloudletRequest{}
+	dat.Region = region
+	dat.DeploymentCloudletRequest = *in
+	for _, fn := range modFuncs {
+		fn(&dat.DeploymentCloudletRequest)
+	}
+	return mcClient.FindCloudletsForAppDeployment(uri, token, dat)
+}
+func TestPermFindCloudletsForAppDeployment(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) (*edgeproto.DeploymentCloudletResults, int, error) {
+	in := &edgeproto.DeploymentCloudletRequest{}
+	in.Key.Organization = org
+	return TestFindCloudletsForAppDeployment(mcClient, uri, token, region, in, modFuncs...)
+}
+
 func (s *TestClient) CreateApp(ctx context.Context, in *edgeproto.App) (*edgeproto.Result, error) {
 	inR := &ormapi.RegionApp{
 		Region: s.Region,
@@ -180,6 +195,18 @@ func (s *TestClient) RemoveAppAutoProvPolicy(ctx context.Context, in *edgeproto.
 		AppAutoProvPolicy: *in,
 	}
 	out, status, err := s.McClient.RemoveAppAutoProvPolicy(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) FindCloudletsForAppDeployment(ctx context.Context, in *edgeproto.DeploymentCloudletRequest) (*edgeproto.DeploymentCloudletResults, error) {
+	inR := &ormapi.RegionDeploymentCloudletRequest{
+		Region:                    s.Region,
+		DeploymentCloudletRequest: *in,
+	}
+	out, status, err := s.McClient.FindCloudletsForAppDeployment(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}

@@ -495,6 +495,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
+	// swagger:route POST /auth/ctrl/FindCloudletsForAppDeployment DeploymentCloudletRequest FindCloudletsForAppDeployment
+	// Find cloudlets that can support Apps Detault Flavor.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/FindCloudletsForAppDeployment", FindCloudletsForAppDeployment)
 	// swagger:route POST /auth/ctrl/CreateGPUDriver GPUDriver CreateGPUDriver
 	// Create GPU Driver.
 	//  Creates GPU driver with all the config required to install it.
@@ -828,6 +838,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/FindFlavorMatch", FindFlavorMatch)
+	// swagger:route POST /auth/ctrl/FindAllFlavorsForCloudlet Cloudlet FindAllFlavorsForCloudlet
+	// Find all flavors viable on cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/FindAllFlavorsForCloudlet", FindAllFlavorsForCloudlet)
 	// swagger:route POST /auth/ctrl/RevokeAccessKey CloudletKey RevokeAccessKey
 	// Revoke crm access key.
 	// Security:

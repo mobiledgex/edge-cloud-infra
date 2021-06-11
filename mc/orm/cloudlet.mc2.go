@@ -1304,6 +1304,57 @@ func FindFlavorMatchObj(ctx context.Context, rc *RegionContext, obj *edgeproto.F
 	return api.FindFlavorMatch(ctx, obj)
 }
 
+func FindAllFlavorsForCloudlet(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionCloudlet{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.Cloudlet.GetKey().GetTags())
+	span.SetTag("org", in.Cloudlet.Key.Organization)
+	resp, err := FindAllFlavorsForCloudletObj(ctx, rc, &in.Cloudlet)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func FindAllFlavorsForCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Cloudlet) (*edgeproto.CloudletFlavorMappingResults, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceCloudlets, ActionView); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewCloudletApiClient(rc.conn)
+	return api.FindAllFlavorsForCloudlet(ctx, obj)
+}
+
 func RevokeAccessKey(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}

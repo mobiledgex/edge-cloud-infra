@@ -210,6 +210,13 @@ type RegionFlavorMatch struct {
 	FlavorMatch edgeproto.FlavorMatch
 }
 
+// Request summary for FindAllFlavorsForCloudlet
+// swagger:parameters FindAllFlavorsForCloudlet
+type swaggerFindAllFlavorsForCloudlet struct {
+	// in: body
+	Body RegionCloudlet
+}
+
 // Request summary for RevokeAccessKey
 // swagger:parameters RevokeAccessKey
 type swaggerRevokeAccessKey struct {

@@ -381,3 +381,54 @@ func RemoveAppAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edg
 	api := edgeproto.NewAppApiClient(rc.conn)
 	return api.RemoveAppAutoProvPolicy(ctx, obj)
 }
+
+func FindCloudletsForAppDeployment(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionDeploymentCloudletRequest{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.DeploymentCloudletRequest.GetKey().GetTags())
+	span.SetTag("org", in.DeploymentCloudletRequest.Key.Organization)
+	resp, err := FindCloudletsForAppDeploymentObj(ctx, rc, &in.DeploymentCloudletRequest)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func FindCloudletsForAppDeploymentObj(ctx context.Context, rc *RegionContext, obj *edgeproto.DeploymentCloudletRequest) (*edgeproto.DeploymentCloudletResults, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceCloudlets, ActionView); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewAppApiClient(rc.conn)
+	return api.FindCloudletsForAppDeployment(ctx, obj)
+}

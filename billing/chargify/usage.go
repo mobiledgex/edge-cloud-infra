@@ -59,13 +59,13 @@ func (bs *BillingService) RecordUsage(ctx context.Context, region string, accoun
 			}
 			componentId = getComponentCode(record.FlavorName, region, cloudlet, record.StartTime, record.EndTime, true)
 			endpoint = "/subscriptions/" + account.SubscriptionId + "/components/" + componentId + "/usages.json"
-			resp, err := newChargifyReq("POST", endpoint, UsageWrapper{Usage: &lbUsage})
+			lbResp, err := newChargifyReq("POST", endpoint, UsageWrapper{Usage: &lbUsage})
 			if err != nil {
 				return fmt.Errorf("Error sending request: %v\n", err)
 			}
-			if resp.StatusCode != http.StatusOK {
-				defer resp.Body.Close()
-				return infracommon.GetReqErr(resp.Body)
+			if lbResp.StatusCode != http.StatusOK {
+				defer lbResp.Body.Close()
+				return infracommon.GetReqErr(lbResp.Body)
 			}
 		}
 	}

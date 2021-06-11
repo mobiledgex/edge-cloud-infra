@@ -9,18 +9,13 @@ import (
 
 var dmeApiCode = "dmeapi"
 
-var dedicatedLB = "dedicatedLB"
-
 // gets the corresponding compoenent code for the flavor
-func getComponentCode(flavor, region string, cloudlet *edgeproto.CloudletKey, start, end time.Time, dedicated bool) string {
+func getComponentCode(flavor, region string, cloudlet *edgeproto.CloudletKey, start, end time.Time) string {
 	// CURRENT FLAVOR HANDLE STRUCTURE: region-cloudletOrg-cloudletName-flavor
 	regionName := handleSanitize(region)
 	org := handleSanitize(cloudlet.Organization)
 	name := handleSanitize(cloudlet.Name)
 	flavorName := handleSanitize(flavor)
-	if dedicated {
-		flavorName = dedicatedLB
-	}
 	return "handle:" + regionName + "-" + org + "-" + name + "-" + flavorName
 }
 

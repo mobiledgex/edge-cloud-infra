@@ -13,6 +13,8 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
+var dedicatedLB = "dedicatedLB"
+
 func (bs *BillingService) RecordUsage(ctx context.Context, region string, account *ormapi.AccountInfo, usageRecords []billing.UsageRecord) error {
 	for _, record := range usageRecords {
 		var memo string
@@ -36,7 +38,7 @@ func (bs *BillingService) RecordUsage(ctx context.Context, region string, accoun
 		if record.NodeCount == 0 {
 			record.NodeCount = 1
 		}
-		componentId := getComponentCode(record.FlavorName, region, cloudlet, record.StartTime, record.EndTime, false)
+		componentId := getComponentCode(record.FlavorName, region, cloudlet, record.StartTime, record.EndTime)
 		endpoint := "/subscriptions/" + account.SubscriptionId + "/components/" + componentId + "/usages.json"
 
 		singleNodeDuration := int(record.EndTime.Sub(record.StartTime).Minutes())
@@ -57,7 +59,7 @@ func (bs *BillingService) RecordUsage(ctx context.Context, region string, accoun
 				Quantity: singleNodeDuration,
 				Memo:     memo,
 			}
-			componentId = getComponentCode(record.FlavorName, region, cloudlet, record.StartTime, record.EndTime, true)
+			componentId = getComponentCode(dedicatedLB, region, cloudlet, record.StartTime, record.EndTime)
 			endpoint = "/subscriptions/" + account.SubscriptionId + "/components/" + componentId + "/usages.json"
 			lbResp, err := newChargifyReq("POST", endpoint, UsageWrapper{Usage: &lbUsage})
 			if err != nil {

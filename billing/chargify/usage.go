@@ -48,8 +48,8 @@ func (bs *BillingService) RecordUsage(ctx context.Context, region string, accoun
 		if err != nil {
 			return fmt.Errorf("Error sending request: %v\n", err)
 		}
+		defer resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
-			defer resp.Body.Close()
 			return infracommon.GetReqErr(resp.Body)
 		}
 		if record.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED.String() {
@@ -63,8 +63,8 @@ func (bs *BillingService) RecordUsage(ctx context.Context, region string, accoun
 			if err != nil {
 				return fmt.Errorf("Error sending request: %v\n", err)
 			}
+			defer lbResp.Body.Close()
 			if lbResp.StatusCode != http.StatusOK {
-				defer lbResp.Body.Close()
 				return infracommon.GetReqErr(lbResp.Body)
 			}
 		}

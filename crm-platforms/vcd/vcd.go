@@ -339,6 +339,8 @@ func (v *VcdPlatform) GetVappServerSuffix() string {
 	return "-vapp"
 }
 
+// VCD does not yet actually support download/upload of images, but the common image suffix is provided here so it
+// can be validated when this is implemented
 func (v *VcdPlatform) GetCloudletImageSuffix(ctx context.Context) string {
 	return ".qcow2"
 }

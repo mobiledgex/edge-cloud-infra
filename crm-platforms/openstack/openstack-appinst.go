@@ -20,8 +20,8 @@ func (o *OpenstackPlatform) GetConsoleUrl(ctx context.Context, serverName string
 	return consoleUrl.Url, nil
 }
 
-func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddAppImageIfNotPresent", "imageInfo", imageInfo, "imagePath", app.ImagePath)
+func (o *OpenstackPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddImageIfNotPresent", "imageInfo", imageInfo)
 
 	imageDetail, err := o.GetImageDetail(ctx, imageInfo.LocalImageName)
 	createImage := false
@@ -38,7 +38,7 @@ func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, imageIn
 			return fmt.Errorf("image in store %s is not active", imageInfo.LocalImageName)
 		}
 		if imageDetail.Checksum != imageInfo.Md5sum {
-			if app.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW && imageDetail.DiskFormat == vmlayer.ImageFormatVmdk {
+			if imageInfo.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW && imageDetail.DiskFormat == vmlayer.ImageFormatVmdk {
 				log.SpanLog(ctx, log.DebugLevelInfra, "image was imported as vmdk, checksum match not possible")
 			} else {
 				return fmt.Errorf("mismatch in md5sum for image in glance: %s", imageInfo.LocalImageName)
@@ -62,7 +62,7 @@ func (o *OpenstackPlatform) AddAppImageIfNotPresent(ctx context.Context, imageIn
 	}
 	if createImage {
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating VM Image from URL: %s", imageInfo.LocalImageName))
-		err = o.CreateImageFromUrl(ctx, imageInfo.LocalImageName, app.ImagePath, imageInfo.Md5sum)
+		err = o.CreateImageFromUrl(ctx, imageInfo.LocalImageName, imageInfo.ImagePath, imageInfo.Md5sum)
 		if err != nil {
 			return err
 		}

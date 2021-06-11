@@ -7,7 +7,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -33,17 +32,9 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 	return flavors, nil
 }
 
-func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion)
-	//	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
-	imgPath := vmlayer.GetCloudletVMImagePath(imgPathPrefix, imgVersion, v.GetCloudletImageSuffix(ctx))
-	// Fetch platform base image name
-	pfImageName, err := cloudcommon.GetFileName(imgPath)
-	if err != nil {
-		return "", err
-	}
-	log.WarnLog("XXXX AddCloudletImageIfNotPresent", "imgPath", imgPath, "pfImageName", pfImageName)
-	return pfImageName, err
+func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPath, imgMd5sum string, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPath", imgPath)
+	return fmt.Errorf("AddCloudletImageIfNotPresent TODO")
 }
 
 func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) (string, error) {

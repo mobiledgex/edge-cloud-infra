@@ -13,15 +13,15 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
-func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddAppImageIfNotPresent", "app.ImagePath", app.ImagePath, "imageInfo", imageInfo, "flavor", flavor)
+func (v *VSpherePlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, flavor string, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddImageIfNotPresent", "imageInfo", imageInfo, "flavor", flavor)
 
 	f, err := v.GetFlavor(ctx, flavor)
 	if err != nil {
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Downloading VM Image")
-	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, imageInfo.LocalImageName, app.ImagePath, imageInfo.Md5sum)
+	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, imageInfo.LocalImageName, imageInfo.ImagePath, imageInfo.Md5sum)
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo
 	}
 	filesToCleanup = append(filesToCleanup, newName)
 	vmdkFile := newName
-	if app.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {
+	if imageInfo.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {
 		updateCallback(edgeproto.UpdateTask, "Converting Image to VMDK")
 		vmdkFile, err = vmlayer.ConvertQcowToVmdk(ctx, newName, f.Disk)
 		filesToCleanup = append(filesToCleanup, vmdkFile)
@@ -58,5 +58,5 @@ func (v *VSpherePlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo
 			return err
 		}
 	}
-	return v.ImportImage(ctx, cloudcommon.GetAppFQN(&app.Key), vmdkFile)
+	return v.ImportImage(ctx, imageInfo.VmName, vmdkFile)
 }

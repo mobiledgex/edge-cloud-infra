@@ -17,6 +17,7 @@ import (
 	"github.com/miekg/dns"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"gortc.io/stun"
 )
@@ -25,6 +26,10 @@ type ImageInfo struct {
 	Md5sum          string
 	LocalImageName  string
 	SourceImageTime time.Time
+	OsType          edgeproto.VmAppOsType
+	ImageType       string
+	ImagePath       string
+	VmName          string // for use only if the image is to be imported directly into a VM
 }
 
 //validateDomain does strange validation, not strictly domain, due to the data passed from controller.
@@ -59,7 +64,7 @@ func GetHTTPFile(ctx context.Context, uri string) ([]byte, error) {
 
 func GetUrlInfo(ctx context.Context, accessApi platform.AccessApi, fileUrlPath string) (time.Time, string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "get url last-modified time", "file-url", fileUrlPath)
-	resp, err := cloudcommon.SendHTTPReq(ctx, "HEAD", fileUrlPath, accessApi, nil, nil)
+	resp, err := cloudcommon.SendHTTPReq(ctx, "HEAD", fileUrlPath, accessApi, cloudcommon.NoCreds, nil, nil)
 	if err != nil {
 		return time.Time{}, "", err
 	}

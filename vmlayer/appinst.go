@@ -51,6 +51,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	if err != nil {
 		return &orchVals, err
 	}
+	objName := cloudcommon.GetAppFQN(&app.Key)
 	var imageInfo infracommon.ImageInfo
 	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
 	imageInfo.LocalImageName = imageName + "-" + md5Sum
@@ -59,16 +60,19 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	}
 	imageInfo.Md5sum = md5Sum
 	imageInfo.SourceImageTime = sourceImageTime
+	imageInfo.OsType = app.VmAppOsType
+	imageInfo.ImagePath = app.ImagePath
+	imageInfo.ImageType = app.ImageType
+	imageInfo.VmName = objName
 	if err != nil {
 		return &orchVals, err
 	}
 
-	err = v.VMProvider.AddAppImageIfNotPresent(ctx, &imageInfo, app, appInst.Flavor.Name, updateCallback)
+	err = v.VMProvider.AddImageIfNotPresent(ctx, &imageInfo, appInst.Flavor.Name, updateCallback)
 	if err != nil {
 		return &orchVals, err
 	}
 
-	objName := cloudcommon.GetAppFQN(&app.Key)
 	usesLb := app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER
 
 	deploymentVars := crmutil.DeploymentReplaceVars{
@@ -787,7 +791,7 @@ func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageNam
 	}
 	filePath := "/var/tmp/" + fileExt
 
-	err = cloudcommon.DownloadFile(ctx, accessApi, imageUrl, filePath, nil)
+	err = cloudcommon.DownloadFile(ctx, accessApi, imageUrl, cloudcommon.NoCreds, filePath, nil)
 	if err != nil {
 		return "", fmt.Errorf("error downloading image from %s, %v", imageUrl, err)
 	}

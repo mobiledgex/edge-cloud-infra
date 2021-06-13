@@ -220,3 +220,7 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	appMetrics = shepherd_common.AppMetrics(*vmMetrics)
 	return appMetrics, nil
 }
+
+func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context) {
+	s.VMPlatform.VMProvider.VmAppChangedCallback(ctx)
+}

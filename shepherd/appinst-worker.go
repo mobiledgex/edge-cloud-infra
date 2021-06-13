@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -29,11 +28,7 @@ func NewAppInstWorker(ctx context.Context, interval time.Duration, send func(ctx
 	p.interval = pf.GetMetricsCollectInterval()
 	if p.interval == 0 {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Platform Collection interval is 0, will not create appinst worker", "app", appinst)
-<<<<<<< HEAD
-		return nil, fmt.Errorf("Appinst metrics disabled in platform")
-=======
 		return nil
->>>>>>> 3489fe612201495af28de807953822f332399c2f
 	}
 	p.send = send
 	p.appInstKey = appinst.Key

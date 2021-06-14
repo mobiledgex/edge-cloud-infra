@@ -201,12 +201,12 @@ var AddGPUDriverBuildRequiredArgs = []string{
 	"build.name",
 	"build.driverpath",
 	"build.operatingsystem",
+	"build.md5sum",
 }
 var AddGPUDriverBuildOptionalArgs = []string{
 	"build.driverpathcreds",
 	"build.kernelversion",
 	"build.hypervisorinfo",
-	"build.md5sum",
 	"ignorestate",
 }
 var RemoveGPUDriverBuildRequiredArgs = []string{

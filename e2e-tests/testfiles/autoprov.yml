@@ -2,6 +2,11 @@
 description: run auto-prov test. Assumes edge-cloud objects already present
 
 tests:
+  - name: disable resource quotas alerts by setting max threshold value
+    actions: [mcapi-update, mcapi-show]
+    apifile: '{{datadir2}}/mc_cloudlet_no_resource_quotas.yml'
+    curuserfile: '{{datadir2}}/mc_user1.yml'
+
   - name: set autodeployinterval setting fast for testing
     actions: [mcapi-update]
     apifile: '{{datadir2}}/autoprov_settings.yml'

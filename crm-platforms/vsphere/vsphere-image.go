@@ -49,7 +49,7 @@ func (v *VSpherePlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *i
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete file", "file", file)
 			if delerr := infracommon.DeleteFile(file); delerr != nil {
 				if !os.IsNotExist(delerr) {
-					log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "file", file)
+					log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "file", file, "error", delerr)
 				}
 			}
 		}

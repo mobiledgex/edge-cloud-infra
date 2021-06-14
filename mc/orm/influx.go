@@ -835,7 +835,7 @@ func getListFromMap(mapIn map[string]struct{}) []string {
 	return listOut
 }
 
-// Given the usename and a list of devOrgs(from the api) and a list of cloudlets(from the api again)
+// Given a username, a list of devOrgs(from the api) and a list of cloudlets(from the api again)
 // get the list of allowed Cloudlets.
 // If this is a developer and it's authorized, the return list is either empty(all cloudlets allowed),
 // or a list of cloudlets that was passed in.

@@ -50,7 +50,7 @@ func (v *VMPlatform) getGPUDriverPackagePath(ctx context.Context, storageClient 
 	fileName := cloudcommon.GetGPUDriverBuildPathFromURL(build.DriverPath, v.VMProperties.GetDeploymentTag())
 	localFilePath := v.CacheDir + "/" + strings.ReplaceAll(fileName, "/", "_")
 	_, err := os.Stat(localFilePath)
-	if err == nil {
+	if err == nil || !os.IsNotExist(err) {
 		// Verify if package is valid and not outdated/corrupted
 		md5sum, err := infracommon.Md5SumFile(localFilePath)
 		if err != nil {
@@ -86,7 +86,7 @@ func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageC
 	fileName := cloudcommon.GetGPUDriverLicenseStoragePath(driverKey)
 	localFilePath := v.CacheDir + "/" + strings.ReplaceAll(fileName, "/", "_")
 	_, err := os.Stat(localFilePath)
-	if err == nil {
+	if err == nil || !os.IsNotExist(err) {
 		// Verify if license config is valid and not outdated/corrupted
 		md5sum, err := infracommon.Md5SumFile(localFilePath)
 		if err != nil {

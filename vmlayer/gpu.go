@@ -38,28 +38,38 @@ func (v *VMPlatform) getGCSStorageClient(ctx context.Context) (*gcs.GCSClient, e
 }
 
 // Fetches driver package:
-//        * From local cache
-//        * In not in local cache, then fetch from cloud
+//        * From local cache, if package is not corrupted/outdated
+//        * else, fetch from cloud
 func (v *VMPlatform) getGPUDriverPackagePath(ctx context.Context, storageClient *gcs.GCSClient, build *edgeproto.GPUDriverBuild) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getGPUDriverPackagePath", "build", build)
-	// Look in local cache first
+	// Ensure local cache directory exists
 	if _, err := os.Stat(v.CacheDir); os.IsNotExist(err) {
 		return "", fmt.Errorf("Missing cache dir")
 	}
 
 	fileName := cloudcommon.GetGPUDriverBuildPathFromURL(build.DriverPath, v.VMProperties.GetDeploymentTag())
 	localFilePath := v.CacheDir + "/" + strings.ReplaceAll(fileName, "/", "_")
-	if _, err := os.Stat(localFilePath); os.IsNotExist(err) {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GPU driver pkg not found in local cache, fetch it from GCS", "build.DriverPath", build.DriverPath)
-		// In not in local cache, then fetch from cloud
-		outBytes, err := storageClient.DownloadObject(ctx, fileName)
+	_, err := os.Stat(localFilePath)
+	if err == nil || !os.IsNotExist(err) {
+		// Verify if package is valid and not outdated/corrupted
+		md5sum, err := infracommon.Md5SumFile(localFilePath)
 		if err != nil {
-			return "", fmt.Errorf("Failed to download GPU driver package %s from GCS %v", fileName, err)
+			return "", err
 		}
-		err = ioutil.WriteFile(localFilePath, outBytes, 0644)
-		if err != nil {
-			return "", fmt.Errorf("Failed to create local cache file %s, %v", localFilePath, err)
+		if build.Md5Sum == md5sum {
+			// valid cache file
+			return localFilePath, nil
 		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GPU driver pkg not found/corrupted in local cache, fetch it from GCS", "build.DriverPath", build.DriverPath)
+	// In not in local cache or is file corrupted/outdated, then fetch from cloud
+	outBytes, err := storageClient.DownloadObject(ctx, fileName)
+	if err != nil {
+		return "", fmt.Errorf("Failed to download GPU driver package %s from GCS %v", fileName, err)
+	}
+	err = ioutil.WriteFile(localFilePath, outBytes, 0644)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create local cache file %s, %v", localFilePath, err)
 	}
 	return localFilePath, nil
 }
@@ -67,7 +77,7 @@ func (v *VMPlatform) getGPUDriverPackagePath(ctx context.Context, storageClient 
 // Fetches driver license config:
 //        * From local cache
 //        * In not in local cache, then fetch from cloud
-func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageClient *gcs.GCSClient, driverKey *edgeproto.GPUDriverKey) (string, error) {
+func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageClient *gcs.GCSClient, driverKey *edgeproto.GPUDriverKey, licenseMd5Sum string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getGPUDriverLicenseConfigPath", "driverKey", driverKey)
 	// Look in local cache first
 	if _, err := os.Stat(v.CacheDir); os.IsNotExist(err) {
@@ -75,20 +85,30 @@ func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageC
 	}
 	fileName := cloudcommon.GetGPUDriverLicenseStoragePath(driverKey)
 	localFilePath := v.CacheDir + "/" + strings.ReplaceAll(fileName, "/", "_")
-	if _, err := os.Stat(localFilePath); os.IsNotExist(err) {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GPU driver license not found in local cache, fetch it from GCS", "fileName", fileName)
-		outBytes, err := storageClient.DownloadObject(ctx, fileName)
+	_, err := os.Stat(localFilePath)
+	if err == nil || !os.IsNotExist(err) {
+		// Verify if license config is valid and not outdated/corrupted
+		md5sum, err := infracommon.Md5SumFile(localFilePath)
 		if err != nil {
-			if strings.Contains(err.Error(), gcs.NotFoundError) {
-				// license config doesn't exist
-				return "", nil
-			}
-			return "", fmt.Errorf("Failed to download GPU driver license config %s from GCS %v", fileName, err)
+			return "", err
 		}
-		err = ioutil.WriteFile(localFilePath, outBytes, 0644)
-		if err != nil {
-			return "", fmt.Errorf("Failed to create local cache file %s, %v", localFilePath, err)
+		if licenseMd5Sum == md5sum {
+			// valid cache file
+			return localFilePath, nil
 		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "GPU driver license not found in local cache/is outdated/corrupted, fetch it from GCS", "fileName", fileName)
+	outBytes, err := storageClient.DownloadObject(ctx, fileName)
+	if err != nil {
+		if strings.Contains(err.Error(), gcs.NotFoundError) {
+			// license config doesn't exist
+			return "", nil
+		}
+		return "", fmt.Errorf("Failed to download GPU driver license config %s from GCS %v", fileName, err)
+	}
+	err = ioutil.WriteFile(localFilePath, outBytes, 0644)
+	if err != nil {
+		return "", fmt.Errorf("Failed to create local cache file %s, %v", localFilePath, err)
 	}
 	return localFilePath, nil
 }
@@ -112,7 +132,9 @@ func (v *VMPlatform) setupGPUDrivers(ctx context.Context, rootLBClient ssh.Clien
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
 	case cloudcommon.DeploymentTypeHelm:
-		targetNodes = append(targetNodes, GetClusterMasterName(ctx, clusterInst))
+		if clusterInst.MasterNodeFlavor == clusterInst.NodeFlavor {
+			targetNodes = append(targetNodes, GetClusterMasterName(ctx, clusterInst))
+		}
 		for nn := uint32(1); nn <= clusterInst.NumNodes; nn++ {
 			targetNodes = append(targetNodes, GetClusterNodeName(ctx, clusterInst, nn))
 		}
@@ -221,20 +243,23 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 		return err
 	}
 	// Get path to GPU driver license config file
-	licenseConfigPath, err := v.getGPUDriverLicenseConfigPath(ctx, storageClient, &driver.Key)
+	licenseConfigPath, err := v.getGPUDriverLicenseConfigPath(ctx, storageClient, &driver.Key, driver.LicenseConfigMd5Sum)
 	if err != nil {
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("%s: Copying GPU driver %s (%s)", nodeName, driver.Key.Name, reqdBuild.Name))
 	// Upload driver and license config to target node
-	err = infracommon.SCPFilePath(client, pkgPath, "/tmp/")
+	outPkgPath := "/tmp" + strings.TrimPrefix(pkgPath, v.CacheDir)
+	err = infracommon.SCPFilePath(client, pkgPath, outPkgPath)
 	if err != nil {
-		return fmt.Errorf("")
+		return fmt.Errorf("Failed to copy GPU driver from %s to %s on cluster node %s, %v", pkgPath, outPkgPath, nodeName, err)
 	}
+	outLicPath := ""
 	if licenseConfigPath != "" {
-		err = infracommon.SCPFilePath(client, licenseConfigPath, "/tmp/")
+		outLicPath = "/tmp" + strings.TrimPrefix(licenseConfigPath, v.CacheDir)
+		err = infracommon.SCPFilePath(client, licenseConfigPath, outLicPath)
 		if err != nil {
-			return fmt.Errorf("")
+			return fmt.Errorf("Failed to copy GPU driver license config from %s to %s on cluster node %s, %v", licenseConfigPath, outLicPath, nodeName, err)
 		}
 	}
 	// Install GPU driver, setup license and verify it
@@ -242,11 +267,11 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 	cmd := fmt.Sprintf(
 		"sudo bash /etc/mobiledgex/install-gpu-driver.sh -n %s -d %s -t %s",
 		driver.Key.Name,
-		pkgPath,
+		outPkgPath,
 		edgeproto.GPUType_CamelName[int32(v.GPUConfig.GpuType)],
 	)
 	if licenseConfigPath != "" {
-		cmd += " -l " + licenseConfigPath
+		cmd += " -l " + outLicPath
 	}
 	out, err = client.Output(cmd)
 	if err != nil {

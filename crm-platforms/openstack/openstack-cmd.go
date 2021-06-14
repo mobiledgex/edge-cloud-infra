@@ -10,7 +10,6 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -1016,36 +1015,54 @@ func (o *OpenstackPlatform) GetCloudletImageSuffix(ctx context.Context) string {
 	return ".qcow2"
 }
 
-func (s *OpenstackPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
-	imgPath := vmlayer.GetCloudletVMImagePath(imgPathPrefix, imgVersion, s.GetCloudletImageSuffix(ctx))
+func (o *OpenstackPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddImageIfNotPresent", "imageInfo", imageInfo)
 
-	// Fetch platform base image name
-	pfImageName, err := cloudcommon.GetFileName(imgPath)
+	imageDetail, err := o.GetImageDetail(ctx, imageInfo.LocalImageName)
+	createImage := false
 	if err != nil {
-		return "", err
-	}
-	// Use PlatformBaseImage, if not present then fetch it from MobiledgeX VM registry
-	imageDetail, err := s.GetImageDetail(ctx, pfImageName)
-	if err == nil && imageDetail.Status != "active" {
-		return "", fmt.Errorf("image %s is not active", pfImageName)
-	}
-	if err != nil {
-		if !strings.Contains(err.Error(), ResourceNotFound) {
-			return "", err
+		if strings.Contains(err.Error(), ResourceNotFound) {
+			// Add image to Glance
+			log.SpanLog(ctx, log.DebugLevelInfra, "image is not present in glance, add image")
+			createImage = true
+		} else {
+			return err
 		}
-		// Validate if pfImageName is same as we expected
-		_, md5Sum, err := infracommon.GetUrlInfo(ctx, s.VMProperties.CommonPf.PlatformConfig.AccessApi, imgPath)
+	} else {
+		if imageDetail.Status != "active" {
+			return fmt.Errorf("image in store %s is not active", imageInfo.LocalImageName)
+		}
+		if imageDetail.Checksum != imageInfo.Md5sum {
+			if imageInfo.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW && imageDetail.DiskFormat == vmlayer.ImageFormatVmdk {
+				log.SpanLog(ctx, log.DebugLevelInfra, "image was imported as vmdk, checksum match not possible")
+			} else {
+				return fmt.Errorf("mismatch in md5sum for image in glance: %s", imageInfo.LocalImageName)
+			}
+		}
+		glanceImageTime, err := time.Parse(time.RFC3339, imageDetail.UpdatedAt)
 		if err != nil {
-			return "", err
+			return err
 		}
-		// Download platform base image and Add to Openstack Glance
-		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: "+pfImageName)
-		err = s.CreateImageFromUrl(ctx, pfImageName, imgPath, md5Sum)
-		if err != nil {
-			return "", fmt.Errorf("Error downloading platform base image %s: %v", pfImageName, err)
+		if !imageInfo.SourceImageTime.IsZero() {
+			if imageInfo.SourceImageTime.Sub(glanceImageTime) > 0 {
+				// Update the image in Glance
+				updateCallback(edgeproto.UpdateTask, "Image in store is outdated, deleting old image")
+				err = o.DeleteImage(ctx, "", imageInfo.LocalImageName)
+				if err != nil {
+					return err
+				}
+				createImage = true
+			}
 		}
 	}
-	return pfImageName, nil
+	if createImage {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating VM Image from URL: %s", imageInfo.LocalImageName))
+		err = o.CreateImageFromUrl(ctx, imageInfo.LocalImageName, imageInfo.ImagePath, imageInfo.Md5sum)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (s *OpenstackPlatform) SetPowerState(ctx context.Context, serverName, serverAction string) error {

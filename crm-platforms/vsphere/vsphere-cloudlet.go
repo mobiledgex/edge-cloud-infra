@@ -60,43 +60,6 @@ func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, ima
 	return v.ImportImage(ctx, imageName, vmdkFile)
 }
 
-/*
-func (v *VSpherePlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPath, md5Sum string, updateCallback edgeproto.CacheUpdateCallback) error {
-	// we don't currently have the ability to download and setup the template, but we will verify it is there
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPath", imgPath, "md5Sum", md5Sum)
-	pfImageName, err := cloudcommon.GetFileName(imgPath)
-	if err != nil {
-		return err
-	}
-	// see if a template already exists based on this image
-	templatePath := v.GetTemplateFolder() + "/" + pfImageName
-	_, err = v.GetServerDetail(ctx, templatePath)
-
-	if err != nil {
-		if !strings.Contains(err.Error(), vmlayer.ServerDoesNotExistError) {
-			return err
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "template not present", "pfImageName", pfImageName, "err", err)
-
-		// Validate if pfImageName is same as we expected
-		_, md5Sum, err := infracommon.GetUrlInfo(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, imgPath)
-		if err != nil {
-			return err
-		}
-		// Download platform image and create a vsphere template from it
-		updateCallback(edgeproto.UpdateTask, "Downloading platform base image: "+pfImageName)
-		err = v.CreateImageFromUrl(ctx, pfImageName, imgPath, md5Sum)
-		if err != nil {
-			return fmt.Errorf("Error downloading platform base image %s: %v", pfImageName, err)
-		}
-		err = v.CreateTemplateFromImage(ctx, pfImageName, pfImageName)
-		if err != nil {
-			return fmt.Errorf("Error in creating baseimage template: %v", err)
-		}
-	}
-	return nil
-}*/
-
 func (v *VSpherePlatform) GetFlavor(ctx context.Context, flavorName string) (*edgeproto.FlavorInfo, error) {
 
 	flavs, err := v.vmProperties.GetFlavorListInternal(ctx, v.caches)

@@ -126,7 +126,7 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete file", "file", file)
 			if delerr := infracommon.DeleteFile(file); delerr != nil {
 				if !os.IsNotExist(delerr) {
-					log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "file", file)
+					log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "file", file, "error", delerr)
 				}
 			}
 		}
@@ -208,6 +208,7 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 			if err != nil {
 				return fmt.Errorf("unable to open file: %s for upload - %v", f, err)
 			}
+			defer file.Close()
 			fi, err := file.Stat()
 			if err != nil {
 				return fmt.Errorf("Could not stat file: %s - %v", f, err)
@@ -225,10 +226,10 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 			reqConfig.Headers["Content-Type"] = "application/octet-stream"
 			resp, err := cloudcommon.SendHTTPReq(ctx, "PUT", uploadPath, v.vmProperties.CommonPf.PlatformConfig.AccessApi, cloudcommon.NoCreds, &reqConfig, body)
 			log.SpanLog(ctx, log.DebugLevelInfra, "File uploaded", "file", file, "resp", resp, "err", err)
-			file.Close()
 			if err != nil {
 				return fmt.Errorf("Error uploading %s to artifactory - %v", f, err)
 			}
+			defer resp.Body.Close()
 		}
 	}
 	// get a token that VCD can use to pull from the artifactory

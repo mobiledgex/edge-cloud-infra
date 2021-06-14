@@ -318,3 +318,8 @@ func newShowCloudletAuthz(ctx context.Context, region, username, resource, actio
 	}
 	return &authzCloudlet, nil
 }
+
+func authzFindCloudletsForAppDeployment(ctx context.Context, region, username string, obj *edgeproto.DeploymentCloudletRequest, resource, action string) error {
+	_, err := newShowCloudletAuthz(ctx, region, username, resource, action)
+	return err
+}

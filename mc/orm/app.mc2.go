@@ -413,7 +413,7 @@ func FindCloudletsForAppDeployment(c echo.Context) error {
 func FindCloudletsForAppDeploymentObj(ctx context.Context, rc *RegionContext, obj *edgeproto.DeploymentCloudletRequest) (*edgeproto.DeploymentCloudletResults, error) {
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
+		if err := authzFindCloudletsForAppDeployment(ctx, rc.region, rc.username, obj,
 			ResourceCloudlets, ActionView); err != nil {
 			return nil, err
 		}

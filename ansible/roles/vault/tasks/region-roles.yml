@@ -35,7 +35,6 @@
       - gcp-auth.read.v1
       - gcs.read.v1
       - gcp-gpu-drivers-bucket-access-token.read.v1
-      - gcp-operator-reports-bucket-access-token.read.v1
       - mex-ssh-key.read.v1
       - mexenv.read.v1
       - registry.read.v1

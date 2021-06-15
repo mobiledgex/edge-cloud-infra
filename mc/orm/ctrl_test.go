@@ -51,6 +51,8 @@ func TestController(t *testing.T) {
 	httpmock.RegisterNoResponder(httpmock.InitialTransport.RoundTrip)
 	testAlertMgrAddr, err := InitAlertmgrMock()
 	require.Nil(t, err)
+	// disable rate limiting
+	defaultConfig.DisableRateLimit = true
 
 	config := ServerConfig{
 		ServAddr:                addr,

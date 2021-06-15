@@ -39,7 +39,6 @@ var billingPlatform = flag.String("billingPlatform", "fake", "Billing platform t
 var usageCollectionInterval = flag.Duration("usageCollectionInterval", -1*time.Second, "Collection interval")
 var usageCheckpointInterval = flag.String("usageCheckpointInterval", "MONTH", "Checkpointing interval(must be same as controller's checkpointInterval)")
 var staticDir = flag.String("staticDir", "/", "Path to static data")
-var disableRateLimit = flag.Bool("disableRateLimit", false, "Do no rate limit public endpoints, for testing only")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -81,7 +80,6 @@ func main() {
 		DomainName:              nodeMgr.CommonName(),
 		StaticDir:               *staticDir,
 		DeploymentTag:           nodeMgr.DeploymentTag,
-		DisableRateLimit:        *disableRateLimit,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {

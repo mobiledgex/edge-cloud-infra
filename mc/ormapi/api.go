@@ -228,10 +228,6 @@ type RateLimitSettingsGormWrapper struct {
 	MaxReqsSettings []byte
 }
 
-/*type AllRateLimitSettingsMc struct {
-	Settings []RateLimitSettingsMc `json:"settings,omitempty"`
-}*/
-
 type McRateLimitSettings struct {
 	// Name of API Path (eg. /api/v1/usercreate)
 	ApiName string

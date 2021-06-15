@@ -56,8 +56,12 @@ func InitConfig(ctx context.Context) error {
 		config.UserApiKeyCreateLimit = defaultConfig.UserApiKeyCreateLimit
 		save = true
 	}
-	// set disable rate limit to serverConfig value
-	config.DisableRateLimit = serverConfig.DisableRateLimit
+	// set maxnumratelimiters if not set
+	if config.MaxNumRateLimiters == 0 {
+		config.MaxNumRateLimiters = defaultConfig.MaxNumRateLimiters
+		save = true
+	}
+	log.DebugLog(log.DebugLevelInfo, "BLAH", "config", config)
 	if save {
 		err = db.Save(&config).Error
 		if err != nil {

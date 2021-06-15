@@ -84,7 +84,6 @@ type ServerConfig struct {
 	DomainName              string
 	StaticDir               string
 	DeploymentTag           string
-	DisableRateLimit        bool
 }
 
 var DefaultDBUser = "mcuser"

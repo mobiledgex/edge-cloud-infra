@@ -84,6 +84,7 @@ type ServerConfig struct {
 	DomainName              string
 	StaticDir               string
 	DeploymentTag           string
+	DisableRateLimit        bool
 }
 
 var DefaultDBUser = "mcuser"
@@ -115,10 +116,6 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	}
 	nodeMgr = config.NodeMgr
 	server.done = make(chan struct{})
-
-	// Init RateLimitMgr and add Global settings
-	rateLimitMgr = ratelimit.NewRateLimitManager()
-	rateLimitMgr.AddApiEndpointLimiter(GlobalMcApiFullEndpointRateLimitSettings, GlobalMcApiPerIpRateLimitSettings, GlobalMcApiPerUserRateLimitSettings)
 
 	dbuser := os.Getenv("db_username")
 	dbpass := os.Getenv("db_password")
@@ -285,7 +282,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
-	e.Use(logger, RateLimit)
+	e.Use(logger, AuthCookie, RateLimit)
 
 	// login route
 	root := "api/v1"
@@ -307,10 +304,6 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   403: forbidden
 	//   404: notFound
 	e.POST(root+"/usercreate", CreateUser)
-	// Add RateLimiting for UserCreate
-	UserCreateFullEndpointRateLimitSettings.Key.ApiName = root + "/usercreate"
-	UserCreatePerIpRateLimitSettings.Key.ApiName = root + "/usercreate"
-	rateLimitMgr.AddApiEndpointLimiter(UserCreateFullEndpointRateLimitSettings, UserCreatePerIpRateLimitSettings, nil)
 	e.POST(root+"/passwordresetrequest", PasswordResetRequest)
 	// swagger:route POST /publicconfig Config PublicConfig
 	// Show Public Configuration.
@@ -331,7 +324,6 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	e.POST(root+"/resendverify", ResendVerify)
 	// authenticated routes - jwt middleware
 	auth := e.Group(root + "/auth")
-	auth.Use(AuthCookie)
 	// refresh auth cookie
 	auth.POST("/refresh", RefreshAuthCookie)
 
@@ -510,6 +502,10 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/cloudletpoolaccesspending/show", ShowCloudletPoolAccessPending)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
 	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
+	auth.POST("/ratelimitsettingsmc/update", UpdateRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/create", CreateRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/delete", DeleteRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/show", ShowRateLimitSettingsMc)
 
 	// Support multiple connection types: HTTP(s), Websockets
 	addControllerApis("POST", auth)

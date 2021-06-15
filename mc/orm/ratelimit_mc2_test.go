@@ -90,27 +90,6 @@ func goodPermDeleteRateLimitSettings(t *testing.T, mcClient *mctestclient.Client
 
 var _ = edgeproto.GetFields
 
-func badPermResetRateLimitSettings(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) {
-	_, status, err := testutil.TestPermResetRateLimitSettings(mcClient, uri, token, region, org, modFuncs...)
-	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "Forbidden")
-	require.Equal(t, http.StatusForbidden, status)
-}
-
-func badResetRateLimitSettings(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, status int, modFuncs ...func(*edgeproto.RateLimitSettings)) {
-	_, st, err := testutil.TestPermResetRateLimitSettings(mcClient, uri, token, region, org, modFuncs...)
-	require.NotNil(t, err)
-	require.Equal(t, status, st)
-}
-
-func goodPermResetRateLimitSettings(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) {
-	_, status, err := testutil.TestPermResetRateLimitSettings(mcClient, uri, token, region, org, modFuncs...)
-	require.Nil(t, err)
-	require.Equal(t, http.StatusOK, status)
-}
-
-var _ = edgeproto.GetFields
-
 func badPermShowRateLimitSettings(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) {
 	_, status, err := testutil.TestPermShowRateLimitSettings(mcClient, uri, token, region, org, modFuncs...)
 	require.NotNil(t, err)

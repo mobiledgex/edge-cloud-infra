@@ -48,13 +48,6 @@ type swaggerDeleteRateLimitSettings struct {
 	Body RegionRateLimitSettings
 }
 
-// Request summary for ResetRateLimitSettings
-// swagger:parameters ResetRateLimitSettings
-type swaggerResetRateLimitSettings struct {
-	// in: body
-	Body RegionRateLimitSettings
-}
-
 // Request summary for ShowRateLimitSettings
 // swagger:parameters ShowRateLimitSettings
 type swaggerShowRateLimitSettings struct {

@@ -225,7 +225,7 @@ func (g *GenMC2) genFile(file *generator.FileDescriptor) bool {
 }
 
 func (g *GenMC2) generatePosts() {
-	g.P("func addControllerApis(method string, group *echo.Group, groupPrefix string) {")
+	g.P("func addControllerApis(method string, group *echo.Group) {")
 
 	for _, file := range g.Generator.Request.ProtoFile {
 		if !g.support.GenFile(*file.Name) {
@@ -347,6 +347,7 @@ func (g *GenMC2) generateMethod(file *generator.FileDescriptor, service string, 
 		CustomAuthz:          GetMc2CustomAuthz(method),
 		HasMethodArgs:        gensupport.HasMethodArgs(method),
 		NotifyRoot:           GetMc2ApiNotifyroot(method),
+		//CustomMcHandler:      GetMc2CustomMcHandler(method),
 	}
 	if gensupport.GetMessageKey(in.DescriptorProto) != nil || gensupport.GetObjAndKey(in.DescriptorProto) {
 		args.HasKey = true
@@ -487,6 +488,7 @@ type tmplArgs struct {
 	CliUse               string
 	CliShort             string
 	CliGroup             string
+	//CustomMcHandler      bool
 }
 
 var tmplApi = `
@@ -508,6 +510,32 @@ type Region{{.InName}} struct {
 
 {{- end}}
 `
+
+/*{{- if .CustomMcHandler}}
+{{- if .Outstream}}
+
+	err, resume := {{.MethodName}}McHandler(ctx, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	})
+	if err != nil {
+		return err
+	}
+	if !resume {
+		return nil
+	}
+{{- else}}
+	res, err, resume := {{.MethodName}}McHandler(ctx, &in.{{.InName}})
+	if err != nil {
+		return err
+	}
+	if !resume {
+		return setReply(c, res)
+	}
+
+{{- end}}
+{{- end}}*/
 
 var tmpl = `
 func {{.MethodName}}(c echo.Context) error {
@@ -1084,3 +1112,7 @@ func GetGenerateAddrmTest(message *descriptor.DescriptorProto) bool {
 func GetUsesOrg(message *descriptor.DescriptorProto) string {
 	return gensupport.GetStringExtension(message.Options, protogen.E_UsesOrg, "")
 }
+
+/*func GetMc2CustomMcHandler(method *descriptor.MethodDescriptorProto) bool {
+	return proto.GetBoolExtension(method.Options, protogen.E_Mc2CustomMcHandler, false)
+}*/

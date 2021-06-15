@@ -20,7 +20,8 @@ var defaultConfig = ormapi.Config{
 	MaxMetricsDataPoints:         10000,
 	UserApiKeyCreateLimit:        10,
 	BillingEnable:                false, // TODO: eventually set the default to true?
-	RateLimitEnable:              true,
+	DisableRateLimit:             false,
+	MaxNumRateLimiters:           10000,
 }
 
 func InitConfig(ctx context.Context) error {
@@ -55,6 +56,8 @@ func InitConfig(ctx context.Context) error {
 		config.UserApiKeyCreateLimit = defaultConfig.UserApiKeyCreateLimit
 		save = true
 	}
+	// set disable rate limit to serverConfig value
+	config.DisableRateLimit = serverConfig.DisableRateLimit
 	if save {
 		err = db.Save(&config).Error
 		if err != nil {

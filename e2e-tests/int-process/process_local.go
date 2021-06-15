@@ -76,9 +76,6 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 	if p.StaticDir != "" {
 		args = append(args, "--staticDir", p.StaticDir)
 	}
-	if p.RemoveRateLimit {
-		args = append(args, "--removeRateLimit")
-	}
 	args = append(args, "--hostname", p.Name)
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)

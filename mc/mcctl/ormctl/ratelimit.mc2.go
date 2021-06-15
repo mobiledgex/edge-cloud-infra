@@ -89,21 +89,6 @@ var DeleteRateLimitSettingsCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
-var ResetRateLimitSettingsCmd = &ApiCommand{
-	Name:         "ResetRateLimitSettings",
-	Use:          "reset",
-	Short:        "Reset RateLimit settings to default for an API endpoint",
-	RequiredArgs: "region " + strings.Join(RateLimitSettingsRequiredArgs, " "),
-	OptionalArgs: strings.Join(RateLimitSettingsOptionalArgs, " "),
-	AliasArgs:    strings.Join(RateLimitSettingsAliasArgs, " "),
-	SpecialArgs:  &RateLimitSettingsSpecialArgs,
-	Comments:     addRegionComment(RateLimitSettingsComments),
-	ReqData:      &ormapi.RegionRateLimitSettings{},
-	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/ResetRateLimitSettings",
-	ProtobufApi:  true,
-}
-
 var ShowRateLimitSettingsCmd = &ApiCommand{
 	Name:         "ShowRateLimitSettings",
 	Use:          "show",
@@ -124,7 +109,6 @@ var RateLimitSettingsApiCmds = []*ApiCommand{
 	CreateRateLimitSettingsCmd,
 	UpdateRateLimitSettingsCmd,
 	DeleteRateLimitSettingsCmd,
-	ResetRateLimitSettingsCmd,
 	ShowRateLimitSettingsCmd,
 }
 

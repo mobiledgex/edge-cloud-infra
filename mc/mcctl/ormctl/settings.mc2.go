@@ -134,7 +134,9 @@ var SettingsOptionalArgs = []string{
 	"influxdbdownsampledmetricsretention",
 	"influxdbedgeeventsmetricsretention",
 	"appinstclientcleanupinterval",
-	"ratelimitenable",
+	"disabledmeratelimit",
+	"disablectrlratelimit",
+	"maxnumratelimiters",
 }
 var SettingsAliasArgs = []string{
 	"fields=settings.fields",
@@ -169,7 +171,9 @@ var SettingsAliasArgs = []string{
 	"influxdbdownsampledmetricsretention=settings.influxdbdownsampledmetricsretention",
 	"influxdbedgeeventsmetricsretention=settings.influxdbedgeeventsmetricsretention",
 	"appinstclientcleanupinterval=settings.appinstclientcleanupinterval",
-	"ratelimitenable=settings.ratelimitenable",
+	"disabledmeratelimit=settings.disabledmeratelimit",
+	"disablectrlratelimit=settings.disablectrlratelimit",
+	"maxnumratelimiters=settings.maxnumratelimiters",
 }
 var SettingsComments = map[string]string{
 	"fields":                                "Fields are used for the Update API to specify which fields to apply",
@@ -204,7 +208,9 @@ var SettingsComments = map[string]string{
 	"influxdbdownsampledmetricsretention":                              "Default retention policy for downsampled influx db (duration)",
 	"influxdbedgeeventsmetricsretention":                               "Default retention policy for edgeevents metrics influx db (duration)",
 	"appinstclientcleanupinterval":                                     "AppInstClient cleanup thread run interval",
-	"ratelimitenable":                                                  "Enable rate limiting (default is true)",
+	"disabledmeratelimit":                                              "Disable rate limiting for DME APIs (default is false)",
+	"disablectrlratelimit":                                             "Disable rate limiting for Controller APIs (default is true)",
+	"maxnumratelimiters":                                               "Maximum number of limiters... TODO...",
 }
 var SettingsSpecialArgs = map[string]string{
 	"settings.fields": "StringArray",

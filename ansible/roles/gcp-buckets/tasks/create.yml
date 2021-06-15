@@ -1,5 +1,5 @@
 ---
-- name: Get service key to create bucket
+- name: Get service key to create buckets
   vault_api:
     api: "gcp/key/{{ vault_gcp_bucket_create_roleset }}"
     vault_addr: "{{ vault_address }}"
@@ -9,7 +9,7 @@
 - set_fact:
     gcp_service_key: "{{ bucket_create_service_key.meta.response.data.private_key_data | b64decode }}"
 
-- name: "Create GCP bucket"
+- name: Create GCP buckets
   gcp_storage_bucket:
     name: "{{ bucket }}"
     project: "{{ gcp_project }}"

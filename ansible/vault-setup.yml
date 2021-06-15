@@ -37,6 +37,7 @@
     vault_gcp_roleset:
       vault_addr: "{{ vault_address }}"
       vault_token: "{{ vault_token }}"
+      project: "{{ gcp_project }}"
 
   tasks:
 
@@ -143,13 +144,47 @@
         service_account_contents: "{{ gcp_service_key }}"
         state: present
 
-    - name: Set up vault roleset for creating storage buckets
+    - name: "Set up GCP role for bucket usage: {{ gcp_bucket_use_role }}"
+      gcp_iam_role:
+        name: "{{ gcp_bucket_use_role }}"
+        title: "{{ deploy_environ | title }} role for using GCS buckets"
+        description: "Ansible-managed custom role for using GCS buckets"
+        included_permissions:
+          - storage.objects.create
+          - storage.objects.delete
+          - storage.objects.get
+          - storage.objects.list
+          - storage.objects.update
+        project: "{{ gcp_project }}"
+        auth_kind: serviceaccount
+        service_account_contents: "{{ gcp_service_key }}"
+        state: present
+
+    - name: Set up vault service account roleset for creating storage buckets
       vault_gcp_roleset:
         name: "{{ vault_gcp_bucket_create_roleset }}"
+        secret_type: service_account_key
         bindings:
           - resource: "//cloudresourcemanager.googleapis.com/projects/{{ gcp_project }}"
             roles:
               - "projects/{{ gcp_project }}/roles/{{ gcp_bucket_create_role }}"
+
+    - name: Set up vault rolesets for bucket access
+      vault_gcp_roleset:
+        name: "{{ bucket }}-access"
+        project: "{{ gcp_project }}"
+        secret_type: access_token
+        bindings:
+          - resource: "buckets/{{ bucket }}"
+            roles:
+              - "projects/{{ gcp_project }}/roles/{{ gcp_bucket_use_role }}"
+        vault_addr: "{{ vault_address }}"
+        vault_token: "{{ vault_token }}"
+      loop:
+        - "{{ gcs_gpu_drivers_bucket }}"
+        - "{{ gcs_operator_reports_bucket }}"
+      loop_control:
+        loop_var: bucket
 
     - name: Enable KV secrets engines
       include_role:

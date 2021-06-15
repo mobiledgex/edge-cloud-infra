@@ -51,6 +51,7 @@
       - approle.login.v1
       - chargify.read.v1
       - gcs.read.v1
+      - gcp-gpu-drivers-bucket-access-token.read.v1
       - influxdb.read.v1
       - kafka.read.v1
       - mcorm-jwtkeys.read.v1

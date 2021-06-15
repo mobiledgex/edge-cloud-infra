@@ -19,7 +19,13 @@ class VaultGcpRolesetError(Exception):
 def run_module():
     module_args = dict(
         name=dict(type="str", required=True),
-        secret_type=dict(type="str", required=False, default="service_account_key"),
+        project=dict(type="str", required=True),
+        secret_type=dict(type="str",
+                         choices=["service_account_key", "access_token"],
+                         default="service_account_key"),
+        token_scopes=dict(type="list", required=False, default=[
+            "https://www.googleapis.com/auth/cloud-platform",
+        ]),
         bindings=dict(type="list", required=True),
         vault_addr=dict(type="str", required=True),
         vault_token=dict(type="str", required=True),
@@ -28,7 +34,7 @@ def run_module():
 
     result = dict(
         changed=False,
-        data={},
+        action="none",
     )
 
     module = AnsibleModule(
@@ -37,15 +43,21 @@ def run_module():
     )
 
     vault = vault_request(module.params["vault_addr"], module.params["vault_token"])
-    r = vault("gcp/roleset/{}".format(module.params["name"]))
-    result["data"] = r
+    r = vault("gcp/roleset/{}".format(module.params["name"]),
+              success_code=[200, 404])
+    if "data" not in r and len(r["errors"]) < 1:
+        # Roleset does not exist; create it
+        result["changed"] = True
+        result["action"] = "create"
+        current_bindings = {}
+    else:
+        # Roleset exists; check if config needs to be changed
+        current_secret_type = r["data"]["secret_type"]
+        current_bindings = r["data"]["bindings"]
 
-    current_secret_type = r["data"]["secret_type"]
-    current_bindings = r["data"]["bindings"]
-
-    if module.params["secret_type"] != current_secret_type:
-        raise VaultGcpRolesetError("Can't change secret type for roleset (current: {})".format(
-            current_secret_type))
+        if module.params["secret_type"] != current_secret_type:
+            raise VaultGcpRolesetError("Can't change secret type for roleset (current: {})".format(
+                current_secret_type))
 
     bindings_diff = {
         "added": [],
@@ -67,26 +79,32 @@ def run_module():
         elif sorted(current_roles) != sorted(roles):
             bindings_diff["changed"].append(resource)
 
-    if current_bindings:
-        bindings_diff["added"] = current_bindings.keys()
+        if current_bindings:
+            bindings_diff["added"] = current_bindings.keys()
 
-    result["bindings_diff"] = bindings_diff
-    for bucket in bindings_diff.keys():
-        if len(bindings_diff[bucket]) > 0:
-            result["changed"] = True
-            break
+        result["bindings_diff"] = bindings_diff
+        for bucket in bindings_diff.keys():
+            if len(bindings_diff[bucket]) > 0:
+                result["changed"] = True
+                result["action"] = "update"
+                break
 
     if module.check_mode:
         return module.exit_json(**result)
 
     if result["changed"]:
-        # Update roleset
+        # Create/update roleset
+        data = {
+            "project": module.params["project"],
+            "secret_type": module.params["secret_type"],
+            "bindings": need_bindings,
+        }
+        if data["secret_type"] == "access_token":
+            data["token_scopes"] = module.params["token_scopes"]
+
         r = vault("gcp/roleset/{}".format(module.params["name"]),
               method="POST",
-              json={
-                  "secret_type": module.params["secret_type"],
-                  "bindings": need_bindings,
-              },
+              json=data,
               success_code=204)
         result["response"] = r
 

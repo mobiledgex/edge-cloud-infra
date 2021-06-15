@@ -94,7 +94,6 @@ type UserClaims struct {
 	FirstIssuedAt  int64  `json:"firstiat,omitempty"`
 	AuthType       string `json:"authtype"`
 	ApiKeyUsername string `json:"apikeyusername"`
-	Organization   string `json:"organization"`
 }
 
 func (u *UserClaims) GetKid() (int, error) {

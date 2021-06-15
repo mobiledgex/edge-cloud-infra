@@ -167,6 +167,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// InfluxDbDownsampledMetricsRetention: 31
 	// InfluxDbEdgeEventsMetricsRetention: 32
 	// AppinstClientCleanupInterval: 33
+	// DisableDmeRateLimit: 34
+	// DisableCtrlRateLimit: 35
+	// MaxNumRateLimiters: 36
 	// ```
 	// Security:
 	//   Bearer:
@@ -1674,6 +1677,62 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AccessCloudlet", AccessCloudlet)
+	// swagger:route POST /auth/ctrl/CreateRateLimitSettings RateLimitSettings CreateRateLimitSettings
+	// Create RateLimitSettings for an API endpoint.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateRateLimitSettings", CreateRateLimitSettings)
+	// swagger:route POST /auth/ctrl/UpdateRateLimitSettings RateLimitSettings UpdateRateLimitSettings
+	// Update RateLimit settings for an API endpoint.
+	// The following values should be added to `RateLimitSettings.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyApiName: 2.1
+	// KeyApiEndpointType: 2.2
+	// KeyRateLimitTarget: 2.3
+	// FlowSettings: 7
+	// FlowSettingsFlowAlgorithm: 7.1
+	// FlowSettingsReqsPerSecond: 7.2
+	// FlowSettingsBurstSize: 7.3
+	// MaxReqsSettings: 8
+	// MaxReqsSettingsMaxReqsAlgorithm: 8.1
+	// MaxReqsSettingsMaxRequests: 8.2
+	// MaxReqsSettingsInterval: 8.3
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateRateLimitSettings", UpdateRateLimitSettings)
+	// swagger:route POST /auth/ctrl/DeleteRateLimitSettings RateLimitSettings DeleteRateLimitSettings
+	// Delete RateLimit settings for an API endpoint (ie.
+	//  no rate limiting)
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteRateLimitSettings", DeleteRateLimitSettings)
+	// swagger:route POST /auth/ctrl/ShowRateLimitSettings RateLimitSettings ShowRateLimitSettings
+	// Show RateLimit settings for an API endpoint.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowRateLimitSettings", ShowRateLimitSettings)
 	// swagger:route POST /auth/ctrl/StreamAppInst AppInstKey StreamAppInst
 	// Stream Application Instance current progress.
 	// Security:

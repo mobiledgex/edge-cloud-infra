@@ -97,8 +97,7 @@ if [[ ! -z $LICENSECFGPATH ]]; then
 
 		echo ">> Verifying if GPU driver license is acquired..."
 		TIMEOUT=$((SECONDS+300))
-		systemctl status nvidia-gridd | grep -i "license.*success"
-		while [ $? -ne 0 ] ; do
+		while true; do
 			# retry until timeout
 			if [ $SECONDS -gt $TIMEOUT ] ; then
 				die "Timed out waiting for nvidia-gridd service to acquire license"
@@ -113,6 +112,7 @@ if [[ ! -z $LICENSECFGPATH ]]; then
 			echo ">> Waiting for license to be acquired - now $SECONDS, timeout $TIMEOUT"
 			sleep 5
 			systemctl status nvidia-gridd | grep -i "license.*success"
+			break
 		done
 		echo ">> GPU driver license acquired"
 	else

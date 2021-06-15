@@ -72,27 +72,47 @@ echo ""
 
 if [[ ! -z $LICENSECFGPATH ]]; then
 	# License configuration for nvidia-gridd service
-	systemctl is-active --quiet nvidia-gridd
+	systemctl cat nvidia-gridd.service > /dev/null
 	if [[ $? -eq 0 ]]; then
+		# Remove init.d file as it causes problems when we enable the service via systemctl
+		# nvidia-gridd.service file already exists, hence this is not required
+		if [[ -f /etc/init.d/nvidia-gridd ]]; then
+			rm /etc/init.d/nvidia-gridd
+		fi
+
 		echo ">> Setup GPU driver license config $LICENSECFGPATH for nvidia-gridd..."
 		echo ""
 		cp $LICENSECFGPATH /etc/nvidia/gridd.conf
-		service nvidia-gridd restart
-		[[ $? -ne 0 ]] && die "Failed to restart nvidia-gridd service"
+		systemctl is-active nvidia-gridd.service > /dev/null
+		if [[ $? -ne 0 ]]; then
+			systemctl start nvidia-gridd
+			[[ $? -ne 0 ]] && die "Failed to start nvidia-gridd service"
+		else
+			systemctl restart nvidia-gridd
+			[[ $? -ne 0 ]] && die "Failed to restart nvidia-gridd service"
+		fi
 
-		LOGTIME=$(date +"%b %e %H:%M")
+		systemctl enable nvidia-gridd
+		[[ $? -ne 0 ]] && die "Failed to enable nvidia-gridd service"
 
 		echo ">> Verifying if GPU driver license is acquired..."
 		TIMEOUT=$((SECONDS+300))
-		cat /var/log/syslog | grep -i "$LOGTIME.*license.*success"
-		while [ $? -ne 0 ] ; do
+		while true; do
 			# retry until timeout
 			if [ $SECONDS -gt $TIMEOUT ] ; then
 				die "Timed out waiting for nvidia-gridd service to acquire license"
 			fi
+			systemctl is-active nvidia-gridd.service > /dev/null
+			if [[ $? -ne 0 ]]; then
+				# retry
+				echo ">> Waiting for nvidia-gridd service to start - now $SECONDS, timeout $TIMEOUT"
+				sleep 5
+				continue
+			fi
 			echo ">> Waiting for license to be acquired - now $SECONDS, timeout $TIMEOUT"
 			sleep 5
-			cat /var/log/syslog | grep -i "$LOGTIME.*license.*success"
+			systemctl status nvidia-gridd | grep -i "license.*success"
+			break
 		done
 		echo ">> GPU driver license acquired"
 	else

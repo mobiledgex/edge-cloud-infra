@@ -26,7 +26,7 @@ var _ = math.Inf
 var CreateRateLimitSettingsCmd = &ApiCommand{
 	Name:         "CreateRateLimitSettings",
 	Use:          "create",
-	Short:        "Create RateLimitSettings for an API endpoint",
+	Short:        "Create RateLimitSettings for an API endpoint and target",
 	RequiredArgs: "region " + strings.Join(RateLimitSettingsRequiredArgs, " "),
 	OptionalArgs: strings.Join(RateLimitSettingsOptionalArgs, " "),
 	AliasArgs:    strings.Join(RateLimitSettingsAliasArgs, " "),
@@ -41,7 +41,7 @@ var CreateRateLimitSettingsCmd = &ApiCommand{
 var UpdateRateLimitSettingsCmd = &ApiCommand{
 	Name:          "UpdateRateLimitSettings",
 	Use:           "update",
-	Short:         "Update RateLimit settings for an API endpoint",
+	Short:         "Update RateLimit settings for an API endpoint and target",
 	RequiredArgs:  "region " + strings.Join(RateLimitSettingsRequiredArgs, " "),
 	OptionalArgs:  strings.Join(RateLimitSettingsOptionalArgs, " "),
 	AliasArgs:     strings.Join(RateLimitSettingsAliasArgs, " "),
@@ -77,7 +77,7 @@ func SetUpdateRateLimitSettingsFields(in map[string]interface{}) {
 var DeleteRateLimitSettingsCmd = &ApiCommand{
 	Name:         "DeleteRateLimitSettings",
 	Use:          "delete",
-	Short:        "Delete RateLimit settings for an API endpoint (ie. no rate limiting)",
+	Short:        "Delete RateLimit settings for an API endpoint and target (ie. no rate limiting)",
 	RequiredArgs: "region " + strings.Join(RateLimitSettingsRequiredArgs, " "),
 	OptionalArgs: strings.Join(RateLimitSettingsOptionalArgs, " "),
 	AliasArgs:    strings.Join(RateLimitSettingsAliasArgs, " "),
@@ -92,7 +92,7 @@ var DeleteRateLimitSettingsCmd = &ApiCommand{
 var ShowRateLimitSettingsCmd = &ApiCommand{
 	Name:         "ShowRateLimitSettings",
 	Use:          "show",
-	Short:        "Show RateLimit settings for an API endpoint",
+	Short:        "Show RateLimit settings for an API endpoint and target",
 	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(RateLimitSettingsRequiredArgs, RateLimitSettingsOptionalArgs...), " "),
 	AliasArgs:    strings.Join(RateLimitSettingsAliasArgs, " "),
@@ -146,7 +146,7 @@ var RateLimitSettingsAliasArgs = []string{
 var RateLimitSettingsComments = map[string]string{
 	"fields":                             "Fields are used for the Update API to specify which fields to apply",
 	"apiname":                            "Name of API (eg. CreateApp or RegisterClient) (Use Global if not a specific API)",
-	"apiendpointtype":                    "API Endpoint type, one of UnknownApiEndpointType, Controller, Dme",
+	"apiendpointtype":                    "API Endpoint type, one of UnknownApiEndpointType, Dme",
 	"ratelimittarget":                    "Target to rate limit, one of UnknownTarget, AllRequests, PerIp, PerUser",
 	"flowsettings:#.flowalgorithm":       "Flow Rate Limit algorithm, one of UnknownFlowAlgorithm, TokenBucketAlgorithm, LeakyBucketAlgorithm",
 	"flowsettings:#.reqspersecond":       "requests per second for flow rate limiting",

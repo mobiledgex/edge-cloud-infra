@@ -168,8 +168,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// InfluxDbEdgeEventsMetricsRetention: 32
 	// AppinstClientCleanupInterval: 33
 	// DisableDmeRateLimit: 34
-	// DisableCtrlRateLimit: 35
-	// MaxNumRateLimiters: 36
+	// MaxNumPerIpRateLimiters: 35
 	// ```
 	// Security:
 	//   Bearer:
@@ -1678,7 +1677,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AccessCloudlet", AccessCloudlet)
 	// swagger:route POST /auth/ctrl/CreateRateLimitSettings RateLimitSettings CreateRateLimitSettings
-	// Create RateLimitSettings for an API endpoint.
+	// Create RateLimitSettings for an API endpoint and target.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1688,7 +1687,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateRateLimitSettings", CreateRateLimitSettings)
 	// swagger:route POST /auth/ctrl/UpdateRateLimitSettings RateLimitSettings UpdateRateLimitSettings
-	// Update RateLimit settings for an API endpoint.
+	// Update RateLimit settings for an API endpoint and target.
 	// The following values should be added to `RateLimitSettings.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
@@ -1713,7 +1712,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateRateLimitSettings", UpdateRateLimitSettings)
 	// swagger:route POST /auth/ctrl/DeleteRateLimitSettings RateLimitSettings DeleteRateLimitSettings
-	// Delete RateLimit settings for an API endpoint (ie.
+	// Delete RateLimit settings for an API endpoint and target (ie.
 	//  no rate limiting)
 	// Security:
 	//   Bearer:
@@ -1724,7 +1723,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteRateLimitSettings", DeleteRateLimitSettings)
 	// swagger:route POST /auth/ctrl/ShowRateLimitSettings RateLimitSettings ShowRateLimitSettings
-	// Show RateLimit settings for an API endpoint.
+	// Show RateLimit settings for an API endpoint and target.
 	// Security:
 	//   Bearer:
 	// responses:

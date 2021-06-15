@@ -212,8 +212,10 @@ type Config struct {
 	BillingEnable bool
 	// Toggle to enable and disable MC API rate limiting
 	DisableRateLimit bool
-	// TODO:
-	MaxNumRateLimiters int
+	// Maximum number of PerIp rate limiters for an api
+	MaxNumPerIpRateLimiters int
+	// Maximum number of PerUser rate limiters for an api
+	MaxNumPerUserRateLimiters int
 }
 
 // Wrapper to store in postgres (cannot store slices otherwise)

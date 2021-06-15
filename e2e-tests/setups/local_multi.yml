@@ -100,7 +100,6 @@ controllers:
   appdnsroot: mobiledgex.net
   deploymenttag: dev
   accessapiaddr: "127.0.0.1:41001"
-  removeratelimit: true
   envvars:
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
@@ -121,7 +120,6 @@ controllers:
   appdnsroot: mobiledgex.net
   deploymenttag: dev
   accessapiaddr: "127.0.0.1:41002"
-  removeratelimit: true
   envvars:
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
@@ -144,7 +142,6 @@ controllers:
   deploymenttag: dev
   influxaddr: "http://127.0.0.1:8087"
   accessapiaddr: "127.0.0.1:41011"
-  removeratelimit: true
   envvars:
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
@@ -167,7 +164,6 @@ controllers:
   deploymenttag: dev
   influxaddr: "http://127.0.0.1:8087"
   accessapiaddr: "127.0.0.1:41012"
-  removeratelimit: true
   envvars:
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
@@ -234,7 +230,6 @@ dmes:
   usevaultpki: true
   hostname: "127.0.0.1"
   deploymenttag: dev
-  removeratelimit: true
   envvars:
     LOCAPI_USER: mexserver
     LOCAPI_PASSWD: eC2835!
@@ -253,7 +248,6 @@ dmes:
   usevaultpki: true
   hostname: "127.0.0.1"
   deploymenttag: dev
-  removeratelimit: true
   envvars:
     LOCAPI_USER: mexserver
     LOCAPI_PASSWD: eC2835!
@@ -273,7 +267,6 @@ dmes:
   usevaultpki: true
   hostname: "127.0.0.1"
   deploymenttag: dev
-  removeratelimit: true
   envvars:
     LOCAPI_USER: mexserver
     LOCAPI_PASSWD: eC2835!
@@ -293,7 +286,6 @@ dmes:
   usevaultpki: true
   hostname: "127.0.0.1"
   deploymenttag: dev
-  removeratelimit: true
   envvars:
     LOCAPI_USER: mexserver
     LOCAPI_PASSWD: eC2835!
@@ -315,7 +307,6 @@ mcs:
   apitlscert: "{{tlsoutdir}}/mex-server.crt"
   apitlskey: "{{tlsoutdir}}/mex-server.key"
   deploymenttag: dev
-  removeratelimit: true
   envvars:
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
@@ -335,7 +326,6 @@ mcs:
   apitlscert: "{{tlsoutdir}}/mex-server.crt"
   apitlskey: "{{tlsoutdir}}/mex-server.key"
   deploymenttag: dev
-  removeratelimit: true
   envvars:
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true

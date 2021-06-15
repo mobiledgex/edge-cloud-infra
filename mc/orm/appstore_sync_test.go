@@ -132,7 +132,6 @@ func TestAppStoreApi(t *testing.T) {
 	addr := "127.0.0.1:9999"
 	uri := "http://" + addr + "/api/v1"
 
-	// disable rate limiting
 	defaultConfig.DisableRateLimit = true
 
 	config := ServerConfig{

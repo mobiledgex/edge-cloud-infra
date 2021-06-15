@@ -75,6 +75,8 @@ regiondata:
       influxdbdownsampledmetricsretention: 672h0m0s
       edgeeventsmetricscontinuousqueriescollectionintervals:
       - interval: 2s
+      disabledmeratelimit: true
+      maxnumperipratelimiters: 10000
     flavors:
     - key:
         name: x1.tiny
@@ -127,6 +129,8 @@ regiondata:
       influxdbdownsampledmetricsretention: 672h0m0s
       edgeeventsmetricscontinuousqueriescollectionintervals:
       - interval: 2s
+      disabledmeratelimit: true
+      maxnumperipratelimiters: 10000
     flavors:
     - key:
         name: x1.tiny

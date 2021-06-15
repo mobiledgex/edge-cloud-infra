@@ -183,7 +183,7 @@ func getClaims(c echo.Context) (*UserClaims, error) {
 func AuthCookie(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		api := c.Path()
-		if strings.Contains(api, "auth") {
+		if strings.Contains(api, "/auth/") && !strings.Contains(api, "/ws/") {
 			auth := c.Request().Header.Get(echo.HeaderAuthorization)
 			scheme := "Bearer"
 			l := len(scheme)

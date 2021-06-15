@@ -90,7 +90,8 @@ var ConfigComments = map[string]string{
 	"userapikeycreatelimit":        `Max number of API keys a user can create`,
 	"billingenable":                `Toggle for enabling billing (primarily for testing purposes)`,
 	"disableratelimit":             `Toggle to enable and disable MC API rate limiting`,
-	"maxnumratelimiters":           `TODO:`,
+	"maxnumperipratelimiters":      `Maximum number of PerIp rate limiters for an api`,
+	"maxnumperuserratelimiters":    `Maximum number of PerUser rate limiters for an api`,
 }
 
 var RateLimitSettingsGormWrapperComments = map[string]string{

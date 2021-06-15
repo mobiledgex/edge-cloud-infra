@@ -108,7 +108,7 @@ func InitRateLimitMc(ctx context.Context) error {
 	}
 
 	// Init RateLimitMgr and add Global RateLimitSettings and UserCreate RateLimitSettings
-	rateLimitMgr = ratelimit.NewRateLimitManager(getDisableRateLimit(ctx), getMaxNumRateLimiters(ctx))
+	rateLimitMgr = ratelimit.NewRateLimitManager(getDisableRateLimit(ctx), getMaxNumPerIpRateLimiters(ctx), getMaxNumPerUserRateLimiters(ctx))
 	rateLimitMgr.CreateApiEndpointLimiter(convertToRateLimitSettings(GlobalAllRequestsMcRateLimitSettings), convertToRateLimitSettings(GlobalPerIpMcRateLimitSettings), convertToRateLimitSettings(GlobalPerUserMcRateLimitSettings))
 	rateLimitMgr.CreateApiEndpointLimiter(convertToRateLimitSettings(UserCreateAllRequestsMcRateLimitSettings), convertToRateLimitSettings(UserCreatePerIpMcRateLimitSettings), nil)
 	return nil
@@ -128,9 +128,9 @@ func RateLimit(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		ctx := GetContext(c)
 
-		// Check if rate limiting is disabled
+		// Check if rate limiting is disabled, if disabled continue
 		if getDisableRateLimit(ctx) {
-			return nil
+			return next(c)
 		}
 
 		// Create callerInfo
@@ -169,14 +169,24 @@ func getDisableRateLimit(ctx context.Context) bool {
 	return config.DisableRateLimit
 }
 
-// Helper function that grabs the MaxNumRateLimiters int from the Config struct
-func getMaxNumRateLimiters(ctx context.Context) int {
+// Helper function that grabs the MaxNumPerIpRateLimiters int from the Config struct
+func getMaxNumPerIpRateLimiters(ctx context.Context) int {
 	config, err := getConfig(ctx)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "unable to check config for maxNumRateLimiters", "err", err)
-		return defaultConfig.MaxNumRateLimiters
+		log.SpanLog(ctx, log.DebugLevelApi, "unable to check config for maxNumPerIpRateLimiters", "err", err)
+		return defaultConfig.MaxNumPerIpRateLimiters
 	}
-	return config.MaxNumRateLimiters
+	return config.MaxNumPerIpRateLimiters
+}
+
+// Helper function that grabs the MaxNumPerUserRateLimiters int from the Config struct
+func getMaxNumPerUserRateLimiters(ctx context.Context) int {
+	config, err := getConfig(ctx)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "unable to check config for maxNumPerUserRateLimiters", "err", err)
+		return defaultConfig.MaxNumPerUserRateLimiters
+	}
+	return config.MaxNumPerUserRateLimiters
 }
 
 // Create MC RateLimit settings

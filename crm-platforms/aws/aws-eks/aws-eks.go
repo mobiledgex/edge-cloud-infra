@@ -19,8 +19,9 @@ type AwsEksPlatform struct {
 
 func (o *AwsEksPlatform) GetFeatures() *platform.Features {
 	return &platform.Features{
-		SupportsMultiTenantCluster: true,
-		SupportsKubernetesOnly:     true,
+		SupportsMultiTenantCluster:    true,
+		SupportsKubernetesOnly:        true,
+		KubernetesRequiresWorkerNodes: true,
 	}
 }
 

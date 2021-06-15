@@ -44,8 +44,9 @@ type GCPFlavor struct {
 
 func (o *GCPPlatform) GetFeatures() *platform.Features {
 	return &platform.Features{
-		SupportsMultiTenantCluster: true,
-		SupportsKubernetesOnly:     true,
+		SupportsMultiTenantCluster:    true,
+		SupportsKubernetesOnly:        true,
+		KubernetesRequiresWorkerNodes: true,
 	}
 }
 

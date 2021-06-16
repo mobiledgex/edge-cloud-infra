@@ -543,7 +543,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// BuildsOperatingSystem: 4.4
 	// BuildsKernelVersion: 4.5
 	// BuildsHypervisorInfo: 4.6
+	// BuildsMd5Sum: 4.7
 	// LicenseConfig: 5
+	// LicenseConfigMd5Sum: 9
 	// Properties: 6
 	// PropertiesKey: 6.1
 	// PropertiesValue: 6.2
@@ -744,6 +746,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// GpuConfigProperties: 45.3
 	// GpuConfigPropertiesKey: 45.3.1
 	// GpuConfigPropertiesValue: 45.3.2
+	// EnableDefaultServerlessCluster: 46
 	// ```
 	// Security:
 	//   Bearer:
@@ -1722,4 +1725,14 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/StreamCloudlet", StreamCloudlet)
+	// swagger:route POST /auth/ctrl/StreamGPUDriver GPUDriverKey StreamGPUDriver
+	// Stream GPU driver current progress.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/StreamGPUDriver", StreamGPUDriver)
 }

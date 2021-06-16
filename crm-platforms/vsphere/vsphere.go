@@ -23,6 +23,13 @@ type VSpherePlatform struct {
 	caches       *platform.Caches
 }
 
+func (o *VSpherePlatform) GetFeatures() *platform.Features {
+	return &platform.Features{
+		SupportsMultiTenantCluster: true,
+		SupportsSharedVolume:       true,
+	}
+}
+
 func (v *VSpherePlatform) SetVMProperties(vmProperties *vmlayer.VMProperties) {
 	v.vmProperties = vmProperties
 	vmProperties.IptablesBasedFirewall = true
@@ -105,6 +112,9 @@ func (v *VSpherePlatform) GetResourceID(ctx context.Context, resourceType vmlaye
 		return resourceName + "-id", nil
 	}
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
+}
+
+func (v *VSpherePlatform) VmAppChangedCallback(ctx context.Context) {
 }
 
 func (v *VSpherePlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {

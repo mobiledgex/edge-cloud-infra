@@ -32,20 +32,6 @@ func (v *VcdPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInf
 	return flavors, nil
 }
 
-// Here, we're implementing AddCloudletImageIfNotPresent
-// We'll lift CreateImageFromUrl, but leave out the return v.ImportImage
-// Really, it could have the platform passed in, and we could return p.ImportImage
-// but not yet, just let the caller do the ImportImage
-//
-//CreateImageFromUrl downloads image from URL and then imports to the datastore
-//func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) error {
-
-func (v *VcdPlatform) AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddCloudletImageIfNotPresent", "imgPathPrefix", imgPathPrefix, "ImgVersion", imgVersion)
-	//	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)
-	return "", nil
-}
-
 func (v *VcdPlatform) CreateImageFromUrl(ctx context.Context, imageName, imageUrl, md5Sum string) (string, error) {
 
 	// dne	filePath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.VaultConfig, imageName, imageUrl, md5Sum)

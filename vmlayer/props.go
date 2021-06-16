@@ -41,7 +41,7 @@ const MINIMUM_VCPUS uint64 = 2
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.4.1"
+var MEXInfraVersion = "4.4.3"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -162,6 +162,11 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "VM App image cleanup on delete",
 		Description: "Delete image files when VM apps are deleted (yes or no)",
 		Value:       "yes",
+	},
+	"MEX_VM_APP_METRICS_COLLECT_INTERVAL": {
+		Name:        "VM App Metrics collect interval, in minutes",
+		Description: "Determines how often VM metrics are collected",
+		Value:       "5",
 	},
 }
 
@@ -316,6 +321,15 @@ func (vp *VMProperties) GetVMAppSubnetDHCPEnabled() string {
 func (vp *VMProperties) GetVMAppCleanupImageOnDelete() bool {
 	value, _ := vp.CommonPf.Properties.GetValue("MEX_VM_APP_IMAGE_CLEANUP_ON_DELETE")
 	return value == "yes"
+}
+
+func (vp *VMProperties) GetVmAppMetricsCollectInterval() (uint64, error) {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_VM_APP_METRICS_COLLECT_INTERVAL")
+	val, err := strconv.ParseUint(value, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("Unable to parse value MEX_VM_APP_METRICS_COLLECT_INTERVAL value: %s as integer", value)
+	}
+	return val, nil
 }
 
 func (vp *VMProperties) GetChefClient() *chef.Client {

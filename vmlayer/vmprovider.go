@@ -28,12 +28,12 @@ type VMProvider interface {
 	IdSanitize(string) string
 	GetProviderSpecificProps(ctx context.Context) (map[string]*edgeproto.PropertyInfo, error)
 	SetVMProperties(vmProperties *VMProperties)
+	GetFeatures() *platform.Features
 	InitData(ctx context.Context, caches *platform.Caches)
 	InitProvider(ctx context.Context, caches *platform.Caches, stage ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error
 	GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error)
 	GetNetworkList(ctx context.Context) ([]string, error)
-	AddCloudletImageIfNotPresent(ctx context.Context, imgPathPrefix, imgVersion string, updateCallback edgeproto.CacheUpdateCallback) (string, error)
-	AddAppImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, app *edgeproto.App, flavor string, updateCallback edgeproto.CacheUpdateCallback) error
+	AddImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, updateCallback edgeproto.CacheUpdateCallback) error
 	GetCloudletImageSuffix(ctx context.Context) string
 	DeleteImage(ctx context.Context, folder, image string) error
 	GetServerDetail(ctx context.Context, serverName string) (*ServerDetail, error)
@@ -71,6 +71,7 @@ type VMProvider interface {
 	GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource
 	GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error
 	InternalCloudletUpdatedCallback(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal)
+	VmAppChangedCallback(ctx context.Context)
 }
 
 // VMPlatform contains the needed by all VM based platforms

@@ -128,6 +128,15 @@ func (v *VcdPlatform) InitData(ctx context.Context, caches *platform.Caches) {
 	v.caches = caches
 }
 
+func (o *VcdPlatform) GetFeatures() *platform.Features {
+	return &platform.Features{
+		SupportsMultiTenantCluster: true,
+		SupportsSharedVolume:       true,
+		SupportsTrustPolicy:        true,
+		SupportsImageTypeOVF:       true,
+	}
+}
+
 func (v *VcdPlatform) GetResourceID(ctx context.Context, resourceType vmlayer.ResourceType, resourceName string) (string, error) {
 
 	vcdClient := v.GetVcdClientFromContext(ctx)
@@ -339,8 +348,10 @@ func (v *VcdPlatform) GetVappServerSuffix() string {
 	return "-vapp"
 }
 
+// VCD does not yet actually support download/upload of images, but the common image suffix is provided here so it
+// can be validated when this is implemented
 func (v *VcdPlatform) GetCloudletImageSuffix(ctx context.Context) string {
-	return "-vcd.qcow2"
+	return ".qcow2"
 }
 
 func (v *VcdPlatform) GetCloudletManifest(ctx context.Context, name, cloudletImagePath string, VMGroupOrchestrationParams *vmlayer.VMGroupOrchestrationParams) (string, error) {

@@ -446,6 +446,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// RequiredOutboundConnectionsProtocol: 38.1
 	// RequiredOutboundConnectionsPort: 38.2
 	// RequiredOutboundConnectionsRemoteIp: 38.4
+	// VmAppOsType: 41
 	// ```
 	// Security:
 	//   Bearer:

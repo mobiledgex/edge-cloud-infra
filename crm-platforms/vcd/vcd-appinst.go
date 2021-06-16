@@ -22,6 +22,7 @@ import (
 type VmAppOvfParams struct {
 	ImageBaseFileName string
 	DiskSizeInBytes   string
+	OSType            string
 }
 
 var vcdDirectUser string = "vcdDirect"
@@ -40,7 +41,7 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
   <VirtualSystem ovf:id="{{.ImageBaseFileName}}">
     <Info>A Virtual system</Info>
     <Name>{{.ImageBaseFileName}}</Name>
-    <OperatingSystemSection ovf:id="94" vmw:osType="otherGuest64">
+    <OperatingSystemSection ovf:id="94" vmw:osType="{{.OSType}}">
       <Info>The operating system installed</Info>
       <Description></Description>
     </OperatingSystemSection>
@@ -73,9 +74,9 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
         <rasd:Description>SCSI Controller</rasd:Description>
         <rasd:ElementName>SCSI Controller 1</rasd:ElementName>
         <rasd:InstanceID>3</rasd:InstanceID>
-        <rasd:ResourceSubType>lsilogic</rasd:ResourceSubType>
+        <rasd:ResourceSubType>lsilogicsas</rasd:ResourceSubType>
         <rasd:ResourceType>6</rasd:ResourceType>
-        <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="16"/>
+        <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="192"/>
       </Item>
       <Item>
         <rasd:Address>0</rasd:Address>
@@ -87,10 +88,17 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
         <vmw:Config ovf:required="false" vmw:key="slotInfo.pciSlotNumber" vmw:value="33"/>
       </Item>
       <Item>
+      <rasd:Description>USB Controller (XHCI)</rasd:Description>
+      <rasd:ElementName>USB controller</rasd:ElementName>
+      <rasd:InstanceID>5</rasd:InstanceID>
+      <rasd:ResourceSubType>vmware.usb.xhci</rasd:ResourceSubType>
+      <rasd:ResourceType>23</rasd:ResourceType>
+      </Item>
+      <Item>
         <rasd:AddressOnParent>0</rasd:AddressOnParent>
         <rasd:ElementName>Hard Disk 1</rasd:ElementName>
         <rasd:HostResource>ovf:/disk/vmdisk1</rasd:HostResource>
-        <rasd:InstanceID>5</rasd:InstanceID>
+        <rasd:InstanceID>6</rasd:InstanceID>
         <rasd:Parent>3</rasd:Parent>
         <rasd:ResourceType>17</rasd:ResourceType>
       </Item>
@@ -98,14 +106,14 @@ var vmAppOvfTemplate = `<?xml version='1.0' encoding='UTF-8'?>
         <rasd:AddressOnParent>0</rasd:AddressOnParent>
         <rasd:AutomaticAllocation>false</rasd:AutomaticAllocation>
         <rasd:ElementName>CD/DVD Drive 1</rasd:ElementName>
-        <rasd:InstanceID>6</rasd:InstanceID>
+        <rasd:InstanceID>7</rasd:InstanceID>
         <rasd:Parent>4</rasd:Parent>
         <rasd:ResourceSubType>vmware.cdrom.remotepassthrough</rasd:ResourceSubType>
         <rasd:ResourceType>15</rasd:ResourceType>
       </Item>
       <Item ovf:required="false">
         <rasd:ElementName>Video card</rasd:ElementName>
-        <rasd:InstanceID>7</rasd:InstanceID>
+        <rasd:InstanceID>8</rasd:InstanceID>
         <rasd:ResourceType>24</rasd:ResourceType>
         <vmw:Config ovf:required="false" vmw:key="numDisplays" vmw:value="1"/>
         <vmw:Config ovf:required="false" vmw:key="graphicsMemorySizeInKB" vmw:value="262144"/>
@@ -189,6 +197,13 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 			return err
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "downloaded file", "fileWithPath", fileWithPath)
+
+		// as the download may take a long time, refresh the session by triggering an API call
+		_, err = v.GetOrg(ctx, vcdClient)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "fail to get org", "err", err)
+			return fmt.Errorf("Failed to get VCD org")
+		}
 		filesToCleanup = append(filesToCleanup, fileWithPath)
 		vmdkFile := fileWithPath
 		if app.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {
@@ -205,9 +220,14 @@ func (v *VcdPlatform) AddAppImageIfNotPresent(ctx context.Context, imageInfo *in
 		ovfFile = filenameNoExtension + ".ovf"
 
 		imageFileBaseName := filepath.Base(filenameNoExtension)
+		mappedOs, err := vmlayer.GetVmwareMappedOsType(app.VmAppOsType)
+		if err != nil {
+			return err
+		}
 		ovfParams := VmAppOvfParams{
 			ImageBaseFileName: imageFileBaseName,
 			DiskSizeInBytes:   fmt.Sprintf("%d", appFlavor.Disk*1024*1024*1024),
+			OSType:            mappedOs,
 		}
 		ovfBuf, err := infracommon.ExecTemplate("vmwareOvf", vmAppOvfTemplate, ovfParams)
 		if err != nil {

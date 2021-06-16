@@ -216,6 +216,7 @@ var AppOptionalArgs = []string{
 	"requiredoutboundconnections:#.protocol",
 	"requiredoutboundconnections:#.port",
 	"requiredoutboundconnections:#.remoteip",
+	"vmappostype",
 }
 var AppAliasArgs = []string{
 	"fields=app.fields",
@@ -255,6 +256,7 @@ var AppAliasArgs = []string{
 	"requiredoutboundconnections:#.protocol=app.requiredoutboundconnections:#.protocol",
 	"requiredoutboundconnections:#.port=app.requiredoutboundconnections:#.port",
 	"requiredoutboundconnections:#.remoteip=app.requiredoutboundconnections:#.remoteip",
+	"vmappostype=app.vmappostype",
 }
 var AppComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -262,7 +264,7 @@ var AppComments = map[string]string{
 	"appname":                                "App name",
 	"appvers":                                "App version",
 	"imagepath":                              "URI of where image resides",
-	"imagetype":                              "Image type (see ImageType), one of ImageTypeUnknown, ImageTypeDocker, ImageTypeQcow, ImageTypeHelm",
+	"imagetype":                              "Image type (see ImageType), one of ImageTypeUnknown, ImageTypeDocker, ImageTypeQcow, ImageTypeHelm, ImageTypeOvf",
 	"accessports":                            "Comma separated list of protocol:port pairs that the App listens on. Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
 	"defaultflavor":                          "Flavor name",
 	"authpublickey":                          "public key used for authentication",
@@ -290,6 +292,7 @@ var AppComments = map[string]string{
 	"requiredoutboundconnections:#.protocol": "tcp, udp or icmp",
 	"requiredoutboundconnections:#.port":     "TCP or UDP port",
 	"requiredoutboundconnections:#.remoteip": "remote IP X.X.X.X",
+	"vmappostype":                            "OS Type for VM Apps, one of VmAppOsUnknown, VmAppOsLinux, VmAppOsWindows10, VmAppOsWindows2012, VmAppOsWindows2016, VmAppOsWindows2019",
 }
 var AppSpecialArgs = map[string]string{
 	"app.autoprovpolicies": "StringArray",

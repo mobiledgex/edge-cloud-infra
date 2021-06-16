@@ -1304,7 +1304,7 @@ func FindFlavorMatchObj(ctx context.Context, rc *RegionContext, obj *edgeproto.F
 	return api.FindFlavorMatch(ctx, obj)
 }
 
-func FindAllFlavorsForCloudlet(c echo.Context) error {
+func ShowFlavorsForCloudlet(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
@@ -1313,37 +1313,40 @@ func FindAllFlavorsForCloudlet(c echo.Context) error {
 	}
 	rc.username = claims.Username
 
-	in := ormapi.RegionCloudlet{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	in := ormapi.RegionCloudletKey{}
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
-	log.SetTags(span, in.Cloudlet.GetKey().GetTags())
-	span.SetTag("org", in.Cloudlet.Key.Organization)
-	resp, err := FindAllFlavorsForCloudletObj(ctx, rc, &in.Cloudlet)
+	span.SetTag("org", in.CloudletKey.Key.Organization)
+
+	err = ShowFlavorsForCloudletStream(ctx, rc, &in.CloudletKey, func(res *edgeproto.FlavorKey) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
 		return err
 	}
-	return setReply(c, resp)
+	return nil
 }
 
-func FindAllFlavorsForCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Cloudlet) (*edgeproto.CloudletFlavorMappingResults, error) {
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func ShowFlavorsForCloudletStream(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletKey, cb func(res *edgeproto.FlavorKey) error) error {
+	var authz *AuthzShow
+	var err error
 	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
-			ResourceCloudlets, ActionView); err != nil {
-			return nil, err
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
+		if err != nil {
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -1352,7 +1355,39 @@ func FindAllFlavorsForCloudletObj(ctx context.Context, rc *RegionContext, obj *e
 		}()
 	}
 	api := edgeproto.NewCloudletApiClient(rc.conn)
-	return api.FindAllFlavorsForCloudlet(ctx, obj)
+	stream, err := api.ShowFlavorsForCloudlet(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if !rc.skipAuthz {
+			if !authz.Ok(res.Key.Organization) {
+				continue
+			}
+		}
+		err = cb(res)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ShowFlavorsForCloudletObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletKey) ([]edgeproto.FlavorKey, error) {
+	arr := []edgeproto.FlavorKey{}
+	err := ShowFlavorsForCloudletStream(ctx, rc, obj, func(res *edgeproto.FlavorKey) error {
+		arr = append(arr, *res)
+		return nil
+	})
+	return arr, err
 }
 
 func RevokeAccessKey(c echo.Context) error {

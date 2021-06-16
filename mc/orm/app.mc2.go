@@ -382,7 +382,7 @@ func RemoveAppAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edg
 	return api.RemoveAppAutoProvPolicy(ctx, obj)
 }
 
-func FindCloudletsForAppDeployment(c echo.Context) error {
+func ShowCloudletsForAppDeployment(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
 	claims, err := getClaims(c)
@@ -392,36 +392,38 @@ func FindCloudletsForAppDeployment(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionDeploymentCloudletRequest{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	success, err := ReadConn(c, &in)
+	if !success {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
-	log.SetTags(span, in.DeploymentCloudletRequest.GetKey().GetTags())
-	span.SetTag("org", in.DeploymentCloudletRequest.Key.Organization)
-	resp, err := FindCloudletsForAppDeploymentObj(ctx, rc, &in.DeploymentCloudletRequest)
+
+	err = ShowCloudletsForAppDeploymentStream(ctx, rc, &in.DeploymentCloudletRequest, func(res *edgeproto.CloudletKey) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	})
 	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
 		return err
 	}
-	return setReply(c, resp)
+	return nil
 }
 
-func FindCloudletsForAppDeploymentObj(ctx context.Context, rc *RegionContext, obj *edgeproto.DeploymentCloudletRequest) (*edgeproto.DeploymentCloudletResults, error) {
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func ShowCloudletsForAppDeploymentStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DeploymentCloudletRequest, cb func(res *edgeproto.CloudletKey) error) error {
+	var authz *AuthzShow
+	var err error
 	if !rc.skipAuthz {
-		if err := authzFindCloudletsForAppDeployment(ctx, rc.region, rc.username, obj,
-			ResourceCloudlets, ActionView); err != nil {
-			return nil, err
+		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
+		if err != nil {
+			return err
 		}
 	}
 	if rc.conn == nil {
 		conn, err := connectController(ctx, rc.region)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		rc.conn = conn
 		defer func() {
@@ -430,5 +432,37 @@ func FindCloudletsForAppDeploymentObj(ctx context.Context, rc *RegionContext, ob
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
-	return api.FindCloudletsForAppDeployment(ctx, obj)
+	stream, err := api.ShowCloudletsForAppDeployment(ctx, obj)
+	if err != nil {
+		return err
+	}
+	for {
+		res, err := stream.Recv()
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			return err
+		}
+		if !rc.skipAuthz {
+			if !authz.Ok("") {
+				continue
+			}
+		}
+		err = cb(res)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func ShowCloudletsForAppDeploymentObj(ctx context.Context, rc *RegionContext, obj *edgeproto.DeploymentCloudletRequest) ([]edgeproto.CloudletKey, error) {
+	arr := []edgeproto.CloudletKey{}
+	err := ShowCloudletsForAppDeploymentStream(ctx, rc, obj, func(res *edgeproto.CloudletKey) error {
+		arr = append(arr, *res)
+		return nil
+	})
+	return arr, err
 }

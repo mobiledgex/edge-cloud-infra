@@ -154,21 +154,21 @@ func goodPermRemoveAppAutoProvPolicy(t *testing.T, mcClient *mctestclient.Client
 
 var _ = edgeproto.GetFields
 
-func badPermFindCloudletsForAppDeployment(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) {
-	_, status, err := testutil.TestPermFindCloudletsForAppDeployment(mcClient, uri, token, region, org, modFuncs...)
+func badPermShowCloudletsForAppDeployment(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) {
+	_, status, err := testutil.TestPermShowCloudletsForAppDeployment(mcClient, uri, token, region, org, modFuncs...)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Forbidden")
 	require.Equal(t, http.StatusForbidden, status)
 }
 
-func badFindCloudletsForAppDeployment(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, status int, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) {
-	_, st, err := testutil.TestPermFindCloudletsForAppDeployment(mcClient, uri, token, region, org, modFuncs...)
+func badShowCloudletsForAppDeployment(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, status int, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) {
+	_, st, err := testutil.TestPermShowCloudletsForAppDeployment(mcClient, uri, token, region, org, modFuncs...)
 	require.NotNil(t, err)
 	require.Equal(t, status, st)
 }
 
-func goodPermFindCloudletsForAppDeployment(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) {
-	_, status, err := testutil.TestPermFindCloudletsForAppDeployment(mcClient, uri, token, region, org, modFuncs...)
+func goodPermShowCloudletsForAppDeployment(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) {
+	_, status, err := testutil.TestPermShowCloudletsForAppDeployment(mcClient, uri, token, region, org, modFuncs...)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }

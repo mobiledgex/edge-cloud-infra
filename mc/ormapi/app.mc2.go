@@ -77,9 +77,9 @@ type swaggerRemoveAppAutoProvPolicy struct {
 	Body RegionAppAutoProvPolicy
 }
 
-// Request summary for FindCloudletsForAppDeployment
-// swagger:parameters FindCloudletsForAppDeployment
-type swaggerFindCloudletsForAppDeployment struct {
+// Request summary for ShowCloudletsForAppDeployment
+// swagger:parameters ShowCloudletsForAppDeployment
+type swaggerShowCloudletsForAppDeployment struct {
 	// in: body
 	Body RegionDeploymentCloudletRequest
 }

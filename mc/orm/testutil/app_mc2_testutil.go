@@ -114,19 +114,18 @@ func TestPermRemoveAppAutoProvPolicy(mcClient *mctestclient.Client, uri, token, 
 	return TestRemoveAppAutoProvPolicy(mcClient, uri, token, region, in, modFuncs...)
 }
 
-func TestFindCloudletsForAppDeployment(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.DeploymentCloudletRequest, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) (*edgeproto.DeploymentCloudletResults, int, error) {
+func TestShowCloudletsForAppDeployment(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.DeploymentCloudletRequest, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) ([]edgeproto.CloudletKey, int, error) {
 	dat := &ormapi.RegionDeploymentCloudletRequest{}
 	dat.Region = region
 	dat.DeploymentCloudletRequest = *in
 	for _, fn := range modFuncs {
 		fn(&dat.DeploymentCloudletRequest)
 	}
-	return mcClient.FindCloudletsForAppDeployment(uri, token, dat)
+	return mcClient.ShowCloudletsForAppDeployment(uri, token, dat)
 }
-func TestPermFindCloudletsForAppDeployment(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) (*edgeproto.DeploymentCloudletResults, int, error) {
+func TestPermShowCloudletsForAppDeployment(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.DeploymentCloudletRequest)) ([]edgeproto.CloudletKey, int, error) {
 	in := &edgeproto.DeploymentCloudletRequest{}
-	in.Key.Organization = org
-	return TestFindCloudletsForAppDeployment(mcClient, uri, token, region, in, modFuncs...)
+	return TestShowCloudletsForAppDeployment(mcClient, uri, token, region, in, modFuncs...)
 }
 
 func (s *TestClient) CreateApp(ctx context.Context, in *edgeproto.App) (*edgeproto.Result, error) {
@@ -201,12 +200,12 @@ func (s *TestClient) RemoveAppAutoProvPolicy(ctx context.Context, in *edgeproto.
 	return out, err
 }
 
-func (s *TestClient) FindCloudletsForAppDeployment(ctx context.Context, in *edgeproto.DeploymentCloudletRequest) (*edgeproto.DeploymentCloudletResults, error) {
+func (s *TestClient) ShowCloudletsForAppDeployment(ctx context.Context, in *edgeproto.DeploymentCloudletRequest) ([]edgeproto.CloudletKey, error) {
 	inR := &ormapi.RegionDeploymentCloudletRequest{
 		Region:                    s.Region,
 		DeploymentCloudletRequest: *in,
 	}
-	out, status, err := s.McClient.FindCloudletsForAppDeployment(s.Uri, s.Token, inR)
+	out, status, err := s.McClient.ShowCloudletsForAppDeployment(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}

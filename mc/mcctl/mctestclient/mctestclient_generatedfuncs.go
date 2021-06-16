@@ -206,20 +206,20 @@ func (s *Client) RemoveAppAutoProvPolicy(uri string, token string, in *ormapi.Re
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) FindCloudletsForAppDeployment(uri string, token string, in *ormapi.RegionDeploymentCloudletRequest) (*edgeproto.DeploymentCloudletResults, int, error) {
+func (s *Client) ShowCloudletsForAppDeployment(uri string, token string, in *ormapi.RegionDeploymentCloudletRequest) ([]edgeproto.CloudletKey, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out edgeproto.DeploymentCloudletResults
+	var out []edgeproto.CloudletKey
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("FindCloudletsForAppDeployment")
+	apiCmd := ormctl.MustGetCommand("ShowCloudletsForAppDeployment")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
 	}
-	return &out, rundata.RetStatus, rundata.RetError
+	return out, rundata.RetStatus, rundata.RetError
 }
 
 // Generating group AppInst
@@ -930,20 +930,20 @@ func (s *Client) FindFlavorMatch(uri string, token string, in *ormapi.RegionFlav
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) FindAllFlavorsForCloudlet(uri string, token string, in *ormapi.RegionCloudlet) (*edgeproto.CloudletFlavorMappingResults, int, error) {
+func (s *Client) ShowFlavorsForCloudlet(uri string, token string, in *ormapi.RegionCloudletKey) ([]edgeproto.FlavorKey, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out edgeproto.CloudletFlavorMappingResults
+	var out []edgeproto.FlavorKey
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("FindAllFlavorsForCloudlet")
+	apiCmd := ormctl.MustGetCommand("ShowFlavorsForCloudlet")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
 	}
-	return &out, rundata.RetStatus, rundata.RetError
+	return out, rundata.RetStatus, rundata.RetError
 }
 
 func (s *Client) RevokeAccessKey(uri string, token string, in *ormapi.RegionCloudletKey) (*edgeproto.Result, int, error) {

@@ -426,19 +426,19 @@ var FindFlavorMatchCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
-var FindAllFlavorsForCloudletCmd = &ApiCommand{
-	Name:         "FindAllFlavorsForCloudlet",
-	Use:          "findallflavorsfor",
+var ShowFlavorsForCloudletCmd = &ApiCommand{
+	Name:         "ShowFlavorsForCloudlet",
+	Use:          "showflavorsfor",
 	Short:        "Find all flavors viable on cloudlet",
-	RequiredArgs: "region " + strings.Join(CloudletRequiredArgs, " "),
-	OptionalArgs: strings.Join(CloudletOptionalArgs, " "),
-	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
-	SpecialArgs:  &CloudletSpecialArgs,
-	Comments:     addRegionComment(CloudletComments),
-	NoConfig:     "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,GpuConfig.GpuType",
-	ReqData:      &ormapi.RegionCloudlet{},
-	ReplyData:    &edgeproto.CloudletFlavorMappingResults{},
-	Path:         "/auth/ctrl/FindAllFlavorsForCloudlet",
+	RequiredArgs: "region",
+	OptionalArgs: strings.Join(append(CloudletKeyRequiredArgs, CloudletKeyOptionalArgs...), " "),
+	AliasArgs:    strings.Join(CloudletKeyAliasArgs, " "),
+	SpecialArgs:  &CloudletKeySpecialArgs,
+	Comments:     addRegionComment(CloudletKeyComments),
+	ReqData:      &ormapi.RegionCloudletKey{},
+	ReplyData:    &edgeproto.FlavorKey{},
+	Path:         "/auth/ctrl/ShowFlavorsForCloudlet",
+	StreamOut:    true,
 	ProtobufApi:  true,
 }
 
@@ -484,7 +484,7 @@ var CloudletApiCmds = []*ApiCommand{
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
 	FindFlavorMatchCmd,
-	FindAllFlavorsForCloudletCmd,
+	ShowFlavorsForCloudletCmd,
 	RevokeAccessKeyCmd,
 	GenerateAccessKeyCmd,
 }

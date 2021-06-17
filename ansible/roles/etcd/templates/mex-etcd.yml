@@ -23,6 +23,13 @@ spec:
       containers:
       - name: "{{ etcd_cluster_name }}"
         image: "quay.io/coreos/etcd:{{ etcd_version }}"
+        resources:
+          requests:
+            cpu: "75m"
+            memory: "750Mi"
+          limits:
+            cpu: "150m"
+            memory: "1500Mi"
         ports:
         - containerPort: 2379
           name: client

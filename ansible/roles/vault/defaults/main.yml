@@ -16,7 +16,6 @@ vault_ldap_groups: []
 vault_user_roles:
 
   viewer: &vault_user_role_viewer
-    - ansible.read.v1
     - auth-approle.read.v1
     - aws-auth.read.v1
     - azure-auth.read.v1
@@ -25,6 +24,8 @@ vault_user_roles:
     - cloudlets.read.v1
     - chef.read.v1
     - gcp-auth.read.v1
+    - gcp-config.read.v1
+    - gcp-rolesets.read.v1
     - influxdb.read.v1
     - mexenv.read.v1
     - noreplyemail.read.v1
@@ -50,8 +51,14 @@ vault_user_roles:
     - sys-policies.read.v1
     - ui-access.v1
 
-  editor: &vault_user_role_editor
+  deployer: &vault_user_role_deployer
     - *vault_user_role_viewer
+    - ansible.read.v1
+    - gcp-bucket-create-key.read.v1
+    - gcp-role-create-key.read.v1
+
+  editor: &vault_user_role_editor
+    - *vault_user_role_deployer
     - approle-accessors.write.v1
     - auth-approle.write.v1
     - auth-approle.destroy.v1

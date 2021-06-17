@@ -98,6 +98,15 @@
         - not ansible_check_mode
       tags: notify
 
+    - name: Set up GCP buckets
+      import_role:
+        name: gcp-buckets
+        tasks_from: create
+      vars:
+        buckets:
+          - "{{ gcs_gpu_drivers_bucket }}"
+          - "{{ gcs_operator_reports_bucket }}"
+
     - import_role:
         name: azure-aks
         tasks_from: platform-regions-load

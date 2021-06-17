@@ -25,16 +25,22 @@
     - policies/cloudlets.read.v1.hcl.j2
     - policies/cloudlets.write.v1.hcl.j2
     - policies/gcs.read.v1.hcl.j2
+    - policies/gcp-auth.read.v1.hcl.j2
+    - policies/gcp-bucket-create-key.read.v1.hcl.j2
+    - policies/gcp-config.read.v1.hcl.j2
+    - policies/gcp-gpu-drivers-bucket-access-token.read.v1.hcl.j2
+    - policies/gcp-operator-reports-bucket-access-token.read.v1.hcl.j2
+    - policies/gcp-role-create-key.read.v1.hcl.j2
+    - policies/gcp-rolesets.read.v1.hcl.j2
     - policies/influxdb.read.v1.hcl.j2
     - policies/influxdb-internal.read.v1.hcl.j2
     - policies/kafka.read.v1.hcl.j2
     - policies/logins.read.v1.hcl.j2
-    - policies/noreplyemail.read.v1.hcl.j2
-    - policies/gcp-auth.read.v1.hcl.j2
     - policies/mcorm-jwtkeys.read.v1.hcl.j2
     - policies/mcorm-jwtkeys.write.v1.hcl.j2
     - policies/mex-ssh-key.read.v1.hcl.j2
     - policies/mexenv.read.v1.hcl.j2
+    - policies/noreplyemail.read.v1.hcl.j2
     - policies/pki-global.issue.v1.hcl.j2
     - policies/pki-global-config.read.v1.hcl.j2
     - policies/pki-global-roles.read.v1.hcl.j2

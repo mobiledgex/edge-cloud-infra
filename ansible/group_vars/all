@@ -51,3 +51,10 @@ letsencrypt_path: certs
 letsencrypt_backend: letsencrypt-certs
 alertmanager_sidecar_port: 9094
 events_elasticsearch_url: https://3dd88757c3df44ac8960e53fc6a9a2d5.us-central1.gcp.cloud.es.io:9243
+vault_gcp_bucket_create_roleset: "{{ deploy_environ }}-bucket-create"
+vault_gcp_role_create_roleset: "{{ deploy_environ }}-role-create"
+gcp_bucket_create_role: "vault_{{ deploy_environ }}_bucket_create"
+gcp_bucket_use_role: "vault_{{ deploy_environ }}_bucket_use"
+gcp_role_create_role: "vault_{{ deploy_environ }}_role_create"
+gcs_gpu_drivers_bucket: "mobiledgex-{{ deploy_environ }}-gpu-drivers"
+gcs_operator_reports_bucket: "mobiledgex-{{ deploy_environ }}-operator-reports"

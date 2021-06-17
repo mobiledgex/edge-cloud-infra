@@ -127,5 +127,5 @@ var CloudletPoolUsageComments = map[string]string{
 	"cloudletpoolorg": "Organization or Company Name that a Operator is part of",
 	"starttime":       "Time to start displaying usage from",
 	"endtime":         "Time up to which to display usage",
-	"showvmappsonly":  "Display all only vm based appinsts",
+	"showvmappsonly":  "Display only vm based appinsts",
 }

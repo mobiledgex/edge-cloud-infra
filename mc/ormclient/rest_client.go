@@ -27,13 +27,8 @@ type Client struct {
 	SkipVerify bool
 	Debug      bool
 	// To allow testing of midstream failures, we need to wait until
-	// some stream messages have been received before the sender generates
-	// an error. Because the sender's streamed messages are buffered, so
-	// generating an error right after sending messages typically drops
-	// the streamed messages. This channel, if set, will be closed
-	// once the client receives some streamed messages. This is intended
-	// to be a one-time usage, which should be reset to nil after the API
-	// call is done.
+	// some stream messages have been received before signaling to the
+	// sender that it's ok to generate an error.
 	MidstreamFailChs map[string]chan bool
 }
 

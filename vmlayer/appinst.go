@@ -197,15 +197,6 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return err
 		}
-		if appInst.OptRes == "gpu" {
-			if v.VMProvider.GetGPUSetupStage(ctx) == AppInstStage {
-				// setup GPU drivers
-				err = v.setupGPUDrivers(ctx, client, clusterInst, updateCallback, ActionCreate)
-				if err != nil {
-					return fmt.Errorf("failed to install GPU drivers on cluster VM: %v", err)
-				}
-			}
-		}
 		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 		if err != nil {
 			return err

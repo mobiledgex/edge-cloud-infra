@@ -309,7 +309,12 @@ func ClientCloudletUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, 
 	return fillTimeAndGetCmdForClientMetricsQuery(&arg, operatorInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime), db
 }
 
-// Get the correct measurement string for specified start and end time
+/*
+ * Get the correct measurement string for already downsampled data for specified start and end time
+ * For example, if the duration between Start and End times is 1.5 hr and we have continuous queries that aggregate
+ * hourly, daily, and weekly, this function will return the hourly measurement.
+ * If the duration is 25 hours, this function will return the daily measurement
+ */
 func getClientMetricsMeasurementString(ctx context.Context, idc *InfluxDBContext, baseMeasurement string, definition time.Duration) string {
 	// Grab settings for specified region
 	in := &edgeproto.Settings{}

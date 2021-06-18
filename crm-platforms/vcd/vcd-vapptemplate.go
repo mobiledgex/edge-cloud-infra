@@ -304,7 +304,7 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 		log.SpanLog(ctx, log.DebugLevelInfra, "OVF not yet in artifactory", "artifactoryOvfPath", artifactoryOvfPath)
 	}
 
-	// generate the OVF alays if this a VM image, or if it does not already exist for platform images
+	// generate the OVF always if this a VM image, or if it does not already exist for platform images
 	if !ovfExistsInArtifactory || imageInfo.ImageCategory == infracommon.ImageCategoryVmApp {
 		baseFileName, err := cloudcommon.GetFileName(imageInfo.ImagePath)
 		if err != nil {

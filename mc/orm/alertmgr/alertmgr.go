@@ -172,7 +172,7 @@ func (s *AlertMgrServer) alertsToOpenAPIAlerts(alerts []*edgeproto.Alert) models
 		}
 
 		// add severity label for this alert
-		labels[cloudcommon.AlertSeverityLabel] = cloudcommon.GetAlertSeverityForAlert(name)
+		labels[cloudcommon.AlertSeverityLabel] = cloudcommon.GetSeverityForAlert(name)
 
 		openAPIAlerts = append(openAPIAlerts, &models.PostableAlert{
 			Annotations: copyMap(a.Annotations),
@@ -322,6 +322,7 @@ func getAlertSeverityMatchString(severity string) string {
 func getAlertSeverityMatchRE(alertSeverity string) (alertmanager_config.MatchRegexps, error) {
 	severityRegExp := &alertmanager_config.Regexp{}
 	severityRE := getAlertSeverityMatchString(alertSeverity)
+	// custom yaml unmarshal function alertmanager_config.Regexp::UnmarshalYAML() compiles the regexp
 	err := yaml.UnmarshalStrict([]byte(severityRE), severityRegExp)
 	if err != nil {
 		return nil, fmt.Errorf("Unable to create a receiver for severity(%s)- [%s]",

@@ -411,11 +411,16 @@ func ShowCloudletsForAppDeployment(c echo.Context) error {
 	return nil
 }
 
+type ShowCloudletsForAppDeploymentAuthz interface {
+	Ok(obj *edgeproto.CloudletKey) (bool, bool)
+	Filter(obj *edgeproto.CloudletKey)
+}
+
 func ShowCloudletsForAppDeploymentStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DeploymentCloudletRequest, cb func(res *edgeproto.CloudletKey) error) error {
-	var authz *AuthzShow
+	var authz ShowCloudletsForAppDeploymentAuthz
 	var err error
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
+		authz, err = newShowCloudletsForAppDeploymentAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
 		if err != nil {
 			return err
 		}
@@ -446,8 +451,12 @@ func ShowCloudletsForAppDeploymentStream(ctx context.Context, rc *RegionContext,
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok("") {
+			authzOk, filterOutput := authz.Ok(res)
+			if !authzOk {
 				continue
+			}
+			if filterOutput {
+				authz.Filter(res)
 			}
 		}
 		err = cb(res)

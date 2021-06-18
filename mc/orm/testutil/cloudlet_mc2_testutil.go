@@ -388,7 +388,6 @@ func TestShowFlavorsForCloudlet(mcClient *mctestclient.Client, uri, token, regio
 }
 func TestPermShowFlavorsForCloudlet(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletKey)) ([]edgeproto.FlavorKey, int, error) {
 	in := &edgeproto.CloudletKey{}
-	in.Key.Organization = org
 	return TestShowFlavorsForCloudlet(mcClient, uri, token, region, in, modFuncs...)
 }
 

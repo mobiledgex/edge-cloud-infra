@@ -431,19 +431,20 @@ var FindFlavorMatchCmd = &ApiCommand{
 }
 
 var ShowFlavorsForCloudletCmd = &ApiCommand{
-	Name:         "ShowFlavorsForCloudlet",
-	Use:          "showflavorsfor",
-	Short:        "Find all flavors viable on cloudlet",
-	RequiredArgs: "region",
-	OptionalArgs: strings.Join(append(CloudletKeyRequiredArgs, CloudletKeyOptionalArgs...), " "),
-	AliasArgs:    strings.Join(CloudletKeyAliasArgs, " "),
-	SpecialArgs:  &CloudletKeySpecialArgs,
-	Comments:     addRegionComment(CloudletKeyComments),
-	ReqData:      &ormapi.RegionCloudletKey{},
-	ReplyData:    &edgeproto.FlavorKey{},
-	Path:         "/auth/ctrl/ShowFlavorsForCloudlet",
-	StreamOut:    true,
-	ProtobufApi:  true,
+	Name:                 "ShowFlavorsForCloudlet",
+	Use:                  "showflavorsfor",
+	Short:                "Find all flavors viable on cloudlet",
+	RequiredArgs:         "region " + strings.Join(CloudletKeyRequiredArgs, " "),
+	OptionalArgs:         strings.Join(CloudletKeyOptionalArgs, " "),
+	AliasArgs:            strings.Join(CloudletKeyAliasArgs, " "),
+	SpecialArgs:          &CloudletKeySpecialArgs,
+	Comments:             addRegionComment(CloudletKeyComments),
+	ReqData:              &ormapi.RegionCloudletKey{},
+	ReplyData:            &edgeproto.FlavorKey{},
+	Path:                 "/auth/ctrl/ShowFlavorsForCloudlet",
+	StreamOut:            true,
+	StreamOutIncremental: true,
+	ProtobufApi:          true,
 }
 
 var RevokeAccessKeyCmd = &ApiCommand{

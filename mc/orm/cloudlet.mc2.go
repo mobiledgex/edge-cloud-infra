@@ -1321,7 +1321,6 @@ func ShowFlavorsForCloudlet(c echo.Context) error {
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
-	span.SetTag("org", in.CloudletKey.Key.Organization)
 
 	err = ShowFlavorsForCloudletStream(ctx, rc, &in.CloudletKey, func(res *edgeproto.FlavorKey) error {
 		payload := ormapi.StreamPayload{}
@@ -1335,11 +1334,10 @@ func ShowFlavorsForCloudlet(c echo.Context) error {
 }
 
 func ShowFlavorsForCloudletStream(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletKey, cb func(res *edgeproto.FlavorKey) error) error {
-	var authz *AuthzShow
-	var err error
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
-		if err != nil {
+		if err := authzShowFlavorsForCloudlet(ctx, rc.region, rc.username, obj,
+			ResourceCloudlets, ActionView); err != nil {
 			return err
 		}
 	}
@@ -1367,11 +1365,6 @@ func ShowFlavorsForCloudletStream(ctx context.Context, rc *RegionContext, obj *e
 		}
 		if err != nil {
 			return err
-		}
-		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.Organization) {
-				continue
-			}
 		}
 		err = cb(res)
 		if err != nil {

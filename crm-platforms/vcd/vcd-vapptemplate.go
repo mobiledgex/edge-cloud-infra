@@ -206,14 +206,17 @@ func (v *VcdPlatform) GetAllVdcTemplates(ctx context.Context, vcdClient *govcd.V
 	return tmpls, nil
 }
 
+// AddImageIfNotPresent works as follows:
+// 1) if the template is already in the VCD catalog, quit as there is nothing to do
+// 2) if the VMDK is not in Artifactory, the qcow2 is downloaded and VMDK generated and uploaded back to Artifactory
+// 3) regardless as to whether the VMDK had to be generated, the OVF is always regenerated in case something changed for VM images.  This is very fast
+// 4) A token is generated and used to direct the VCD to import the OVF and corresponding VMDK from Artifactory
 func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infracommon.ImageInfo, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddImageIfNotPresent", "imageInfo", imageInfo)
 
-	artifactoryPathMinusFile := ""
-	artifactoryHost := ""
-	artifactoryVmdkPath := ""
-	artifactoryOvfPath := ""
-
+	artifactoryVmdkPath := strings.TrimSuffix(imageInfo.ImagePath, filepath.Ext(imageInfo.ImagePath)) + ".vmdk"
+	artifactoryOvfPath := strings.TrimSuffix(imageInfo.ImagePath, filepath.Ext(imageInfo.ImagePath)) + ".ovf"
+	ovfExistsInArtifactory := false
 	u, err := url.Parse(imageInfo.ImagePath)
 	if err != nil {
 		return fmt.Errorf("unable to parse app image path - %v", err)
@@ -222,12 +225,15 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 	if len(ps) == 0 {
 		return fmt.Errorf("Unexpected appimage path")
 	}
-	artifactoryHost = u.Host
+	artifactoryHost := u.Host
+	artifactoryPathMinusFile := u.Scheme + "://" + u.Host + strings.Join(ps[:len(ps)-1], "/") + "/"
+
 	vcdClient := v.GetVcdClientFromContext(ctx)
 	if vcdClient == nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return fmt.Errorf(NoVCDClientInContext)
 	}
+	// first see if this template already exists within our catalog
 	_, err = v.FindTemplate(ctx, imageInfo.LocalImageName, vcdClient)
 	if err == nil {
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Found existing image template: %s", imageInfo.LocalImageName))
@@ -248,9 +254,6 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 		}
 	}()
 
-	artifactoryVmdkPath = strings.TrimSuffix(imageInfo.ImagePath, filepath.Ext(imageInfo.ImagePath)) + ".vmdk"
-	artifactoryOvfPath = strings.TrimSuffix(imageInfo.ImagePath, filepath.Ext(imageInfo.ImagePath)) + ".ovf"
-
 	diskSize := vmlayer.MINIMUM_DISK_SIZE
 	if imageInfo.Flavor != "" {
 		flavor, err := v.GetFlavor(ctx, imageInfo.Flavor)
@@ -268,24 +271,22 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "VMDK not yet in artifactory", "artifactoryVmdkPath", artifactoryVmdkPath)
 		// need to download the qcow, convert to vmdk and then import to either VCD or Artifactory
-		updateCallback(edgeproto.UpdateTask, "Downloading VM Image")
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Downloading VM Image: %s", imageInfo.LocalImageName))
 		fileWithPath, err := vmlayer.DownloadVMImage(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, imageInfo.LocalImageName, imageInfo.ImagePath, imageInfo.Md5sum)
+		filesToCleanup = append(filesToCleanup, fileWithPath)
 		if err != nil {
 			return err
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "downloaded file", "fileWithPath", fileWithPath)
-
 		// as the download may take a long time, refresh the session by triggering an API call
 		_, err = v.GetOrg(ctx, vcdClient)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "fail to get org", "err", err)
 			return fmt.Errorf("Failed to get VCD org")
 		}
-		filesToCleanup = append(filesToCleanup, fileWithPath)
-		vmdkFile := fileWithPath
 		if imageInfo.ImageType == edgeproto.ImageType_IMAGE_TYPE_QCOW {
 			updateCallback(edgeproto.UpdateTask, "Converting Image to VMDK")
-			vmdkFile, err = vmlayer.ConvertQcowToVmdk(ctx, fileWithPath, diskSize)
+			vmdkFile, err := vmlayer.ConvertQcowToVmdk(ctx, fileWithPath, diskSize)
 			filesToCleanup = append(filesToCleanup, vmdkFile)
 			if err != nil {
 				return err
@@ -293,36 +294,50 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 			filesToUpload = append(filesToUpload, vmdkFile)
 		}
 	}
-	baseFileName, err := cloudcommon.GetFileName(imageInfo.ImagePath)
-	if err != nil {
-		return nil
+
+	// check if OVF exists
+	_, _, err = infracommon.GetUrlInfo(ctx, v.vmProperties.CommonPf.PlatformConfig.AccessApi, artifactoryOvfPath)
+	if err == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "OVF already in artifactory", "artifactoryOvfPath", artifactoryOvfPath)
+		ovfExistsInArtifactory = true
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "OVF not yet in artifactory", "artifactoryOvfPath", artifactoryOvfPath)
 	}
-	ovfFile := vmlayer.FileDownloadDir + baseFileName + ".ovf"
-	mappedOs, err := vmlayer.GetVmwareMappedOsType(imageInfo.OsType)
-	if err != nil {
-		return err
+
+	// generate the OVF alays if this a VM image, or if it does not already exist for platform images
+	if !ovfExistsInArtifactory || imageInfo.ImageCategory == infracommon.ImageCategoryVmApp {
+		baseFileName, err := cloudcommon.GetFileName(imageInfo.ImagePath)
+		if err != nil {
+			return nil
+		}
+		mappedOs, err := vmlayer.GetVmwareMappedOsType(imageInfo.OsType)
+		if err != nil {
+			return err
+		}
+		ovfParams := OvfParams{
+			ImageBaseFileName: baseFileName,
+			DiskSizeInBytes:   fmt.Sprintf("%d", diskSize*1024*1024*1024),
+			OSType:            mappedOs,
+		}
+		ovfBuf, err := infracommon.ExecTemplate("vmwareOvf", OvfTemplate, ovfParams)
+		if err != nil {
+			return err
+		}
+		ovfFile := vmlayer.FileDownloadDir + baseFileName + ".ovf"
+		log.SpanLog(ctx, log.DebugLevelInfra, "Creating OVF file", "ovfFile", ovfFile, "ovfParams", ovfParams)
+		err = ioutil.WriteFile(ovfFile, ovfBuf.Bytes(), 0644)
+		filesToCleanup = append(filesToCleanup, ovfFile)
+		if err != nil {
+			return fmt.Errorf("unable to write OVF file %s: %s", ovfFile, err.Error())
+		}
+		filesToUpload = append(filesToUpload, ovfFile)
 	}
-	ovfParams := OvfParams{
-		ImageBaseFileName: baseFileName,
-		DiskSizeInBytes:   fmt.Sprintf("%d", diskSize*1024*1024*1024),
-		OSType:            mappedOs,
-	}
-	ovfBuf, err := infracommon.ExecTemplate("vmwareOvf", OvfTemplate, ovfParams)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "Creating OVF file", "ovfFile", ovfFile, "ovfParams", ovfParams)
-	err = ioutil.WriteFile(ovfFile, ovfBuf.Bytes(), 0644)
-	filesToCleanup = append(filesToCleanup, ovfFile)
-	if err != nil {
-		return fmt.Errorf("unable to write OVF file %s: %s", ovfFile, err.Error())
-	}
-	filesToUpload = append(filesToUpload, ovfFile)
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Uploading OVF: %s to Artifactory", baseFileName+".ovf"))
+
 	for _, f := range filesToUpload {
-		artifactoryPathMinusFile = u.Scheme + "://" + u.Host + strings.Join(ps[:len(ps)-1], "/") + "/"
-		uploadPath := artifactoryPathMinusFile + filepath.Base(f)
-		log.SpanLog(ctx, log.DebugLevelInfra, "Uploading OVF to Artifactory", "file", f, "uploadPath", uploadPath)
+		basepath := filepath.Base(f)
+		uploadPath := artifactoryPathMinusFile + basepath
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Uploading: %s to Artifactory", basepath))
+		log.SpanLog(ctx, log.DebugLevelInfra, "Uploading to Artifactory", "file", f, "uploadPath", uploadPath)
 		file, err := os.Open(f)
 		if err != nil {
 			return fmt.Errorf("unable to open file: %s for upload - %v", f, err)
@@ -369,7 +384,7 @@ func (v *VcdPlatform) AddImageIfNotPresent(ctx context.Context, imageInfo *infra
 		return fmt.Errorf("failed to find upload catalog - %v", err)
 	}
 	artifactoryOvfPathWithToken := strings.Replace(artifactoryOvfPath, artifactoryHost, vcdDirectUser+":"+token+"@"+artifactoryHost, 1)
-	updateCallback(edgeproto.UpdateTask, "Importing OVF to VCD from Artifactory")
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Importing OVF to VCD for Image: %s", imageInfo.LocalImageName))
 	err = v.ImportTemplateFromUrl(ctx, imageInfo.LocalImageName, artifactoryOvfPathWithToken, cat)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "failed to upload from url, deleting", "err", err)

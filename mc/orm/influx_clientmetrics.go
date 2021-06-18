@@ -2,6 +2,7 @@ package orm
 
 import (
 	"bytes"
+	"context"
 	fmt "fmt"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -224,13 +226,19 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 	return fillTimeAndGetCmdForClientMetricsQuery(&arg, devInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime)
 }
 
-func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics, cloudletList []string) string {
-	measurement := "*"
+func ClientAppUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *ormapi.RegionClientAppUsageMetrics, cloudletList []string) (cmd string, db string) {
+	basemeasurement := ""
 	switch obj.Selector {
 	case "latency":
-		measurement = cloudcommon.LatencyMetric + measurement
+		basemeasurement = cloudcommon.LatencyMetric
 	case "deviceinfo":
-		measurement = cloudcommon.DeviceMetric + measurement
+		basemeasurement = cloudcommon.DeviceMetric
+	}
+	measurement := basemeasurement
+	// Get time definition for specified start and end times
+	definition := getTimeDefinitionDuration(obj, 0)
+	if definition != 0 {
+		measurement = getClientMetricsMeasurementString(ctx, idc, basemeasurement, definition)
 	}
 	arg := influxClientMetricsQueryArgs{
 		Selector:        getFields(obj.Selector, CLIENT_APPUSAGE),
@@ -257,16 +265,28 @@ func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics, cloudle
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
-	return fillTimeAndGetCmdForClientMetricsQuery(&arg, devInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime)
+
+	if measurement == basemeasurement {
+		db = cloudcommon.EdgeEventsMetricsDbName
+	} else {
+		db = cloudcommon.DownsampledMetricsDbName
+	}
+	return fillTimeAndGetCmdForClientMetricsQuery(&arg, devInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime), db
 }
 
-func ClientCloudletUsageMetricsQuery(obj *ormapi.RegionClientCloudletUsageMetrics) string {
-	measurement := "*"
+func ClientCloudletUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *ormapi.RegionClientCloudletUsageMetrics) (cmd string, db string) {
+	basemeasurement := ""
 	switch obj.Selector {
 	case "latency":
-		measurement = cloudcommon.LatencyMetric + measurement
+		basemeasurement = cloudcommon.LatencyMetric
 	case "deviceinfo":
-		measurement = cloudcommon.DeviceMetric + measurement
+		basemeasurement = cloudcommon.DeviceMetric
+	}
+	measurement := basemeasurement
+	// Get time definition for specified start and end times
+	definition := getTimeDefinitionDuration(obj, 0)
+	if definition != 0 {
+		measurement = getClientMetricsMeasurementString(ctx, idc, basemeasurement, definition)
 	}
 	arg := influxClientMetricsQueryArgs{
 		Selector:        getFields(obj.Selector, CLIENT_CLOUDLETUSAGE),
@@ -280,7 +300,48 @@ func ClientCloudletUsageMetricsQuery(obj *ormapi.RegionClientCloudletUsageMetric
 		LocationTile:    obj.LocationTile,
 		Last:            obj.Last,
 	}
-	return fillTimeAndGetCmdForClientMetricsQuery(&arg, operatorInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime)
+
+	if measurement == basemeasurement {
+		db = cloudcommon.EdgeEventsMetricsDbName
+	} else {
+		db = cloudcommon.DownsampledMetricsDbName
+	}
+	return fillTimeAndGetCmdForClientMetricsQuery(&arg, operatorInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime), db
+}
+
+// Get the correct measurement string for specified start and end time
+func getClientMetricsMeasurementString(ctx context.Context, idc *InfluxDBContext, baseMeasurement string, definition time.Duration) string {
+	// Grab settings for specified region
+	in := &edgeproto.Settings{}
+	rc := &RegionContext{
+		username: idc.claims.Username,
+		region:   idc.region,
+	}
+	settings, err := ShowSettingsObj(ctx, rc, in)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get continuous query settings - using raw data", "error", err)
+		return baseMeasurement
+	}
+
+	// Find Continuous Query interval that is closest to definition but less than (ie. finer granularity) than definition
+	var optimalInterval time.Duration = 0
+	var minDiff time.Duration = 0
+	for _, cqs := range settings.EdgeEventsMetricsContinuousQueriesCollectionIntervals {
+		diff := time.Duration(cqs.Interval) - definition
+		if diff < 0 {
+			absMin := diff * -1
+			if absMin < minDiff || minDiff == 0 {
+				minDiff = absMin
+				optimalInterval = time.Duration(cqs.Interval)
+			}
+		}
+	}
+
+	if optimalInterval == 0 {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable find interval with finer granularity than time definition - using raw data", "definition", definition)
+		return baseMeasurement
+	}
+	return cloudcommon.CreateInfluxMeasurementName(baseMeasurement, optimalInterval)
 }
 
 // TODO: HANDLE selector == "*"

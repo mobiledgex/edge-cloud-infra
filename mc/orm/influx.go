@@ -737,12 +737,6 @@ func GetMetricsCommon(c echo.Context) error {
 		if !success {
 			return err
 		}
-		// If not raw data, pull from downsampled metrics
-		if in.RawData {
-			dbNames = append(dbNames, cloudcommon.EdgeEventsMetricsDbName)
-		} else {
-			dbNames = append(dbNames, cloudcommon.DownsampledMetricsDbName)
-		}
 		rc.region = in.Region
 		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
 			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
@@ -752,18 +746,14 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateClientAppUsageMetricReq(&in, in.Selector); err != nil {
 			return err
 		}
-		cmd = ClientAppUsageMetricsQuery(&in, cloudletList)
+		var db string
+		cmd, db = ClientAppUsageMetricsQuery(ctx, rc, &in, cloudletList)
+		dbNames = append(dbNames, db)
 	} else if strings.HasSuffix(c.Path(), "metrics/clientcloudletusage") {
 		in := ormapi.RegionClientCloudletUsageMetrics{}
 		success, err := ReadConn(c, &in)
 		if !success {
 			return err
-		}
-		// If not raw data, pull from downsampled metrics
-		if in.RawData {
-			dbNames = append(dbNames, cloudcommon.EdgeEventsMetricsDbName)
-		} else {
-			dbNames = append(dbNames, cloudcommon.DownsampledMetricsDbName)
 		}
 		// Operator name has to be specified
 		if in.Cloudlet.Organization == "" {
@@ -777,7 +767,9 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateClientCloudletUsageMetricReq(&in, in.Selector); err != nil {
 			return err
 		}
-		cmd = ClientCloudletUsageMetricsQuery(&in)
+		var db string
+		cmd, db = ClientCloudletUsageMetricsQuery(ctx, rc, &in)
+		dbNames = append(dbNames, db)
 
 		// Check the operator against who is logged in
 		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {

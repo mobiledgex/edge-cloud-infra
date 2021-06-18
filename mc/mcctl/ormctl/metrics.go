@@ -231,7 +231,6 @@ var ClientAppUsageMetricOptionalArgs = []string{
 	"devicemodel",
 	"devicecarrier",
 	"datanetworktype",
-	"rawdata",
 	"last",
 	"starttime",
 	"endtime",
@@ -259,7 +258,6 @@ var ClientCloudletUsageMetricOptionalArgs = []string{
 	"devicemodel",
 	"devicecarrier",
 	"datanetworktype",
-	"rawdata",
 	"last",
 	"starttime",
 	"endtime",
@@ -331,7 +329,6 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 		"devicemodel":     fmt.Sprintf("Device model. %s", devicemodelSelectorPermission),
 		"devicecarrier":   fmt.Sprintf("Device carrier. %s", devicecarrierSelectorPermission),
 		"datanetworktype": fmt.Sprintf("Data network type used by client device. %s", datanetworktypeSelectorPermission),
-		"rawdata":         "Set to true for additional raw data (not downsampled)",
 		"selector":        fmt.Sprintf("Comma separated list of metrics to view. Available metrics: \"%s\"", availableMetrics),
 	}
 }

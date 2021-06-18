@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 )
@@ -142,4 +143,8 @@ func (v *VcdPlatform) DeleteImage(ctx context.Context, folder, image string) err
 		}
 	}
 	return nil
+}
+
+func (v *VcdPlatform) GetGPUSetupStage(ctx context.Context) vmlayer.GPUSetupStage {
+	return vmlayer.AppInstStage
 }

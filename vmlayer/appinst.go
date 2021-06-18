@@ -169,6 +169,23 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 	}
 
+	if app.Deployment != cloudcommon.DeploymentTypeVM {
+		// Platforms like VCD needs an additional step to setup GPU driver.
+		// Hence, GPU drivers should only be setup as part of AppInst bringup.
+		client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
+		if err != nil {
+			return err
+		}
+		setupStage := v.VMProvider.GetGPUSetupStage(ctx)
+		if appInst.OptRes == "gpu" && setupStage == AppInstStage {
+			// setup GPU drivers
+			err = v.setupGPUDrivers(ctx, client, clusterInst, updateCallback, ActionCreate)
+			if err != nil {
+				return fmt.Errorf("failed to install GPU drivers on appInst cluster VMs: %v", err)
+			}
+		}
+	}
+
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
@@ -179,6 +196,15 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 		if err != nil {
 			return err
+		}
+		if appInst.OptRes == "gpu" {
+			if v.VMProvider.GetGPUSetupStage(ctx) == AppInstStage {
+				// setup GPU drivers
+				err = v.setupGPUDrivers(ctx, client, clusterInst, updateCallback, ActionCreate)
+				if err != nil {
+					return fmt.Errorf("failed to install GPU drivers on cluster VM: %v", err)
+				}
+			}
 		}
 		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 		if err != nil {

@@ -64,6 +64,52 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to write output file %s: %v", outFile, err)
 	}
+
+	// generate TimeDefinitionObj methods
+	buf = &bytes.Buffer{}
+	fmt.Fprintf(buf, "package %s", allStructs.pkgName)
+	fmt.Fprintf(buf, "\nimport \"time\"")
+	fmt.Fprintf(buf, "\n// This is an auto-generated file. DO NOT EDIT directly.\n")
+	for _, apiSt := range allStructs.apiStructs {
+		if strings.Contains(apiSt.name, "Metrics") && !strings.Contains(apiSt.name, "All") {
+			// gen GetStartTime
+			fmt.Fprintf(buf, "\nfunc (obj *%s) GetStartTime() time.Time {\n", apiSt.name)
+			fmt.Fprintf(buf, "return obj.StartTime")
+			fmt.Fprintf(buf, "}\n")
+			// gen GetEndTime
+			fmt.Fprintf(buf, "\nfunc (obj *%s) GetEndTime() time.Time {\n", apiSt.name)
+			fmt.Fprintf(buf, "return obj.EndTime")
+			fmt.Fprintf(buf, "}\n")
+			// gen GetLast
+			fmt.Fprintf(buf, "\nfunc (obj *%s) GetLast() int {\n", apiSt.name)
+			fmt.Fprintf(buf, "return obj.Last")
+			fmt.Fprintf(buf, "}\n")
+			// gen SetStartTime
+			fmt.Fprintf(buf, "\nfunc (obj *%s) SetStartTime(t time.Time) {\n", apiSt.name)
+			fmt.Fprintf(buf, "obj.StartTime = t")
+			fmt.Fprintf(buf, "}\n")
+			// gen SetEndTime
+			fmt.Fprintf(buf, "\nfunc (obj *%s) SetEndTime(t time.Time) {\n", apiSt.name)
+			fmt.Fprintf(buf, "obj.EndTime = t")
+			fmt.Fprintf(buf, "}\n")
+			// gen SetLast
+			fmt.Fprintf(buf, "\nfunc (obj *%s) SetLast(l int) {\n", apiSt.name)
+			fmt.Fprintf(buf, "obj.Last = l")
+			fmt.Fprintf(buf, "}\n")
+		}
+	}
+	// format the generated code
+	out, err = format.Source(buf.Bytes())
+	if err != nil {
+		log.Fatalf("Failed to format generated code: %v\n%s", err, buf.String())
+	}
+	// write output file
+	outFile = strings.TrimSuffix(*apiFile, ".go")
+	outFile += ".timedef.go"
+	err = ioutil.WriteFile(outFile, out, 0644)
+	if err != nil {
+		log.Fatalf("Failed to write output file %s: %v", outFile, err)
+	}
 }
 
 type AllStructs struct {

@@ -455,7 +455,6 @@ type RegionClientAppUsageMetrics struct {
 	Region          string
 	AppInst         edgeproto.AppInstKey
 	Selector        string
-	RawData         bool      `json:",omitempty"`
 	DeviceCarrier   string    `json:",omitempty"`
 	DataNetworkType string    `json:",omitempty"`
 	DeviceModel     string    `json:",omitempty"`
@@ -471,7 +470,6 @@ type RegionClientCloudletUsageMetrics struct {
 	Region          string
 	Cloudlet        edgeproto.CloudletKey
 	Selector        string
-	RawData         bool      `json:",omitempty"`
 	DeviceCarrier   string    `json:",omitempty"`
 	DataNetworkType string    `json:",omitempty"`
 	DeviceModel     string    `json:",omitempty"`

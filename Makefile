@@ -39,7 +39,9 @@ edge-cloud-version-set:
 	@echo "Setting edge-cloud repo branch/tag to $(EDGE_CLOUD_VERSION)"
 	git -C ../edge-cloud checkout $(EDGE_CLOUD_VERSION)
 
-build-internal: build-vers apigen 
+APICOMMENTS = ./mc/ormapi/api.comments.go
+
+build-internal: build-vers apigen $(APICOMMENTS)
 	go install ./fixmod
 	fixmod -srcRepo ../edge-cloud -keep github.com/mobiledgex/edge-cloud
 	go install ./protoc-gen-mc2
@@ -58,7 +60,7 @@ install-edge-cloud:
 install-internal:
 	go install ./...
 
-apigen:
+apigen: ./mc/ormapi/apigen/apigen.go ./mc/ormapi/api.go
 	go install ./mc/ormapi/apigen
 	apigen --apiFile ./mc/ormapi/api.go
 

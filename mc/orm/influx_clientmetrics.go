@@ -227,19 +227,8 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 }
 
 func ClientAppUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *ormapi.RegionClientAppUsageMetrics, cloudletList []string) (cmd string, db string) {
-	basemeasurement := ""
-	switch obj.Selector {
-	case "latency":
-		basemeasurement = cloudcommon.LatencyMetric
-	case "deviceinfo":
-		basemeasurement = cloudcommon.DeviceMetric
-	}
-	measurement := basemeasurement
-	// Get time definition for specified start and end times
-	definition := getTimeDefinitionDuration(obj, 0)
-	if definition != 0 {
-		measurement = getClientMetricsMeasurementString(ctx, idc, basemeasurement, definition)
-	}
+	var measurement string
+	measurement, db = getMeasurementAndDbFromClientUsageReq(ctx, idc, obj.Selector, obj)
 	arg := influxClientMetricsQueryArgs{
 		Selector:        getFields(obj.Selector, CLIENT_APPUSAGE),
 		Measurement:     measurement,
@@ -265,29 +254,12 @@ func ClientAppUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
-
-	if measurement == basemeasurement {
-		db = cloudcommon.EdgeEventsMetricsDbName
-	} else {
-		db = cloudcommon.DownsampledMetricsDbName
-	}
 	return fillTimeAndGetCmdForClientMetricsQuery(&arg, devInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime), db
 }
 
 func ClientCloudletUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *ormapi.RegionClientCloudletUsageMetrics) (cmd string, db string) {
-	basemeasurement := ""
-	switch obj.Selector {
-	case "latency":
-		basemeasurement = cloudcommon.LatencyMetric
-	case "deviceinfo":
-		basemeasurement = cloudcommon.DeviceMetric
-	}
-	measurement := basemeasurement
-	// Get time definition for specified start and end times
-	definition := getTimeDefinitionDuration(obj, 0)
-	if definition != 0 {
-		measurement = getClientMetricsMeasurementString(ctx, idc, basemeasurement, definition)
-	}
+	var measurement string
+	measurement, db = getMeasurementAndDbFromClientUsageReq(ctx, idc, obj.Selector, obj)
 	arg := influxClientMetricsQueryArgs{
 		Selector:        getFields(obj.Selector, CLIENT_CLOUDLETUSAGE),
 		Measurement:     measurement,
@@ -300,19 +272,38 @@ func ClientCloudletUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, 
 		LocationTile:    obj.LocationTile,
 		Last:            obj.Last,
 	}
+	return fillTimeAndGetCmdForClientMetricsQuery(&arg, operatorInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime), db
+}
 
+func getMeasurementAndDbFromClientUsageReq(ctx context.Context, idc *InfluxDBContext, selector string, obj TimeDefinitionObj) (measurement string, db string) {
+	// Get base measurement (ie. "latency-metric")
+	basemeasurement := ""
+	switch selector {
+	case "latency":
+		basemeasurement = cloudcommon.LatencyMetric
+	case "deviceinfo":
+		basemeasurement = cloudcommon.DeviceMetric
+	}
+
+	// Get downsampled measurement if time definition is greater than a cq interval (ie. "latency-metric-10s")
+	measurement = basemeasurement
+	definition := getTimeDefinitionDuration(obj, 0)
+	if definition != 0 {
+		measurement = getClientMetricsMeasurementString(ctx, idc, basemeasurement, definition)
+	}
+
+	// Get db from measurement (either EdgeEventsMetricsDb or DownsampledMetricsDb)
 	if measurement == basemeasurement {
 		db = cloudcommon.EdgeEventsMetricsDbName
 	} else {
 		db = cloudcommon.DownsampledMetricsDbName
 	}
-	return fillTimeAndGetCmdForClientMetricsQuery(&arg, operatorInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime), db
+	return measurement, db
 }
 
 /*
- * Get the correct measurement string for already downsampled data for specified start and end time
- * For example, if the duration between Start and End times is 1.5 hr and we have continuous queries that aggregate
- * hourly, daily, and weekly, this function will return the hourly measurement.
+ * Get the correct measurement string for already downsampled data for specified time definition
+ * For example, if the time definition is 1.5 hr and we have continuous queries that aggregate hourly, daily, and weekly, this function will return the hourly measurement.
  * If the duration is 25 hours, this function will return the daily measurement
  */
 func getClientMetricsMeasurementString(ctx context.Context, idc *InfluxDBContext, baseMeasurement string, definition time.Duration) string {
@@ -328,15 +319,14 @@ func getClientMetricsMeasurementString(ctx context.Context, idc *InfluxDBContext
 		return baseMeasurement
 	}
 
-	// Find Continuous Query interval that is closest to definition but less than (ie. finer granularity) than definition
+	// Find Continuous Query interval that is closest to definition but less than definition (ie. finer granularity)
 	var optimalInterval time.Duration = 0
 	var minDiff time.Duration = 0
 	for _, cqs := range settings.EdgeEventsMetricsContinuousQueriesCollectionIntervals {
-		diff := time.Duration(cqs.Interval) - definition
-		if diff < 0 {
-			absMin := diff * -1
-			if absMin < minDiff || minDiff == 0 {
-				minDiff = absMin
+		diff := definition - time.Duration(cqs.Interval)
+		if diff >= 0 {
+			if diff < minDiff || minDiff == 0 {
+				minDiff = diff
 				optimalInterval = time.Duration(cqs.Interval)
 			}
 		}

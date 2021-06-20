@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
+	"text/template"
 )
 
 var apiFile = flag.String("apiFile", "", "package dir of api files to parse")
@@ -72,30 +73,17 @@ func main() {
 	fmt.Fprintf(buf, "\n// This is an auto-generated file. DO NOT EDIT directly.\n")
 	for _, apiSt := range allStructs.apiStructs {
 		if strings.Contains(apiSt.name, "Metrics") && !strings.Contains(apiSt.name, "All") {
-			// gen GetStartTime
-			fmt.Fprintf(buf, "\nfunc (obj *%s) GetStartTime() time.Time {\n", apiSt.name)
-			fmt.Fprintf(buf, "return obj.StartTime")
-			fmt.Fprintf(buf, "}\n")
-			// gen GetEndTime
-			fmt.Fprintf(buf, "\nfunc (obj *%s) GetEndTime() time.Time {\n", apiSt.name)
-			fmt.Fprintf(buf, "return obj.EndTime")
-			fmt.Fprintf(buf, "}\n")
-			// gen GetLast
-			fmt.Fprintf(buf, "\nfunc (obj *%s) GetLast() int {\n", apiSt.name)
-			fmt.Fprintf(buf, "return obj.Last")
-			fmt.Fprintf(buf, "}\n")
-			// gen SetStartTime
-			fmt.Fprintf(buf, "\nfunc (obj *%s) SetStartTime(t time.Time) {\n", apiSt.name)
-			fmt.Fprintf(buf, "obj.StartTime = t")
-			fmt.Fprintf(buf, "}\n")
-			// gen SetEndTime
-			fmt.Fprintf(buf, "\nfunc (obj *%s) SetEndTime(t time.Time) {\n", apiSt.name)
-			fmt.Fprintf(buf, "obj.EndTime = t")
-			fmt.Fprintf(buf, "}\n")
-			// gen SetLast
-			fmt.Fprintf(buf, "\nfunc (obj *%s) SetLast(l int) {\n", apiSt.name)
-			fmt.Fprintf(buf, "obj.Last = l")
-			fmt.Fprintf(buf, "}\n")
+			tmpl, err := template.New("timedefobj").Parse(timeDefObjMethodsTmpl)
+			if err != nil {
+				log.Fatalf("Failed to create new template for timedefinitionobj methods for api: %v - error is %s", apiSt.name, err.Error())
+			}
+			args := timeObjMethodsTmplArgs{
+				ApiName: apiSt.name,
+			}
+			err = tmpl.Execute(buf, &args)
+			if err != nil {
+				log.Fatalf("Failed to generate timedefinitionobj methods for api: %v - error is %s", apiSt.name, err.Error())
+			}
 		}
 	}
 	// format the generated code
@@ -262,3 +250,33 @@ func (s *ApiStruct) genComments(all *AllStructs, parents []string, comments *[]F
 		*comments = append(*comments, comment)
 	}
 }
+
+type timeObjMethodsTmplArgs struct {
+	ApiName string
+}
+
+var timeDefObjMethodsTmpl = `
+func (obj *{{.ApiName}}) GetStartTime() time.Time {
+	return obj.StartTime
+}
+
+func (obj *{{.ApiName}}) GetEndTime() time.Time {
+	return obj.EndTime
+}
+
+func (obj *{{.ApiName}}) GetLast() int {
+	return obj.Last
+}
+
+func (obj *{{.ApiName}}) SetStartTime(t time.Time) {
+	obj.StartTime = t
+}
+
+func (obj *{{.ApiName}}) SetEndTime(t time.Time) {
+	obj.EndTime = t
+}
+			
+func (obj *{{.ApiName}}) SetLast(l int) {
+	obj.Last = l
+}
+`

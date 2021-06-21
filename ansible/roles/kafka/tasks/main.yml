@@ -1,0 +1,22 @@
+---
+- import_role:
+    name: docker
+  tags: setup
+
+- import_role:
+    name: web
+    tasks_from: certs
+  vars:
+    cert_domains: [ "{{ inventory_hostname }}" ]
+    # XXX: Set up renewal hooks
+
+- name: Install docker-compose config
+  template:
+    src: docker-compose.yml.j2
+    dest: docker-compose.yml
+  notify: Restart Kafka
+
+- name: Start kafka
+  docker_compose:
+    project_src: .
+    build: no

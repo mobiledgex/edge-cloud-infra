@@ -47,12 +47,35 @@
 - set_fact:
     influxdb_user: "{{ vault_lookup.influxdb.data.user }}"
     influxdb_password: "{{ vault_lookup.influxdb.data.pass }}"
+    influxdb_config: "{{ lookup('template', 'influxdb-config.yaml.j2') }}"
 
-- name: Set up configmap
+- name: Check configmap
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
-    definition: "{{ lookup('file', 'influxdb-config.yaml') }}"
+    definition: "{{ influxdb_config }}"
+  register: influxdb_configmap
+  check_mode: yes
+
+- block:
+  # Config map has been modified; check if the change is the index-version, in
+  # which case, abort as this needs a manual migration
+  - set_fact:
+      index_version_param: 'index-version = "{{ index_version }}"'
+
+  - name: 'Make sure the index-version is already "{{ index_version }}"'
+    assert:
+      that:
+        - "index_version_param in influxdb_configmap.diff.before.data['influxdb.conf']"
+      fail_msg: 'Needs manual migration to change index version to "{{ index_version }}"'
+
+  - name: Set up configmap
+    k8s:
+      kubeconfig: "{{ kubeconfig_file.path }}"
+      namespace: default
+      definition: "{{ influxdb_config }}"
+
+  when: influxdb_configmap.changed
 
 - name: "Check data volume ({{ cluster_influxdb_volume_size }})"
   k8s:

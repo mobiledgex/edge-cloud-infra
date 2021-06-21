@@ -21,6 +21,13 @@ spec:
       containers:
       - name: influxdb
         image: influxdb:{{ influxdb_version }}
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "1Gi"
+          limits:
+            cpu: "200m"
+            memory: "2Gi"
         volumeMounts:
         - mountPath: /var/lib/influxdb
           name: influxdb-storage

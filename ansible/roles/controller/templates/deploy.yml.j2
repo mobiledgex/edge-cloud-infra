@@ -18,6 +18,13 @@ spec:
       - name: controller
         image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
         imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "512Mi"
+          limits:
+            cpu: "400m"
+            memory: "1Gi"
         command:
          - "controller"
          - "--commonName"

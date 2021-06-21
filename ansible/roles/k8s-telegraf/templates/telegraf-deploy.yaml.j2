@@ -15,6 +15,13 @@ spec:
       containers:
         - image: telegraf:{{ telegraf_image_tag }}
           name: telegraf
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "100Mi"
+            limits:
+              cpu: "100m"
+              memory: "200Mi"
           volumeMounts:
             - mountPath: /etc/telegraf/telegraf.conf
               name: telegraf-conf

@@ -18,6 +18,13 @@ spec:
       - name: cluster-svc
         image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
         imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "100Mi"
+          limits:
+            cpu: "100m"
+            memory: "200Mi"
         command:
          - "cluster-svc"
          - "--notifyAddrs"

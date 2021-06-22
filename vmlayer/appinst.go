@@ -31,6 +31,8 @@ var MaxDockerSeedWait = 1 * time.Minute
 
 var qcowConvertTimeout = 15 * time.Minute
 
+var FileDownloadDir = "/var/tmp/"
+
 type ProxyDnsSecOpts struct {
 	AddProxy              bool
 	AddDnsAndPatchKubeSvc bool
@@ -427,7 +429,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		// Fetch image paths from zip file
 		if app.DeploymentManifest != "" && strings.HasSuffix(app.DeploymentManifest, ".zip") {
 			filename := util.DockerSanitize(app.Key.Name + app.Key.Organization + app.Key.Version)
-			zipfile := "/var/tmp/" + filename + ".zip"
+			zipfile := FileDownloadDir + filename + ".zip"
 			zipContainers, err := cloudcommon.GetRemoteZipDockerManifests(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.DeploymentManifest, zipfile, cloudcommon.Download)
 			if err != nil {
 				return err
@@ -801,14 +803,21 @@ func (v *VMPlatform) GetContainerCommand(ctx context.Context, clusterInst *edgep
 	}
 }
 
-func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageName, imageUrl, md5Sum string) (string, error) {
+func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageName, imageUrl, md5Sum string) (outPath string, reterr error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DownloadVMImage", "imageName", imageName, "imageUrl", imageUrl)
 
 	fileExt, err := cloudcommon.GetFileNameWithExt(imageUrl)
 	if err != nil {
 		return "", err
 	}
-	filePath := "/var/tmp/" + fileExt
+	filePath := FileDownloadDir + fileExt
+
+	defer func() {
+		if reterr != nil {
+			// Stale file might be present if download fails/succeeds, deleting it
+			infracommon.DeleteFile(filePath)
+		}
+	}()
 
 	err = cloudcommon.DownloadFile(ctx, accessApi, imageUrl, cloudcommon.NoCreds, filePath, nil)
 	if err != nil {

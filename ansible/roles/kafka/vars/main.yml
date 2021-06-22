@@ -1,0 +1,5 @@
+kafka_base: /etc/kafka
+kafka_secrets_base: "{{ kafka_base }}/secrets"
+keystore_filename: kafka.keystore
+creds_filename: creds
+keystore_gen_path: /usr/local/bin/keystore-gen

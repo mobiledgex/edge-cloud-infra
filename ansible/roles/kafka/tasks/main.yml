@@ -10,6 +10,41 @@
     cert_domains: [ "{{ inventory_hostname }}" ]
     # XXX: Set up renewal hooks
 
+- name: Install dependencies
+  apt:
+    name: "{{ item }}"
+  loop:
+    - openjdk-8-jdk
+
+- name: Set up secrets directory
+  file:
+    path: "{{ kafka_secrets_base }}"
+    state: directory
+    owner: "1000"
+    group: "1000"
+    mode: 0700
+  become: yes
+
+- block:
+
+  - name: Install keystore generator
+    template:
+      src: keystore-gen.sh.j2
+      dest: "{{ keystore_gen_path }}"
+      owner: root
+      group: root
+      mode: 0744
+
+  - name: Generate keystore
+    command: "{{ keystore_gen_path }}"
+    args:
+      creates: "{{ keystore_file }}"
+
+  vars:
+    - keystore_file: "{{ kafka_secrets_base }}/{{ keystore_filename }}"
+    - creds_file: "{{ kafka_secrets_base }}/{{ creds_filename }}"
+  become: yes
+
 - name: Install docker-compose config
   template:
     src: docker-compose.yml.j2

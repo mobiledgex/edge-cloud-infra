@@ -2,12 +2,13 @@ package orm
 
 import (
 	"bytes"
-	"context"
 	fmt "fmt"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	influxq "github.com/mobiledgex/edge-cloud/controller/influxq_client"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -20,6 +21,7 @@ var operatorInfluxClientMetricsDBTemplate *template.Template
 
 type influxClientMetricsQueryArgs struct {
 	// Query args
+	metricsCommonQueryArgs
 	Selector     string
 	Measurement  string
 	AppInstName  string
@@ -32,9 +34,6 @@ type influxClientMetricsQueryArgs struct {
 	CloudletOrg  string
 	ClusterOrg   string
 	AppOrg       string
-	StartTime    string
-	EndTime      string
-	Last         int
 	// ClientApi metric query args
 	Method string
 	CellId string
@@ -69,6 +68,17 @@ var ApiFields = []string{
 	"\"25ms\"",
 	"\"50ms\"",
 	"\"100ms\"",
+}
+
+var ClientApiAggregationFunctions = map[string]string{
+	"reqs":  "sum(\"reqs\")",
+	"errs":  "sum(\"errs\")",
+	"0s":    "sum(\"0s\")",
+	"5ms":   "sum(\"5ms\")",
+	"10ms":  "sum(\"10ms\")",
+	"25ms":  "sum(\"25ms\")",
+	"50ms":  "sum(\"50ms\")",
+	"100ms": "sum(\"100ms\")",
 }
 
 var ClientAppUsageFields = []string{
@@ -151,6 +161,7 @@ var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
 	`{{if .LocationTile}} AND "locationtile"='{{.LocationTile}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
+	`{{if .TimeDefinition}} group by time({{.TimeDefinition}}){{end}}` +
 	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
@@ -163,6 +174,7 @@ var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}
 	`{{if .LocationTile}} AND "locationtile"='{{.LocationTile}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
+	`{{if .TimeDefinition}} group by time({{.TimeDefinition}}){{end}}` +
 	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
 func init() {
@@ -170,25 +182,7 @@ func init() {
 	operatorInfluxClientMetricsDBTemplate = template.Must(template.New("influxquery").Parse(operatorInfluxClientMetricsDBT))
 }
 
-func fillTimeAndGetCmdForClientMetricsQuery(q *influxClientMetricsQueryArgs, tmpl *template.Template, start *time.Time, end *time.Time) string {
-	// Figure out the start/end time range for the query
-	if !start.IsZero() {
-		buf, err := start.MarshalText()
-		if err == nil {
-			q.StartTime = string(buf)
-		}
-	}
-	if !end.IsZero() {
-		buf, err := end.MarshalText()
-		if err == nil {
-			q.EndTime = string(buf)
-		}
-	}
-	// We set max number of responses we will get from InfluxDB
-	if q.Last == 0 {
-		q.Last = maxEntriesFromInfluxDb
-	}
-	// now that we know all the details of the query - build it
+func getInfluxClientMetricsQueryCmd(q *influxClientMetricsQueryArgs, tmpl *template.Template) string {
 	buf := bytes.Buffer{}
 	if err := tmpl.Execute(&buf, q); err != nil {
 		log.DebugLog(log.DebugLevelApi, "Failed to run template", "tmpl", tmpl, "args", q, "error", err)
@@ -197,9 +191,15 @@ func fillTimeAndGetCmdForClientMetricsQuery(q *influxClientMetricsQueryArgs, tmp
 	return buf.String()
 }
 
-func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudletList []string) string {
+func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudletList []string, settings *edgeproto.Settings) string {
+	// get time definition
+	minTimeDef := DefaultClientUsageTimeWindow
+	if settings != nil {
+		minTimeDef = time.Duration(settings.DmeApiMetricsCollectionInterval)
+	}
+	definition := getTimeDefinitionDuration(&obj.MetricsCommon, minTimeDef)
 	arg := influxClientMetricsQueryArgs{
-		Selector:     getFields(obj.Selector, CLIENT_APIUSAGE),
+		Selector:     getClientMetricsSelector(obj.Selector, CLIENT_APIUSAGE, definition, ClientApiAggregationFunctions),
 		Measurement:  getMeasurementString(obj.Selector, CLIENT_APIUSAGE),
 		AppInstName:  obj.AppInst.AppKey.Name,
 		AppVersion:   obj.AppInst.AppKey.Version,
@@ -208,7 +208,6 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 		CloudletList: generateCloudletList(cloudletList),
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		Method:       obj.Method,
-		Last:         obj.Last,
 	}
 	if obj.AppInst.AppKey.Organization != "" {
 		arg.OrgField = "apporg"
@@ -222,14 +221,24 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 	if obj.CellId != 0 {
 		arg.CellId = strconv.FormatUint(uint64(obj.CellId), 10)
 	}
-	return fillTimeAndGetCmdForClientMetricsQuery(&arg, devInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime)
+	// set MetricsCommonQueryArgs
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxClientMetricsDBTemplate, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
+	return getInfluxClientMetricsQueryCmd(&arg, devInfluxClientMetricsDBTemplate)
 }
 
-func ClientAppUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *ormapi.RegionClientAppUsageMetrics, cloudletList []string) (cmd string, db string) {
+func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics, cloudletList []string, settings *edgeproto.Settings) (cmd string, db string) {
+	// get time definition
+	minTimeDef := DefaultClientUsageTimeWindow
+	if settings != nil {
+		minTimeDef = time.Duration(settings.EdgeEventsMetricsCollectionInterval)
+	}
+	definition := getTimeDefinitionDuration(&obj.MetricsCommon, minTimeDef)
+	// get measurement and db based on time definition
 	var measurement string
-	measurement, db = getMeasurementAndDbFromClientUsageReq(ctx, idc, obj.Selector, obj)
+	var functionMap map[string]string
+	measurement, db, functionMap = getMeasurementAndDbAndMapFromClientUsageReq(settings, obj.Selector, definition)
 	arg := influxClientMetricsQueryArgs{
-		Selector:        getFields(obj.Selector, CLIENT_APPUSAGE),
+		Selector:        getClientMetricsSelector(obj.Selector, CLIENT_APPUSAGE, definition, functionMap),
 		Measurement:     measurement,
 		AppInstName:     obj.AppInst.AppKey.Name,
 		AppVersion:      obj.AppInst.AppKey.Version,
@@ -242,7 +251,6 @@ func ClientAppUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *
 		DeviceOs:        obj.DeviceOs,
 		DeviceModel:     obj.DeviceModel,
 		LocationTile:    obj.LocationTile,
-		Last:            obj.Last,
 	}
 	if obj.AppInst.AppKey.Organization != "" {
 		arg.OrgField = "apporg"
@@ -253,14 +261,24 @@ func ClientAppUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
-	return fillTimeAndGetCmdForClientMetricsQuery(&arg, devInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime), db
+	// set MetricsCommonQueryArgs
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxClientMetricsDBTemplate, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
+	return getInfluxClientMetricsQueryCmd(&arg, devInfluxClientMetricsDBTemplate), db
 }
 
-func ClientCloudletUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, obj *ormapi.RegionClientCloudletUsageMetrics) (cmd string, db string) {
+func ClientCloudletUsageMetricsQuery(obj *ormapi.RegionClientCloudletUsageMetrics, settings *edgeproto.Settings) (cmd string, db string) {
+	// get time definition
+	minTimeDef := DefaultClientUsageTimeWindow
+	if settings != nil {
+		minTimeDef = time.Duration(settings.EdgeEventsMetricsCollectionInterval)
+	}
+	definition := getTimeDefinitionDuration(&obj.MetricsCommon, minTimeDef)
+	// get measurement and db based on time definition
 	var measurement string
-	measurement, db = getMeasurementAndDbFromClientUsageReq(ctx, idc, obj.Selector, obj)
+	var functionMap map[string]string
+	measurement, db, functionMap = getMeasurementAndDbAndMapFromClientUsageReq(settings, obj.Selector, definition)
 	arg := influxClientMetricsQueryArgs{
-		Selector:        getFields(obj.Selector, CLIENT_CLOUDLETUSAGE),
+		Selector:        getClientMetricsSelector(obj.Selector, CLIENT_CLOUDLETUSAGE, definition, functionMap),
 		Measurement:     measurement,
 		CloudletName:    obj.Cloudlet.Name,
 		CloudletOrg:     obj.Cloudlet.Organization,
@@ -269,26 +287,58 @@ func ClientCloudletUsageMetricsQuery(ctx context.Context, idc *InfluxDBContext, 
 		DeviceOs:        obj.DeviceOs,
 		DeviceModel:     obj.DeviceModel,
 		LocationTile:    obj.LocationTile,
-		Last:            obj.Last,
 	}
-	return fillTimeAndGetCmdForClientMetricsQuery(&arg, operatorInfluxClientMetricsDBTemplate, &obj.StartTime, &obj.EndTime), db
+	// set MetricsCommonQueryArgs
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxClientMetricsDBTemplate, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
+	return getInfluxClientMetricsQueryCmd(&arg, operatorInfluxClientMetricsDBTemplate), db
 }
 
-func getMeasurementAndDbFromClientUsageReq(ctx context.Context, idc *InfluxDBContext, selector string, obj TimeDefinitionObj) (measurement string, db string) {
+/*
+ * Get selector
+ * If definition is non-zero, then we will aggregate data with the aggregation function in selectorFuncMap for each field
+ * If definition is zero, then grab data as-is
+ */
+func getClientMetricsSelector(selector string, measurementType string, definition time.Duration, selectorFuncMap map[string]string) string {
+	if definition == 0 {
+		return getFields(selector, measurementType)
+	} else {
+		// get all fields
+		f := getFieldsSlice(selector, measurementType)
+		fieldsWithFuncs := make([]string, 0)
+		for _, field := range f {
+			// find aggregation function for field
+			field = strings.ReplaceAll(field, `\`, ``)
+			field = strings.ReplaceAll(field, `"`, ``)
+			function, ok := selectorFuncMap[field]
+			if ok {
+				function = fmt.Sprintf("%s AS \"%s\"", function, function)
+				fieldsWithFuncs = append(fieldsWithFuncs, function)
+			}
+		}
+		if len(fieldsWithFuncs) > 0 {
+			return strings.Join(fieldsWithFuncs, ",")
+		} else {
+			return getFields(selector, measurementType)
+		}
+	}
+}
+
+func getMeasurementAndDbAndMapFromClientUsageReq(settings *edgeproto.Settings, selector string, definition time.Duration) (measurement string, db string, lookupMap map[string]string) {
 	// Get base measurement (ie. "latency-metric")
 	basemeasurement := ""
 	switch selector {
 	case "latency":
 		basemeasurement = cloudcommon.LatencyMetric
+		lookupMap = influxq.LatencyAggregationFunctions
 	case "deviceinfo":
 		basemeasurement = cloudcommon.DeviceMetric
+		lookupMap = influxq.DeviceInfoAggregationFunctions
 	}
 
 	// Get downsampled measurement if time definition is greater than a cq interval (ie. "latency-metric-10s")
 	measurement = basemeasurement
-	definition := getTimeDefinitionDuration(obj, 0)
 	if definition != 0 {
-		measurement = getClientMetricsMeasurementString(ctx, idc, basemeasurement, definition)
+		measurement = getClientMetricsMeasurementString(settings, basemeasurement, definition)
 	}
 
 	// Get db from measurement (either EdgeEventsMetricsDb or DownsampledMetricsDb)
@@ -297,7 +347,7 @@ func getMeasurementAndDbFromClientUsageReq(ctx context.Context, idc *InfluxDBCon
 	} else {
 		db = cloudcommon.DownsampledMetricsDbName
 	}
-	return measurement, db
+	return measurement, db, lookupMap
 }
 
 /*
@@ -305,19 +355,10 @@ func getMeasurementAndDbFromClientUsageReq(ctx context.Context, idc *InfluxDBCon
  * For example, if the time definition is 1.5 hr and we have continuous queries that aggregate hourly, daily, and weekly, this function will return the hourly measurement.
  * If the duration is 25 hours, this function will return the daily measurement
  */
-func getClientMetricsMeasurementString(ctx context.Context, idc *InfluxDBContext, baseMeasurement string, definition time.Duration) string {
-	// Grab settings for specified region
-	in := &edgeproto.Settings{}
-	rc := &RegionContext{
-		username: idc.claims.Username,
-		region:   idc.region,
-	}
-	settings, err := ShowSettingsObj(ctx, rc, in)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get continuous query settings - using raw data", "error", err)
+func getClientMetricsMeasurementString(settings *edgeproto.Settings, baseMeasurement string, definition time.Duration) string {
+	if settings == nil {
 		return baseMeasurement
 	}
-
 	// Find Continuous Query interval that is closest to definition but less than definition (ie. finer granularity)
 	var optimalInterval time.Duration = 0
 	var minDiff time.Duration = 0
@@ -332,7 +373,7 @@ func getClientMetricsMeasurementString(ctx context.Context, idc *InfluxDBContext
 	}
 
 	if optimalInterval == 0 {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable find interval with finer granularity than time definition - using raw data", "definition", definition)
+		log.DebugLog(log.DebugLevelMetrics, "Unable find interval with finer granularity than time definition - using raw data", "definition", definition)
 		return baseMeasurement
 	}
 	return cloudcommon.CreateInfluxMeasurementName(baseMeasurement, optimalInterval)

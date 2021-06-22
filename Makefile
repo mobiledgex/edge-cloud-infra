@@ -41,7 +41,7 @@ edge-cloud-version-set:
 
 APICOMMENTS = ./mc/ormapi/api.comments.go
 
-build-internal: build-vers apigen $(APICOMMENTS)
+build-internal: build-vers $(APICOMMENTS)
 	go install ./fixmod
 	fixmod -srcRepo ../edge-cloud -keep github.com/mobiledgex/edge-cloud
 	go install ./protoc-gen-mc2
@@ -60,9 +60,9 @@ install-edge-cloud:
 install-internal:
 	go install ./...
 
-apigen: ./mc/ormapi/apigen/apigen.go ./mc/ormapi/api.go
-	go install ./mc/ormapi/apigen
-	apigen --apiFile ./mc/ormapi/api.go
+$(APICOMMENTS): ./mc/ormapi/apidoc/apidoc.go ./mc/ormapi/api.go
+	go install ./mc/ormapi/apidoc
+	apidoc --apiFile ./mc/ormapi/api.go
 
 doc:
 	go install ./protoc-gen-mc2

@@ -55,6 +55,14 @@ type influxQueryArgs struct {
 	TimeDefinition string
 }
 
+// TODO: embed this into influxQueryArgs
+type metricsCommonQueryArgs struct {
+	StartTime      string
+	EndTime        string
+	Last           int
+	TimeDefinition string
+}
+
 // AppFields are the field names used to query the DB
 var AppFields = []string{
 	"\"app\"",
@@ -288,6 +296,49 @@ func getInfluxDBAddrForRegion(ctx context.Context, region string) (string, error
 	return ctrl.InfluxDB, nil
 }
 
+func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings, error) {
+	// Grab settings for specified region
+	in := &edgeproto.Settings{}
+	rc := &RegionContext{
+		username: idc.claims.Username,
+		region:   idc.region,
+	}
+	return ShowSettingsObj(ctx, rc, in)
+}
+
+// TODO: replace calls to fillTimeAndGetCmd with this function and getInfluxQueryCmd when all metrics structs embed MetricsCommon
+// Fill in MetricsCommonQueryArgs: Depending on if the user specified "Last", "NumSamples", "StartTime", and "EndTime", adjust the query
+func fillMetricsCommonQueryArgs(m *metricsCommonQueryArgs, tmpl *template.Template, c *ormapi.MetricsCommon, timeDefinition string, minTimeWindow time.Duration) {
+	// Set one of Last or TimeDefinition
+	if c.Last != 0 {
+		m.Last = c.Last
+	} else {
+		m.TimeDefinition = timeDefinition
+	}
+	// add start and end times
+	if !c.StartTime.IsZero() {
+		buf, err := c.StartTime.MarshalText()
+		if err == nil {
+			m.StartTime = string(buf)
+		}
+	}
+	if !c.EndTime.IsZero() {
+		buf, err := c.EndTime.MarshalText()
+		if err == nil {
+			m.EndTime = string(buf)
+		}
+	}
+}
+
+func getInfluxQueryCmd(q *influxQueryArgs, tmpl *template.Template) string {
+	buf := bytes.Buffer{}
+	if err := tmpl.Execute(&buf, q); err != nil {
+		log.DebugLog(log.DebugLevelApi, "Failed to run template", "tmpl", tmpl, "args", q, "error", err)
+		return ""
+	}
+	return buf.String()
+}
+
 func fillTimeAndGetCmd(q *influxQueryArgs, tmpl *template.Template, start *time.Time, end *time.Time) string {
 	// Figure out the start/end time range for the query
 	if !start.IsZero() {
@@ -499,6 +550,11 @@ func getCloudletUsageMeasurementString(selector, platformType string) string {
 }
 
 func getFields(selector, measurementType string) string {
+	fields := getFieldsSlice(selector, measurementType)
+	return strings.Join(fields, ",")
+}
+
+func getFieldsSlice(selector, measurementType string) []string {
 	var fields, selectors []string
 	switch measurementType {
 	case APPINST:
@@ -527,7 +583,7 @@ func getFields(selector, measurementType string) string {
 		fields = ClientCloudletUsageFields
 		selectors = ormapi.ClientCloudletUsageSelectors
 	default:
-		return "*"
+		return []string{"*"}
 	}
 	if selector != "*" {
 		selectors = strings.Split(selector, ",")
@@ -583,7 +639,7 @@ func getFields(selector, measurementType string) string {
 		case "custom":
 		}
 	}
-	return strings.Join(fields, ",")
+	return fields
 }
 
 // Common method to handle both app and cluster metrics
@@ -679,7 +735,14 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateSelectorString(in.Selector, CLIENT_APIUSAGE); err != nil {
 			return err
 		}
-		cmd = ClientApiUsageMetricsQuery(&in, cloudletList)
+		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+		settings, err := getSettings(ctx, rc)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
+		}
+		cmd = ClientApiUsageMetricsQuery(&in, cloudletList, settings)
 
 	} else if strings.HasSuffix(c.Path(), "metrics/cloudlet/usage") {
 		dbNames = append(dbNames, cloudcommon.CloudletResourceUsageDbName)
@@ -739,8 +802,15 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateClientAppUsageMetricReq(&in, in.Selector); err != nil {
 			return err
 		}
+		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+		settings, err := getSettings(ctx, rc)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
+		}
 		var db string
-		cmd, db = ClientAppUsageMetricsQuery(ctx, rc, &in, cloudletList)
+		cmd, db = ClientAppUsageMetricsQuery(&in, cloudletList, settings)
 		dbNames = append(dbNames, db)
 	} else if strings.HasSuffix(c.Path(), "metrics/clientcloudletusage") {
 		in := ormapi.RegionClientCloudletUsageMetrics{}
@@ -760,8 +830,15 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateClientCloudletUsageMetricReq(&in, in.Selector); err != nil {
 			return err
 		}
+		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+		settings, err := getSettings(ctx, rc)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
+		}
 		var db string
-		cmd, db = ClientCloudletUsageMetricsQuery(ctx, rc, &in)
+		cmd, db = ClientCloudletUsageMetricsQuery(&in, settings)
 		dbNames = append(dbNames, db)
 
 		// Check the operator against who is logged in

@@ -311,7 +311,7 @@ func getClientMetricsSelector(selector string, measurementType string, definitio
 			field = strings.ReplaceAll(field, `"`, ``)
 			function, ok := selectorFuncMap[field]
 			if ok {
-				function = fmt.Sprintf("%s AS \"%s\"", function, function)
+				function = fmt.Sprintf("%s AS \"%s\"", function, field)
 				fieldsWithFuncs = append(fieldsWithFuncs, function)
 			}
 		}

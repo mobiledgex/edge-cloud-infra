@@ -314,6 +314,7 @@ func fillMetricsCommonQueryArgs(m *metricsCommonQueryArgs, tmpl *template.Templa
 		m.Last = c.Last
 	} else {
 		m.TimeDefinition = timeDefinition
+		m.Last = c.NumSamples
 	}
 	// add start and end times
 	if !c.StartTime.IsZero() {

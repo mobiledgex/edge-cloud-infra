@@ -59,7 +59,7 @@ type influxQueryArgs struct {
 type metricsCommonQueryArgs struct {
 	StartTime      string
 	EndTime        string
-	Last           int
+	Limit          int
 	TimeDefinition string
 }
 
@@ -307,14 +307,14 @@ func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings
 }
 
 // TODO: replace calls to fillTimeAndGetCmd with this function and getInfluxQueryCmd when all metrics structs embed MetricsCommon
-// Fill in MetricsCommonQueryArgs: Depending on if the user specified "Last", "NumSamples", "StartTime", and "EndTime", adjust the query
+// Fill in MetricsCommonQueryArgs: Depending on if the user specified "Limit", "NumSamples", "StartTime", and "EndTime", adjust the query
 func fillMetricsCommonQueryArgs(m *metricsCommonQueryArgs, tmpl *template.Template, c *ormapi.MetricsCommon, timeDefinition string, minTimeWindow time.Duration) {
 	// Set one of Last or TimeDefinition
-	if c.Last != 0 {
-		m.Last = c.Last
+	if c.Limit != 0 {
+		m.Limit = c.Limit
 	} else {
 		m.TimeDefinition = timeDefinition
-		m.Last = c.NumSamples
+		m.Limit = c.NumSamples
 	}
 	// add start and end times
 	if !c.StartTime.IsZero() {

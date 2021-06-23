@@ -398,7 +398,7 @@ type RegionData struct {
 type MetricsCommon struct {
 	util.TimeRange `json:",inline"`
 	NumSamples     int `json:",omitempty"`
-	Last           int `json:",omitempty"`
+	Limit          int `json:",omitempty"`
 }
 
 // Metrics data

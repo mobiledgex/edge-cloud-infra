@@ -28,7 +28,7 @@ func getTimeDefinition(obj *ormapi.MetricsCommon, minTimeWindow time.Duration) s
 func getTimeDefinitionDuration(obj *ormapi.MetricsCommon, minTimeWindow time.Duration) time.Duration {
 	// In case we are requesting last n number of entries and don't provide time window
 	// we should skip the function and time-based grouping
-	if obj.Last != 0 {
+	if obj.Limit != 0 {
 		return 0
 	}
 	// If start time is past end time, cannot group by time
@@ -45,16 +45,16 @@ func getTimeDefinitionDuration(obj *ormapi.MetricsCommon, minTimeWindow time.Dur
 }
 
 func validateMetricsCommon(obj *ormapi.MetricsCommon) error {
-	// return error if both Last and NumSamples are set
-	if obj.Last != 0 && obj.NumSamples != 0 {
-		return fmt.Errorf("Only one of Last or NumSamples can be specified")
+	// return error if both Limit and NumSamples are set
+	if obj.Limit != 0 && obj.NumSamples != 0 {
+		return fmt.Errorf("Only one of Limit or NumSamples can be specified")
 	}
 
 	// populate one of Last or NumSamples if neither are set
-	if obj.Last == 0 && obj.NumSamples == 0 {
+	if obj.Limit == 0 && obj.NumSamples == 0 {
 		if obj.StartTime.IsZero() && obj.EndTime.IsZero() {
-			// fallback to Last if nothing is in MetricsCommon is set
-			obj.Last = MaxNumSamples
+			// fallback to Limit if nothing is in MetricsCommon is set
+			obj.Limit = MaxNumSamples
 		} else {
 			// fallback to NumSamples/Time Definition if start and end times are set
 			obj.NumSamples = MaxNumSamples

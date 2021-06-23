@@ -2,11 +2,13 @@ version: '2'
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:{{ kafka_version }}
+    restart: unless-stopped
     ports:
       - 22181:2181
     volumes:
       - zookeeper-data:/var/lib/zookeeper/data
       - zookeeper-log:/var/lib/zookeeper/log
+      - {{ kafka_secrets_base }}:{{ kafka_secrets_base }}
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -16,6 +18,7 @@ services:
     image: confluentinc/cp-kafka:{{ kafka_version }}
     depends_on:
       - zookeeper
+    restart: unless-stopped
     ports:
       - 9092:9092
       - 9093:9093

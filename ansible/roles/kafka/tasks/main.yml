@@ -8,13 +8,20 @@
     tasks_from: certs
   vars:
     cert_domains: [ "{{ inventory_hostname }}" ]
-    # XXX: Set up renewal hooks
+    post_renewal_hooks:
+      - hook_name: regen-kafka-keystore
+        hook_content: |-
+          #!/bin/bash
+          cd ~ansible
+          {{ keystore_gen_path }}
+          docker-compose restart
 
 - name: Install dependencies
   apt:
     name: "{{ item }}"
   loop:
     - openjdk-8-jdk
+  become: yes
 
 - name: Set up secrets directory
   file:

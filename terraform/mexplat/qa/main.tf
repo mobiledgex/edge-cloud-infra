@@ -250,7 +250,7 @@ resource "google_compute_firewall" "kafka" {
 
   target_tags = ["kafka-${var.environ_tag}"]
   source_ranges = [
-    "0.0.0.0/0",
+    "${module.console.external_ip}/32",
   ]
 }
 
@@ -259,11 +259,12 @@ module "kafka" {
 
   instance_name  = var.kafka_instance_name
   environ_tag    = var.environ_tag
-  instance_size  = "e2-standard-2"
+  instance_size  = "e2-custom-1-8192"
   zone           = var.gcp_zone
-  boot_disk_size = 100
+  boot_disk_size = 50
   tags = [
     "kafka-${var.environ_tag}",
+    "kafka-${var.environ_tag}-controllers",
   ]
   labels = {
     "environ" = var.environ_tag

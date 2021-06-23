@@ -369,7 +369,7 @@ func (v *VMPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgepro
 	}
 	rootlbClients, err := v.GetAllRootLBClients(ctx)
 	if err != nil {
-		return fmt.Errorf("Unable to get dedicated rootlb clients - %v", err)
+		return fmt.Errorf("Unable to get rootlb clients - %v", err)
 	}
 	return v.VMProvider.ConfigureCloudletSecurityRules(ctx, egressRestricted, TrustPolicy, rootlbClients, ActionUpdate, edgeproto.DummyUpdateCallback)
 }

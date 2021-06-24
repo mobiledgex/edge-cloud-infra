@@ -1,0 +1,6 @@
+---
+- name: Restart Kafka
+  docker_compose:
+    project_src: .
+    build: no
+    restarted: yes

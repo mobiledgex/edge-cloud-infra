@@ -228,6 +228,12 @@
         name: vault
         tasks_from: load-token
       delegate_to: localhost
+    - name: Install kafkacat
+      apt:
+        name: kafkacat
+        state: present
+        update_cache: yes
+      become: yes
     - import_role:
         name: telegraf
       vars:
@@ -321,3 +327,19 @@
 
     - import_role:
         name: esproxy
+
+- hosts: kafka
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+      tags: setup
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: kafka

@@ -66,3 +66,6 @@ alertmanager-qa.mobiledgex.net
 
 [esproxy]
 events-qa.es.mobiledgex.net
+
+[kafka]
+kafka-qa.mobiledgex.net

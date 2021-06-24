@@ -28,6 +28,7 @@
     - policies/gcp-auth.read.v1.hcl.j2
     - policies/gcp-bucket-create-key.read.v1.hcl.j2
     - policies/gcp-config.read.v1.hcl.j2
+    - policies/gcp-firewall-manage-key.read.v1.hcl.j2
     - policies/gcp-gpu-drivers-bucket-access-token.read.v1.hcl.j2
     - policies/gcp-operator-reports-bucket-access-token.read.v1.hcl.j2
     - policies/gcp-role-create-key.read.v1.hcl.j2

@@ -6,9 +6,49 @@
     name: azure-aks
     tasks_from: platform-regions-load
 
-- debug: var=platform_regions
+- set_fact:
+    source_ips: []
 
-- meta: end_play
+# This fetches the egress IPs for services in the region kubernetes clusters
+# and stores them in the "source_ips" variable
+- include_role:
+    name: kafka
+    tasks_from: loadbalancer-ips
+  vars:
+    k8s_cluster_name: "{{ item.name }}"
+    resource_group: "{{ item.resource_group }}"
+  loop: "{{ platform_regions }}"
+
+- import_role:
+    name: vault
+    tasks_from: load-token
+  delegate_to: localhost
+
+- name: Get service key to manage firewall
+  vault_api:
+    api: "gcp/key/{{ vault_gcp_firewall_manage_roleset }}"
+    vault_addr: "{{ vault_address }}"
+    vault_token: "{{ vault_token }}"
+  register: firewall_manage_service_key
+
+- set_fact:
+    gcp_service_key: "{{ firewall_manage_service_key.meta.response.data.private_key_data | b64decode }}"
+
+- name: Set up kafka access firewall in GCP
+  gcp_compute_firewall:
+    name: "kafka-{{ deploy_environ }}-controllers"
+    project: "{{ gcp_project }}"
+    auth_kind: serviceaccount
+    service_account_contents: "{{ gcp_service_key }}"
+    allowed:
+      - ip_protocol: tcp
+        ports:
+          - '9092'
+          - '9093'
+    source_ranges: "{{ source_ips }}"
+    target_tags:
+      - "kafka-{{ deploy_environ }}-controllers"
+  delegate_to: localhost
 
 - import_role:
     name: docker

@@ -327,6 +327,7 @@
     - import_role:
         name: vault
         tasks_from: vault-ssh
+      tags: setup
 
     - import_role:
         name: telegraf

@@ -1,4 +1,15 @@
 ---
+- set_fact:
+    regions: "{{ hostvars['localhost']['regions'] }}"
+
+- import_role:
+    name: azure-aks
+    tasks_from: platform-regions-load
+
+- debug: var=platform_regions
+
+- meta: end_play
+
 - import_role:
     name: docker
   tags: setup

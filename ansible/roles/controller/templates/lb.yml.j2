@@ -28,3 +28,4 @@ spec:
     app: controller
   sessionAffinity: None
   type: LoadBalancer
+  loadBalancerIP: {{ controller_public_ip.state.ip_address }}

@@ -5,6 +5,14 @@
 - set_fact:
     controller_hostname: "{{ k8s_cluster_name }}.ctrl.{{ cloudflare_zone }}"
 
+- name: Create a public IP for the controller
+  azure_rm_publicipaddress:
+    resource_group: "{{ az_k8s_node_resource_group }}"
+    name: "{{ k8s_cluster_name }}-ctrl"
+    allocation_method: static
+    domain_name: "{{ k8s_cluster_name }}-ctrl"
+  register: controller_public_ip
+
 - name: Fetch controller vault role
   set_fact:
     controller_role: "{{ lookup('approle', controller_role_name) }}"

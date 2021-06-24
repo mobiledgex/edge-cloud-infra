@@ -9,6 +9,7 @@
 
 - set_fact:
     az_k8s_version: "{{ aks_facts.aks[0].properties.kubernetesVersion }}"
+    az_k8s_node_resource_group: "{{ aks_facts.aks[0].properties.nodeResourceGroup }}"
 
 - name: "Ensure that platform is running kubernetes version {{ kubernetes_version }}"
   assert:

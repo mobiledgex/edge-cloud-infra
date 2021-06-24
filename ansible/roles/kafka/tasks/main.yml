@@ -103,40 +103,6 @@
     - creds_file: "{{ kafka_secrets_base }}/{{ creds_filename }}"
   become: yes
 
-- name: Install kafka JAAS config
-  copy:
-    content: |
-      KafkaServer {
-        org.apache.kafka.common.security.plain.PlainLoginModule required
-        username="admin"
-        password="admin-secret"
-        user_admin="admin-secret";
-      };
-      Client {
-        org.apache.zookeeper.server.auth.DigestLoginModule required
-        username="kafka"
-        password="kafka-secret";
-      };
-    dest: "{{ kafka_secrets_base }}/kafka_server_jaas.conf"
-    owner: "1000"
-    group: "1000"
-    mode: 0444
-  become: yes
-
-- name: Install zookeeper JAAS config
-  copy:
-    content: |
-      Server {
-        org.apache.zookeeper.server.auth.DigestLoginModule required
-        user_super="admin-secret"
-        user_kafka="kafka-secret";
-      };
-    dest: "{{ kafka_secrets_base }}/zookeeper_jaas.conf"
-    owner: "1000"
-    group: "1000"
-    mode: 0444
-  become: yes
-
 - name: Install docker-compose config
   template:
     src: docker-compose.yml.j2

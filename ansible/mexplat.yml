@@ -228,6 +228,12 @@
         name: vault
         tasks_from: load-token
       delegate_to: localhost
+    - name: Install kafkacat
+      apt:
+        name: kafkacat
+        state: present
+        update_cache: yes
+      become: yes
     - import_role:
         name: telegraf
       vars:

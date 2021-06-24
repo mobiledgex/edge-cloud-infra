@@ -1,0 +1,47 @@
+---
+- block:
+
+  - name: Retrieve kube config
+    azure_rm_aks_info:
+      name: "{{ k8s_cluster_name }}"
+      resource_group: "{{ resource_group }}"
+      show_kubeconfig: admin
+    register: aks_facts
+    check_mode: no
+
+  - name: Create temporary kubeconfig file
+    tempfile:
+      state: file
+      suffix: .kubeconfig
+    register: kubeconfig_file
+    changed_when: false
+    check_mode: no
+
+  - name: Store kubeconfig data in file
+    copy:
+      content: "{{ aks_facts.aks[0].kube_config }}"
+      dest: "{{ kubeconfig_file.path }}"
+    changed_when: false
+    check_mode: no
+
+  - name: Fetch kubernetes service details
+    k8s_info:
+      kubeconfig: "{{ kubeconfig_file.path }}"
+      namespace: default
+      kind: Service
+    register: service
+
+  - set_fact:
+      loadbalancer_ips: []
+
+  - name: Fetch list of loadbalancer IPs for all services
+    set_fact:
+      loadbalancer_ips: "{{ loadbalancer_ips + [ item.status.loadBalancer.ingress[0].ip + '/32' ] }}"
+    when: '"loadBalancer" in item.status and "ingress" in item.status.loadBalancer'
+    loop: "{{ service.resources }}"
+    no_log: True
+
+  - set_fact:
+      source_ips: "{{ source_ips + loadbalancer_ips }}"
+
+  delegate_to: localhost

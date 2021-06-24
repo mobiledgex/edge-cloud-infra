@@ -186,6 +186,33 @@
       loop_control:
         loop_var: bucket
 
+    - name: "Set up GCP role for firewall management: {{ gcp_firewall_manage_role }}"
+      gcp_iam_role:
+        name: "{{ gcp_firewall_manage_role }}"
+        title: "{{ deploy_environ | title }} role for managing firewalls"
+        description: "Ansible-managed custom role for managing firewalls"
+        included_permissions:
+          - compute.firewalls.create
+          - compute.firewalls.get
+          - compute.firewalls.update
+          - compute.networks.updatePolicy
+        project: "{{ gcp_project }}"
+        auth_kind: serviceaccount
+        service_account_contents: "{{ gcp_service_key }}"
+        state: present
+
+    - name: Set up vault rolesets for firewall management
+      vault_gcp_roleset:
+        name: "{{ vault_gcp_firewall_manage_roleset }}"
+        project: "{{ gcp_project }}"
+        secret_type: service_account_key
+        bindings:
+          - resource: "//cloudresourcemanager.googleapis.com/projects/{{ gcp_project }}"
+            roles:
+              - "projects/{{ gcp_project }}/roles/{{ gcp_firewall_manage_role }}"
+        vault_addr: "{{ vault_address }}"
+        vault_token: "{{ vault_token }}"
+
     - name: Enable KV secrets engines
       include_role:
         name: vault

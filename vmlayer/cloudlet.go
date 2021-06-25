@@ -367,7 +367,7 @@ func (v *VMPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgepro
 	if result == OperationNewlyInitialized {
 		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 	}
-	rootlbClients, err := v.GetAllRootLBClients(ctx)
+	rootlbClients, err := v.GetAllRootLBClients(ctx, ClientTypeAllRootLB)
 	if err != nil {
 		return fmt.Errorf("Unable to get rootlb clients - %v", err)
 	}
@@ -442,7 +442,7 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 			return fmt.Errorf("DeleteCloudlet error: %v", err)
 		}
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Deleting Cloudlet Security Rules %s", rootLBName))
-		rootlbClients, err := v.GetAllRootLBClients(ctx)
+		rootlbClients, err := v.GetAllRootLBClients(ctx, ClientTypeAllRootLB)
 		if err != nil {
 			return fmt.Errorf("Unable to get rootlb clients - %v", err)
 		}

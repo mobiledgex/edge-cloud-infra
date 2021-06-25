@@ -569,17 +569,24 @@ func GetChefRootLBTags(platformConfig *platform.PlatformConfig) []string {
 }
 
 // GetAllRootLBClients gets rootLb clients for both Shared and Dedicated LBs
-func (v *VMPlatform) GetAllRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
-	rootlbClients, err := v.GetRootLBClients(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("Unable to get dedicated rootlb Clients - %v", err)
+func (v *VMPlatform) GetAllRootLBClients(ctx context.Context, clientType ClientType) (map[string]ssh.Client, error) {
+	var err error
+	rootlbClients := make(map[string]ssh.Client)
+
+	if clientType == ClientTypeAllRootLB || clientType == ClientTypeAllExceptSharedRootLB {
+		rootlbClients, err = v.GetRootLBClients(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("Unable to get dedicated rootlb Clients - %v", err)
+		}
 	}
-	// GetRootLBClients gets only the dedicated rootlbs.  We need the shared one also
-	sharedClient, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName})
-	if err != nil {
-		return nil, fmt.Errorf("Unable to get shared rootlb Client - %v", err)
+	if clientType == ClientTypeAllRootLB || clientType == ClientTypeOnlySharedRootLB {
+		// GetRootLBClients gets only the dedicated rootlbs.  We need the shared one also
+		sharedClient, err := v.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: v.VMProperties.SharedRootLBName})
+		if err != nil {
+			return nil, fmt.Errorf("Unable to get shared rootlb Client - %v", err)
+		}
+		rootlbClients[v.VMProperties.SharedRootLBName] = sharedClient
 	}
-	rootlbClients[v.VMProperties.SharedRootLBName] = sharedClient
 	return rootlbClients, nil
 }
 

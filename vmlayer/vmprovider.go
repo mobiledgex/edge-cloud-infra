@@ -414,6 +414,18 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "got flavor list", "flavorList", v.FlavorList)
 
+	// Configure security rules for all RootLBs except shared RootLB as it is yet to be created
+	// This is required for Openstack as this function will create cloudlet security group
+	if err := v.ConfigureCloudletSecurityRules(ctx, ActionCreate, ClientTypeAllExceptSharedRootLB); err != nil {
+		if v.VMProperties.IptablesBasedFirewall {
+			// iptables based security rules can fail on one clusterInst LB, but we cannot treat
+			// this as a fatal error or it can cause the CRM to never initialize
+			log.SpanLog(ctx, log.DebugLevelInfra, "Warning: error in ConfigureCloudletSecurityRules", "err", err)
+		} else {
+			return err
+		}
+	}
+
 	tags := GetChefRootLBTags(platformConfig)
 	err = v.CreateRootLB(ctx, v.VMProperties.SharedRootLBName, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionCreate, tags, updateCallback)
 	if err != nil {
@@ -468,7 +480,9 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "ok, SetupRootLB")
 
-	if err := v.ConfigureCloudletSecurityRules(ctx, ActionCreate); err != nil {
+	// Configure security rules for only shared RootLBs, as RootLB is now created and setup
+	// This is required for VCD to configure IPTable rules
+	if err := v.ConfigureCloudletSecurityRules(ctx, ActionCreate, ClientTypeOnlySharedRootLB); err != nil {
 		if v.VMProperties.IptablesBasedFirewall {
 			// iptables based security rules can fail on one clusterInst LB, but we cannot treat
 			// this as a fatal error or it can cause the CRM to never initialize

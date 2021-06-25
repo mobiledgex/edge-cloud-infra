@@ -8,7 +8,15 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-func (v *VMPlatform) ConfigureCloudletSecurityRules(ctx context.Context, action ActionType) error {
+type ClientType int
+
+const (
+	ClientTypeAllRootLB ClientType = iota
+	ClientTypeAllExceptSharedRootLB
+	ClientTypeOnlySharedRootLB
+)
+
+func (v *VMPlatform) ConfigureCloudletSecurityRules(ctx context.Context, action ActionType, clientType ClientType) error {
 	// update security groups based on a configured privacy policy or none
 	privPolName := v.VMProperties.CommonPf.PlatformConfig.TrustPolicy
 	var privPol *edgeproto.TrustPolicy
@@ -24,7 +32,7 @@ func (v *VMPlatform) ConfigureCloudletSecurityRules(ctx context.Context, action 
 		// use an empty policy
 		privPol = &edgeproto.TrustPolicy{}
 	}
-	rootlbClients, err := v.GetAllRootLBClients(ctx)
+	rootlbClients, err := v.GetAllRootLBClients(ctx, clientType)
 	if err != nil {
 		return fmt.Errorf("Unable to get rootlb clients - %v", err)
 	}

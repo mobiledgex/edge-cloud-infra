@@ -1,0 +1,116 @@
+- search:
+    match:
+      names:
+      - ClusterAutoScale ClusterInst
+    timerange:
+      starttime: 2021-06-24T13:03:31.924124-07:00
+    limit: 10
+  results:
+  - name: ClusterAutoScale ClusterInst
+    org:
+    - AcmeAppCo
+    type: event
+    region: local
+    timestamp: 2021-06-24T13:04:11.564558-07:00
+    mtags:
+      cloudlet: tmus-cloud-1
+      cloudletorg: tmus
+      cluster: SmallCluster
+      clusterorg: AcmeAppCo
+      duration: 71.927016ms
+      hostname: Jon-Mex.lan
+      lineno: autoprov/autoscale.go:87
+      new nodecount: "1"
+      reason: stabilized total active connections 50.000000, target 100 per node
+      spanid: 2b6fe29d7b7dcffb
+      traceid: 6dd7ada5b13cf39f
+  - name: ClusterAutoScale ClusterInst
+    org:
+    - AcmeAppCo
+    type: event
+    region: local
+    timestamp: 2021-06-24T13:04:10.526085-07:00
+    mtags:
+      cloudlet: tmus-cloud-1
+      cloudletorg: tmus
+      cluster: SmallCluster
+      clusterorg: AcmeAppCo
+      duration: 64.258304ms
+      hostname: Jon-Mex.lan
+      lineno: autoprov/autoscale.go:87
+      new nodecount: "2"
+      reason: stabilized total active connections 175.000000, target 100 per node
+      spanid: 5098eb58be723dc4
+      traceid: 5ae416364589fc8e
+  - name: ClusterAutoScale ClusterInst
+    org:
+    - AcmeAppCo
+    type: event
+    region: local
+    timestamp: 2021-06-24T13:04:07.400165-07:00
+    mtags:
+      cloudlet: tmus-cloud-1
+      cloudletorg: tmus
+      cluster: SmallCluster
+      clusterorg: AcmeAppCo
+      duration: 92.148541ms
+      hostname: Jon-Mex.lan
+      lineno: autoprov/autoscale.go:87
+      new nodecount: "3"
+      reason: stabilized total active connections 300.000000, target 100 per node
+      spanid: ea64fb79a5c5c3a
+      traceid: 43cc0b8529656e48
+  - name: ClusterAutoScale ClusterInst
+    org:
+    - AcmeAppCo
+    type: event
+    region: local
+    timestamp: 2021-06-24T13:04:02.168683-07:00
+    mtags:
+      cloudlet: tmus-cloud-1
+      cloudletorg: tmus
+      cluster: SmallCluster
+      clusterorg: AcmeAppCo
+      duration: 104.320017ms
+      hostname: Jon-Mex.lan
+      lineno: autoprov/autoscale.go:87
+      new nodecount: "4"
+      reason: stabilized total active connections 400.000000, target 100 per node
+      spanid: 48a4d68de8b85a72
+      traceid: 18e4d476e8dc0aa4
+  - name: ClusterAutoScale ClusterInst
+    org:
+    - AcmeAppCo
+    type: event
+    region: local
+    timestamp: 2021-06-24T13:04:01.107253-07:00
+    mtags:
+      cloudlet: tmus-cloud-1
+      cloudletorg: tmus
+      cluster: SmallCluster
+      clusterorg: AcmeAppCo
+      duration: 78.937732ms
+      hostname: Jon-Mex.lan
+      lineno: autoprov/autoscale.go:87
+      new nodecount: "3"
+      reason: stabilized total active connections 300.000000, target 100 per node
+      spanid: 7c7a035f1e230407
+      traceid: 1cff457ac0b98315
+  - name: ClusterAutoScale ClusterInst
+    org:
+    - AcmeAppCo
+    type: event
+    region: local
+    timestamp: 2021-06-24T13:03:57.645256-07:00
+    mtags:
+      cloudlet: tmus-cloud-1
+      cloudletorg: tmus
+      cluster: SmallCluster
+      clusterorg: AcmeAppCo
+      duration: 81.33172ms
+      hostname: Jon-Mex.lan
+      lineno: autoprov/autoscale.go:87
+      new nodecount: "2"
+      reason: stabilized total active connections 125.000000, target 100 per node
+      spanid: 5cf9fdd06d22b4b0
+      traceid: 73def885458826c8

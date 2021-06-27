@@ -39,10 +39,12 @@ type AllDataOut struct {
 	RegionData []edgetestutil.AllDataOut
 }
 
-func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string, retry *bool) bool {
+func RunMcAPI(api, mcname, apiFile string, apiFileVars map[string]string, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string, retry *bool) bool {
 	mc := getMC(mcname)
 	uri := "https://" + mc.Addr + "/api/v1"
 	log.Printf("Using MC %s at %s", mc.Name, uri)
+
+	vars = util.AddVars(vars, apiFileVars)
 
 	var clientRun mctestclient.ClientRun
 	if hasMod("cli", mods) {

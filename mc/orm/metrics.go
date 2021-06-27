@@ -86,7 +86,7 @@ func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
 }
 
 func GetAppInstsGroupQuery(ctx context.Context, apps *ormapi.RegionAppInstMetrics, cloudletList []string) string {
-	timeDef := getTimeDefinition(apps, DefaultTimeWindow)
+	timeDef := getTimeDefinitionForAppInsts(apps)
 	selectorFunction := getFuncForSelector(apps.Selector, timeDef)
 	args := influxQueryArgs{
 		Selector:       getSelectorForMeasurement(apps.Selector, selectorFunction),

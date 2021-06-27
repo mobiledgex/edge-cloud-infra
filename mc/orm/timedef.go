@@ -1,25 +1,23 @@
 package orm
 
 import (
+	fmt "fmt"
 	"time"
-)
 
-type TimeDefinitionObj interface {
-	GetStartTime() time.Time
-	GetEndTime() time.Time
-	GetLast() int
-	SetStartTime(t time.Time)
-	SetEndTime(t time.Time)
-	SetLast(l int)
-}
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+)
 
 const (
-	DefaultTimeWindow = 15 * time.Second
+	// TODO: use actual settings value
+	DefaultAppInstTimeWindow     = 15 * time.Second
+	DefaultClientApiTimeWindow   = 30 * time.Second
+	DefaultClientUsageTimeWindow = 60 * time.Minute
 	// Max 100 data points on the graph
-	MaxTimeDefinition = 100
+	MaxNumSamples     = 100
+	FallbackTimeRange = 12 * time.Hour
 )
 
-func getTimeDefinition(obj TimeDefinitionObj, minTimeWindow time.Duration) string {
+func getTimeDefinition(obj *ormapi.MetricsCommon, minTimeWindow time.Duration) string {
 	duration := getTimeDefinitionDuration(obj, minTimeWindow)
 	if duration <= 0 {
 		return ""
@@ -27,36 +25,77 @@ func getTimeDefinition(obj TimeDefinitionObj, minTimeWindow time.Duration) strin
 	return duration.String()
 }
 
-func getTimeDefinitionDuration(obj TimeDefinitionObj, minTimeWindow time.Duration) time.Duration {
-	start := obj.GetStartTime()
-	end := obj.GetEndTime()
-	last := obj.GetLast()
+func getTimeDefinitionDuration(obj *ormapi.MetricsCommon, minTimeWindow time.Duration) time.Duration {
 	// In case we are requesting last n number of entries and don't provide time window
 	// we should skip the function and time-based grouping
-	if start.IsZero() && end.IsZero() && last != 0 {
+	if obj.Limit != 0 {
 		return 0
 	}
-	// set the max number of data points per grouping
-	if last == 0 {
-		obj.SetLast(MaxTimeDefinition)
-	}
-	if end.IsZero() {
-		end = time.Now().UTC()
-		obj.SetEndTime(end)
-	}
-	// Default time to last 12hrs
-	if start.IsZero() {
-		obj.SetStartTime(end.Add(-12 * time.Hour).UTC())
-	}
 	// If start time is past end time, cannot group by time
-	timeDiff := obj.GetEndTime().Sub(obj.GetStartTime())
+	timeDiff := obj.EndTime.Sub(obj.StartTime)
 	if timeDiff < 0 {
 		return 0
 	}
 	// Make sure we don't have any fractional seconds in here
-	timeWindow := time.Duration(timeDiff / time.Duration(obj.GetLast())).Truncate(time.Second)
+	timeWindow := time.Duration(timeDiff / time.Duration(obj.NumSamples)).Truncate(time.Second)
 	if timeWindow < minTimeWindow {
 		return minTimeWindow
 	}
 	return timeWindow
+}
+
+func validateMetricsCommon(obj *ormapi.MetricsCommon) error {
+	// return error if both Limit and NumSamples are set
+	if obj.Limit != 0 && obj.NumSamples != 0 {
+		return fmt.Errorf("Only one of Limit or NumSamples can be specified")
+	}
+
+	// populate one of Last or NumSamples if neither are set
+	if obj.Limit == 0 && obj.NumSamples == 0 {
+		if obj.StartTime.IsZero() && obj.EndTime.IsZero() {
+			// fallback to Limit if nothing is in MetricsCommon is set
+			obj.Limit = MaxNumSamples
+		} else {
+			// fallback to NumSamples/Time Definition if start and end times are set
+			obj.NumSamples = MaxNumSamples
+		}
+	}
+
+	// resolve and fill in time fields
+	if err := obj.Resolve(FallbackTimeRange); err != nil {
+		return err
+	}
+	return nil
+}
+
+// TODO: replace calls to this with getTimeDefinition when embed MetricsCommon in RegionAppInstMetrics
+func getTimeDefinitionForAppInsts(apps *ormapi.RegionAppInstMetrics) string {
+	// In case we are requesting last n number of entries and don't provide time window
+	// we should skip the function and time-based grouping
+	if apps.StartTime.IsZero() && apps.EndTime.IsZero() && apps.Last != 0 {
+		return ""
+	}
+	// set the max number of data points per grouping
+	if apps.Last == 0 {
+		apps.Last = MaxNumSamples
+	}
+	if apps.EndTime.IsZero() {
+		apps.EndTime = time.Now().UTC()
+	}
+	// Default time to last 12hrs
+	if apps.StartTime.IsZero() {
+		apps.StartTime = apps.EndTime.Add(-12 * time.Hour).UTC()
+	}
+
+	// If start time is past end time, cannot group by time
+	timeDiff := apps.EndTime.Sub(apps.StartTime)
+	if timeDiff < 0 {
+		return ""
+	}
+	// Make sure we don't have any fractional seconds in here
+	timeWindow := time.Duration(timeDiff / time.Duration(apps.Last)).Truncate(time.Second)
+	if timeWindow < DefaultAppInstTimeWindow {
+		return DefaultAppInstTimeWindow.String()
+	}
+	return timeWindow.String()
 }

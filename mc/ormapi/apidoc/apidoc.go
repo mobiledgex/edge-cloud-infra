@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"log"
 	"strings"
-	"text/template"
 )
 
 var apiFile = flag.String("apiFile", "", "package dir of api files to parse")
@@ -61,39 +60,6 @@ func main() {
 	// write output file
 	outFile := strings.TrimSuffix(*apiFile, ".go")
 	outFile += ".comments.go"
-	err = ioutil.WriteFile(outFile, out, 0644)
-	if err != nil {
-		log.Fatalf("Failed to write output file %s: %v", outFile, err)
-	}
-
-	// generate TimeDefinitionObj methods
-	buf = &bytes.Buffer{}
-	fmt.Fprintf(buf, "package %s", allStructs.pkgName)
-	fmt.Fprintf(buf, "\nimport \"time\"")
-	fmt.Fprintf(buf, "\n// This is an auto-generated file. DO NOT EDIT directly.\n")
-	for _, apiSt := range allStructs.apiStructs {
-		if strings.Contains(apiSt.name, "Metrics") && !strings.Contains(apiSt.name, "All") {
-			tmpl, err := template.New("timedefobj").Parse(timeDefObjMethodsTmpl)
-			if err != nil {
-				log.Fatalf("Failed to create new template for timedefinitionobj methods for api: %v - error is %s", apiSt.name, err.Error())
-			}
-			args := timeObjMethodsTmplArgs{
-				ApiName: apiSt.name,
-			}
-			err = tmpl.Execute(buf, &args)
-			if err != nil {
-				log.Fatalf("Failed to generate timedefinitionobj methods for api: %v - error is %s", apiSt.name, err.Error())
-			}
-		}
-	}
-	// format the generated code
-	out, err = format.Source(buf.Bytes())
-	if err != nil {
-		log.Fatalf("Failed to format generated code: %v\n%s", err, buf.String())
-	}
-	// write output file
-	outFile = strings.TrimSuffix(*apiFile, ".go")
-	outFile += ".timedef.go"
 	err = ioutil.WriteFile(outFile, out, 0644)
 	if err != nil {
 		log.Fatalf("Failed to write output file %s: %v", outFile, err)
@@ -250,33 +216,3 @@ func (s *ApiStruct) genComments(all *AllStructs, parents []string, comments *[]F
 		*comments = append(*comments, comment)
 	}
 }
-
-type timeObjMethodsTmplArgs struct {
-	ApiName string
-}
-
-var timeDefObjMethodsTmpl = `
-func (obj *{{.ApiName}}) GetStartTime() time.Time {
-	return obj.StartTime
-}
-
-func (obj *{{.ApiName}}) GetEndTime() time.Time {
-	return obj.EndTime
-}
-
-func (obj *{{.ApiName}}) GetLast() int {
-	return obj.Last
-}
-
-func (obj *{{.ApiName}}) SetStartTime(t time.Time) {
-	obj.StartTime = t
-}
-
-func (obj *{{.ApiName}}) SetEndTime(t time.Time) {
-	obj.EndTime = t
-}
-			
-func (obj *{{.ApiName}}) SetLast(l int) {
-	obj.Last = l
-}
-`

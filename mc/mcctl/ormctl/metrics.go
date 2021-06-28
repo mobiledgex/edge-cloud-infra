@@ -104,7 +104,6 @@ var AppMetricOptionalArgs = []string{
 	"cloudlet",
 	"cloudlet-org",
 	"last",
-	"numsamples",
 	"starttime",
 	"endtime",
 }

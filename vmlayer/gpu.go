@@ -263,10 +263,9 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 	// Install GPU driver, setup license and verify it
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("%s: Installing GPU driver %s (%s)", nodeName, driver.Key.Name, reqdBuild.Name))
 	cmd := fmt.Sprintf(
-		"sudo bash /etc/mobiledgex/install-gpu-driver.sh -n %s -d %s -t %s",
+		"sudo bash /etc/mobiledgex/install-gpu-driver.sh -n %s -d %s",
 		driver.Key.Name,
 		outPkgPath,
-		edgeproto.GPUType_CamelName[int32(v.GPUConfig.GpuType)],
 	)
 	if licenseConfigPath != "" {
 		cmd += " -l " + outLicPath

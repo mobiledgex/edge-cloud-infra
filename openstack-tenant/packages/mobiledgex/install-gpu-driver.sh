@@ -8,7 +8,6 @@ USAGE="usage: $( basename $0 ) <options>
  -n <driver-name>		GPU driver name
  -d <driver-path>		GPU driver path
  -l <license-config-path>	GPU driver license config path
- -t <driver-type>		GPU driver type
 
  -h				Display this help message
 "
@@ -18,7 +17,6 @@ while getopts ":hn:d:l:t:" OPT; do
         n) DRIVERNAME="$OPTARG" ;;
         d) DRIVERPATH="$OPTARG" ;;
         l) LICENSECFGPATH="$OPTARG" ;;
-        t) DRIVERTYPE="$OPTARG" ;;
         esac
 done
 shift $(( OPTIND - 1 ))
@@ -33,11 +31,6 @@ TypeVGPU="GpuTypeVgpu"
 
 [[ -z $DRIVERNAME ]] && die "Missing GPU driver name"
 [[ -z $DRIVERPATH ]] && die "Missing GPU driver path"
-[[ -z $DRIVERTYPE ]] && die "Missing GPU driver type"
-
-if [[ "$DRIVERTYPE" != $TypePassthrough ]] && [[ "$DRIVERTYPE" != $TypeVGPU ]]; then
-	die "Invalid GPU driver type, valid types are '$TypePassthrough', '$TypeVGPU'"
-fi
 
 if [[ ! -f $DRIVERPATH ]]; then
 	die "GPU driver package file '$DRIVERPATH' does not exist"

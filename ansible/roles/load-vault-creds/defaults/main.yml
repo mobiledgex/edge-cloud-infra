@@ -8,7 +8,6 @@ gcp_account_path: secret/ansible/common/accounts/gcp
 harbot_account_path: secret/ansible/common/accounts/harbor
 locapi_account_path: secret/ansible/common/accounts/locapi
 mc_ldap_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc_ldap"
-mex_docker_account_path: secret/ansible/common/accounts/mex_docker
 ns1_account_path: secret/ansible/common/accounts/ns1
 sendgrid_account_path: secret/ansible/common/accounts/sendgrid
 slack_org_mgmt_path: secret/ansible/internal/accounts/slack_org_mgmt

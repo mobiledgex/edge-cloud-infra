@@ -197,6 +197,8 @@ var ClientApiUsageMetricOptionalArgs = []string{
 	"numsamples",
 	"starttime",
 	"endtime",
+	"startage",
+	"endage",
 }
 
 var ClientApiUsageMetricAliasArgs = []string{
@@ -236,6 +238,8 @@ var ClientAppUsageMetricOptionalArgs = []string{
 	"numsamples",
 	"starttime",
 	"endtime",
+	"startage",
+	"endage",
 }
 
 var ClientAppUsageMetricAliasArgs = []string{
@@ -264,6 +268,8 @@ var ClientCloudletUsageMetricOptionalArgs = []string{
 	"numsamples",
 	"starttime",
 	"endtime",
+	"startage",
+	"endage",
 }
 
 var ClientCloudletUsageMetricAliasArgs = []string{
@@ -284,6 +290,8 @@ var MetricCommentsCommon = map[string]string{
 	"numsamples":   "Display X samples spaced out evenly over start and end times",
 	"starttime":    "Time to start displaying stats from in RFC3339 format (ex. 2002-12-31T15:00:00Z)",
 	"endtime":      "Time up to which to display stats in RFC3339 format (ex. 2002-12-31T10:00:00-05:00)",
+	"startage":     "Relative age from now of search range start (default 48h)",
+	"endage":       "Relative age from now of search range end (default 0)",
 }
 
 var MetricsCommonAliasArgs = []string{

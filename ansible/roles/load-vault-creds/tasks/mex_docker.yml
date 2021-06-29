@@ -1,7 +1,9 @@
 - name: Look up mex_docker creds in vault
   set_fact:
     vault_lookup: "{{ lookup('vault', mex_docker_account_path) }}"
+  vars:
+    mex_docker_account_path: "secret/registry/{{ mex_docker_registry }}"
 
 - set_fact:
-    mex_docker_username: "{{ vault_lookup.mex_docker.data.user }}"
-    mex_docker_password: "{{ vault_lookup.mex_docker.data.pass }}"
+    mex_docker_username: "{{ vault_lookup[mex_docker_registry].data.username }}"
+    mex_docker_password: "{{ vault_lookup[mex_docker_registry].data.password }}"

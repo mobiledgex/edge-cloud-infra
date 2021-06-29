@@ -81,7 +81,10 @@
 
     - name: Check if edge-cloud Image is Available
       uri:
-        url: "https://{{ mex_docker_username }}:{{ mex_docker_password }}@{{ mex_docker_registry }}/v2/mobiledgex/edge-cloud/tags/list"
+        url: "https://{{ mex_docker_registry }}/v2/mobiledgex/edge-cloud/tags/list"
+        url_username: "{{ mex_docker_username }}"
+        url_password: "{{ mex_docker_password }}"
+        force_basic_auth: yes
         return_content: yes
         status_code: 200
         body_format: json

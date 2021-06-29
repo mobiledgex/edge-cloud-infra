@@ -22,6 +22,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/setup-env/util"
 	edgetestutil "github.com/mobiledgex/edge-cloud/testutil"
+	uutil "github.com/mobiledgex/edge-cloud/util"
 	"github.com/pquerna/otp/totp"
 )
 
@@ -44,7 +45,7 @@ func RunMcAPI(api, mcname, apiFile string, apiFileVars map[string]string, curUse
 	uri := "https://" + mc.Addr + "/api/v1"
 	log.Printf("Using MC %s at %s", mc.Name, uri)
 
-	vars = util.AddVars(vars, apiFileVars)
+	vars = uutil.AddMaps(vars, apiFileVars)
 
 	var clientRun mctestclient.ClientRun
 	if hasMod("cli", mods) {

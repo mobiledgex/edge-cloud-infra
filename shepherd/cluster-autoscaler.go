@@ -40,6 +40,8 @@ func (s *ClusterAutoScaler) updateClusterStats(ctx context.Context, key edgeprot
 		needsWork = true
 	}
 	s.mux.Unlock()
+	// Note scaleInProgress is needed to ensure alert is removed
+	// after scaling is done, in case stats remain constant.
 	if needsWork || s.scaleInProgress {
 		clusterAutoScalerWorkers.NeedsWork(ctx, key)
 	}

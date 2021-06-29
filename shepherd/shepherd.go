@@ -265,7 +265,7 @@ func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Setti
 		}
 	}
 	if old.ClusterAutoScaleAveragingDurationSec != new.ClusterAutoScaleAveragingDurationSec {
-		err := writeCloudletPrometheusMainRules(ctx, new)
+		err := writeCloudletPrometheusBaseRules(ctx, new)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelNotify, "Failed to write cloudlet prometheus main rules", "err", err)
 		}

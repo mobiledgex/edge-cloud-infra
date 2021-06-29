@@ -87,8 +87,8 @@ func CloudletPrometheusScraper(done chan bool) {
 			}
 			// key is nil, since we just check against the predefined set of rules
 			UpdateAlerts(actx, alerts, nil, pruneCloudletForeignAlerts)
-			// query any cluster-based stats
-			getCloudletStats(actx, CloudletPrometheusAddr, client)
+			// query stats
+			getCloudletPrometheusStats(actx, CloudletPrometheusAddr, client)
 			aspan.Finish()
 		case <-done:
 			// process killed/interrupted, so quit
@@ -97,7 +97,7 @@ func CloudletPrometheusScraper(done chan bool) {
 	}
 }
 
-func getCloudletStats(ctx context.Context, addr string, client ssh.Client) {
+func getCloudletPrometheusStats(ctx context.Context, addr string, client ssh.Client) {
 	autoScalers := make(map[edgeproto.ClusterInstKey]*ClusterAutoScaler)
 	workerMapMutex.Lock()
 	for _, worker := range workerMap {
@@ -113,7 +113,7 @@ func getCloudletStats(ctx context.Context, addr string, client ssh.Client) {
 		policy.Key.Organization = key.Organization
 		found := AutoScalePoliciesCache.Get(&policy.Key, &policy)
 		if !found {
-			log.SpanLog(ctx, log.DebugLevelMetrics, "cloudlet-worker getClusterStats policy not found", "policyKey", policy.Key)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "cloudlet-worker autoscale policy not found", "policyKey", policy.Key)
 			continue
 		}
 		tags := make([]string, 0)

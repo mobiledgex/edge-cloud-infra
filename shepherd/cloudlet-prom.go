@@ -247,13 +247,13 @@ func getPrometheusFileName(name string) string {
 	return "/tmp/" + intprocess.PrometheusRulesPrefix + name + ".yml"
 }
 
-func writeCloudletPrometheusMainRules(ctx context.Context, settings *edgeproto.Settings) error {
-	healthCeckFile := getPrometheusFileName(HealthCheckRulesPrefix)
+func writeCloudletPrometheusBaseRules(ctx context.Context, settings *edgeproto.Settings) error {
+	healthCheckFile := getPrometheusFileName(HealthCheckRulesPrefix)
 	rules := fmt.Sprintf(promHealthCheckAlerts, settings.ClusterAutoScaleAveragingDurationSec)
-	err := writeCloudletPrometheusAlerts(ctx, healthCeckFile, []byte(rules))
+	err := writeCloudletPrometheusAlerts(ctx, healthCheckFile, []byte(rules))
 	if err != nil {
 		return fmt.Errorf("Failed to write prometheus rules to %s, err: %s",
-			healthCeckFile, err.Error())
+			healthCheckFile, err.Error())
 	}
 	return nil
 }
@@ -261,7 +261,7 @@ func writeCloudletPrometheusMainRules(ctx context.Context, settings *edgeproto.S
 // Starts Cloudlet Prometheus MetricsProxy thread to serve as a target for metrics
 func startPrometheusMetricsProxy(ctx context.Context) error {
 	// Init prometheus targets and alert templates
-	err := writeCloudletPrometheusMainRules(ctx, &settings)
+	err := writeCloudletPrometheusBaseRules(ctx, &settings)
 	if err != nil {
 		return err
 	}

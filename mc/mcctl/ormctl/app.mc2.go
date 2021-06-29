@@ -140,6 +140,36 @@ var RemoveAppAutoProvPolicyCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
+var AddAppUserDefinedAlertCmd = &ApiCommand{
+	Name:         "AddAppUserDefinedAlert",
+	Use:          "adduserdefinedalert",
+	Short:        "Add an UserAlert to the App",
+	RequiredArgs: "region " + strings.Join(AppUserDefinedAlertRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppUserDefinedAlertOptionalArgs, " "),
+	AliasArgs:    strings.Join(AppUserDefinedAlertAliasArgs, " "),
+	SpecialArgs:  &AppUserDefinedAlertSpecialArgs,
+	Comments:     addRegionComment(AppUserDefinedAlertComments),
+	ReqData:      &ormapi.RegionAppUserDefinedAlert{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/AddAppUserDefinedAlert",
+	ProtobufApi:  true,
+}
+
+var RemoveAppUserDefinedAlertCmd = &ApiCommand{
+	Name:         "RemoveAppUserDefinedAlert",
+	Use:          "removeuserdefinedalert",
+	Short:        "Remove an UserAlert from the App",
+	RequiredArgs: "region " + strings.Join(AppUserDefinedAlertRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppUserDefinedAlertOptionalArgs, " "),
+	AliasArgs:    strings.Join(AppUserDefinedAlertAliasArgs, " "),
+	SpecialArgs:  &AppUserDefinedAlertSpecialArgs,
+	Comments:     addRegionComment(AppUserDefinedAlertComments),
+	ReqData:      &ormapi.RegionAppUserDefinedAlert{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/RemoveAppUserDefinedAlert",
+	ProtobufApi:  true,
+}
+
 var AppApiCmds = []*ApiCommand{
 	CreateAppCmd,
 	DeleteAppCmd,
@@ -147,6 +177,8 @@ var AppApiCmds = []*ApiCommand{
 	ShowAppCmd,
 	AddAppAutoProvPolicyCmd,
 	RemoveAppAutoProvPolicyCmd,
+	AddAppUserDefinedAlertCmd,
+	RemoveAppUserDefinedAlertCmd,
 }
 
 const AppGroup = "App"
@@ -192,6 +224,7 @@ var AppOptionalArgs = []string{
 	"serverlessconfig.ram",
 	"serverlessconfig.minreplicas",
 	"vmappostype",
+	"userdefinedalerts",
 }
 var AppAliasArgs = []string{
 	"fields=app.fields",
@@ -236,6 +269,7 @@ var AppAliasArgs = []string{
 	"serverlessconfig.ram=app.serverlessconfig.ram",
 	"serverlessconfig.minreplicas=app.serverlessconfig.minreplicas",
 	"vmappostype=app.vmappostype",
+	"userdefinedalerts=app.userdefinedalerts",
 }
 var AppComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -276,10 +310,12 @@ var AppComments = map[string]string{
 	"serverlessconfig.ram":                   "RAM allocation in megabytes per container when serverless",
 	"serverlessconfig.minreplicas":           "Minimum number of replicas when serverless",
 	"vmappostype":                            "OS Type for VM Apps, one of VmAppOsUnknown, VmAppOsLinux, VmAppOsWindows10, VmAppOsWindows2012, VmAppOsWindows2016, VmAppOsWindows2019",
+	"userdefinedalerts":                      "User Defined Alerts",
 }
 var AppSpecialArgs = map[string]string{
-	"app.autoprovpolicies": "StringArray",
-	"app.fields":           "StringArray",
+	"app.autoprovpolicies":  "StringArray",
+	"app.fields":            "StringArray",
+	"app.userdefinedalerts": "StringArray",
 }
 var AppAutoProvPolicyRequiredArgs = []string{
 	"app-org",
@@ -301,3 +337,23 @@ var AppAutoProvPolicyComments = map[string]string{
 	"autoprovpolicy": "Auto provisioning policy name",
 }
 var AppAutoProvPolicySpecialArgs = map[string]string{}
+var AppUserDefinedAlertRequiredArgs = []string{
+	"app-org",
+	"appname",
+	"appvers",
+	"userdefinedalert",
+}
+var AppUserDefinedAlertOptionalArgs = []string{}
+var AppUserDefinedAlertAliasArgs = []string{
+	"app-org=appuserdefinedalert.appkey.organization",
+	"appname=appuserdefinedalert.appkey.name",
+	"appvers=appuserdefinedalert.appkey.version",
+	"userdefinedalert=appuserdefinedalert.userdefinedalert",
+}
+var AppUserDefinedAlertComments = map[string]string{
+	"app-org":          "App developer organization",
+	"appname":          "App name",
+	"appvers":          "App version",
+	"userdefinedalert": "Alert name",
+}
+var AppUserDefinedAlertSpecialArgs = map[string]string{}

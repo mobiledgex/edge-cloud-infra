@@ -2,7 +2,6 @@ package common
 
 import (
 	"context"
-	"io/ioutil"
 	"testing"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -10,6 +9,45 @@ import (
 	"github.com/mobiledgex/edge-cloud/testutil"
 	"github.com/stretchr/testify/require"
 )
+
+var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
+- name: userDefinedAlerts
+  groups:
+  - name: useralerts.rules
+    rules:
+    - alert: testAlert1
+      expr: max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(rate(container_cpu_usage_seconds_total{image!=""}[1m]))by(pod)) > 80 and max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(container_memory_working_set_bytes{image!=""})by(pod)) > 123456 and max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(container_fs_usage_bytes{image!=""})by(pod)) > 123456
+      for: 30s
+      labels:
+        severity: ALERT_SEVERITY_WARNING
+        app: Pokemon Go!
+        apporg: NianticInc
+        appver: 1.0.0
+        cloudlet: San Jose Site
+        cloudletorg: AT&T Inc.
+        cluster: Pokemons
+        clusterorg: NianticInc
+        scope: Application
+      annotations:
+    - alert: testAlert3
+      expr: max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(rate(container_cpu_usage_seconds_total{image!=""}[1m]))by(pod)) > 100
+      for: 30s
+      labels:
+        severity: ALERT_SEVERITY_ERROR
+        app: Pokemon Go!
+        apporg: Ever.ai
+        appver: 1.0.0
+        cloudlet: San Jose Site
+        cloudletorg: AT&T Inc.
+        cluster: Pokemons
+        clusterorg: NianticInc
+        scope: Application
+        testLabel1: testValue1
+        testLabel2: testValue2
+      annotations:
+        testAnnotation1: description1
+        testAnnotation2: description2
+`
 
 // TestAutoScaleT primarily checks that AutoScale template parsing works, because
 // otherwise cluster-svc could crash during runtime if template has an issue.
@@ -30,6 +68,8 @@ func TestAutoScaleT(t *testing.T) {
 	policy.TriggerTimeSec = 60
 
 	clusterInst.AutoScalePolicy = policy.Key.Name
+
+	userAlerts := testutil.UserAlertData
 
 	configExpected := `additionalPrometheusRules:
 - name: autoscalepolicy
@@ -69,7 +109,7 @@ func TestAutoScaleT(t *testing.T) {
         nodecount: '{{ with query "node_count" }}{{ . | first | value | humanize }}{{ end }}'
         minnodes: '1'
 `
-	testAutoScaleT(t, ctx, &clusterInst, &policy, configExpected)
+	testClusterRulesT(t, ctx, &clusterInst, &policy, userAlerts, configExpected, TestClusterUserDefAlertsRules)
 
 	policy.MinNodes = 5
 	policy.MaxNodes = 7
@@ -114,17 +154,16 @@ func TestAutoScaleT(t *testing.T) {
         nodecount: '{{ with query "node_count" }}{{ . | first | value | humanize }}{{ end }}'
         minnodes: '5'
 `
-	testAutoScaleT(t, ctx, &clusterInst, &policy, configExpected)
+	testClusterRulesT(t, ctx, &clusterInst, &policy, userAlerts, configExpected, TestClusterUserDefAlertsRules)
 }
 
-func testAutoScaleT(t *testing.T, ctx context.Context, clusterInst *edgeproto.ClusterInst, policy *edgeproto.AutoScalePolicy, expected string) {
+func testClusterRulesT(t *testing.T, ctx context.Context, clusterInst *edgeproto.ClusterInst, policy *edgeproto.AutoScalePolicy, alerts []edgeproto.UserAlert, expectedAutoProvRules string, expectedUserAlertsRules string) {
 	clusterSvc := ClusterSvc{}
-	appInst := edgeproto.AppInst{}
+	appInst := testutil.AppInstData[0]
 
-	configs, err := clusterSvc.GetAppInstConfigs(ctx, clusterInst, &appInst, policy)
+	configs, err := clusterSvc.GetAppInstConfigs(ctx, clusterInst, &appInst, policy, alerts)
 	require.Nil(t, err)
-	require.Equal(t, 1, len(configs))
-	ioutil.WriteFile("foo", []byte(configs[0].Config), 0644)
-
-	require.Equal(t, expected, configs[0].Config)
+	require.Equal(t, 2, len(configs))
+	require.Equal(t, expectedAutoProvRules, configs[0].Config)
+	require.Equal(t, expectedUserAlertsRules, configs[1].Config)
 }

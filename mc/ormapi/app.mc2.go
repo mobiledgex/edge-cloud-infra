@@ -76,3 +76,24 @@ type swaggerRemoveAppAutoProvPolicy struct {
 	// in: body
 	Body RegionAppAutoProvPolicy
 }
+
+// Request summary for AddAppUserDefinedAlert
+// swagger:parameters AddAppUserDefinedAlert
+type swaggerAddAppUserDefinedAlert struct {
+	// in: body
+	Body RegionAppUserDefinedAlert
+}
+
+type RegionAppUserDefinedAlert struct {
+	// required: true
+	// Region name
+	Region              string
+	AppUserDefinedAlert edgeproto.AppUserDefinedAlert
+}
+
+// Request summary for RemoveAppUserDefinedAlert
+// swagger:parameters RemoveAppUserDefinedAlert
+type swaggerRemoveAppUserDefinedAlert struct {
+	// in: body
+	Body RegionAppUserDefinedAlert
+}

@@ -2,13 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/promutils"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -20,7 +21,7 @@ var (
 	testMetricSent = 0
 
 	testPayloadData = map[string]string{
-		promQCpuClust: `{
+		url.QueryEscape(promutils.PromQCpuClust): `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -35,7 +36,7 @@ var (
 		  ]
 		}
 	  }`,
-		promQMemClust: `{
+		url.QueryEscape(promutils.PromQMemClust): `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -50,7 +51,7 @@ var (
 		  ]
 		}
 	  }`,
-		promQDiskClust: `{
+		url.QueryEscape(promutils.PromQDiskClust): `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -65,7 +66,7 @@ var (
 		  ]
 		}
 	  }`,
-		promQSentBytesRateClust: `{
+		url.QueryEscape(promutils.PromQSentBytesRateClust): `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -80,7 +81,7 @@ var (
 		  ]
 		}
 	  }`,
-		promQRecvBytesRateClust: `{
+		url.QueryEscape(promutils.PromQRecvBytesRateClust): `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -191,7 +192,8 @@ var (
 )
 
 func initAppInstTestData() {
-	q := fmt.Sprintf(promQAppDetailWrapperFmt, promQCpuPod)
+	q := promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQCpuPod)
+	q = url.QueryEscape(q)
 	testPayloadData[q] = `{
 		"status": "success",
 		"data": {
@@ -211,7 +213,8 @@ func initAppInstTestData() {
 			]
 		  }
 		  }`
-	q = fmt.Sprintf(promQAppDetailWrapperFmt, promQMemPod)
+	q = promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQMemPod)
+	q = url.QueryEscape(q)
 	testPayloadData[q] = `{
 		"status": "success",
 		"data": {
@@ -231,7 +234,8 @@ func initAppInstTestData() {
   		]
 		}
 		}`
-	q = fmt.Sprintf(promQAppDetailWrapperFmt, promQDiskPod)
+	q = promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQDiskPod)
+	q = url.QueryEscape(q)
 	testPayloadData[q] = `{
 		"status": "success",
 		"data": {
@@ -251,7 +255,8 @@ func initAppInstTestData() {
 		]
 		}
 		}`
-	q = fmt.Sprintf(promQAppDetailWrapperFmt, promQNetSentRate)
+	q = promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQNetSentRate)
+	q = url.QueryEscape(q)
 	testPayloadData[q] = `{
 		"status": "success",
 		"data": {
@@ -271,7 +276,8 @@ func initAppInstTestData() {
   		]
 		}
 		}`
-	q = fmt.Sprintf(promQAppDetailWrapperFmt, promQNetRecvRate)
+	q = promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQNetRecvRate)
+	q = url.QueryEscape(q)
 	testPayloadData[q] = `{
 		"status": "success",
 		"data": {

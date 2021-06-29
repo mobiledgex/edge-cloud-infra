@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/mobiledgex/edge-cloud-infra/alerts"
 	"github.com/mobiledgex/edge-cloud-infra/autoprov/autorules"
 	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -11,7 +12,7 @@ import (
 
 type ClusterSvc struct{}
 
-func (s *ClusterSvc) GetAppInstConfigs(ctx context.Context, clusterInst *edgeproto.ClusterInst, appInst *edgeproto.AppInst, policy *edgeproto.AutoScalePolicy) ([]*edgeproto.ConfigFile, error) {
+func (s *ClusterSvc) GetAppInstConfigs(ctx context.Context, clusterInst *edgeproto.ClusterInst, appInst *edgeproto.AppInst, policy *edgeproto.AutoScalePolicy, userAlerts []edgeproto.UserAlert) ([]*edgeproto.ConfigFile, error) {
 	if policy == nil {
 		return nil, fmt.Errorf("no auto-scale policy specified for GetAppInstConfigs")
 	}
@@ -23,7 +24,15 @@ func (s *ClusterSvc) GetAppInstConfigs(ctx context.Context, clusterInst *edgepro
 		Kind:   edgeproto.AppConfigHelmYaml,
 		Config: file,
 	}
-	configs := []*edgeproto.ConfigFile{policyConfig}
+	file, err = alerts.GetAlertsRules(ctx, appInst, userAlerts)
+	if err != nil {
+		return nil, err
+	}
+	alertsConfig := &edgeproto.ConfigFile{
+		Kind:   edgeproto.AppConfigHelmYaml,
+		Config: file,
+	}
+	configs := []*edgeproto.ConfigFile{policyConfig, alertsConfig}
 	return configs, nil
 }
 

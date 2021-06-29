@@ -143,7 +143,7 @@ var RemoveAppAutoProvPolicyCmd = &ApiCommand{
 var ShowCloudletsForAppDeploymentCmd = &ApiCommand{
 	Name:                 "ShowCloudletsForAppDeployment",
 	Use:                  "showcloudletsfordeployment",
-	Short:                "Show cloudlets that can support Apps Default Flavor",
+	Short:                "Discover cloudlets supporting depoloyments of App.DefaultFlavor",
 	RequiredArgs:         "region",
 	OptionalArgs:         strings.Join(append(DeploymentCloudletRequestRequiredArgs, DeploymentCloudletRequestOptionalArgs...), " "),
 	AliasArgs:            strings.Join(DeploymentCloudletRequestAliasArgs, " "),
@@ -358,6 +358,7 @@ var DeploymentCloudletRequestOptionalArgs = []string{
 	"app.serverlessconfig.minreplicas",
 	"app.vmappostype",
 	"dryrundeploy",
+	"vmapptest",
 }
 var DeploymentCloudletRequestAliasArgs = []string{
 	"app.fields=deploymentcloudletrequest.app.fields",
@@ -403,6 +404,7 @@ var DeploymentCloudletRequestAliasArgs = []string{
 	"app.serverlessconfig.minreplicas=deploymentcloudletrequest.app.serverlessconfig.minreplicas",
 	"app.vmappostype=deploymentcloudletrequest.app.vmappostype",
 	"dryrundeploy=deploymentcloudletrequest.dryrundeploy",
+	"vmapptest=deploymentcloudletrequest.vmapptest",
 }
 var DeploymentCloudletRequestComments = map[string]string{
 	"app.fields":              "Fields are used for the Update API to specify which fields to apply",

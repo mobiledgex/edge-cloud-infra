@@ -496,7 +496,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
 	// swagger:route POST /auth/ctrl/ShowCloudletsForAppDeployment DeploymentCloudletRequest ShowCloudletsForAppDeployment
-	// Show cloudlets that can support Apps Default Flavor.
+	// Discover cloudlets supporting depoloyments of App.
+	// DefaultFlavor
 	// Security:
 	//   Bearer:
 	// responses:

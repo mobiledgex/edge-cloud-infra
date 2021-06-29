@@ -111,8 +111,7 @@ func (v *VMPlatform) setupGPUDrivers(ctx context.Context, rootLBClient ssh.Clien
 		return err
 	}
 	if gpuDriver == nil {
-		// GPU not supported on this cloudlet, just return
-		return nil
+		return fmt.Errorf("No GPU driver associated with cloudlet %s", clusterInst.Key.CloudletKey)
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Setting up GPU drivers on all cluster nodes")

@@ -13,7 +13,7 @@ spec:
         spec:
           containers:
           - name: backup
-            image: registry.mobiledgex.net:5000/mobiledgex/influxdb-backup:{{ influxdb_backup_version }}
+            image: {{ mex_docker_registry }}/mobiledgex/influxdb-backup:{{ influxdb_backup_version }}
             args:
             - /bin/sh
             - -c

@@ -1,3 +1,7 @@
+- name: Compute Docker Config
+  set_fact:
+    docker_config: '{"auths":{"{{ mex_docker_registry }}":{"username":"{{ mex_docker_username }}","password":"{{ mex_docker_password }}"}}}'
+
 - name: Deploy Mex Secrets
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"

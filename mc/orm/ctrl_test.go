@@ -291,6 +291,12 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 			Name:         org3,
 		},
 		EnvVar: map[string]string{"key1": "val1"},
+		ResTagMap: map[string]*edgeproto.ResTagTableKey{
+			"gpu": &edgeproto.ResTagTableKey{
+				Name:         org3 + "resTagTbl",
+				Organization: org3,
+			},
+		},
 		GpuConfig: edgeproto.GPUConfig{
 			Driver: edgeproto.GPUDriverKey{
 				Name:         "0gpudriver",

@@ -343,7 +343,6 @@ func newShowCloudletAuthz(ctx context.Context, region, username, resource, actio
 	return &authzCloudlet, nil
 }
 
-/*
 func newShowCloudletsForAppDeploymentAuthz(ctx context.Context, region, username string, resource, action string) (ShowCloudletsForAppDeploymentAuthz, error) {
 	authzCloudletKey := AuthzCloudletKey{} // ShowCloudletsForAppDeploymentAuthz{}
 	err := authzCloudletKey.populate(ctx, region, username, region, username, action)
@@ -352,7 +351,6 @@ func newShowCloudletsForAppDeploymentAuthz(ctx context.Context, region, username
 	}
 	return &authzCloudletKey, nil
 }
-*/
 
 func authzShowFlavorsForCloudlet(ctx context.Context, region, username string, obj *edgeproto.CloudletKey, resource, action string) error {
 	authzCloudlet := AuthzCloudlet{}

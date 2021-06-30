@@ -233,18 +233,29 @@ func (s *AuthzCloudletKey) Ok(key *edgeproto.CloudletKey) (bool, bool) {
 	cloudlet := edgeproto.Cloudlet{
 		Key: *key,
 	}
-	return s.authzCloudlet.Ok(&cloudlet)
+
+	fmt.Printf("\n\nAuthZloudletKey.OK-I-for clodulelet: %s\n", cloudlet.Key.Name)
+	ok, filter := s.authzCloudlet.Ok(&cloudlet)
+
+	fmt.Printf("\n\nAuthZloudletKey.OK-I-for clodulelet: %s arg1: %t arg2: %t \n\n", cloudlet.Key.Name, ok, filter)
+
+	return ok, filter // s.authzCloudlet.Ok(&cloudlet)
 }
 
 func (s *AuthzCloudletKey) Filter(key *edgeproto.CloudletKey) {
 	cloudlet := edgeproto.Cloudlet{
 		Key: *key,
 	}
+	fmt.Printf("\n\nFilter cloudlet: %s\n", key.Name)
 	s.authzCloudlet.Filter(&cloudlet)
 }
 
 func (s *AuthzCloudletKey) populate(ctx context.Context, region, username, orgfilter, resource, action string, authops ...authOp) error {
-	return s.authzCloudlet.populate(ctx, region, username, orgfilter, resource, action, authops...)
+	err := s.authzCloudlet.populate(ctx, region, username, orgfilter, resource, action, authops...)
+	if err != nil {
+		fmt.Printf("\n\nAuthzCloudletKey-E-populate returned err: %s\n", err.Error())
+	}
+	return err
 }
 
 func authzCreateCloudlet(ctx context.Context, region, username string, obj *edgeproto.Cloudlet, resource, action string) error {
@@ -345,6 +356,9 @@ func newShowCloudletAuthz(ctx context.Context, region, username, resource, actio
 
 func newShowCloudletsForAppDeploymentAuthz(ctx context.Context, region, username string, resource, action string) (ShowCloudletsForAppDeploymentAuthz, error) {
 	authzCloudletKey := AuthzCloudletKey{} // ShowCloudletsForAppDeploymentAuthz{}
+
+	fmt.Printf("\n\nnewShowCloudletsForAppDeploymentAuthz\n\n")
+
 	err := authzCloudletKey.populate(ctx, region, username, region, username, action)
 	if err != nil {
 		return nil, err

@@ -31,6 +31,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 		op(&opts)
 	}
 
+	fmt.Printf("AuthzCloudle.populate-I-region: %s username %s orgfilter %s, resource %s, action %s authops: %+v\n", region, username, orgfilter, resource, action, authops)
 	// Get all orgs user has specified resource+action permissions for
 	orgs, err := enforcer.GetAuthorizedOrgs(ctx, username, resource, action)
 	if err != nil {
@@ -371,9 +372,9 @@ func newShowCloudletAuthz(ctx context.Context, region, username, resource, actio
 func newShowCloudletsForAppDeploymentAuthz(ctx context.Context, region, username string, resource, action string) (ShowCloudletsForAppDeploymentAuthz, error) {
 	authzCloudletKey := AuthzCloudletKey{} // ShowCloudletsForAppDeploymentAuthz{}
 
-	fmt.Printf("\n\nnewShowCloudletsForAppDeploymentAuthz\n\n")
+	fmt.Printf("newShowCloudletsForAppDeploymentAuthz-I-region %s username %s resource %s action %s\n", region, username, resource, action)
 
-	err := authzCloudletKey.populate(ctx, region, username, region, username, action)
+	err := authzCloudletKey.populate(ctx, region, username, "", resource, action)
 	if err != nil {
 		return nil, err
 	}

@@ -486,7 +486,7 @@ func (v *VcdPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egress
 				err = v.vmProperties.SetupIptablesRulesForRootLB(ctx, sshClient, sshCidrsAllowed, TrustPolicy)
 			}
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureCloudletSecurityRules SetupIptablesRulesForRootLB  failed", "clientName", clientName, "sshClient", sshClient, "error", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureCloudletSecurityRules failed", "clientName", clientName, "sshClient", sshClient, "error", err)
 				errMap[clientName] = err
 			}
 		}

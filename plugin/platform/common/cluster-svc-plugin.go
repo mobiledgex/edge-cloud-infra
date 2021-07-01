@@ -13,6 +13,7 @@ import (
 type ClusterSvc struct{}
 
 func (s *ClusterSvc) GetAppInstConfigs(ctx context.Context, clusterInst *edgeproto.ClusterInst, appInst *edgeproto.AppInst, policy *edgeproto.AutoScalePolicy, userAlerts []edgeproto.UserAlert) ([]*edgeproto.ConfigFile, error) {
+	// TODO - if policy is nil, skip policy config file
 	if policy == nil {
 		return nil, fmt.Errorf("no auto-scale policy specified for GetAppInstConfigs")
 	}
@@ -28,6 +29,7 @@ func (s *ClusterSvc) GetAppInstConfigs(ctx context.Context, clusterInst *edgepro
 	if err != nil {
 		return nil, err
 	}
+	// TODO - if file is empty don't try to write it
 	alertsConfig := &edgeproto.ConfigFile{
 		Kind:   edgeproto.AppConfigHelmYaml,
 		Config: file,

@@ -1554,6 +1554,65 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInstRefs", ShowAppInstRefs)
+	// swagger:route POST /auth/ctrl/CreateUserAlert UserAlert CreateUserAlert
+	// Create a User Defined Alert.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateUserAlert", CreateUserAlert)
+	// swagger:route POST /auth/ctrl/DeleteUserAlert UserAlert DeleteUserAlert
+	// Delete a User Defined Alert.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteUserAlert", DeleteUserAlert)
+	// swagger:route POST /auth/ctrl/UpdateUserAlert UserAlert UpdateUserAlert
+	// Update a User Defined Alert.
+	// The following values should be added to `UserAlert.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// CpuLimit: 3
+	// MemLimit: 4
+	// DiskLimit: 5
+	// ActiveConnLimit: 6
+	// Severity: 7
+	// TriggerTime: 8
+	// Labels: 9
+	// LabelsKey: 9.1
+	// LabelsValue: 9.2
+	// Annotations: 10
+	// AnnotationsKey: 10.1
+	// AnnotationsValue: 10.2
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateUserAlert", UpdateUserAlert)
+	// swagger:route POST /auth/ctrl/ShowUserAlert UserAlert ShowUserAlert
+	// Show User Defined Alerts.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowUserAlert", ShowUserAlert)
 	// swagger:route POST /auth/ctrl/ShowAppInstClient AppInstClientKey ShowAppInstClient
 	// Show application instance clients.
 	//
@@ -1736,63 +1795,4 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/StreamGPUDriver", StreamGPUDriver)
-	// swagger:route POST /auth/ctrl/CreateUserAlert UserAlert CreateUserAlert
-	// Create a User Defined Alert.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateUserAlert", CreateUserAlert)
-	// swagger:route POST /auth/ctrl/DeleteUserAlert UserAlert DeleteUserAlert
-	// Delete a User Defined Alert.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteUserAlert", DeleteUserAlert)
-	// swagger:route POST /auth/ctrl/UpdateUserAlert UserAlert UpdateUserAlert
-	// Update a User Defined Alert.
-	// The following values should be added to `UserAlert.fields` field array to specify which fields will be updated.
-	// ```
-	// Key: 2
-	// KeyOrganization: 2.1
-	// KeyName: 2.2
-	// CpuLimit: 3
-	// MemLimit: 4
-	// DiskLimit: 5
-	// ActiveConnLimit: 6
-	// Severity: 7
-	// TriggerTime: 8
-	// Labels: 9
-	// LabelsKey: 9.1
-	// LabelsValue: 9.2
-	// Annotations: 10
-	// AnnotationsKey: 10.1
-	// AnnotationsValue: 10.2
-	// ```
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateUserAlert", UpdateUserAlert)
-	// swagger:route POST /auth/ctrl/ShowUserAlert UserAlert ShowUserAlert
-	// Show User Defined Alerts.
-	//  Any fields specified will be used to filter results.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowUserAlert", ShowUserAlert)
 }

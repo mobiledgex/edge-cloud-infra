@@ -64,7 +64,7 @@ func getAlertRulesArgs(ctx context.Context, appInst *edgeproto.AppInst, alerts [
 		}
 		promAlert := PrometheusClusterAlert{
 			Name:              alerts[ii].Key.Name,
-			Severity:          alerts[ii].Severity.String(),
+			Severity:          alerts[ii].Severity,
 			TriggerTimeString: alerts[ii].TriggerTime.TimeDuration().String(),
 			Labels:            util.CopyStringMap(alerts[ii].Labels),
 			Annotations:       util.CopyStringMap(alerts[ii].Annotations),

@@ -41,7 +41,7 @@ const MINIMUM_VCPUS uint64 = 2
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.4.3"
+var MEXInfraVersion = "4.4.5"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -58,6 +58,12 @@ var NoConfigExternalRouter = "NOCONFIG"
 var NoExternalRouter = "NONE"
 
 var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/"
+
+type ExternalNetworkType string
+
+const ExternalNetworkRootLb = "rootlb"
+const ExternalNetworkPlatform = "platform"
+const ExternalNetworkAll = "all"
 
 // properties common to all VM providers
 var VMProviderProps = map[string]*edgeproto.PropertyInfo{
@@ -242,6 +248,29 @@ func (vp *VMProperties) GetCloudletAdditionalRootLbNetworks() []string {
 	}
 	return strings.Split(value, ",")
 }
+
+func (vp *VMProperties) GetExternalNetworks(netType ExternalNetworkType) map[string]string {
+	externalNetMap := make(map[string]string)
+	// always return the main external network
+	externalNetname := vp.GetCloudletExternalNetwork()
+	var nets = []string{externalNetname}
+
+	// look for additional net based on netType
+	switch netType {
+	case ExternalNetworkPlatform:
+		nets = append(nets, vp.GetCloudletAdditionalPlatformNetworks()...)
+	case ExternalNetworkRootLb:
+		nets = append(nets, vp.GetCloudletAdditionalRootLbNetworks()...)
+	case ExternalNetworkAll:
+		nets = append(nets, vp.GetCloudletAdditionalRootLbNetworks()...)
+		nets = append(nets, vp.GetCloudletAdditionalPlatformNetworks()...)
+	}
+	for _, net := range nets {
+		externalNetMap[net] = net
+	}
+	return externalNetMap
+}
+
 func (vp *VMProperties) GetNtpServers() []string {
 	value, _ := vp.CommonPf.Properties.GetValue("MEX_NTP_SERVERS")
 	if value == "" {

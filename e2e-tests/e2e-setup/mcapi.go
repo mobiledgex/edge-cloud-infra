@@ -22,6 +22,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/setup-env/util"
 	edgetestutil "github.com/mobiledgex/edge-cloud/testutil"
+	uutil "github.com/mobiledgex/edge-cloud/util"
 	"github.com/pquerna/otp/totp"
 )
 
@@ -39,10 +40,12 @@ type AllDataOut struct {
 	RegionData []edgetestutil.AllDataOut
 }
 
-func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string, retry *bool) bool {
+func RunMcAPI(api, mcname, apiFile string, apiFileVars map[string]string, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string, retry *bool) bool {
 	mc := getMC(mcname)
 	uri := "https://" + mc.Addr + "/api/v1"
 	log.Printf("Using MC %s at %s", mc.Name, uri)
+
+	vars = uutil.AddMaps(vars, apiFileVars)
 
 	var clientRun mctestclient.ClientRun
 	if hasMod("cli", mods) {
@@ -246,9 +249,9 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	if api == "showclientapimetrics" {
 		var showClientApiMetrics *ormapi.AllMetrics
 		targets := readMCMetricTargetsFile(apiFile, vars)
-		var parsedMetrics *[]MetricsCompare
+		var parsedMetrics *[]OptimizedMetricsCompare
 		showClientApiMetrics = showMcClientApiMetrics(uri, token, targets, &rc)
-		parsedMetrics = parseMetrics(showClientApiMetrics)
+		parsedMetrics = parseOptimizedMetrics(showClientApiMetrics)
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		*retry = true
 		return rc
@@ -257,9 +260,9 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	if api == "showclientappmetrics" {
 		var showClientAppMetrics *ormapi.AllMetrics
 		targets := readMCMetricTargetsFile(apiFile, vars)
-		var parsedMetrics *[]MetricsCompare
+		var parsedMetrics *[]OptimizedMetricsCompare
 		showClientAppMetrics = showMcClientAppMetrics(uri, token, targets, &rc)
-		parsedMetrics = parseMetrics(showClientAppMetrics)
+		parsedMetrics = parseOptimizedMetrics(showClientAppMetrics)
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		*retry = true
 		return rc
@@ -268,9 +271,9 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	if api == "showclientcloudletmetrics" {
 		var showClientCloudletMetrics *ormapi.AllMetrics
 		targets := readMCMetricTargetsFile(apiFile, vars)
-		var parsedMetrics *[]MetricsCompare
+		var parsedMetrics *[]OptimizedMetricsCompare
 		showClientCloudletMetrics = showMcClientCloudletMetrics(uri, token, targets, &rc)
-		parsedMetrics = parseMetrics(showClientCloudletMetrics)
+		parsedMetrics = parseOptimizedMetrics(showClientCloudletMetrics)
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		*retry = true
 		return rc
@@ -837,7 +840,9 @@ func showMcClientApiMetrics(uri, token string, targets *MetricTargets, rc *bool)
 				AppKey: targets.AppInstKey.AppKey,
 			},
 			Method: method,
-			Last:   1,
+			MetricsCommon: ormapi.MetricsCommon{
+				Limit: 1,
+			},
 		}
 		for _, selector := range ormapi.ClientApiUsageSelectors {
 			clientApiUsageQuery.Selector = selector
@@ -854,15 +859,16 @@ func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool)
 	clientAppUsageQuery := ormapi.RegionClientAppUsageMetrics{
 		Region:  "local",
 		AppInst: targets.AppInstKey,
-		RawData: true,
-		Last:    1,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	for _, selector := range ormapi.ClientAppUsageSelectors {
 		if selector == "custom" {
 			continue
 		}
 		if selector == "latency" {
-			clientAppUsageQuery.LocationTile = targets.LocationTile
+			clientAppUsageQuery.LocationTile = targets.LocationTileLatency
 		} else {
 			clientAppUsageQuery.LocationTile = ""
 		}
@@ -877,13 +883,21 @@ func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool)
 func showMcClientCloudletMetrics(uri, token string, targets *MetricTargets, rc *bool) *ormapi.AllMetrics {
 	allMetrics := ormapi.AllMetrics{Data: make([]ormapi.MetricData, 0)}
 	clientCloudletUsageQuery := ormapi.RegionClientCloudletUsageMetrics{
-		Region:       "local",
-		Cloudlet:     targets.CloudletKey,
-		LocationTile: targets.LocationTile,
-		RawData:      true,
-		Last:         1,
+		Region:   "local",
+		Cloudlet: targets.CloudletKey,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	for _, selector := range ormapi.ClientCloudletUsageSelectors {
+		if selector == "custom" {
+			continue
+		}
+		if selector == "latency" {
+			clientCloudletUsageQuery.LocationTile = targets.LocationTileLatency
+		} else {
+			clientCloudletUsageQuery.LocationTile = targets.LocationTileDeviceInfo
+		}
 		clientCloudletUsageQuery.Selector = selector
 		clientCloudletUsageMetric, status, err := mcClient.ShowClientCloudletUsageMetrics(uri, token, &clientCloudletUsageQuery)
 		checkMcErr("ShowClientCloudletUsage"+strings.Title(selector), status, err, rc)
@@ -1276,6 +1290,50 @@ func parseMetrics(allMetrics *ormapi.AllMetrics) *[]MetricsCompare {
 				} else if intVal, ok := val.(int); ok {
 					measurement.Values[series.Columns[i]] = float64(intVal)
 				}
+			}
+			result = append(result, measurement)
+		}
+	}
+	return &result
+}
+
+// Parse optimized metrics (each MetricSeries include Columns, Name, Tags, and Values)
+func parseOptimizedMetrics(allMetrics *ormapi.AllMetrics) *[]OptimizedMetricsCompare {
+	result := make([]OptimizedMetricsCompare, 0)
+	for _, data := range allMetrics.Data {
+		for _, series := range data.Series {
+			measurement := OptimizedMetricsCompare{Name: series.Name, Columns: make([]string, 0), Tags: make(map[string]string), Values: make([][]float64, 0)}
+			// e2e tests only grabs the latest measurement so there should only be one
+			if len(series.Values) != 1 {
+				return nil
+			}
+
+			// add tags
+			for tag, val := range series.Tags {
+				// only add tags that are in TagValues
+				_, isTag := TagValues[tag]
+				if isTag {
+					measurement.Tags[tag] = val
+				}
+			}
+
+			// add values
+			for i, val := range series.Values[0] {
+				// ignore timestamps, metadata, or other
+				if series.Columns[i] == "time" || series.Columns[i] == "metadata" || series.Columns[i] == "other" {
+					continue
+				}
+				values := make([]float64, 0)
+				// add column associated with value
+				measurement.Columns = append(measurement.Columns, series.Columns[i])
+				// add value as a float64
+				if floatVal, ok := val.(float64); ok {
+					values = append(values, floatVal)
+				} else if intVal, ok := val.(int); ok {
+					// if its an int cast it to a float to make comparing easier
+					values = append(values, float64(intVal))
+				}
+				measurement.Values = append(measurement.Values, values)
 			}
 			result = append(result, measurement)
 		}

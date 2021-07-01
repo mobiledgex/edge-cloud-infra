@@ -1,7 +1,7 @@
 # See https://github.com/mobiledgex/edge-cloud-infra/pull/50
 influxdb_version: 1.7.6
-influxdb_image: registry.mobiledgex.net:5000/mobiledgex/influxdb:v1.0.0
 influxdb_volume_name: influxdb-data-managed-disk
 influxdb_configmap: influxdb-conf
 tls_cert_manifest: "/tmp/influxdb-{{ deploy_environ }}-{{ region }}-cert.yaml"
 influxdb_backup_version: v1.2.4-87-gd0e1d20b
+index_version: tsi1

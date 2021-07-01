@@ -167,6 +167,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// InfluxDbDownsampledMetricsRetention: 31
 	// InfluxDbEdgeEventsMetricsRetention: 32
 	// AppinstClientCleanupInterval: 33
+	// ClusterAutoScaleAveragingDurationSec: 34
+	// ClusterAutoScaleRetryDelay: 35
 	// ```
 	// Security:
 	//   Bearer:
@@ -546,17 +548,16 @@ func addControllerApis(method string, group *echo.Group) {
 	// Key: 2
 	// KeyName: 2.1
 	// KeyOrganization: 2.2
-	// Type: 3
-	// Builds: 4
-	// BuildsName: 4.1
-	// BuildsDriverPath: 4.2
-	// BuildsDriverPathCreds: 4.3
-	// BuildsOperatingSystem: 4.4
-	// BuildsKernelVersion: 4.5
-	// BuildsHypervisorInfo: 4.6
-	// BuildsMd5Sum: 4.7
-	// LicenseConfig: 5
-	// LicenseConfigMd5Sum: 9
+	// Builds: 3
+	// BuildsName: 3.1
+	// BuildsDriverPath: 3.2
+	// BuildsDriverPathCreds: 3.3
+	// BuildsOperatingSystem: 3.4
+	// BuildsKernelVersion: 3.5
+	// BuildsHypervisorInfo: 3.6
+	// BuildsMd5Sum: 3.7
+	// LicenseConfig: 4
+	// LicenseConfigMd5Sum: 5
 	// Properties: 6
 	// PropertiesKey: 6.1
 	// PropertiesValue: 6.2
@@ -753,10 +754,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// GpuConfigDriver: 45.1
 	// GpuConfigDriverName: 45.1.1
 	// GpuConfigDriverOrganization: 45.1.2
-	// GpuConfigGpuType: 45.2
-	// GpuConfigProperties: 45.3
-	// GpuConfigPropertiesKey: 45.3.1
-	// GpuConfigPropertiesValue: 45.3.2
+	// GpuConfigProperties: 45.2
+	// GpuConfigPropertiesKey: 45.2.1
+	// GpuConfigPropertiesValue: 45.2.2
 	// EnableDefaultServerlessCluster: 46
 	// ```
 	// Security:
@@ -1108,6 +1108,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// ScaleUpCpuThresh: 5
 	// ScaleDownCpuThresh: 6
 	// TriggerTimeSec: 7
+	// StabilizationWindowSec: 8
+	// TargetCpu: 9
+	// TargetMem: 10
+	// TargetActiveConnections: 11
 	// ```
 	// Security:
 	//   Bearer:

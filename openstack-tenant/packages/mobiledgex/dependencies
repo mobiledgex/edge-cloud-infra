@@ -1,4 +1,4 @@
-chef                            =15.10.12-1
+chef                            =17.2.29-1
 crictl                          =1.16.1
 curl                            >=7.58.0-2ubuntu3.8
 docker-ce                       =5:20.10.6~3-0~ubuntu-bionic

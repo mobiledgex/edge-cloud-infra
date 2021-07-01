@@ -32,6 +32,9 @@ var PromQDiskPod = `sum(container_fs_usage_bytes{image!=""})by(pod)`
 var PromQNetRecvRate = `sum(irate(container_network_receive_bytes_total{image!=""}[1m]))by(pod)`
 var PromQNetSentRate = `sum(irate(container_network_transmit_bytes_total{image!=""}[1m]))by(pod)`
 
+var PromQAutoScaleCpuTotalU = "stabilized_max_total_worker_node_cpu_utilisation"
+var PromQAutoScaleMemTotalU = "stabilized_max_total_worker_node_mem_utilisation"
+
 type PromResp struct {
 	Status string   `json:"status,omitempty"`
 	Data   PromData `json:"data,omitempty"`

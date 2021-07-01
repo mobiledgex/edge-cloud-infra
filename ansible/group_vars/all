@@ -3,7 +3,7 @@ vm_ssh_user: ubuntu
 vm_ssh_pub_key_file: "{{ lookup('env','HOME') }}/.mobiledgex/id_rsa_mex.pub"
 platform_k8s_pool_size: 3
 platform_k8s_vm_size: Standard_DS1_v2
-mex_docker_registry: registry.mobiledgex.net:5000
+mex_docker_registry: harbor.mobiledgex.net
 edge_cloud_image: "{{ mex_docker_registry }}/mobiledgex/edge-cloud"
 monitor_image: "{{ mex_docker_registry }}/mobiledgex/monitor"
 mex_ops_email: mobiledgex.ops@mobiledgex.com
@@ -38,7 +38,7 @@ vault_root_ca_cert_path: secret/certs/root-ca
 mc_creds_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc"
 vouch_hostname: vouch.mobiledgex.net
 influxdb_vm_hostname: influxdb.internal.mobiledgex.net
-artifactory_version: 7.18.6
+artifactory_version: 7.19.9
 mex_ca_cert_dir: /etc/ssl/local
 mex_ca_cert_der: "{{ mex_ca_cert_dir }}/mex-ca.der"
 mex_ca_cert_pem: "{{ mex_ca_cert_dir }}/mex-ca.crt"
@@ -52,9 +52,11 @@ letsencrypt_backend: letsencrypt-certs
 alertmanager_sidecar_port: 9094
 events_elasticsearch_url: https://3dd88757c3df44ac8960e53fc6a9a2d5.us-central1.gcp.cloud.es.io:9243
 vault_gcp_bucket_create_roleset: "{{ deploy_environ }}-bucket-create"
+vault_gcp_firewall_manage_roleset: "{{ deploy_environ }}-firewall-manage"
 vault_gcp_role_create_roleset: "{{ deploy_environ }}-role-create"
 gcp_bucket_create_role: "vault_{{ deploy_environ }}_bucket_create"
 gcp_bucket_use_role: "vault_{{ deploy_environ }}_bucket_use"
+gcp_firewall_manage_role: "vault_{{ deploy_environ }}_firewall_manage"
 gcp_role_create_role: "vault_{{ deploy_environ }}_role_create"
 gcs_gpu_drivers_bucket: "mobiledgex-{{ deploy_environ }}-gpu-drivers"
 gcs_operator_reports_bucket: "mobiledgex-{{ deploy_environ }}-operator-reports"

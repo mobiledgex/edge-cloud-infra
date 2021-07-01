@@ -8,6 +8,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -48,7 +49,7 @@ func (v *VSpherePlatform) CreateImageFromUrl(ctx context.Context, imageName, ima
 	}
 	defer func() {
 		// Stale file might be present if download fails/succeeds, deleting it
-		if delerr := infracommon.DeleteFile(filePath); delerr != nil {
+		if delerr := cloudcommon.DeleteFile(filePath); delerr != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete file failed", "filePath", filePath)
 		}
 	}()
@@ -154,4 +155,8 @@ func (s *VSpherePlatform) GetClusterAdditionalResourceMetric(ctx context.Context
 
 func (v *VSpherePlatform) InternalCloudletUpdatedCallback(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InternalCloudletUpdatedCallback")
+}
+
+func (v *VSpherePlatform) GetGPUSetupStage(ctx context.Context) vmlayer.GPUSetupStage {
+	return vmlayer.ClusterInstStage
 }

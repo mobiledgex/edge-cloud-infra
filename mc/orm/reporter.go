@@ -225,7 +225,7 @@ func GenerateReports() {
 				errStrs := []string{}
 				// Upload PDF report to cloudlet
 				filename := ormapi.GetReporterFileName(inReporter.Name, &genReport)
-				err = storageClient.UploadObject(ctx, filename, &output)
+				err = storageClient.UploadObject(ctx, filename, "", &output)
 				if err != nil {
 					nodeMgr.Event(ctx, "Cloudlet report upload failure", genReport.Org, tags, err)
 					log.SpanLog(ctx, log.DebugLevelInfo, "failed to upload cloudlet report to cloudlet", "org", genReport.Org, "err", err)
@@ -837,7 +837,12 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 		EndTime:   report.EndTime,
 	}
 	rc.region = in.Region
-	cmd := CloudletUsageMetricsQuery(&in)
+
+	platformTypes, err := getCloudletPlatformTypes(ctx, username, report.Region, &in.Cloudlet)
+	if err != nil {
+		return nil, err
+	}
+	cmd := CloudletUsageMetricsQuery(&in, platformTypes)
 
 	// Check the operator against the username
 	if err := authorized(ctx, username, report.Org, ResourceCloudletAnalytics, ActionView); err != nil {
@@ -845,7 +850,7 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 	}
 
 	chartMap := make(map[string]TimeChartDataMap)
-	err := influxStream(ctx, rc, dbNames, cmd, func(res interface{}) error {
+	err = influxStream(ctx, rc, dbNames, cmd, func(res interface{}) error {
 		results, ok := res.([]influxdb.Result)
 		if !ok {
 			return fmt.Errorf("result not expected type")
@@ -943,7 +948,7 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 		EndTime:   report.EndTime,
 	}
 	rc.region = in.Region
-	cmd := CloudletUsageMetricsQuery(&in)
+	cmd := CloudletUsageMetricsQuery(&in, nil)
 
 	// Check the operator against the username
 	if err := authorized(ctx, username, report.Org, ResourceCloudletAnalytics, ActionView); err != nil {
@@ -1701,9 +1706,16 @@ func DownloadReport(c echo.Context) error {
 	if !found {
 		return fmt.Errorf("Report with name %s does not exist", reportQuery.Filename)
 	}
-	outBytes, err := storageClient.DownloadObject(ctx, reportQuery.Filename)
+	outFilePath := "/tmp/" + strings.ReplaceAll(reportQuery.Filename, "/", "_")
+	err = storageClient.DownloadObject(ctx, reportQuery.Filename, outFilePath)
 	if err != nil {
-		return fmt.Errorf("Unable to download report %s: %v", reportQuery.Filename, err)
+		return fmt.Errorf("Unable to download report %s to %s: %v", reportQuery.Filename, outFilePath, err)
 	}
-	return c.HTMLBlob(http.StatusOK, outBytes)
+	defer cloudcommon.DeleteFile(outFilePath)
+	data, err := ioutil.ReadFile(outFilePath)
+	if err != nil {
+		return fmt.Errorf("Failed to read from downloaded report %s: %v", outFilePath, err)
+	}
+
+	return c.HTMLBlob(http.StatusOK, data)
 }

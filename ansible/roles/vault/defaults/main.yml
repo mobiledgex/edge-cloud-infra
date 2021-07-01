@@ -54,7 +54,9 @@ vault_user_roles:
   deployer: &vault_user_role_deployer
     - *vault_user_role_viewer
     - ansible.read.v1
+    - edge-cloud-registry.read.v1
     - gcp-bucket-create-key.read.v1
+    - gcp-firewall-manage-key.read.v1
     - gcp-role-create-key.read.v1
 
   editor: &vault_user_role_editor

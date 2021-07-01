@@ -89,11 +89,19 @@ type MetricsCompare struct {
 	Values map[string]float64
 }
 
+type OptimizedMetricsCompare struct {
+	Name    string
+	Tags    map[string]string
+	Values  [][]float64
+	Columns []string
+}
+
 type MetricTargets struct {
-	AppInstKey     edgeproto.AppInstKey
-	ClusterInstKey edgeproto.ClusterInstKey
-	CloudletKey    edgeproto.CloudletKey
-	LocationTile   string // used for clientappusage and clientcloudletusage metrics to guarantee correct metric
+	AppInstKey             edgeproto.AppInstKey
+	ClusterInstKey         edgeproto.ClusterInstKey
+	CloudletKey            edgeproto.CloudletKey
+	LocationTileLatency    string // used for clientappusage and clientcloudletusage metrics to guarantee correct metric
+	LocationTileDeviceInfo string // used for clientappusage and clientcloudletusage metrics to guarantee correct metric
 }
 
 type EventSearch struct {
@@ -151,11 +159,11 @@ var TagValues = map[string]struct{}{
 	"status": struct{}{},
 	"flavor": struct{}{},
 	// edgeevents metrics tags
-	"deviceos":       struct{}{},
-	"devicemodel":    struct{}{},
-	"locationtile":   struct{}{},
-	"devicecarrier":  struct{}{},
-	"signalstrength": struct{}{},
+	"deviceos":        struct{}{},
+	"devicemodel":     struct{}{},
+	"locationtile":    struct{}{},
+	"devicecarrier":   struct{}{},
+	"datanetworktype": struct{}{},
 }
 
 // methods for dme-api metric
@@ -406,7 +414,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		}
 		if actionSubtype == "crm" {
 			// read the apifile and start crm with the details
-			err := apis.StartCrmsLocal(ctx, actionParam, spec.ApiFile, outputDir)
+			err := apis.StartCrmsLocal(ctx, actionParam, spec.ApiFile, spec.ApiFileVars, outputDir)
 			if err != nil {
 				errors = append(errors, err.Error())
 			}
@@ -437,7 +445,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		}
 	case "stop":
 		if actionSubtype == "crm" {
-			if err := apis.StopCrmsLocal(ctx, actionParam, spec.ApiFile); err != nil {
+			if err := apis.StopCrmsLocal(ctx, actionParam, spec.ApiFile, spec.ApiFileVars); err != nil {
 				errors = append(errors, err.Error())
 			}
 		} else {
@@ -450,7 +458,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			}
 		}
 	case "mcapi":
-		if !RunMcAPI(actionSubtype, actionParam, spec.ApiFile, spec.CurUserFile, outputDir, mods, vars, sharedData, retry) {
+		if !RunMcAPI(actionSubtype, actionParam, spec.ApiFile, spec.ApiFileVars, spec.CurUserFile, outputDir, mods, vars, sharedData, retry) {
 			log.Printf("Unable to run api for %s\n", action)
 			errors = append(errors, "MC api failed")
 		}
@@ -514,7 +522,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			errors = append(errors, err.Error())
 		}
 	default:
-		ecSpec := setupmex.TestSpec{}
+		ecSpec := util.TestSpec{}
 		err := json.Unmarshal([]byte(specStr), &ecSpec)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "ERROR: unmarshaling setupmex TestSpec: %v", err)

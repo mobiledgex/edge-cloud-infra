@@ -33,7 +33,7 @@ var CreateGPUDriverCmd = &ApiCommand{
 	AliasArgs:            strings.Join(GPUDriverAliasArgs, " "),
 	SpecialArgs:          &GPUDriverSpecialArgs,
 	Comments:             addRegionComment(GPUDriverComments),
-	NoConfig:             "State,LicenseConfigMd5sum",
+	NoConfig:             "State,LicenseConfigMd5Sum",
 	ReqData:              &ormapi.RegionGPUDriver{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/CreateGPUDriver",
@@ -51,7 +51,7 @@ var DeleteGPUDriverCmd = &ApiCommand{
 	AliasArgs:            strings.Join(GPUDriverAliasArgs, " "),
 	SpecialArgs:          &GPUDriverSpecialArgs,
 	Comments:             addRegionComment(GPUDriverComments),
-	NoConfig:             "State,LicenseConfigMd5sum",
+	NoConfig:             "State,LicenseConfigMd5Sum",
 	ReqData:              &ormapi.RegionGPUDriver{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/DeleteGPUDriver",
@@ -69,7 +69,7 @@ var UpdateGPUDriverCmd = &ApiCommand{
 	AliasArgs:            strings.Join(GPUDriverAliasArgs, " "),
 	SpecialArgs:          &GPUDriverSpecialArgs,
 	Comments:             addRegionComment(GPUDriverComments),
-	NoConfig:             "State,LicenseConfigMd5sum,Builds",
+	NoConfig:             "State,LicenseConfigMd5Sum,Builds,Type,IgnoreState",
 	ReqData:              &ormapi.RegionGPUDriver{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/UpdateGPUDriver",
@@ -108,7 +108,7 @@ var ShowGPUDriverCmd = &ApiCommand{
 	AliasArgs:            strings.Join(GPUDriverAliasArgs, " "),
 	SpecialArgs:          &GPUDriverSpecialArgs,
 	Comments:             addRegionComment(GPUDriverComments),
-	NoConfig:             "State,LicenseConfigMd5sum",
+	NoConfig:             "State,LicenseConfigMd5Sum",
 	ReqData:              &ormapi.RegionGPUDriver{},
 	ReplyData:            &edgeproto.GPUDriver{},
 	Path:                 "/auth/ctrl/ShowGPUDriver",
@@ -161,7 +161,7 @@ var GetGPUDriverBuildURLCmd = &ApiCommand{
 	AliasArgs:    strings.Join(GPUDriverBuildMemberAliasArgs, " "),
 	SpecialArgs:  &GPUDriverBuildMemberSpecialArgs,
 	Comments:     addRegionComment(GPUDriverBuildMemberComments),
-	NoConfig:     "Build.DriverPath,Build.OperatingSystem,Build.KernelVersion,Build.HypervisorInfo",
+	NoConfig:     "Build.DriverPath,Build.OperatingSystem,Build.KernelVersion,Build.HypervisorInfo,Build.DriverPathCreds,Build.Md5Sum",
 	ReqData:      &ormapi.RegionGPUDriverBuildMember{},
 	ReplyData:    &edgeproto.GPUDriverBuildURL{},
 	Path:         "/auth/ctrl/GetGPUDriverBuildURL",
@@ -189,11 +189,8 @@ var UpdateGPUDriverRequiredArgs = []string{
 }
 var UpdateGPUDriverOptionalArgs = []string{
 	"gpudriver-org",
-	"type",
 	"licenseconfig",
-	"licenseconfigmd5sum",
 	"properties",
-	"ignorestate",
 }
 var AddGPUDriverBuildRequiredArgs = []string{
 	"gpudrivername",
@@ -225,8 +222,6 @@ var GetGPUDriverBuildURLRequiredArgs = []string{
 	"build.name",
 }
 var GetGPUDriverBuildURLOptionalArgs = []string{
-	"build.driverpathcreds",
-	"build.md5sum",
 	"ignorestate",
 }
 
@@ -239,7 +234,7 @@ var CreateCloudletCmd = &ApiCommand{
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
-	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,GpuConfig.GpuType,ResTagMap",
+	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,ResTagMap",
 	ReqData:              &ormapi.RegionCloudlet{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/CreateCloudlet",
@@ -257,7 +252,7 @@ var DeleteCloudletCmd = &ApiCommand{
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
-	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,GpuConfig.GpuType,ResTagMap",
+	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,ResTagMap",
 	ReqData:              &ormapi.RegionCloudlet{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/DeleteCloudlet",
@@ -275,7 +270,7 @@ var UpdateCloudletCmd = &ApiCommand{
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
-	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,GpuConfig.GpuType,PlatformType,DeploymentLocal,Flavor,PhysicalName,ContainerVersion,ResTagMap,VmImageVersion,Deployment,InfraApiAccess,InfraConfig,OverridePolicyContainerVersion,VmPool,ResTagMap",
+	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,PlatformType,DeploymentLocal,Flavor,PhysicalName,ContainerVersion,ResTagMap,VmImageVersion,Deployment,InfraApiAccess,InfraConfig,OverridePolicyContainerVersion,VmPool,ResTagMap",
 	ReqData:              &ormapi.RegionCloudlet{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/UpdateCloudlet",
@@ -314,7 +309,7 @@ var ShowCloudletCmd = &ApiCommand{
 	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:  &CloudletSpecialArgs,
 	Comments:     addRegionComment(CloudletComments),
-	NoConfig:     "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,GpuConfig.GpuType,ResTagMap",
+	NoConfig:     "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Status,Config,NotifySrvAddr,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,ResTagMap",
 	ReqData:      &ormapi.RegionCloudlet{},
 	ReplyData:    &edgeproto.Cloudlet{},
 	Path:         "/auth/ctrl/ShowCloudlet",
@@ -826,7 +821,6 @@ var GPUDriverRequiredArgs = []string{
 }
 var GPUDriverOptionalArgs = []string{
 	"gpudriver-org",
-	"type",
 	"builds:#.name",
 	"builds:#.driverpath",
 	"builds:#.driverpathcreds",
@@ -835,7 +829,6 @@ var GPUDriverOptionalArgs = []string{
 	"builds:#.hypervisorinfo",
 	"builds:#.md5sum",
 	"licenseconfig",
-	"licenseconfigmd5sum",
 	"properties",
 	"ignorestate",
 }
@@ -843,7 +836,6 @@ var GPUDriverAliasArgs = []string{
 	"fields=gpudriver.fields",
 	"gpudrivername=gpudriver.key.name",
 	"gpudriver-org=gpudriver.key.organization",
-	"type=gpudriver.type",
 	"builds:#.name=gpudriver.builds:#.name",
 	"builds:#.driverpath=gpudriver.builds:#.driverpath",
 	"builds:#.driverpathcreds=gpudriver.builds:#.driverpathcreds",
@@ -861,7 +853,6 @@ var GPUDriverComments = map[string]string{
 	"fields":                   "Fields are used for the Update API to specify which fields to apply",
 	"gpudrivername":            "Name of the driver",
 	"gpudriver-org":            "Organization to which the driver belongs to",
-	"type":                     "Type of GPU hardware, one of GpuTypeNone, GpuTypePassthrough, GpuTypeVgpu",
 	"builds:#.name":            "Unique identifier key",
 	"builds:#.driverpath":      "Path where the driver package is located, if it is authenticated path, then credentials must be passed as part of URL (one-time download path)",
 	"builds:#.driverpathcreds": "Optional credentials (username:password) to access driver path",
@@ -1018,7 +1009,6 @@ var CloudletAliasArgs = []string{
 	"kafkapassword=cloudlet.kafkapassword",
 	"gpuconfig.driver.name=cloudlet.gpuconfig.driver.name",
 	"gpuconfig.driver.organization=cloudlet.gpuconfig.driver.organization",
-	"gpuconfig.gputype=cloudlet.gpuconfig.gputype",
 	"gpuconfig.properties=cloudlet.gpuconfig.properties",
 	"enabledefaultserverlesscluster=cloudlet.enabledefaultserverlesscluster",
 }
@@ -1099,7 +1089,6 @@ var CloudletComments = map[string]string{
 	"kafkapassword":                       "password for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
 	"gpuconfig.driver.name":               "Name of the driver",
 	"gpuconfig.driver.organization":       "Organization to which the driver belongs to",
-	"gpuconfig.gputype":                   "Type of GPU hardware supported by the Cloudlet, one of GpuTypeNone, GpuTypePassthrough, GpuTypeVgpu",
 	"gpuconfig.properties":                "Properties to identify specifics of GPU",
 	"enabledefaultserverlesscluster":      "Enable experimental default multitenant (serverless) cluster",
 }
@@ -1418,14 +1407,3 @@ var CloudletInfoSpecialArgs = map[string]string{
 	"cloudletinfo.properties":        "StringToString",
 	"cloudletinfo.status.msgs":       "StringArray",
 }
-var CloudletMetricsRequiredArgs = []string{}
-var CloudletMetricsOptionalArgs = []string{
-	"foo",
-}
-var CloudletMetricsAliasArgs = []string{
-	"foo=cloudletmetrics.foo",
-}
-var CloudletMetricsComments = map[string]string{
-	"foo": "what goes here?",
-}
-var CloudletMetricsSpecialArgs = map[string]string{}

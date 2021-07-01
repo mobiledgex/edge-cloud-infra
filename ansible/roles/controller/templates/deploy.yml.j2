@@ -18,6 +18,13 @@ spec:
       - name: controller
         image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
         imagePullPolicy: Always
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "1Gi"
+          limits:
+            cpu: "400m"
+            memory: "2Gi"
         command:
          - "controller"
          - "--commonName"
@@ -50,7 +57,7 @@ spec:
          - "--artifactoryFQDN"
          - "{{ artifactory_fqdn }}"
          - "--cloudletRegistryPath"
-         - "{{ edge_cloud_image }}"
+         - "{{ cloudlet_registry_path }}"
          - "-cloudletVMImagePath"
          - "{{ cloudlet_vm_path }}"
          - "--versionTag"

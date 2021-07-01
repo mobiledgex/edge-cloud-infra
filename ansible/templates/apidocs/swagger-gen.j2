@@ -6,7 +6,7 @@ TAG="{{ edge_cloud_version }}"
 TAG=$( date +'%Y-%m-%d' )
 {% endif %}
 
-EDGECLOUD="registry.mobiledgex.net:5000/mobiledgex/edge-cloud:$TAG"
+EDGECLOUD="{{ mex_docker_registry }}/mobiledgex/edge-cloud:$TAG"
 APIDOCS_MASSAGE="{{ apidocs_script_dir }}/apidocs-massage.py"
 ARTF_TOKEN="{{ artifactory_apidocs_token }}"
 

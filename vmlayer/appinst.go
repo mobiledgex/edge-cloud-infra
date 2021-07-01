@@ -171,6 +171,23 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 	}
 
+	if app.Deployment != cloudcommon.DeploymentTypeVM {
+		// Platforms like VCD needs an additional step to setup GPU driver.
+		// Hence, GPU drivers should only be setup as part of AppInst bringup.
+		client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
+		if err != nil {
+			return err
+		}
+		setupStage := v.VMProvider.GetGPUSetupStage(ctx)
+		if appInst.OptRes == "gpu" && setupStage == AppInstStage {
+			// setup GPU drivers
+			err = v.setupGPUDrivers(ctx, client, clusterInst, updateCallback, ActionCreate)
+			if err != nil {
+				return fmt.Errorf("failed to install GPU drivers on appInst cluster VMs: %v", err)
+			}
+		}
+	}
+
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeKubernetes:
 		fallthrough
@@ -392,15 +409,11 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return err
 		}
-		backendIP := cloudcommon.RemoteServerNone
-		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
-			sip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
-			if err != nil {
-				return err
-			}
-			backendIP = sip.ExternalAddr
+		sip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
+		if err != nil {
+			return err
 		}
-
+		backendIP := sip.ExternalAddr
 		rootLBIPaddr, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName, pc.WithCachedIp(true))
 		if err != nil {
 			return err
@@ -444,16 +457,10 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		updateCallback(edgeproto.UpdateTask, "Configuring Firewall Rules and DNS")
 		var proxyOps []proxy.Op
-		addproxy := false
-		listenIP := "NONE" // only applicable for proxy case
-		if app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
-			loopbackIp := infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)
-			proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
-			proxyOps = append(proxyOps, proxy.WithMetricIP(loopbackIp))
-			addproxy = true
-			listenIP = rootLBIPaddr.InternalAddr
-		}
-		ops := infracommon.ProxyDnsSecOpts{AddProxy: addproxy, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
+		loopbackIp := infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)
+		proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
+		proxyOps = append(proxyOps, proxy.WithMetricIP(loopbackIp))
+		ops := infracommon.ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
 		wlParams := infracommon.WhiteListParams{
 			SecGrpName:  infracommon.GetServerSecurityGroupName(rootLBName),
 			ServerName:  rootLBName,
@@ -462,7 +469,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			Ports:       appInst.MappedPorts,
 			DestIP:      infracommon.DestIPUnspecified,
 		}
-		err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, listenIP, backendIP, ops, proxyOps...)
+		err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, rootLBClient, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, backendIP, ops, proxyOps...)
 		if err != nil {
 			return fmt.Errorf("AddProxySecurityRulesAndPatchDNS error: %v", err)
 		}
@@ -798,7 +805,7 @@ func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageNam
 	defer func() {
 		if reterr != nil {
 			// Stale file might be present if download fails/succeeds, deleting it
-			infracommon.DeleteFile(filePath)
+			cloudcommon.DeleteFile(filePath)
 		}
 	}()
 
@@ -808,7 +815,7 @@ func DownloadVMImage(ctx context.Context, accessApi platform.AccessApi, imageNam
 	}
 	// Verify checksum
 	if md5Sum != "" {
-		fileMd5Sum, err := infracommon.Md5SumFile(filePath)
+		fileMd5Sum, err := cloudcommon.Md5SumFile(filePath)
 		if err != nil {
 			return "", err
 		}

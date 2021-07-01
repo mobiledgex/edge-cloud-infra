@@ -1,7 +1,8 @@
 {
-  "revision_id": "865dee7ee1ba6d97229d0bb00bff9dd576b19f7d33b544513cd20000bd04c61f",
+  "revision_id": "5e647c126ada47cc7981d73019de3bb0a507281bb9223baee7efb7b4be15221f",
   "name": "base",
   "run_list": [
+    "recipe[chef_client_updater::default]",
     "recipe[runstatus_handler::default]",
     "recipe[copy_resource_tracker::default]",
     "recipe[upgrade_mobiledgex_package::default]"
@@ -10,6 +11,17 @@
 
   ],
   "cookbook_locks": {
+    "chef_client_updater": {
+      "version": "3.11.0",
+      "identifier": "419a5b1204f7145afdabce5e81889d7a925bd21b",
+      "dotted_decimal_identifier": "18465589421209364.25611662247494024.173149767062043",
+      "cache_key": "chef_client_updater-3.11.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "3.11.0"
+      }
+    },
     "copy_resource_tracker": {
       "version": "1.0.1",
       "identifier": "c18ce1c87086f8bad084d95b73a33c6f10e5f98a",
@@ -33,25 +45,31 @@
       }
     },
     "upgrade_mobiledgex_package": {
-      "version": "1.0.7",
-      "identifier": "5304c8ebd8227e807065faed22b95cbbbc95209d",
-      "dotted_decimal_identifier": "23367684063765118.36152380322816697.101961392529565",
-      "cache_key": "upgrade_mobiledgex_package-1.0.7",
+      "version": "1.0.9",
+      "identifier": "e696a15e9a1e7672d9241e3613c9d70f18ad4a41",
+      "dotted_decimal_identifier": "64904864464510582.32326896493925321.236459838491201",
+      "cache_key": "upgrade_mobiledgex_package-1.0.9",
       "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
         "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
-        "version": "1.0.7"
+        "version": "1.0.9"
       }
     }
   },
   "default_attributes": {
-
+    "chef_client_updater": {
+      "version": "17.2.29"
+    }
   },
   "override_attributes": {
 
   },
   "solution_dependencies": {
     "Policyfile": [
+      [
+        "chef_client_updater",
+        "= 3.11.0"
+      ],
       [
         "copy_resource_tracker",
         "= 1.0.1"
@@ -62,17 +80,20 @@
       ],
       [
         "upgrade_mobiledgex_package",
-        "= 1.0.7"
+        "= 1.0.9"
       ]
     ],
     "dependencies": {
+      "chef_client_updater (3.11.0)": [
+
+      ],
       "copy_resource_tracker (1.0.1)": [
 
       ],
       "runstatus_handler (1.0.0)": [
 
       ],
-      "upgrade_mobiledgex_package (1.0.7)": [
+      "upgrade_mobiledgex_package (1.0.9)": [
 
       ]
     }

@@ -309,3 +309,31 @@ func collectClusterPrometheusMetrics(ctx context.Context, p *K8sClusterStats) er
 	}
 	return nil
 }
+
+func collectClusterAutoScaleMetrics(ctx context.Context, p *K8sClusterStats) error {
+	// Get Stabilized max total worker node cpu utilization
+	resp, err := getPromMetrics(ctx, p.promAddr, promutils.PromQAutoScaleCpuTotalU, p.client)
+	if err == nil && resp.Status == "success" {
+		for _, metric := range resp.Data.Result {
+			//copy only if we can parse the value
+			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
+				p.AutoScaleCpu = val
+				// We should have only one value here
+				break
+			}
+		}
+	}
+	// Get Stabilized max total worker node memory utilization
+	resp, err = getPromMetrics(ctx, p.promAddr, promutils.PromQAutoScaleMemTotalU, p.client)
+	if err == nil && resp.Status == "success" {
+		for _, metric := range resp.Data.Result {
+			//copy only if we can parse the value
+			if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
+				p.AutoScaleMem = val
+				// We should have only one value here
+				break
+			}
+		}
+	}
+	return nil
+}

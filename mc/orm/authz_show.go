@@ -164,7 +164,7 @@ func newShowGPUDriverAuthz(ctx context.Context, region, username string, resourc
 	}
 	err = ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, func(cl *edgeproto.Cloudlet) error {
 		// ignore non-GPU cloudlets
-		if cl.GpuConfig.GpuType == edgeproto.GPUType_GPU_TYPE_NONE {
+		if _, ok := cl.ResTagMap["gpu"]; !ok {
 			return nil
 		}
 		// ignore if not authorized to access cloudlet
@@ -208,9 +208,11 @@ func (s *AuthzGPUDriverShow) Filter(obj *edgeproto.GPUDriver) {
 	output := *obj
 	*obj = edgeproto.GPUDriver{}
 	obj.Key = output.Key
-	obj.Type = output.Type
 	obj.Properties = output.Properties
 	obj.Builds = output.Builds
+	if output.LicenseConfig != "" {
+		obj.LicenseConfig = "*****"
+	}
 	for ii := range obj.Builds {
 		obj.Builds[ii].DriverPath = ""
 		obj.Builds[ii].DriverPathCreds = ""

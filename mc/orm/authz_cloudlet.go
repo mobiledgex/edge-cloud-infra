@@ -34,12 +34,14 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	// Get all orgs user has specified resource+action permissions for
 	orgs, err := enforcer.GetAuthorizedOrgs(ctx, username, resource, action)
 	if err != nil {
+		fmt.Printf("AuthzCloudlet-E-GetAuthorizedOrgs username: %s resource %s action %s failed: %s\n", username, resource, action, err.Error())
 		return err
 	}
 
 	// Get all operator orgs user has access to
 	operOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceCloudletPools, ActionView)
 	if err != nil {
+		fmt.Printf("AuthzCloudlet-E-GetAuthorizedOrgs username %s ResourceCloudletPools: %+v  failed: %s\n", username, ResourceCloudletPools, err.Error())
 		return err
 	}
 	s.operOrgs = operOrgs
@@ -49,10 +51,13 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 		// User is an admin. If no filter is specified,
 		// then access for all cloudlets is provided.
 		s.admin = true
+		fmt.Printf("AuthzCloudlet-I-s.admin set true\n")
 		if orgfilter == "" {
+			fmt.Printf("AuthzCloudlet-I-orgfilter empty s.allowAll true\n")
 			s.allowAll = true
 			return nil
 		} else {
+			fmt.Printf("AuthzCloudlet-I-orgfilter : %s\n", orgfilter)
 			// ensure access (admin may not have explicit perms
 			// for specified org).
 			orgs[orgfilter] = struct{}{}
@@ -61,6 +66,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	if orgfilter != "" {
 		// Filter only cloudlets for specified org.
 		if _, found := orgs[orgfilter]; !found {
+			fmt.Printf("AuthzCloudlet-E-orgfilter: %s not found return forbidden\n", orgfilter)
 			return echo.ErrForbidden
 		}
 		orgs = make(map[string]struct{})
@@ -69,6 +75,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 
 	if len(orgs) == 0 {
 		// no access to any orgs for given resource/action
+		fmt.Printf("AuthzCloudlet-E-no access to any orgs for resource %s action %s forbidden\n", resource, action)
 		return echo.ErrForbidden
 	}
 
@@ -76,6 +83,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 		// edgeboxOnly check is not required for Show command
 		noEdgeboxOnly := false
 		if err := checkRequiresOrg(ctx, opts.requiresOrg, resource, s.admin, noEdgeboxOnly); err != nil {
+			fmt.Printf("AuthzCloudlet-E-checkRequiresOrgs return err: %s\n", err.Error())
 			return err
 		}
 	}
@@ -102,6 +110,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	ops := []ormapi.OrgCloudletPool{}
 	err = db.Where(&op).Find(&ops).Error
 	if err != nil {
+		fmt.Printf("AuthzCloudlet-E-db.Where(op).Find(ops) failed for op.Org = orgfilter = %s err: %s \n", orgfilter, err.Error())
 		return err
 	}
 	ops = getAccessGranted(ops)
@@ -155,6 +164,8 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 			poolSide, found := s.cloudletPoolSide[opts.targetCloudlet.Key]
 			if found {
 				if poolSide != myPool {
+					fmt.Printf("AuthzCloudlet-E-poolSide : %+v != myPool: %+v return Forbidden\n", poolSide, myPool)
+
 					return echo.ErrForbidden
 				}
 			} else {
@@ -162,6 +173,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 			}
 		}
 	}
+	fmt.Printf("AuthzCloudlet-E-end return err: %s\n", err.Error())
 	return err
 }
 
@@ -251,9 +263,11 @@ func (s *AuthzCloudletKey) Filter(key *edgeproto.CloudletKey) {
 }
 
 func (s *AuthzCloudletKey) populate(ctx context.Context, region, username, orgfilter, resource, action string, authops ...authOp) error {
+
 	err := s.authzCloudlet.populate(ctx, region, username, orgfilter, resource, action, authops...)
+
 	if err != nil {
-		fmt.Printf("\n\nAuthzCloudletKey-E-populate returned err: %s\n", err.Error())
+		fmt.Printf("AuthzCloudletKey-E-populate returned err: %s\n", err.Error())
 	}
 	return err
 }

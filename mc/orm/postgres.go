@@ -69,7 +69,8 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 
 		// create or update tables
 		err := db.AutoMigrate(&ormapi.User{}, &ormapi.Organization{},
-			&ormapi.Controller{}, &ormapi.Config{}, &ormapi.OrgCloudletPool{}, &ormapi.AccountInfo{}, &ormapi.BillingOrganization{}, &ormapi.UserApiKey{}, &ormapi.Reporter{}, &ormapi.RateLimitSettingsGormWrapper{}).Error
+			&ormapi.Controller{}, &ormapi.Config{}, &ormapi.OrgCloudletPool{}, &ormapi.AccountInfo{}, &ormapi.BillingOrganization{}, &ormapi.UserApiKey{}, &ormapi.Reporter{},
+			&ormapi.McRateLimitFlowSettings{}, &ormapi.McRateLimitMaxReqsSettings{}).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "automigrate", "err", err)
 			if unitTest {

@@ -218,16 +218,22 @@ type Config struct {
 	MaxNumPerUserRateLimiters int
 }
 
-// Wrapper to store in postgres (cannot store slices otherwise)
-type RateLimitSettingsGormWrapper struct {
-	// ApiName
-	ApiName string `gorm:"primary_key"`
-	// RateLimitTarget
-	RateLimitTarget edgeproto.RateLimitTarget `gorm:"primary_key"`
-	// List of Flow Settings
-	FlowSettings []byte
-	// List of MaxReqs Settings
-	MaxReqsSettings []byte
+type McRateLimitFlowSettings struct {
+	Id              string `gorm:"primary_key;type:citext"`
+	ApiName         string
+	RateLimitTarget edgeproto.RateLimitTarget
+	FlowAlgorithm   edgeproto.FlowRateLimitAlgorithm
+	ReqsPerSecond   float64
+	BurstSize       int64
+}
+
+type McRateLimitMaxReqsSettings struct {
+	Id               string `gorm:"primary_key;type:citext"`
+	ApiName          string
+	RateLimitTarget  edgeproto.RateLimitTarget
+	MaxReqsAlgorithm edgeproto.MaxReqsRateLimitAlgorithm
+	MaxRequests      int64
+	Interval         int64
 }
 
 type McRateLimitSettings struct {

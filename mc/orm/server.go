@@ -281,6 +281,9 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
+
+	// AuthCookie needs to be done here at the root so it can run before RateLimit and extract the user information needed by the RateLimit middleware.
+	// AuthCookie will only run for the /auth path.
 	e.Use(logger, AuthCookie, RateLimit)
 
 	// login route

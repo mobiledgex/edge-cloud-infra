@@ -94,12 +94,6 @@ var ConfigComments = map[string]string{
 	"maxnumperuserratelimiters":    `Maximum number of PerUser rate limiters for an api`,
 }
 
-var RateLimitSettingsGormWrapperComments = map[string]string{
-	"apiname":         `ApiName`,
-	"flowsettings":    `List of Flow Settings`,
-	"maxreqssettings": `List of MaxReqs Settings`,
-}
-
 var McRateLimitSettingsComments = map[string]string{
 	"apiname": `Name of API Path (eg. /api/v1/usercreate)`,
 }

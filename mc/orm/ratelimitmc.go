@@ -5,6 +5,7 @@ import (
 	fmt "fmt"
 	"net/http"
 
+	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/ratelimit"
@@ -118,7 +119,7 @@ func InitRateLimitMc(ctx context.Context) error {
 
 // Generates unique id for McRateLimitFlowSettings or McRateLimitMaxReqsSettings based on the index the setting occurs in the slice
 func generateId(apiName string, rateLimitTarget edgeproto.RateLimitTarget, idx int) string {
-	return fmt.Sprintf("%s-%s-%d", apiName, rateLimitTarget, idx)
+	return fmt.Sprintf("%s%d%d", apiName, rateLimitTarget, idx)
 }
 
 /*
@@ -229,6 +230,25 @@ func getMaxNumPerUserRateLimiters(ctx context.Context) int {
 	return config.MaxNumPerUserRateLimiters
 }
 
+func createRateLimitSettingsMcInternal(ctx context.Context, db *gorm.DB, in *ormapi.McRateLimitSettings) error {
+	// Insert new value into db
+	createFunc := func(settings interface{}) error {
+		if err := db.Create(settings).Error; err != nil {
+			return fmt.Errorf("Unable to create RateLimitSettings %v - error: %s", in, err.Error())
+		}
+		return nil
+	}
+
+	err := executeDbOperationOnMcRateLimitSettings(in, createFunc)
+	if err != nil {
+		return err
+	}
+
+	// Update RateLimitMgr with new RateLimitSettings
+	rateLimitMgr.UpdateRateLimitSettings(convertToRateLimitSettings(in))
+	return nil
+}
+
 // Create MC RateLimit settings
 func CreateRateLimitSettingsMc(c echo.Context) error {
 	ctx := GetContext(c)
@@ -253,86 +273,58 @@ func CreateRateLimitSettingsMc(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	// Insert new value into db
-	createFunc := func(settings interface{}) error {
-		db := loggedDB(ctx)
-		if err = db.Create(settings).Error; err != nil {
-			return fmt.Errorf("Unable to create RateLimitSettings %v - error: %s", in, err.Error())
-		}
-		return nil
-	}
-
-	err = executeDbOperationOnMcRateLimitSettings(&in, createFunc)
-	if err != nil {
-		return err
-	}
-
-	// Update RateLimitMgr with new RateLimitSettings
-	rateLimitMgr.UpdateRateLimitSettings(convertToRateLimitSettings(&in))
-	return nil
+	db := loggedDB(ctx)
+	return createRateLimitSettingsMcInternal(ctx, db, &in)
 }
 
-// Update MC RateLimit settings
-func UpdateRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
+func deleteRateLimitSettingsMcInternal(ctx context.Context, db *gorm.DB, in *ormapi.McRateLimitSettings) error {
+	found := false
 
-	// Check if rate limiting is disabled
-	if getDisableRateLimit(ctx) {
-		return fmt.Errorf("DisableRateLimit must be false to update ratelimitsettingsmc")
+	// Search for all McRateLimitFlowSettings entries with specified apiname and ratelimittarget
+	searchFlow := &ormapi.McRateLimitFlowSettings{
+		ApiName:         in.ApiName,
+		RateLimitTarget: in.RateLimitTarget,
 	}
-
-	// Validate rbac
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionManage); err != nil {
-		return err
-	}
-
-	// Get McRateLimitSettings from request
-	in := ormapi.McRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
-	}
-
-	updateFunc := func(settings interface{}) error {
-		var search interface{}
-		var old interface{}
-		switch typ := settings.(type) {
-		case *ormapi.McRateLimitFlowSettings:
-			search = &ormapi.McRateLimitFlowSettings{
-				Id: typ.Id,
-			}
-			old = &ormapi.McRateLimitFlowSettings{}
-		case *ormapi.McRateLimitMaxReqsSettings:
-			search = &ormapi.McRateLimitMaxReqsSettings{
-				Id: typ.Id,
-			}
-			old = &ormapi.McRateLimitMaxReqsSettings{}
-		default:
-			return fmt.Errorf("Unknown settings type %v", typ)
+	r := db.Where(searchFlow).Delete(ormapi.McRateLimitFlowSettings{})
+	if r.RecordNotFound() {
+		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find McRateLimitFlowSettings for specified name and target", "search", searchFlow)
+	} else {
+		if r.RowsAffected > 0 {
+			found = true
 		}
-
-		db := loggedDB(ctx)
-		// Search for entry with corresponding primary key
-		if err = db.Where(search).First(old).Error; err != nil {
-			return err
+		if r.Error != nil {
+			return dbErr(r.Error)
 		}
-		// Update found entry with new values
-		if err = db.Model(old).Updates(settings).Error; err != nil {
-			return err
-		}
-		return nil
 	}
 
-	err = executeDbOperationOnMcRateLimitSettings(&in, updateFunc)
-	if err != nil {
-		return err
+	// Search for all McRateLimitMaxReqsSettings entries with specified apiname and ratelimittarget
+	searchMaxReqs := &ormapi.McRateLimitMaxReqsSettings{
+		ApiName:         in.ApiName,
+		RateLimitTarget: in.RateLimitTarget,
+	}
+	r = db.Where(searchMaxReqs).Delete(ormapi.McRateLimitMaxReqsSettings{})
+	if r.RecordNotFound() {
+		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find McRateLimitMaxReqsSettings for specified name and target", "search", searchMaxReqs)
+	} else {
+		if r.RowsAffected > 0 {
+			found = true
+		}
+		if r.Error != nil {
+			return dbErr(r.Error)
+		}
 	}
 
-	// Update RateLimitMgr with updated RateLimitSettings
-	rateLimitMgr.UpdateRateLimitSettings(convertToRateLimitSettings(&in))
+	// If there are no McRateLimitFlowSettings or McRateLimitMaxReqsSettings with specified apiname and ratelimittarget, return error
+	if !found {
+		return fmt.Errorf("Specified Key not found")
+	}
+
+	// Remove RateLimitSettings from RateLimitMgr
+	key := edgeproto.RateLimitSettingsKey{
+		ApiName:         in.ApiName,
+		RateLimitTarget: in.RateLimitTarget,
+	}
+	rateLimitMgr.RemoveRateLimitSettings(key)
 	return nil
 }
 
@@ -360,58 +352,56 @@ func DeleteRateLimitSettingsMc(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	search := &ormapi.McRateLimitFlowSettings{
-		ApiName:         in.ApiName,
-		RateLimitTarget: in.RateLimitTarget,
-	}
-
-	// Search for all entries with specified primary keys (if fields are not specified, fields are left out of search)
 	db := loggedDB(ctx)
-	r := db.Where(search)
-	if r.RecordNotFound() {
-		return fmt.Errorf("Specified Key not found")
-	}
-	if r.Error != nil {
-		return dbErr(r.Error)
+	return deleteRateLimitSettingsMcInternal(ctx, db, &in)
+}
+
+// Update MC RateLimit settings
+func UpdateRateLimitSettingsMc(c echo.Context) error {
+	ctx := GetContext(c)
+
+	// Check if rate limiting is disabled
+	if getDisableRateLimit(ctx) {
+		return fmt.Errorf("DisableRateLimit must be false to update ratelimitsettingsmc")
 	}
 
-	mcflowrecords := make([]*ormapi.McRateLimitFlowSettings, 0)
-	mcmaxreqsrecords := make([]*ormapi.McRateLimitMaxReqsSettings, 0)
-	if err = r.Find(&mcflowrecords).Error; err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find records for flow", "error", err.Error())
+	// Validate rbac
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
 	}
-	if err = r.Find(&mcmaxreqsrecords).Error; err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find records for maxreqs", "error", err.Error())
-	}
-
-	for _, record := range mcflowrecords {
-		// Remove entry from db
-		d := db.Delete(record)
-		if d.Error != nil {
-			return dbErr(d.Error)
-		}
-		if d.RowsAffected == 0 {
-			return fmt.Errorf("Unable to delete flow record: %v", record)
-		}
+	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionManage); err != nil {
+		return err
 	}
 
-	for _, record := range mcmaxreqsrecords {
-		// Remove entry from db
-		d := db.Delete(record)
-		if d.Error != nil {
-			return dbErr(d.Error)
-		}
-		if d.RowsAffected == 0 {
-			return fmt.Errorf("Unable to delete maxreqs record: %v", record)
-		}
+	// Get McRateLimitSettings from request
+	in := ormapi.McRateLimitSettings{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
 	}
 
-	// Remove RateLimitSettings from RateLimitMgr
-	key := edgeproto.RateLimitSettingsKey{
-		ApiName:         in.ApiName,
-		RateLimitTarget: in.RateLimitTarget,
+	db := loggedDB(ctx)
+	tx := db.Begin()
+
+	if err := tx.Error; err != nil {
+		return fmt.Errorf("Unable to update settings, error starting database transaction - error is %s", err.Error())
 	}
-	rateLimitMgr.RemoveRateLimitSettings(key)
+
+	// delete old settings
+	err = deleteRateLimitSettingsMcInternal(ctx, tx, &in)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("Unable to delete old settings before updating - error is %s", err.Error())
+	}
+
+	// create new settings
+	err = createRateLimitSettingsMcInternal(ctx, tx, &in)
+	if err != nil {
+		tx.Rollback()
+		return fmt.Errorf("Unable to update settings - error is %s", err.Error())
+	}
+
+	tx.Commit()
 	return nil
 }
 

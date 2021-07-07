@@ -5,7 +5,6 @@ gitlab_vm_hostname=gitlab-{{ deploy_environ }}.mobiledgex.net
 gitlab_email_enabled=false
 gitlab_slack_notifications=false
 gitlab_docker_hostname="docker-{{ deploy_environ }}.mobiledgex.net"
-mc_artifactory_address=https://artifactory-qa.mobiledgex.net/artifactory
 mc_vm_hostname=mc-{{ deploy_environ}}.mobiledgex.net
 crm_vm_hostname=crm-{{ deploy_environ }}.mobiledgex.net
 console_vm_hostname=console-{{ deploy_environ }}.mobiledgex.net
@@ -27,8 +26,6 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 etcd_quota_backend="150 MB"
 etcd_auto_compaction_retention=2
-artifactory_fqdn=https://artifactory-qa.mobiledgex.net/artifactory/
-cloudlet_vm_path=https://artifactory-qa.mobiledgex.net/artifactory/baseimages
 controller_replicas=1
 gitlab_version=13.8.7-ee.0
 

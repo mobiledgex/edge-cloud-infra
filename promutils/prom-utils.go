@@ -8,9 +8,13 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/types"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 )
 
-const PromLabelsAllMobiledgeXApps = `{label_mexAppName!=""}`
+var ClusterPrometheusAppLabel = "label_" + cloudcommon.MexAppNameLabel
+var ClusterPrometheusAppVersionLabel = "label_" + cloudcommon.MexAppVersionLabel
+
+var PromLabelsAllMobiledgeXApps = `{` + ClusterPrometheusAppLabel + `!=""}`
 
 var PromQCpuClust = `sum(rate(container_cpu_usage_seconds_total{id="/"}[1m]))/sum(machine_cpu_cores)*100`
 var PromQMemClust = `sum(container_memory_working_set_bytes{id="/"})/sum(machine_memory_bytes)*100`

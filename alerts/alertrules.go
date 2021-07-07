@@ -8,14 +8,16 @@ import (
 	"text/template"
 
 	"github.com/mobiledgex/edge-cloud-infra/promutils"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/prommgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
+	"github.com/prometheus/common/model"
 )
 
 var MEXPrometheusUserAlertsT = `additionalPrometheusRules:
-- name: userDefinedAlerts
+- name: userdefinedalerts
   groups:
   - name: useralerts.rules
     rules:
@@ -26,12 +28,14 @@ var MEXPrometheusUserAlertsT = `additionalPrometheusRules:
       labels:
         severity: [[ .Severity ]]        
         [[- range $key, $value := .Labels ]]
-        [[ $key ]]: [[ $value ]]
+        [[ $key ]]: "[[ $value ]]"
         [[- end ]]
+      [[- if gt (len .Annotations) 0 ]]
       annotations:
         [[- range $key, $value := .Annotations ]]
-        [[ $key ]]: [[ $value ]]
-        [[- end ]]        
+        [[ $key ]]: "[[ $value ]]"
+        [[- end ]]
+      [[- end ]]
     [[- end ]]
 `
 
@@ -120,4 +124,44 @@ func GetAlertsRules(ctx context.Context, appInst *edgeproto.AppInst, alerts []ed
 	}
 	log.SpanLog(ctx, log.DebugLevelInfo, "User Alert config", "config", buf.String())
 	return buf.String(), nil
+}
+
+// Get a set of cloudlet prometheus alerts for user-defined alerts on a given appInst
+func GetCloudletAlertRules(ctx context.Context, appInst *edgeproto.AppInst, alerts []edgeproto.UserAlert) *prommgmt.RuleGroup {
+	grp := prommgmt.NewRuleGroup("user-alerts", appInst.Key.AppKey.Organization)
+
+	for ii, _ := range alerts {
+		if alerts[ii].ActiveConnLimit == 0 {
+			continue
+		}
+		rule := prommgmt.Rule{}
+		rule.Alert = alerts[ii].Key.Name
+		rule.Expr = `envoy_cluster_upstream_cx_active{` +
+			edgeproto.AppKeyTagName + `="` + appInst.Key.AppKey.Name + `",` +
+			edgeproto.AppKeyTagVersion + `="` + appInst.Key.AppKey.Version + `",` +
+			edgeproto.AppKeyTagOrganization + `="` + appInst.Key.AppKey.Organization +
+			`"} > ` + fmt.Sprintf("%d", alerts[ii].ActiveConnLimit)
+		rule.For = model.Duration(alerts[ii].TriggerTime)
+
+		// add labels
+		rule.Labels = util.CopyStringMap(alerts[ii].Labels)
+		rule.Annotations = util.CopyStringMap(alerts[ii].Annotations)
+		rule.Labels[edgeproto.AppKeyTagOrganization] = alerts[ii].Key.Organization
+		rule.Labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopeApp
+		rule.Labels[edgeproto.AppKeyTagName] = appInst.Key.AppKey.Name
+		rule.Labels[edgeproto.AppKeyTagVersion] = appInst.Key.AppKey.Version
+		rule.Labels[edgeproto.CloudletKeyTagName] = appInst.Key.ClusterInstKey.CloudletKey.Name
+		rule.Labels[edgeproto.CloudletKeyTagOrganization] = appInst.Key.ClusterInstKey.CloudletKey.Organization
+		rule.Labels[edgeproto.ClusterKeyTagName] = appInst.Key.ClusterInstKey.ClusterKey.Name
+		rule.Labels[edgeproto.ClusterInstKeyTagOrganization] = appInst.Key.ClusterInstKey.Organization
+
+		log.SpanLog(ctx, log.DebugLevelInfo, "Adding Cloudlet Prometheus user alert rule", "appInst", appInst,
+			"rule", rule)
+		grp.Rules = append(grp.Rules, rule)
+	}
+	if len(grp.Rules) == 0 {
+		return nil
+	}
+
+	return grp
 }

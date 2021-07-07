@@ -15,6 +15,7 @@ import (
 	"sync"
 	"text/template"
 
+	"github.com/mobiledgex/edge-cloud-infra/alerts"
 	"github.com/mobiledgex/edge-cloud-infra/autoprov/autorules"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
@@ -351,8 +352,28 @@ func writePrometheusAlertRuleForAppInst(ctx context.Context, k interface{}) {
 		}
 	}
 
+	// add user-defined alerts for this app Inst as well
+	if len(app.UserDefinedAlerts) > 0 {
+		userAlerts := []edgeproto.UserAlert{}
+		for _, alertName := range app.UserDefinedAlerts {
+			userAlert := edgeproto.UserAlert{
+				Key: edgeproto.UserAlertKey{
+					Name:         alertName,
+					Organization: app.Key.Organization,
+				},
+			}
+			found := UserAlertCache.Get(&userAlert.Key, &userAlert)
+			if !found {
+				continue
+			}
+			userAlerts = append(userAlerts, userAlert)
+		}
+		userGrp := alerts.GetCloudletAlertRules(ctx, &appInst, userAlerts)
+		if userGrp != nil {
+			grps.Groups = append(grps.Groups, *userGrp)
+		}
+	}
 	if len(grps.Groups) == 0 {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "no rules for AppInst", "AppInst", key)
 		// no rules
 		return
 	}

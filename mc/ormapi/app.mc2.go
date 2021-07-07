@@ -35,6 +35,25 @@ type RegionApp struct {
 	App    edgeproto.App
 }
 
+func (s *RegionApp) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionApp) GetObj() interface{} {
+	return &s.App
+}
+
+func (s *RegionApp) GetObjName() string {
+	return "App"
+}
+func (s *RegionApp) GetObjFields() []string {
+	return s.App.Fields
+}
+
+func (s *RegionApp) SetObjFields(fields []string) {
+	s.App.Fields = fields
+}
+
 // Request summary for DeleteApp
 // swagger:parameters DeleteApp
 type swaggerDeleteApp struct {
@@ -68,6 +87,18 @@ type RegionAppAutoProvPolicy struct {
 	// Region name
 	Region            string
 	AppAutoProvPolicy edgeproto.AppAutoProvPolicy
+}
+
+func (s *RegionAppAutoProvPolicy) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionAppAutoProvPolicy) GetObj() interface{} {
+	return &s.AppAutoProvPolicy
+}
+
+func (s *RegionAppAutoProvPolicy) GetObjName() string {
+	return "AppAutoProvPolicy"
 }
 
 // Request summary for RemoveAppAutoProvPolicy

@@ -9,7 +9,6 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud/cli"
 	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
@@ -73,30 +72,9 @@ var UpdateGPUDriverCmd = &ApiCommand{
 	ReqData:              &ormapi.RegionGPUDriver{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/UpdateGPUDriver",
-	SetFieldsFunc:        SetUpdateGPUDriverFields,
 	StreamOut:            true,
 	StreamOutIncremental: true,
 	ProtobufApi:          true,
-}
-
-func SetUpdateGPUDriverFields(in map[string]interface{}) {
-	// get map for edgeproto object in region struct
-	obj := in["GPUDriver"]
-	if obj == nil {
-		return
-	}
-	objmap, ok := obj.(map[string]interface{})
-	if !ok {
-		return
-	}
-	fields := cli.GetSpecifiedFields(objmap, &edgeproto.GPUDriver{}, cli.JsonNamespace)
-	// include fields already specified
-	if inFields, found := objmap["fields"]; found {
-		if fieldsArr, ok := inFields.([]string); ok {
-			fields = append(fields, fieldsArr...)
-		}
-	}
-	objmap["fields"] = fields
 }
 
 var ShowGPUDriverCmd = &ApiCommand{
@@ -167,7 +145,6 @@ var GetGPUDriverBuildURLCmd = &ApiCommand{
 	Path:         "/auth/ctrl/GetGPUDriverBuildURL",
 	ProtobufApi:  true,
 }
-
 var GPUDriverApiCmds = []*ApiCommand{
 	CreateGPUDriverCmd,
 	DeleteGPUDriverCmd,
@@ -274,30 +251,9 @@ var UpdateCloudletCmd = &ApiCommand{
 	ReqData:              &ormapi.RegionCloudlet{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/UpdateCloudlet",
-	SetFieldsFunc:        SetUpdateCloudletFields,
 	StreamOut:            true,
 	StreamOutIncremental: true,
 	ProtobufApi:          true,
-}
-
-func SetUpdateCloudletFields(in map[string]interface{}) {
-	// get map for edgeproto object in region struct
-	obj := in["Cloudlet"]
-	if obj == nil {
-		return
-	}
-	objmap, ok := obj.(map[string]interface{})
-	if !ok {
-		return
-	}
-	fields := cli.GetSpecifiedFields(objmap, &edgeproto.Cloudlet{}, cli.JsonNamespace)
-	// include fields already specified
-	if inFields, found := objmap["fields"]; found {
-		if fieldsArr, ok := inFields.([]string); ok {
-			fields = append(fields, fieldsArr...)
-		}
-	}
-	objmap["fields"] = fields
 }
 
 var ShowCloudletCmd = &ApiCommand{
@@ -454,7 +410,6 @@ var GenerateAccessKeyCmd = &ApiCommand{
 	Path:         "/auth/ctrl/GenerateAccessKey",
 	ProtobufApi:  true,
 }
-
 var CloudletApiCmds = []*ApiCommand{
 	CreateCloudletCmd,
 	DeleteCloudletCmd,
@@ -591,6 +546,7 @@ var UpdateCloudletOptionalArgs = []string{
 	"accessvars",
 	"maintenancestate",
 	"trustpolicy",
+	"resourcequotas:empty",
 	"resourcequotas:#.name",
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
@@ -717,7 +673,6 @@ var EvictCloudletInfoCmd = &ApiCommand{
 	Path:         "/auth/ctrl/EvictCloudletInfo",
 	ProtobufApi:  true,
 }
-
 var CloudletInfoApiCmds = []*ApiCommand{
 	ShowCloudletInfoCmd,
 	InjectCloudletInfoCmd,
@@ -821,6 +776,7 @@ var GPUDriverRequiredArgs = []string{
 }
 var GPUDriverOptionalArgs = []string{
 	"gpudriver-org",
+	"builds:empty",
 	"builds:#.name",
 	"builds:#.driverpath",
 	"builds:#.driverpathcreds",
@@ -836,6 +792,7 @@ var GPUDriverAliasArgs = []string{
 	"fields=gpudriver.fields",
 	"gpudrivername=gpudriver.key.name",
 	"gpudriver-org=gpudriver.key.organization",
+	"builds:empty=gpudriver.builds:empty",
 	"builds:#.name=gpudriver.builds:#.name",
 	"builds:#.driverpath=gpudriver.builds:#.driverpath",
 	"builds:#.driverpathcreds=gpudriver.builds:#.driverpathcreds",
@@ -853,6 +810,7 @@ var GPUDriverComments = map[string]string{
 	"fields":                   "Fields are used for the Update API to specify which fields to apply",
 	"gpudrivername":            "Name of the driver",
 	"gpudriver-org":            "Organization to which the driver belongs to",
+	"builds:empty":             "List of GPU driver build, specify builds:empty=true to clear",
 	"builds:#.name":            "Unique identifier key",
 	"builds:#.driverpath":      "Path where the driver package is located, if it is authenticated path, then credentials must be passed as part of URL (one-time download path)",
 	"builds:#.driverpathcreds": "Optional credentials (username:password) to access driver path",
@@ -862,7 +820,7 @@ var GPUDriverComments = map[string]string{
 	"builds:#.md5sum":          "Driver package md5sum to ensure package is not corrupted",
 	"licenseconfig":            "License config to setup license (will be stored in secure storage)",
 	"licenseconfigmd5sum":      "License config md5sum, to ensure integrity of license config",
-	"properties":               "Additional properties associated with GPU driver build For example: license server information, driver release date, etc",
+	"properties":               "Additional properties associated with GPU driver build For example: license server information, driver release date, etc, specify properties:empty=true to clear",
 	"state":                    "State to figure out if any action on the GPU driver is in-progress",
 	"ignorestate":              "Ignore state will ignore any action in-progress on the GPU driver",
 }
@@ -894,6 +852,7 @@ var CloudletOptionalArgs = []string{
 	"physicalname",
 	"envvar",
 	"containerversion",
+	"restagmap:empty",
 	"restagmap:#.key",
 	"restagmap:#.value.name",
 	"restagmap:#.value.organization",
@@ -907,6 +866,7 @@ var CloudletOptionalArgs = []string{
 	"overridepolicycontainerversion",
 	"vmpool",
 	"trustpolicy",
+	"resourcequotas:empty",
 	"resourcequotas:#.name",
 	"resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold",
@@ -978,6 +938,7 @@ var CloudletAliasArgs = []string{
 	"config.crmaccessprivatekey=cloudlet.config.crmaccessprivatekey",
 	"config.accessapiaddr=cloudlet.config.accessapiaddr",
 	"config.cachedir=cloudlet.config.cachedir",
+	"restagmap:empty=cloudlet.restagmap:empty",
 	"restagmap:#.key=cloudlet.restagmap:#.key",
 	"restagmap:#.value.name=cloudlet.restagmap:#.value.name",
 	"restagmap:#.value.organization=cloudlet.restagmap:#.value.organization",
@@ -999,6 +960,7 @@ var CloudletAliasArgs = []string{
 	"updatedat.nanos=cloudlet.updatedat.nanos",
 	"trustpolicy=cloudlet.trustpolicy",
 	"trustpolicystate=cloudlet.trustpolicystate",
+	"resourcequotas:empty=cloudlet.resourcequotas:empty",
 	"resourcequotas:#.name=cloudlet.resourcequotas:#.name",
 	"resourcequotas:#.value=cloudlet.resourcequotas:#.value",
 	"resourcequotas:#.alertthreshold=cloudlet.resourcequotas:#.alertthreshold",
@@ -1032,7 +994,7 @@ var CloudletComments = map[string]string{
 	"timelimits.createappinsttimeout":     "override default max time to create an app instance (duration)",
 	"timelimits.updateappinsttimeout":     "override default max time to update an app instance (duration)",
 	"timelimits.deleteappinsttimeout":     "override default max time to delete an app instance (duration)",
-	"errors":                              "Any errors trying to create, update, or delete the Cloudlet.",
+	"errors":                              "Any errors trying to create, update, or delete the Cloudlet., specify errors:empty=true to clear",
 	"state":                               "Current state of the cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"crmoverride":                         "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
 	"deploymentlocal":                     "Deploy cloudlet services locally",
@@ -1040,7 +1002,7 @@ var CloudletComments = map[string]string{
 	"notifysrvaddr":                       "Address for the CRM notify listener to run on",
 	"flavor.name":                         "Flavor name",
 	"physicalname":                        "Physical infrastructure cloudlet name",
-	"envvar":                              "Single Key-Value pair of env var to be passed to CRM",
+	"envvar":                              "Single Key-Value pair of env var to be passed to CRM, specify envvar:empty=true to clear",
 	"containerversion":                    "Cloudlet container version",
 	"config.containerregistrypath":        "Path to Docker registry holding edge-cloud image",
 	"config.cloudletvmimagepath":          "Path to platform base image",
@@ -1048,7 +1010,7 @@ var CloudletComments = map[string]string{
 	"config.tlscertfile":                  "TLS cert file",
 	"config.tlskeyfile":                   "TLS key file",
 	"config.tlscafile":                    "TLS ca file",
-	"config.envvar":                       "Environment variables",
+	"config.envvar":                       "Environment variables, specify config.envvar:empty=true to clear",
 	"config.platformtag":                  "Tag of edge-cloud image",
 	"config.testmode":                     "Internal Test flag",
 	"config.span":                         "Span string",
@@ -1063,15 +1025,16 @@ var CloudletComments = map[string]string{
 	"config.crmaccessprivatekey":          "crm access private key",
 	"config.accessapiaddr":                "controller access API address",
 	"config.cachedir":                     "cache dir",
+	"restagmap:empty":                     "Optional resource to restagtbl key map key values = [gpu, nas, nic], specify restagmap:empty=true to clear",
 	"restagmap:#.value.name":              "Resource Table Name",
 	"restagmap:#.value.organization":      "Operator organization of the cloudlet site.",
-	"accessvars":                          "Variables required to access cloudlet",
+	"accessvars":                          "Variables required to access cloudlet, specify accessvars:empty=true to clear",
 	"vmimageversion":                      "MobiledgeX baseimage version where CRM services reside",
 	"deployment":                          "Deployment type to bring up CRM services (docker, kubernetes)",
 	"infraapiaccess":                      "Infra Access Type is the type of access available to Infra API Endpoint, one of DirectAccess, RestrictedAccess",
 	"infraconfig.externalnetworkname":     "Infra specific external network name",
 	"infraconfig.flavorname":              "Infra specific flavor name",
-	"chefclientkey":                       "Chef client key",
+	"chefclientkey":                       "Chef client key, specify chefclientkey:empty=true to clear",
 	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, NormalOperationInit, UnderMaintenance",
 	"overridepolicycontainerversion":      "Override container version from policy file",
 	"vmpool":                              "VM Pool",
@@ -1079,6 +1042,7 @@ var CloudletComments = map[string]string{
 	"crmaccesskeyupgraderequired":         "CRM access key upgrade required",
 	"trustpolicy":                         "Optional Trust Policy",
 	"trustpolicystate":                    "State of trust policy, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
+	"resourcequotas:empty":                "Resource quotas, specify resourcequotas:empty=true to clear",
 	"resourcequotas:#.name":               "Resource name on which to set quota",
 	"resourcequotas:#.value":              "Quota value of the resource",
 	"resourcequotas:#.alertthreshold":     "Generate alert when more than threshold percentage of resource is used",
@@ -1089,7 +1053,7 @@ var CloudletComments = map[string]string{
 	"kafkapassword":                       "password for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
 	"gpuconfig.driver.name":               "Name of the driver",
 	"gpuconfig.driver.organization":       "Organization to which the driver belongs to",
-	"gpuconfig.properties":                "Properties to identify specifics of GPU",
+	"gpuconfig.properties":                "Properties to identify specifics of GPU, specify gpuconfig.properties:empty=true to clear",
 	"enabledefaultserverlesscluster":      "Enable experimental default multitenant (serverless) cluster",
 }
 var CloudletSpecialArgs = map[string]string{

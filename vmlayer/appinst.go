@@ -87,8 +87,6 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	}
 	ctx = context.WithValue(ctx, crmutil.DeploymentReplaceVarsKey, &deploymentVars)
 
-	// whether the app vm needs to connect to internal or external networks
-	// depends on whether it has an LB
 	var vms []*VMRequestSpec
 	orchVals.externalServerName = objName
 

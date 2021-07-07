@@ -57,30 +57,3 @@ func SetRegionObjFields(jsonData []byte, regionObj ormapi.RegionObjWithFields) e
 	regionObj.SetObjFields(fields)
 	return nil
 }
-
-/*
-func SetRegionObjMapFields(data *cli.MapData, obj interface{}, objKey, fieldsKey string) {
-	// get map for edgeproto object in region struct
-	objData := data.Data[objKey]
-	if objData == nil {
-		return
-	}
-	objMap, ok := objData.(map[string]interface{})
-	if !ok {
-		return
-	}
-	objMapData := &cli.MapData{
-		Namespace: data.Namespace,
-		Data:      objMap,
-	}
-	fields := cli.GetSpecifiedFields(objMapData, obj)
-	// include fields already specified
-	if inFields, found := objMap[fieldsKey]; found {
-		if fieldsArr, ok := inFields.([]string); ok {
-			fields = append(fields, fieldsArr...)
-		}
-	}
-	objMap[fieldsKey] = fields
-
-}
-*/

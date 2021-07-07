@@ -12,7 +12,7 @@ import (
 )
 
 var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
-- name: userDefinedAlerts
+- name: userdefinedalerts
   groups:
   - name: useralerts.rules
     rules:
@@ -20,34 +20,33 @@ var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
       expr: max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(rate(container_cpu_usage_seconds_total{image!=""}[1m]))by(pod)) > 80 and max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(container_memory_working_set_bytes{image!=""})by(pod)) > 123456 and max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(container_fs_usage_bytes{image!=""})by(pod)) > 123456
       for: 30s
       labels:
-        severity: ALERT_SEVERITY_WARNING
-        app: Pokemon Go!
-        apporg: NianticInc
-        appver: 1.0.0
-        cloudlet: San Jose Site
-        cloudletorg: AT&T Inc.
-        cluster: Pokemons
-        clusterorg: NianticInc
-        scope: Application
-      annotations:
+        severity: warning
+        app: "Pokemon Go!"
+        apporg: "NianticInc"
+        appver: "1.0.0"
+        cloudlet: "San Jose Site"
+        cloudletorg: "AT&T Inc."
+        cluster: "Pokemons"
+        clusterorg: "NianticInc"
+        scope: "Application"
     - alert: testAlert3
       expr: max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(rate(container_cpu_usage_seconds_total{image!=""}[1m]))by(pod)) > 100
       for: 30s
       labels:
-        severity: ALERT_SEVERITY_ERROR
-        app: Pokemon Go!
-        apporg: Ever.ai
-        appver: 1.0.0
-        cloudlet: San Jose Site
-        cloudletorg: AT&T Inc.
-        cluster: Pokemons
-        clusterorg: NianticInc
-        scope: Application
-        testLabel1: testValue1
-        testLabel2: testValue2
+        severity: error
+        app: "Pokemon Go!"
+        apporg: "Ever.ai"
+        appver: "1.0.0"
+        cloudlet: "San Jose Site"
+        cloudletorg: "AT&T Inc."
+        cluster: "Pokemons"
+        clusterorg: "NianticInc"
+        scope: "Application"
+        testLabel1: "testValue1"
+        testLabel2: "testValue2"
       annotations:
-        testAnnotation1: description1
-        testAnnotation2: description2
+        testAnnotation1: "description1"
+        testAnnotation2: "description2"
 `
 
 // TestAutoScaleT primarily checks that AutoScale template parsing works, because
@@ -130,8 +129,8 @@ func testClusterRulesT(t *testing.T, ctx context.Context, clusterInst *edgeproto
 	configs, err := clusterSvc.GetAppInstConfigs(ctx, clusterInst, &appInst, policy, settings, alerts)
 	require.Nil(t, err)
 	require.Equal(t, 2, len(configs))
-	require.Equal(t, expectedAutoProvRules, configs[0].Config)
 	ioutil.WriteFile("foo", []byte(configs[0].Config), 0644)
-	require.Equal(t, expectedUserAlertsRules, configs[1].Config)
+	require.Equal(t, expectedAutoProvRules, configs[0].Config)
 	ioutil.WriteFile("bar", []byte(configs[1].Config), 0644)
+	require.Equal(t, expectedUserAlertsRules, configs[1].Config)
 }

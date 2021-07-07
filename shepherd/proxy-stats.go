@@ -159,13 +159,13 @@ func getProxyContainerAndNetworkType(ctx context.Context, scrapePoint ProxyScrap
 	return container, DockerNetworkBridge, nil
 }
 
-// Init cluster client for a scrape point
+// Init cluster client for a scrape pointd
 func initClient(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, clusterInst *edgeproto.ClusterInst, scrapePoint *ProxyScrapePoint) error {
 	var err error
 
 	// record last connection attempt
 	scrapePoint.LastConnectAttempt = time.Now()
-	if app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER {
+	if app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType != edgeproto.AccessType_ACCESS_TYPE_DIRECT {
 		scrapePoint.Client, err = myPlatform.GetVmAppRootLbClient(ctx, &appInst.Key)
 		if err != nil {
 			// If we cannot get a platform client no point in trying to get metrics
@@ -254,7 +254,7 @@ func CollectProxyStats(ctx context.Context, appInst *edgeproto.AppInst) string {
 		clusterInst := edgeproto.ClusterInst{}
 		found := ClusterInstCache.Get(appInst.ClusterInstKey(), &clusterInst)
 		// lb vm apps continue anyway
-		if !found && !(app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType == edgeproto.AccessType_ACCESS_TYPE_LOAD_BALANCER) {
+		if !found && !(app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType != edgeproto.AccessType_ACCESS_TYPE_DIRECT) {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for AppInst", "AppInstKey", appInst.Key)
 			return ""
 		}

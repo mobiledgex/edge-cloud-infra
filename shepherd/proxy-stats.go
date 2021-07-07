@@ -159,7 +159,7 @@ func getProxyContainerAndNetworkType(ctx context.Context, scrapePoint ProxyScrap
 	return container, DockerNetworkBridge, nil
 }
 
-// Init cluster client for a scrape pointd
+// Init cluster client for a scrape point
 func initClient(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, clusterInst *edgeproto.ClusterInst, scrapePoint *ProxyScrapePoint) error {
 	var err error
 

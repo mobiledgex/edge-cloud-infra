@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -121,7 +120,6 @@ func getCloudletPrometheusStats(ctx context.Context, addr string, client ssh.Cli
 			tags = append(tags, k+`="`+v+`"`)
 		}
 		q := "max_over_time(envoy_cluster_upstream_cx_active_total:avg{" + strings.Join(tags, ",") + "}[" + fmt.Sprintf("%d", policy.StabilizationWindowSec) + "s])"
-		q = url.QueryEscape(q)
 		resp, err := getPromMetrics(ctx, addr, q, client)
 		if err == nil && resp.Status == "success" {
 			for _, metric := range resp.Data.Result {

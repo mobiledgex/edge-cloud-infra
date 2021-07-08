@@ -26,6 +26,10 @@
       - name: agentpool
         count: "{{ platform_k8s_pool_size }}"
         vm_size: "{{ platform_k8s_vm_size }}"
+        enable_auto_scaling: True
+        type: VirtualMachineScaleSets
+        min_count: "{{ platform_k8s_pool_size }}"
+        max_count: "{{ platform_k8s_pool_size_max }}"
     tags:
       Environment: "mexplat-{{ deploy_environ }}"
       Region: "{{ platform_region.region }}"

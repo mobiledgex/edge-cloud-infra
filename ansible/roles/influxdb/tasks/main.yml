@@ -65,8 +65,8 @@
 
   - name: 'Make sure the index-version is already "{{ index_version }}"'
     assert:
-      that:
-        - "index_version_param in influxdb_configmap.diff.before.data['influxdb.conf']"
+      that: ('diff' not in influxdb_configmap ) or
+            (index_version_param in influxdb_configmap.diff.before.data['influxdb.conf'])
       fail_msg: 'Needs manual migration to change index version to "{{ index_version }}"'
 
   - name: Set up configmap

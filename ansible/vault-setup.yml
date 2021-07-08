@@ -169,6 +169,15 @@
             roles:
               - "projects/{{ gcp_project }}/roles/{{ gcp_bucket_create_role }}"
 
+    - name: Set up GCP buckets
+      import_role:
+        name: gcp-buckets
+        tasks_from: create
+      vars:
+        buckets:
+          - "{{ gcs_gpu_drivers_bucket }}"
+          - "{{ gcs_operator_reports_bucket }}"
+
     - name: Set up vault rolesets for bucket access
       vault_gcp_roleset:
         name: "{{ bucket }}-access"

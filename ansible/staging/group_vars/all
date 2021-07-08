@@ -38,11 +38,4 @@ vault_github_users:
   - userid: ashxjain
     role: admin
 
-crm_instances:
-
-  - cloudlet_name: "{{ deploy_target }}-hamburg-cloudlet"
-    crm_name: "crm-{{ deploy_target }}-hamburg"
-    openstack_instance: hamburg
-    operator_key: TDG
-    controller_region: EU
-    notify_srv_port: 51092
+crm_instances: []

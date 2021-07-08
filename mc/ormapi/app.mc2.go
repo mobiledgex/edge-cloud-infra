@@ -97,3 +97,17 @@ type swaggerRemoveAppUserDefinedAlert struct {
 	// in: body
 	Body RegionAppUserDefinedAlert
 }
+
+// Request summary for ShowCloudletsForAppDeployment
+// swagger:parameters ShowCloudletsForAppDeployment
+type swaggerShowCloudletsForAppDeployment struct {
+	// in: body
+	Body RegionDeploymentCloudletRequest
+}
+
+type RegionDeploymentCloudletRequest struct {
+	// required: true
+	// Region name
+	Region                    string
+	DeploymentCloudletRequest edgeproto.DeploymentCloudletRequest
+}

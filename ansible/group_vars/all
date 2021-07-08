@@ -2,7 +2,8 @@ ansible_python_interpreter: python3
 vm_ssh_user: ubuntu
 vm_ssh_pub_key_file: "{{ lookup('env','HOME') }}/.mobiledgex/id_rsa_mex.pub"
 platform_k8s_pool_size: 3
-platform_k8s_vm_size: Standard_DS1_v2
+platform_k8s_pool_size_max: 5
+platform_k8s_vm_size: Standard_D2s_v3
 mex_docker_registry: harbor.mobiledgex.net
 edge_cloud_image: "{{ mex_docker_registry }}/mobiledgex/edge-cloud"
 monitor_image: "{{ mex_docker_registry }}/mobiledgex/monitor"

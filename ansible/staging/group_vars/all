@@ -38,11 +38,4 @@ vault_github_users:
   - userid: ashxjain
     role: admin
 
-crm_instances:
-
-  - cloudlet_name: "{{ deploy_target }}-hawkins-cloudlet"
-    crm_name: "crm-{{ deploy_target }}-hawkins"
-    openstack_instance: hawkins
-    operator_key: GDDT
-    controller_region: EU
-    notify_srv_port: 51092
+crm_instances: []

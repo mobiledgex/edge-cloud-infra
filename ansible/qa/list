@@ -52,9 +52,6 @@ vault-qa-a.mobiledgex.net
 vault-qa-b.mobiledgex.net
 vault-qa-c.mobiledgex.net
 
-[artifactory]
-artifactory-qa.mobiledgex.net
-
 [jaeger]
 jaeger-qa.mobiledgex.net	nginx_config_filename=jaeger jaeger_ui_port=8443
 

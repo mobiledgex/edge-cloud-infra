@@ -84,6 +84,8 @@ func RunMcAPI(api, mcname, apiFile, curUserFile, outputDir string, mods []string
 	} else if api == "showalertreceivers" {
 		*retry = true
 		return showMcAlertReceivers(uri, curUserFile, outputDir, vars, sharedData)
+	} else if strings.HasPrefix(api, "mcratelimit") {
+		return runMcRateLimit(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData)
 	}
 	return runMcDataAPI(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData, retry)
 }
@@ -177,6 +179,55 @@ func runMcConfig(api, uri, apiFile, curUserFile, outputDir string, mods []string
 		}
 		st, err := mcClient.UpdateConfig(uri, token, data)
 		checkMcErr("UpdateConfig", st, err, &rc)
+	}
+	return rc
+}
+
+func runMcRateLimit(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string) bool {
+	log.Printf("Applying MC ratelimit via APIs for %s\n", apiFile)
+	token, rc := loginCurUser(uri, curUserFile, vars, sharedData)
+	if !rc {
+		return false
+	}
+
+	if api == "mcratelimitshow" {
+		filter := &ormapi.McRateLimitSettings{}
+		settings, st, err := mcClient.ShowRateLimitSettingsMc(uri, token, filter)
+		checkMcErr("ShowRateLimitSettingsMc", st, err, &rc)
+		util.PrintToYamlFile("show-commands.yml", outputDir, settings, true)
+		return rc
+	}
+
+	if apiFile == "" {
+		log.Println("Error: Cannot run MC config APIs without API file")
+		return false
+	}
+	in := &ormapi.McRateLimitSettings{}
+	err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
+	if err != nil && !util.IsYamlOk(err, "config") {
+		log.Printf("error in unmarshal ormapi.Config for %s: %v\n", apiFile, err)
+		return false
+	}
+	switch api {
+	case "mcratelimitcreate":
+		st, err := mcClient.CreateRateLimitSettingsMc(uri, token, in)
+		checkMcErr("CreateRateLimitSettingsMc", st, err, &rc)
+	case "mcratelimitdelete":
+		st, err := mcClient.DeleteRateLimitSettingsMc(uri, token, in)
+		checkMcErr("DeleteRateLimitSettingsMc", st, err, &rc)
+	case "mcratelimitupdate":
+		// populate data map correctly (flowsettings and maxreqssettings are slices)
+		data := make(map[string]interface{})
+		data["apiname"] = in.ApiName
+		data["ratelimittarget"] = in.RateLimitTarget
+		if in.FlowSettings != nil {
+			data["flowsettings"] = in.FlowSettings
+		}
+		if in.MaxReqsSettings != nil {
+			data["maxreqssettings"] = in.MaxReqsSettings
+		}
+		st, err := mcClient.UpdateRateLimitSettingsMc(uri, token, data)
+		checkMcErr("UpdateRateLimitSettingsMc", st, err, &rc)
 	}
 	return rc
 }
@@ -305,9 +356,15 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
 		errs = output.Errors
 	case "showfiltered":
-		dataOut := showMcDataFiltered(uri, token, tag, data, &rc)
-		util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
-		*retry = true
+		dataOut, errs := showMcDataFiltered(uri, token, tag, data, &rc)
+		if errs == nil || len(errs) == 0 {
+			util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
+		} else {
+			util.PrintToYamlFile("api-output.yml", outputDir, errs, true)
+		}
+		if tag != "expecterr" {
+			*retry = true
+		}
 	case "stream":
 		dataOut := streamMcData(uri, token, tag, data, &rc)
 		util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
@@ -541,7 +598,7 @@ func showMcData(uri, token, tag string, rc *bool) *ormapi.AllData {
 	return showData
 }
 
-func showMcDataFiltered(uri, token, tag string, data *ormapi.AllData, rc *bool) *ormapi.AllData {
+func showMcDataFiltered(uri, token, tag string, data *ormapi.AllData, rc *bool) (*ormapi.AllData, []edgetestutil.Err) {
 	dataOut := &ormapi.AllData{}
 
 	// currently only controller APIs support filtering
@@ -561,10 +618,14 @@ func showMcDataFiltered(uri, token, tag string, data *ormapi.AllData, rc *bool) 
 		}
 		run := edgetestutil.NewRun(&client, context.Background(), "showfiltered", rc)
 		edgetestutil.RunAllDataShowApis(run, filter, &rd.AppData)
-		run.CheckErrs(fmt.Sprintf("show-filtered region %s", region), tag)
+		if tag == "expecterr" {
+			return nil, run.Errs
+		} else {
+			run.CheckErrs(fmt.Sprintf("show-filtered region %s", region), tag)
+		}
 		dataOut.RegionData = append(dataOut.RegionData, rd)
 	}
-	return dataOut
+	return dataOut, nil
 }
 
 func getRegionAppDataFromMap(regionDataMap interface{}) map[string]interface{} {

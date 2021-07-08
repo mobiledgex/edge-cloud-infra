@@ -12,6 +12,7 @@ import (
 	dmeproto "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/setup-env/util"
+	edgetestutil "github.com/mobiledgex/edge-cloud/testutil"
 	ecutil "github.com/mobiledgex/edge-cloud/util"
 )
 
@@ -358,6 +359,44 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 		copts = append(copts, edgeproto.IgnoreTaggedFields("nocmp")...)
 		copts = append(copts, edgeproto.CmpSortSlices()...)
 		copts = append(copts, cmpopts.SortSlices(CmpSortOrgs))
+
+		y1 = a1
+		y2 = a2
+	} else if fileType == "mcratelimit" {
+		var a1 []ormapi.McRateLimitSettings
+		var a2 []ormapi.McRateLimitSettings
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		sort.Slice(a1, func(i, j int) bool {
+			if a1[i].ApiName != a1[j].ApiName {
+				return a1[i].ApiName < a1[j].ApiName
+			}
+			return a1[i].RateLimitTarget < a1[j].RateLimitTarget
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			if a2[i].ApiName != a2[j].ApiName {
+				return a2[i].ApiName < a2[j].ApiName
+			}
+			return a2[i].RateLimitTarget < a2[j].RateLimitTarget
+		})
+
+		y1 = a1
+		y2 = a2
+	} else if fileType == "errs" {
+		var a1 []edgetestutil.Err
+		var a2 []edgetestutil.Err
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		sort.Slice(a1, func(i, j int) bool {
+			return a1[i].Desc < a1[j].Desc
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			return a2[i].Desc < a2[j].Desc
+		})
 
 		y1 = a1
 		y2 = a2

@@ -2211,7 +2211,6 @@ func TestDataConversions(t *testing.T) {
 				expectedObj.SetObjFields(expectedFields)
 			}()
 
-			//regionObjBuf.SetObjFields(nil)
 			// Make sure they match
 			require.Equal(t, expectedObj, regionObjBuf)
 

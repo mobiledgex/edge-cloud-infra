@@ -446,9 +446,6 @@ func (g *GenMC2) generateMethod(file *generator.FileDescriptor, service string, 
 		args.NoConfig = gensupport.GetNoConfig(in.DescriptorProto, method)
 		g.importOrmapi = true
 		g.importStrings = true
-		//if args.SetFields {
-		//g.importOrmutil = true
-		//}
 	} else {
 		tmpl = g.tmpl
 		g.importEcho = true

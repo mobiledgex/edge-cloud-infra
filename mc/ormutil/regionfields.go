@@ -43,7 +43,7 @@ func SetRegionObjFields(jsonData []byte, regionObj ormapi.RegionObjWithFields) e
 	}
 	// Json should be consistent with regionObj, but for unit-tests
 	// we delete the fields from regionObj, while the json data still has them.
-	// We don't want to Fields to be included as a flag in the new fields flags,
+	// We don't want the Fields to be included as a flag in the new fields flags,
 	// so delete them if they exist. This should only happen for unit-tests.
 	delete(objMap, "fields")
 

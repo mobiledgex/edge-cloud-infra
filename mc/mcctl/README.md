@@ -30,11 +30,11 @@ mc/mcctl/cliwrapper/wrapcli.go   convert objs to/from exec'ing mcctl cli
 
 ## Test Clients
 
-As noted earlier, the mctestclient is the abstract interface for testing, which accepts a common set of functions and either uses the rest client or the cliwrapper underneath. For Creates and Deletes, the mctestclient functions take as input Structs. For Updates, the mctestclient functions take as input MapData, which is map[string]interface{} data with an associated Namespace. The MapData implicitly defines which fields to update and which to ignore, regardless of whether values are empty (0, nil, "", etc) or not.
+As noted earlier, the mctestclient is the abstract interface for testing, which accepts a common set of functions and either uses the rest client or the cliwrapper underneath. For Creates and Deletes, the mctestclient functions take as input Structs. For Updates, the mctestclient functions take input as MapData, which is map[string]interface{} data with an associated Namespace. The MapData implicitly defines which fields to update and which to ignore, regardless of whether values are empty (0, nil, "", etc) or not.
 
 The mctestclient is used directly in unit-test code. However, layered on top of the mctestclient is the e2e-test code, which reads in YAML files and then calls the mctestclient APIs to send the data to MC under test.
 
-It is worth nothing the various ways data is transformed in these scenarios. The goal is to allow the same input data to be used to test either the rest client or the mcctl client in both unit and e2e tests. Scenarios are noted below, with functions in parentheses. The final JSON is sent to the MC.
+It is worth noting the various ways data is transformed in these scenarios. The goal is to allow the same input data to be used to test either the rest client or the mcctl client in both unit and e2e tests. Scenarios are noted below, with functions in parentheses. The final JSON is sent to the MC.
 
 Production:
 1. mcctl: args (ParseArgs) -> MapData (cli.JsonMap) -> JSON-MapData (json.Marshal) -> JSON

@@ -332,6 +332,13 @@ func (s *RegionFlavorMatch) GetObjName() string {
 	return "FlavorMatch"
 }
 
+// Request summary for ShowFlavorsForCloudlet
+// swagger:parameters ShowFlavorsForCloudlet
+type swaggerShowFlavorsForCloudlet struct {
+	// in: body
+	Body RegionCloudletKey
+}
+
 // Request summary for RevokeAccessKey
 // swagger:parameters RevokeAccessKey
 type swaggerRevokeAccessKey struct {

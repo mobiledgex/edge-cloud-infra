@@ -7,14 +7,14 @@
   register: bucket_create_service_key
 
 - set_fact:
-    gcp_service_key: "{{ bucket_create_service_key.meta.response.data.private_key_data | b64decode }}"
+    gcp_bucket_create_service_key: "{{ bucket_create_service_key.meta.response.data.private_key_data | b64decode }}"
 
 - name: Create GCP buckets
   gcp_storage_bucket:
     name: "{{ bucket }}"
     project: "{{ gcp_project }}"
     auth_kind: serviceaccount
-    service_account_contents: "{{ gcp_service_key }}"
+    service_account_contents: "{{ gcp_bucket_create_service_key }}"
   loop: "{{ buckets }}"
   loop_control:
     loop_var: bucket

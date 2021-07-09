@@ -107,3 +107,29 @@ type swaggerRemoveAppAutoProvPolicy struct {
 	// in: body
 	Body RegionAppAutoProvPolicy
 }
+
+// Request summary for ShowCloudletsForAppDeployment
+// swagger:parameters ShowCloudletsForAppDeployment
+type swaggerShowCloudletsForAppDeployment struct {
+	// in: body
+	Body RegionDeploymentCloudletRequest
+}
+
+type RegionDeploymentCloudletRequest struct {
+	// required: true
+	// Region name
+	Region                    string
+	DeploymentCloudletRequest edgeproto.DeploymentCloudletRequest
+}
+
+func (s *RegionDeploymentCloudletRequest) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionDeploymentCloudletRequest) GetObj() interface{} {
+	return &s.DeploymentCloudletRequest
+}
+
+func (s *RegionDeploymentCloudletRequest) GetObjName() string {
+	return "DeploymentCloudletRequest"
+}

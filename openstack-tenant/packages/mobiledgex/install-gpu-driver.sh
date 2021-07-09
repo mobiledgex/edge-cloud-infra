@@ -58,6 +58,13 @@ dpkg -i $DRIVERPATH
 [[ $? -ne 0 ]] && die "Failed to install $DRIVERPATH package"
 echo ""
 
+# Rebuild ldcache, as installation of deb pkg doesn't perform this
+# and hence nvidia-docker doesn't mount all the required modules
+echo ">> Rebuilding ldcache..."
+ldconfig
+[[ $? -ne 0 ]] && die "Failed to rebuild ldcache"
+echo ""
+
 echo ">> Verify GPU driver $DRIVERPATH is installed..."
 nvidia-smi -L
 [[ $? -ne 0 ]] && die "Failed to verify if $DRIVERPATH package is installed"

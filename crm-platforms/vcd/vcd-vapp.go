@@ -516,7 +516,7 @@ func (v *VcdPlatform) validateVMSpecSection(ctx context.Context, vapp govcd.VApp
 
 	vm, err := v.GetVMFromVAppByIdx(ctx, &vapp, 0)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion VM not found", "Vapp", vapp.VApp.Name, "idx", 0)
+		log.SpanLog(ctx, log.DebugLevelInfra, "validateVMSpecSecion VM not found", "Vapp", vapp.VApp.Name, "idx", 0, "err", err)
 		return fmt.Errorf("validateVMSpecSecion VM not found for Vapp %s", vapp.VApp.Name)
 	}
 	vmSpec := vm.VM.VmSpecSection

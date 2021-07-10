@@ -1,16 +1,17 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"flag"
 	"fmt"
-	"log"
-	"net/http"
-
-	"context"
 	"io/ioutil"
+	"log"
+	"math/rand"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd"
 )
@@ -26,6 +27,7 @@ var (
 	region       = flag.String("region", "", "region (US or EU)")
 	physname     = flag.String("physname", "", "cloudlet physical name")
 	org          = flag.String("org", "", "cloudlet org")
+	errorrate    = flag.Float64("errorrate", 0, "error rate")
 	vaultaddr    = flag.String("vaultaddr", "", "vault addr for vcd creds, e.g. https://vault-dev.mobiledgex.net")
 	indexpath    = "/"
 	vcdVars      map[string]string
@@ -114,6 +116,19 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 		log.Printf("error reading vcd response: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+
+	// see if it is time to randomly inject an error
+	if *errorrate > 0 {
+		r := rand.Float64()
+		errThresh := 1 - *errorrate
+		log.Printf("Checking for random error, r: %f errThresh :%f", r, errThresh)
+		if r >= errThresh {
+			log.Printf("*** INJECTING ERROR ***")
+			w.WriteHeader(http.StatusInternalServerError)
+			body = []byte("Random API GW failure")
+		}
+	}
+
 	for k, v := range resp.Header {
 		for _, v2 := range v {
 			w.Header().Add(k, v2)
@@ -124,6 +139,7 @@ func doApi(w http.ResponseWriter, r *http.Request) {
 }
 
 func run() {
+	rand.Seed(time.Now().UnixNano())
 	http.HandleFunc(indexpath, showIndex)
 	http.HandleFunc(*apiprefix, doApi)
 	if *certdir == "" {
@@ -140,6 +156,9 @@ func run() {
 	}
 	if *vaultaddr == "" {
 		panic("--vaultaddr is empty")
+	}
+	if *errorrate >= 1 {
+		panic("--errorrate must be between 0 and 1")
 	}
 	listenAddr := fmt.Sprintf(":%d", *port)
 	err := vcdPlatform.PopulateCredsForSimulator(context.TODO(), *region, *org, *physname, *vaultaddr)

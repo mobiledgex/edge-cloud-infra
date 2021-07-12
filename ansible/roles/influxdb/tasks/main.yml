@@ -1,3 +1,7 @@
+- import_role:
+    name: influxdb
+    tasks_from: dns
+
 - set_fact:
     influxdb_dns: "{{ region | lower }}.influxdb"
   when: ( deploy_environ == 'main' ) or ( deploy_environ == 'prod' )

@@ -1,0 +1,8 @@
+- name: Compute MC name
+  set_fact:
+    mc_name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
+
+- name: Destroy MC 
+  docker_container:
+    name: "{{ mc_name }}"
+    state: absent

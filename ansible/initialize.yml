@@ -1,0 +1,33 @@
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - import_role:
+        name: azure-aks
+        tasks_from: platform-regions-load
+
+    - include_role:
+        name: mc
+        tasks_from: region-setup
+      loop: "{{ platform_regions }}"
+      loop_control:
+        loop_var: cluster
+
+    - name: Set up default orgs
+      import_role:
+        name: mc
+        tasks_from: api-calls
+      vars:
+        api_calls:
+          - path: org/create
+            body:
+              Name: GDDT
+              Type: operator
+              Address: Beacon, Germany
+              Phone: 123-456-7890
+          - path: org/create
+            body:
+              Name: MobiledgeX
+              Type: developer
+              Address: San Francisco, US
+              Phone: 987-654-3210

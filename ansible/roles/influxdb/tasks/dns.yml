@@ -1,0 +1,12 @@
+- set_fact:
+    influxdb_dns: "{{ region | lower }}.influxdb"
+  when: ( deploy_environ == 'main' ) or ( deploy_environ == 'prod' )
+
+- set_fact:
+    influxdb_dns: "{{ region | lower }}-{{ deploy_environ }}.influxdb"
+  when:
+    - deploy_environ != 'main'
+    - deploy_environ != 'prod'
+
+- set_fact:
+    influxdb_fqdn: "{{ influxdb_dns }}.{{ cloudflare_zone }}"

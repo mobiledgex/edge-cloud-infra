@@ -1,0 +1,49 @@
+---
+- name: Compute InfluxDB FQDN
+  import_role:
+    name: influxdb
+    tasks_from: dns
+  vars:
+    region: "{{ cluster.region }}"
+
+- name: Compute controller FQDN
+  set_fact:
+    controller_fqdn: "{{ cluster.name }}.ctrl.{{ cloudflare_zone }}"
+
+- import_role:
+    name: mc
+    tasks_from: api-calls
+  vars:
+    api_calls:
+
+      # Register controller
+      - path: controller/create
+        body:
+          Address: "{{ controller_fqdn }}:55001"
+          InfluxDB: "https://{{ influxdb_fqdn }}:8086"
+          Region: "{{ cluster.region }}"
+
+      # Create m4.small flavor
+      - path: ctrl/CreateFlavor
+        body:
+          Flavor: {"key":{"name":"m4.small"}, "vcpus":2, "ram":2048, "disk":40}
+          Region: "{{ cluster.region }}"
+
+      # Create m4.medium flavor
+      - path: ctrl/CreateFlavor
+        body:
+          Flavor: {"key":{"name":"m4.medium"}, "vcpus":2, "ram":4096, "disk":40}
+          Region: "{{ cluster.region }}"
+
+      # Create m4.large flavor
+      - path: ctrl/CreateFlavor
+        body:
+          Flavor: {"key":{"name":"m4.large"}, "vcpus":4, "ram":8192, "disk":80}
+          Region: "{{ cluster.region }}"
+
+      # Create m4.xlarge flavor
+      - path: ctrl/CreateFlavor
+        body:
+          Flavor: {"key":{"name":"m4.xlarge"}, "vcpus":4, "ram":16384, "disk":80}
+          Region: "{{ cluster.region }}"
+

@@ -1,0 +1,63 @@
+---
+- import_role:
+    name: mexplat_k8s
+    tasks_from: load-kubeconfig
+
+- debug:
+    msg: "Destroying services in cluster '{{ k8s_cluster_name }}' (setup: '{{ deploy_environ }}', region: '{{ region }}')"
+
+- name: "Confirm {{ deploy_environ }} {{ region }} region destruction"
+  pause:
+
+- import_role:
+    name: influxdb
+    tasks_from: destroy
+
+- name: Destroying controller
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: Deployment
+    name: "{{ deployment }}"
+    state: absent
+  loop:
+    - controller
+  loop_control:
+    loop_var: deployment
+
+- name: Backing up etcd
+  import_role:
+    name: etcd_backup_k8s
+
+- name: Destroying etcd
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: StatefulSet
+    name: "{{ etcd_cluster_name }}"
+    state: absent
+    wait: yes
+
+- name: Deleting persistent volumes of etcd
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: PersistentVolumeClaim
+    name: "data-{{ etcd_cluster_name }}-{{ etcd_index }}"
+    state: absent
+  loop: "{{ range(3) | list }}"
+  loop_control:
+    loop_var: etcd_instance
+    index_var: etcd_index
+
+- name: Wait until volumes have been deleted
+  k8s_info:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: PersistentVolumeClaim
+    label_selectors:
+      - component = mex-etcd
+  register: etcd_sts_facts
+  until: etcd_sts_facts.get("resources", [])|length == 0
+  retries: 30
+  delay: 10

@@ -60,7 +60,7 @@ esac
 
 set -ex
 CURRENT_WORKSPACE="$PWD"
-./deploy.sh -p downgrade.yml "$SETUP"
+./deploy.sh -p destroy-setup.yml "$SETUP"
 
 cd "$REINSTALL_WORKSPACE/ansible"
 ./deploy.sh -V "$EDGE_CLOUD_VERSION" -C "$CONSOLE_VERSION" "$SETUP"

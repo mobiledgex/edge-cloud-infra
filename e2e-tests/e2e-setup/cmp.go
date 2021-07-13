@@ -400,7 +400,6 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 			return a2[i].Desc < a2[j].Desc
 		})
 
-		log.Printf("BLAH errActual: %v, errExpected: %v", a1, a2)
 		if err := cmpFilterErrsData(a1, a2); err != nil {
 			log.Printf("Error filtering error data %v", err)
 			return false

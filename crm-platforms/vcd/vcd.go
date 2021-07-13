@@ -424,9 +424,9 @@ func (v *VcdPlatform) InternalCloudletUpdatedCallback(ctx context.Context, old *
 	}
 	if token == "" {
 		// if an empty token is received, this means CRM lost the token and so shepherd no longer has a valid token.
-		// Treat this as a fatal error so Shepherd can restart and wait for a new valid token from CRM.  Continuing to use an
-		// invalid token can cause unexpected behavior within the API GW which can interfere with CRM's ability to get a new token
-		log.FatalLog("Empty token received, exiting")
+		// any futher API calls are blocked until a valid token is present.
+		log.SpanLog(ctx, log.DebugLevelInfra, "Empty token received from CRM")
+
 	}
 	// if we find an isoMap property use it to update the iso map cache which is a json string
 	isoMapStr, ok := new.Props[CloudletIsoNamesMap]

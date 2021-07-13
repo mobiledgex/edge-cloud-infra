@@ -202,32 +202,79 @@ func runMcRateLimit(api, uri, apiFile, curUserFile, outputDir string, mods []str
 		log.Println("Error: Cannot run MC config APIs without API file")
 		return false
 	}
-	in := &ormapi.McRateLimitSettings{}
-	err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
-	if err != nil && !util.IsYamlOk(err, "config") {
-		log.Printf("error in unmarshal ormapi.Config for %s: %v\n", apiFile, err)
-		return false
-	}
+
 	switch api {
 	case "mcratelimitcreate":
-		st, err := mcClient.CreateRateLimitSettingsMc(uri, token, in)
-		checkMcErr("CreateRateLimitSettingsMc", st, err, &rc)
+		fallthrough
 	case "mcratelimitdelete":
-		st, err := mcClient.DeleteRateLimitSettingsMc(uri, token, in)
-		checkMcErr("DeleteRateLimitSettingsMc", st, err, &rc)
-	case "mcratelimitupdate":
-		// populate data map correctly (flowsettings and maxreqssettings are slices)
+		in := &ormapi.McRateLimitSettings{}
+		err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
+		if err != nil && !util.IsYamlOk(err, "config") {
+			log.Printf("error in unmarshal ormapi.Config for %s: %v\n", apiFile, err)
+			return false
+		}
+		if api == "mcratelimitcreate" {
+			st, err := mcClient.CreateRateLimitSettingsMc(uri, token, in)
+			checkMcErr("CreateRateLimitSettingsMc", st, err, &rc)
+		} else {
+			st, err := mcClient.DeleteRateLimitSettingsMc(uri, token, in)
+			checkMcErr("DeleteRateLimitSettingsMc", st, err, &rc)
+		}
+
+	case "mcratelimitflowcreate":
+		fallthrough
+	case "mcratelimitflowdelete":
+		in := &ormapi.McRateLimitFlowSettings{}
+		err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
+		if err != nil && !util.IsYamlOk(err, "config") {
+			log.Printf("error in unmarshal ormapi.Config for %s: %v\n", apiFile, err)
+			return false
+		}
+		if api == "mcratelimitflowcreate" {
+			st, err := mcClient.CreateFlowRateLimitSettingsMc(uri, token, in)
+			checkMcErr("CreateFlowRateLimitSettingsMc", st, err, &rc)
+		} else {
+			st, err := mcClient.DeleteFlowRateLimitSettingsMc(uri, token, in)
+			checkMcErr("DeleteFlowRateLimitSettingsMc", st, err, &rc)
+		}
+
+	case "mcratelimitmaxreqscreate":
+		fallthrough
+	case "mcratelimitmaxreqsdelete":
+		in := &ormapi.McRateLimitMaxReqsSettings{}
+		err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
+		if err != nil && !util.IsYamlOk(err, "config") {
+			log.Printf("error in unmarshal ormapi.Config for %s: %v\n", apiFile, err)
+			return false
+		}
+		if api == "mcratelimitmaxreqscreate" {
+			st, err := mcClient.CreateMaxReqsRateLimitSettingsMc(uri, token, in)
+			checkMcErr("CreateMaxReqsRateLimitSettingsMc", st, err, &rc)
+		} else {
+			st, err := mcClient.DeleteMaxReqsRateLimitSettingsMc(uri, token, in)
+			checkMcErr("DeleteMaxReqsRateLimitSettingsMc", st, err, &rc)
+		}
+
+	case "mcratelimitflowupdate":
+		fallthrough
+	case "mcratelimitmaxreqsupdate":
 		data := make(map[string]interface{})
-		data["apiname"] = in.ApiName
-		data["ratelimittarget"] = in.RateLimitTarget
-		if in.FlowSettings != nil {
-			data["flowsettings"] = in.FlowSettings
+		err := util.ReadYamlFile(apiFile, &data, util.WithVars(vars), util.ValidateReplacedVars())
+		if api == "mcratelimitflowupdate" {
+			if err != nil && !util.IsYamlOk(err, "mcratelimitflowsettings") {
+				log.Printf("error in unmarshal ormapi.McRateLimitFlowSettings for %s: %v\n", apiFile, err)
+				return false
+			}
+			st, err := mcClient.UpdateFlowRateLimitSettingsMc(uri, token, data)
+			checkMcErr("UpdateFlowRateLimitSettingsMc", st, err, &rc)
+		} else {
+			if err != nil && !util.IsYamlOk(err, "mcratelimitmaxreqssettings") {
+				log.Printf("error in unmarshal ormapi.McRateLimitMaxReqsSettings for %s: %v\n", apiFile, err)
+				return false
+			}
+			st, err := mcClient.UpdateMaxReqsRateLimitSettingsMc(uri, token, data)
+			checkMcErr("UpdateMaxReqsRateLimitSettingsMc", st, err, &rc)
 		}
-		if in.MaxReqsSettings != nil {
-			data["maxreqssettings"] = in.MaxReqsSettings
-		}
-		st, err := mcClient.UpdateRateLimitSettingsMc(uri, token, data)
-		checkMcErr("UpdateRateLimitSettingsMc", st, err, &rc)
 	}
 	return rc
 }

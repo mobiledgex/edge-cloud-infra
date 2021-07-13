@@ -79,59 +79,6 @@ func CreateRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edg
 	return api.CreateRateLimitSettings(ctx, obj)
 }
 
-func UpdateRateLimitSettings(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	rc.username = claims.Username
-
-	in := ormapi.RegionRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
-	}
-	rc.region = in.Region
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", in.Region)
-	log.SetTags(span, in.RateLimitSettings.GetKey().GetTags())
-	resp, err := UpdateRateLimitSettingsObj(ctx, rc, &in.RateLimitSettings)
-	if err != nil {
-		if st, ok := status.FromError(err); ok {
-			err = fmt.Errorf("%s", st.Message())
-		}
-		return err
-	}
-	return setReply(c, resp)
-}
-
-func UpdateRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
-	if err := obj.IsValidArgsForUpdateRateLimitSettings(); err != nil {
-		return nil, err
-	}
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, "",
-			ResourceConfig, ActionManage); err != nil {
-			return nil, err
-		}
-	}
-	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
-		if err != nil {
-			return nil, err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
-	}
-	api := edgeproto.NewRateLimitSettingsApiClient(rc.conn)
-	return api.UpdateRateLimitSettings(ctx, obj)
-}
-
 func DeleteRateLimitSettings(c echo.Context) error {
 	ctx := GetContext(c)
 	rc := &RegionContext{}
@@ -269,4 +216,322 @@ func ShowRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgep
 		return nil
 	})
 	return arr, err
+}
+
+func CreateFlowRateLimitSettings(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionFlowRateLimitSettings{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.FlowRateLimitSettings.GetKey().GetTags())
+	resp, err := CreateFlowRateLimitSettingsObj(ctx, rc, &in.FlowRateLimitSettings)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func CreateFlowRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.FlowRateLimitSettings) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateFlowRateLimitSettings(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceConfig, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewRateLimitSettingsApiClient(rc.conn)
+	return api.CreateFlowRateLimitSettings(ctx, obj)
+}
+
+func UpdateFlowRateLimitSettings(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionFlowRateLimitSettings{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.FlowRateLimitSettings.GetKey().GetTags())
+	resp, err := UpdateFlowRateLimitSettingsObj(ctx, rc, &in.FlowRateLimitSettings)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func UpdateFlowRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.FlowRateLimitSettings) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateFlowRateLimitSettings(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceConfig, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewRateLimitSettingsApiClient(rc.conn)
+	return api.UpdateFlowRateLimitSettings(ctx, obj)
+}
+
+func DeleteFlowRateLimitSettings(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionFlowRateLimitSettings{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.FlowRateLimitSettings.GetKey().GetTags())
+	resp, err := DeleteFlowRateLimitSettingsObj(ctx, rc, &in.FlowRateLimitSettings)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func DeleteFlowRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.FlowRateLimitSettings) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteFlowRateLimitSettings(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceConfig, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewRateLimitSettingsApiClient(rc.conn)
+	return api.DeleteFlowRateLimitSettings(ctx, obj)
+}
+
+func CreateMaxReqsRateLimitSettings(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionMaxReqsRateLimitSettings{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.MaxReqsRateLimitSettings.GetKey().GetTags())
+	resp, err := CreateMaxReqsRateLimitSettingsObj(ctx, rc, &in.MaxReqsRateLimitSettings)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func CreateMaxReqsRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.MaxReqsRateLimitSettings) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForCreateMaxReqsRateLimitSettings(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceConfig, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewRateLimitSettingsApiClient(rc.conn)
+	return api.CreateMaxReqsRateLimitSettings(ctx, obj)
+}
+
+func UpdateMaxReqsRateLimitSettings(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionMaxReqsRateLimitSettings{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.MaxReqsRateLimitSettings.GetKey().GetTags())
+	resp, err := UpdateMaxReqsRateLimitSettingsObj(ctx, rc, &in.MaxReqsRateLimitSettings)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func UpdateMaxReqsRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.MaxReqsRateLimitSettings) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForUpdateMaxReqsRateLimitSettings(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceConfig, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewRateLimitSettingsApiClient(rc.conn)
+	return api.UpdateMaxReqsRateLimitSettings(ctx, obj)
+}
+
+func DeleteMaxReqsRateLimitSettings(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionMaxReqsRateLimitSettings{}
+	if err := c.Bind(&in); err != nil {
+		return bindErr(err)
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.MaxReqsRateLimitSettings.GetKey().GetTags())
+	resp, err := DeleteMaxReqsRateLimitSettingsObj(ctx, rc, &in.MaxReqsRateLimitSettings)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func DeleteMaxReqsRateLimitSettingsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.MaxReqsRateLimitSettings) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForDeleteMaxReqsRateLimitSettings(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, "",
+			ResourceConfig, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connectController(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn.Close()
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewRateLimitSettingsApiClient(rc.conn)
+	return api.DeleteMaxReqsRateLimitSettings(ctx, obj)
 }

@@ -94,6 +94,19 @@ var ConfigComments = map[string]string{
 	"maxnumperuserratelimiters":    `Maximum number of PerUser rate limiters for an api`,
 }
 
+var McRateLimitFlowSettingsComments = map[string]string{
+	"flowsettingsname": `Unique name for FlowSettings`,
+	"apiname":          `Name of API Path (eg. /api/v1/usercreate)`,
+	"reqspersecond":    `Number of requests per second`,
+	"burstsize":        `Number of requests allowed at once`,
+}
+
+var McRateLimitMaxReqsSettingsComments = map[string]string{
+	"maxreqssettingsname": `Unique name for MaxReqsSettings`,
+	"apiname":             `Name of API Path (eg. /api/v1/usercreate)`,
+	"maxrequests":         `Maximum number of requests for the specified interval`,
+}
+
 var McRateLimitSettingsComments = map[string]string{
 	"apiname": `Name of API Path (eg. /api/v1/usercreate)`,
 }

@@ -564,10 +564,15 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/cloudletpoolaccesspending/show", ShowCloudletPoolAccessPending)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
 	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
-	auth.POST("/ratelimitsettingsmc/update", UpdateRateLimitSettingsMc)
 	auth.POST("/ratelimitsettingsmc/create", CreateRateLimitSettingsMc)
 	auth.POST("/ratelimitsettingsmc/delete", DeleteRateLimitSettingsMc)
 	auth.POST("/ratelimitsettingsmc/show", ShowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/createflow", CreateFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/deleteflow", DeleteFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/updateflow", UpdateFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/createmaxreqs", CreateMaxReqsRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/deletemaxreqs", DeleteMaxReqsRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/updatemaxreqs", UpdateMaxReqsRateLimitSettingsMc)
 
 	// Support multiple connection types: HTTP(s), Websockets
 	addControllerApis("POST", auth)

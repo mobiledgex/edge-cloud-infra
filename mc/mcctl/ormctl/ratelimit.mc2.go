@@ -38,42 +38,6 @@ var CreateRateLimitSettingsCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
-var UpdateRateLimitSettingsCmd = &ApiCommand{
-	Name:          "UpdateRateLimitSettings",
-	Use:           "update",
-	Short:         "Update RateLimit settings for an API endpoint and target",
-	RequiredArgs:  "region " + strings.Join(RateLimitSettingsRequiredArgs, " "),
-	OptionalArgs:  strings.Join(RateLimitSettingsOptionalArgs, " "),
-	AliasArgs:     strings.Join(RateLimitSettingsAliasArgs, " "),
-	SpecialArgs:   &RateLimitSettingsSpecialArgs,
-	Comments:      addRegionComment(RateLimitSettingsComments),
-	ReqData:       &ormapi.RegionRateLimitSettings{},
-	ReplyData:     &edgeproto.Result{},
-	Path:          "/auth/ctrl/UpdateRateLimitSettings",
-	SetFieldsFunc: SetUpdateRateLimitSettingsFields,
-	ProtobufApi:   true,
-}
-
-func SetUpdateRateLimitSettingsFields(in map[string]interface{}) {
-	// get map for edgeproto object in region struct
-	obj := in["RateLimitSettings"]
-	if obj == nil {
-		return
-	}
-	objmap, ok := obj.(map[string]interface{})
-	if !ok {
-		return
-	}
-	fields := cli.GetSpecifiedFields(objmap, &edgeproto.RateLimitSettings{}, cli.JsonNamespace)
-	// include fields already specified
-	if inFields, found := objmap["fields"]; found {
-		if fieldsArr, ok := inFields.([]string); ok {
-			fields = append(fields, fieldsArr...)
-		}
-	}
-	objmap["fields"] = fields
-}
-
 var DeleteRateLimitSettingsCmd = &ApiCommand{
 	Name:         "DeleteRateLimitSettings",
 	Use:          "delete",
@@ -105,11 +69,148 @@ var ShowRateLimitSettingsCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
+var CreateFlowRateLimitSettingsCmd = &ApiCommand{
+	Name:         "CreateFlowRateLimitSettings",
+	Use:          "createflow",
+	Short:        "Create Flow RateLimit settings for an API endpoint and target",
+	RequiredArgs: "region " + strings.Join(FlowRateLimitSettingsRequiredArgs, " "),
+	OptionalArgs: strings.Join(FlowRateLimitSettingsOptionalArgs, " "),
+	AliasArgs:    strings.Join(FlowRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:  &FlowRateLimitSettingsSpecialArgs,
+	Comments:     addRegionComment(FlowRateLimitSettingsComments),
+	ReqData:      &ormapi.RegionFlowRateLimitSettings{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/CreateFlowRateLimitSettings",
+	ProtobufApi:  true,
+}
+
+var UpdateFlowRateLimitSettingsCmd = &ApiCommand{
+	Name:          "UpdateFlowRateLimitSettings",
+	Use:           "updateflow",
+	Short:         "Update Flow RateLimit settings for an API endpoint and target",
+	RequiredArgs:  "region " + strings.Join(FlowRateLimitSettingsRequiredArgs, " "),
+	OptionalArgs:  strings.Join(FlowRateLimitSettingsOptionalArgs, " "),
+	AliasArgs:     strings.Join(FlowRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:   &FlowRateLimitSettingsSpecialArgs,
+	Comments:      addRegionComment(FlowRateLimitSettingsComments),
+	ReqData:       &ormapi.RegionFlowRateLimitSettings{},
+	ReplyData:     &edgeproto.Result{},
+	Path:          "/auth/ctrl/UpdateFlowRateLimitSettings",
+	SetFieldsFunc: SetUpdateFlowRateLimitSettingsFields,
+	ProtobufApi:   true,
+}
+
+func SetUpdateFlowRateLimitSettingsFields(in map[string]interface{}) {
+	// get map for edgeproto object in region struct
+	obj := in["FlowRateLimitSettings"]
+	if obj == nil {
+		return
+	}
+	objmap, ok := obj.(map[string]interface{})
+	if !ok {
+		return
+	}
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.FlowRateLimitSettings{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
+}
+
+var DeleteFlowRateLimitSettingsCmd = &ApiCommand{
+	Name:         "DeleteFlowRateLimitSettings",
+	Use:          "deleteflow",
+	Short:        "Delete Flow RateLimit settings for an API endpoint and target",
+	RequiredArgs: "region " + strings.Join(FlowRateLimitSettingsRequiredArgs, " "),
+	OptionalArgs: strings.Join(FlowRateLimitSettingsOptionalArgs, " "),
+	AliasArgs:    strings.Join(FlowRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:  &FlowRateLimitSettingsSpecialArgs,
+	Comments:     addRegionComment(FlowRateLimitSettingsComments),
+	ReqData:      &ormapi.RegionFlowRateLimitSettings{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/DeleteFlowRateLimitSettings",
+	ProtobufApi:  true,
+}
+
+var CreateMaxReqsRateLimitSettingsCmd = &ApiCommand{
+	Name:         "CreateMaxReqsRateLimitSettings",
+	Use:          "createmaxreqs",
+	Short:        "Create MaxReqs RateLimit settings for an API endpoint and target",
+	RequiredArgs: "region " + strings.Join(MaxReqsRateLimitSettingsRequiredArgs, " "),
+	OptionalArgs: strings.Join(MaxReqsRateLimitSettingsOptionalArgs, " "),
+	AliasArgs:    strings.Join(MaxReqsRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:  &MaxReqsRateLimitSettingsSpecialArgs,
+	Comments:     addRegionComment(MaxReqsRateLimitSettingsComments),
+	ReqData:      &ormapi.RegionMaxReqsRateLimitSettings{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/CreateMaxReqsRateLimitSettings",
+	ProtobufApi:  true,
+}
+
+var UpdateMaxReqsRateLimitSettingsCmd = &ApiCommand{
+	Name:          "UpdateMaxReqsRateLimitSettings",
+	Use:           "updatemaxreqs",
+	Short:         "Update MaxReqs RateLimit settings for an API endpoint and target",
+	RequiredArgs:  "region " + strings.Join(MaxReqsRateLimitSettingsRequiredArgs, " "),
+	OptionalArgs:  strings.Join(MaxReqsRateLimitSettingsOptionalArgs, " "),
+	AliasArgs:     strings.Join(MaxReqsRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:   &MaxReqsRateLimitSettingsSpecialArgs,
+	Comments:      addRegionComment(MaxReqsRateLimitSettingsComments),
+	ReqData:       &ormapi.RegionMaxReqsRateLimitSettings{},
+	ReplyData:     &edgeproto.Result{},
+	Path:          "/auth/ctrl/UpdateMaxReqsRateLimitSettings",
+	SetFieldsFunc: SetUpdateMaxReqsRateLimitSettingsFields,
+	ProtobufApi:   true,
+}
+
+func SetUpdateMaxReqsRateLimitSettingsFields(in map[string]interface{}) {
+	// get map for edgeproto object in region struct
+	obj := in["MaxReqsRateLimitSettings"]
+	if obj == nil {
+		return
+	}
+	objmap, ok := obj.(map[string]interface{})
+	if !ok {
+		return
+	}
+	fields := cli.GetSpecifiedFields(objmap, &edgeproto.MaxReqsRateLimitSettings{}, cli.JsonNamespace)
+	// include fields already specified
+	if inFields, found := objmap["fields"]; found {
+		if fieldsArr, ok := inFields.([]string); ok {
+			fields = append(fields, fieldsArr...)
+		}
+	}
+	objmap["fields"] = fields
+}
+
+var DeleteMaxReqsRateLimitSettingsCmd = &ApiCommand{
+	Name:         "DeleteMaxReqsRateLimitSettings",
+	Use:          "deletemaxreqs",
+	Short:        "Delete MaxReqs RateLimit settings for an API endpoint and target",
+	RequiredArgs: "region " + strings.Join(MaxReqsRateLimitSettingsRequiredArgs, " "),
+	OptionalArgs: strings.Join(MaxReqsRateLimitSettingsOptionalArgs, " "),
+	AliasArgs:    strings.Join(MaxReqsRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:  &MaxReqsRateLimitSettingsSpecialArgs,
+	Comments:     addRegionComment(MaxReqsRateLimitSettingsComments),
+	ReqData:      &ormapi.RegionMaxReqsRateLimitSettings{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/DeleteMaxReqsRateLimitSettings",
+	ProtobufApi:  true,
+}
+
 var RateLimitSettingsApiCmds = []*ApiCommand{
 	CreateRateLimitSettingsCmd,
-	UpdateRateLimitSettingsCmd,
 	DeleteRateLimitSettingsCmd,
 	ShowRateLimitSettingsCmd,
+	CreateFlowRateLimitSettingsCmd,
+	UpdateFlowRateLimitSettingsCmd,
+	DeleteFlowRateLimitSettingsCmd,
+	CreateMaxReqsRateLimitSettingsCmd,
+	UpdateMaxReqsRateLimitSettingsCmd,
+	DeleteMaxReqsRateLimitSettingsCmd,
 }
 
 const RateLimitSettingsGroup = "RateLimitSettings"
@@ -118,43 +219,111 @@ func init() {
 	AllApis.AddGroup(RateLimitSettingsGroup, "Manage RateLimitSettings", RateLimitSettingsApiCmds)
 }
 
+var FlowRateLimitSettingsRequiredArgs = []string{
+	"flowsettingsname",
+	"apiname",
+	"apiendpointtype",
+	"ratelimittarget",
+}
+var FlowRateLimitSettingsOptionalArgs = []string{
+	"flowalgorithm",
+	"reqspersecond",
+	"burstsize",
+}
+var FlowRateLimitSettingsAliasArgs = []string{
+	"fields=flowratelimitsettings.fields",
+	"flowsettingsname=flowratelimitsettings.key.flowsettingsname",
+	"apiname=flowratelimitsettings.key.ratelimitkey.apiname",
+	"apiendpointtype=flowratelimitsettings.key.ratelimitkey.apiendpointtype",
+	"ratelimittarget=flowratelimitsettings.key.ratelimitkey.ratelimittarget",
+	"flowalgorithm=flowratelimitsettings.settings.flowalgorithm",
+	"reqspersecond=flowratelimitsettings.settings.reqspersecond",
+	"burstsize=flowratelimitsettings.settings.burstsize",
+}
+var FlowRateLimitSettingsComments = map[string]string{
+	"fields":           "Fields are used for the Update API to specify which fields to apply",
+	"flowsettingsname": "Unique name for FlowRateLimitSettings (there can be multiple FlowSettings per RateLimitSettingsKey)",
+	"apiname":          "Name of API (eg. CreateApp or RegisterClient) (Use Global if not a specific API)",
+	"apiendpointtype":  "API Endpoint type, one of UnknownApiEndpointType, Dme",
+	"ratelimittarget":  "Target to rate limit, one of UnknownTarget, AllRequests, PerIp, PerUser",
+	"flowalgorithm":    "Flow Rate Limit algorithm, one of UnknownFlowAlgorithm, TokenBucketAlgorithm, LeakyBucketAlgorithm",
+	"reqspersecond":    "requests per second for flow rate limiting",
+	"burstsize":        "burst size for flow rate limiting",
+}
+var FlowRateLimitSettingsSpecialArgs = map[string]string{
+	"flowratelimitsettings.fields": "StringArray",
+}
+var MaxReqsRateLimitSettingsRequiredArgs = []string{
+	"maxreqssettingsname",
+	"apiname",
+	"apiendpointtype",
+	"ratelimittarget",
+}
+var MaxReqsRateLimitSettingsOptionalArgs = []string{
+	"maxreqsalgorithm",
+	"maxrequests",
+	"interval",
+}
+var MaxReqsRateLimitSettingsAliasArgs = []string{
+	"fields=maxreqsratelimitsettings.fields",
+	"maxreqssettingsname=maxreqsratelimitsettings.key.maxreqssettingsname",
+	"apiname=maxreqsratelimitsettings.key.ratelimitkey.apiname",
+	"apiendpointtype=maxreqsratelimitsettings.key.ratelimitkey.apiendpointtype",
+	"ratelimittarget=maxreqsratelimitsettings.key.ratelimitkey.ratelimittarget",
+	"maxreqsalgorithm=maxreqsratelimitsettings.settings.maxreqsalgorithm",
+	"maxrequests=maxreqsratelimitsettings.settings.maxrequests",
+	"interval=maxreqsratelimitsettings.settings.interval",
+}
+var MaxReqsRateLimitSettingsComments = map[string]string{
+	"fields":              "Fields are used for the Update API to specify which fields to apply",
+	"maxreqssettingsname": "Unique name for MaxReqsRateLimitSettings (there can be multiple MaxReqsSettings per RateLimitSettingsKey)",
+	"apiname":             "Name of API (eg. CreateApp or RegisterClient) (Use Global if not a specific API)",
+	"apiendpointtype":     "API Endpoint type, one of UnknownApiEndpointType, Dme",
+	"ratelimittarget":     "Target to rate limit, one of UnknownTarget, AllRequests, PerIp, PerUser",
+	"maxreqsalgorithm":    "MaxReqs Rate Limit Algorithm, one of UnknownMaxReqsAlgorithm, FixedWindowAlgorithm",
+	"maxrequests":         "Maximum number of requests for the given Interval",
+	"interval":            "Time interval",
+}
+var MaxReqsRateLimitSettingsSpecialArgs = map[string]string{
+	"maxreqsratelimitsettings.fields": "StringArray",
+}
 var RateLimitSettingsRequiredArgs = []string{
 	"apiname",
 	"apiendpointtype",
 	"ratelimittarget",
 }
 var RateLimitSettingsOptionalArgs = []string{
-	"flowsettings:#.flowalgorithm",
-	"flowsettings:#.reqspersecond",
-	"flowsettings:#.burstsize",
-	"maxreqssettings:#.maxreqsalgorithm",
-	"maxreqssettings:#.maxrequests",
-	"maxreqssettings:#.interval",
+	"flowsettings:#.key",
+	"flowsettings:#.value.flowalgorithm",
+	"flowsettings:#.value.reqspersecond",
+	"flowsettings:#.value.burstsize",
+	"maxreqssettings:#.key",
+	"maxreqssettings:#.value.maxreqsalgorithm",
+	"maxreqssettings:#.value.maxrequests",
+	"maxreqssettings:#.value.interval",
 }
 var RateLimitSettingsAliasArgs = []string{
-	"fields=ratelimitsettings.fields",
 	"apiname=ratelimitsettings.key.apiname",
 	"apiendpointtype=ratelimitsettings.key.apiendpointtype",
 	"ratelimittarget=ratelimitsettings.key.ratelimittarget",
-	"flowsettings:#.flowalgorithm=ratelimitsettings.flowsettings:#.flowalgorithm",
-	"flowsettings:#.reqspersecond=ratelimitsettings.flowsettings:#.reqspersecond",
-	"flowsettings:#.burstsize=ratelimitsettings.flowsettings:#.burstsize",
-	"maxreqssettings:#.maxreqsalgorithm=ratelimitsettings.maxreqssettings:#.maxreqsalgorithm",
-	"maxreqssettings:#.maxrequests=ratelimitsettings.maxreqssettings:#.maxrequests",
-	"maxreqssettings:#.interval=ratelimitsettings.maxreqssettings:#.interval",
+	"flowsettings:#.key=ratelimitsettings.flowsettings:#.key",
+	"flowsettings:#.value.flowalgorithm=ratelimitsettings.flowsettings:#.value.flowalgorithm",
+	"flowsettings:#.value.reqspersecond=ratelimitsettings.flowsettings:#.value.reqspersecond",
+	"flowsettings:#.value.burstsize=ratelimitsettings.flowsettings:#.value.burstsize",
+	"maxreqssettings:#.key=ratelimitsettings.maxreqssettings:#.key",
+	"maxreqssettings:#.value.maxreqsalgorithm=ratelimitsettings.maxreqssettings:#.value.maxreqsalgorithm",
+	"maxreqssettings:#.value.maxrequests=ratelimitsettings.maxreqssettings:#.value.maxrequests",
+	"maxreqssettings:#.value.interval=ratelimitsettings.maxreqssettings:#.value.interval",
 }
 var RateLimitSettingsComments = map[string]string{
-	"fields":                             "Fields are used for the Update API to specify which fields to apply",
-	"apiname":                            "Name of API (eg. CreateApp or RegisterClient) (Use Global if not a specific API)",
-	"apiendpointtype":                    "API Endpoint type, one of UnknownApiEndpointType, Dme",
-	"ratelimittarget":                    "Target to rate limit, one of UnknownTarget, AllRequests, PerIp, PerUser",
-	"flowsettings:#.flowalgorithm":       "Flow Rate Limit algorithm, one of UnknownFlowAlgorithm, TokenBucketAlgorithm, LeakyBucketAlgorithm",
-	"flowsettings:#.reqspersecond":       "requests per second for flow rate limiting",
-	"flowsettings:#.burstsize":           "burst size for flow rate limiting",
-	"maxreqssettings:#.maxreqsalgorithm": "MaxReqs Rate Limit Algorithm, one of UnknownMaxReqsAlgorithm, FixedWindowAlgorithm",
-	"maxreqssettings:#.maxrequests":      "Maximum number of requests for the given Interval",
-	"maxreqssettings:#.interval":         "Time interval",
+	"apiname":                                  "Name of API (eg. CreateApp or RegisterClient) (Use Global if not a specific API)",
+	"apiendpointtype":                          "API Endpoint type, one of UnknownApiEndpointType, Dme",
+	"ratelimittarget":                          "Target to rate limit, one of UnknownTarget, AllRequests, PerIp, PerUser",
+	"flowsettings:#.value.flowalgorithm":       "Flow Rate Limit algorithm, one of UnknownFlowAlgorithm, TokenBucketAlgorithm, LeakyBucketAlgorithm",
+	"flowsettings:#.value.reqspersecond":       "requests per second for flow rate limiting",
+	"flowsettings:#.value.burstsize":           "burst size for flow rate limiting",
+	"maxreqssettings:#.value.maxreqsalgorithm": "MaxReqs Rate Limit Algorithm, one of UnknownMaxReqsAlgorithm, FixedWindowAlgorithm",
+	"maxreqssettings:#.value.maxrequests":      "Maximum number of requests for the given Interval",
+	"maxreqssettings:#.value.interval":         "Time interval",
 }
-var RateLimitSettingsSpecialArgs = map[string]string{
-	"ratelimitsettings.fields": "StringArray",
-}
+var RateLimitSettingsSpecialArgs = map[string]string{}

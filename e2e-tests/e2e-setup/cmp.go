@@ -1,8 +1,10 @@
 package e2esetup
 
 import (
+	"fmt"
 	"log"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/go-cmp/cmp"
@@ -398,6 +400,12 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 			return a2[i].Desc < a2[j].Desc
 		})
 
+		log.Printf("BLAH errActual: %v, errExpected: %v", a1, a2)
+		if err := cmpFilterErrsData(a1, a2); err != nil {
+			log.Printf("Error filtering error data %v", err)
+			return false
+		}
+
 		y1 = a1
 		y2 = a2
 	} else {
@@ -424,6 +432,20 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 	}
 	log.Println("Comparison success")
 	return true
+}
+
+func cmpFilterErrsData(errActual []edgetestutil.Err, errExpected []edgetestutil.Err) error {
+	if len(errExpected) != len(errActual) {
+		return fmt.Errorf("The number of expected errors %d is not equal to the number of actual errors %d", len(errExpected), len(errActual))
+	}
+	for ii := 0; ii < len(errActual); ii++ {
+		if !strings.Contains(errActual[ii].Msg, errExpected[ii].Msg) {
+			return fmt.Errorf("Expected error \"%s\" is not a substring of actual error \"%s\"", errExpected[ii].Msg, errActual[ii].Msg)
+		}
+		errExpected[ii].Msg = ""
+		errActual[ii].Msg = ""
+	}
+	return nil
 }
 
 func cmpFilterEventData(data []EventSearch) {

@@ -33,3 +33,10 @@
       flowalgorithm: TokenBucketAlgorithm
       reqspersecond: 2
       burstsize: 2
+- apiname: /api/v1/auth/ctrl/ShowApp
+  ratelimittarget: AllRequests
+  maxreqssettings:
+    showappallreqs1:
+      maxreqsalgorithm: FixedWindowAlgorithm
+      maxrequests: 1
+      interval: 3s

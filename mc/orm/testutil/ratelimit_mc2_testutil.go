@@ -23,34 +23,6 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func TestCreateRateLimitSettings(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.RateLimitSettings, modFuncs ...func(*edgeproto.RateLimitSettings)) (*edgeproto.Result, int, error) {
-	dat := &ormapi.RegionRateLimitSettings{}
-	dat.Region = region
-	dat.RateLimitSettings = *in
-	for _, fn := range modFuncs {
-		fn(&dat.RateLimitSettings)
-	}
-	return mcClient.CreateRateLimitSettings(uri, token, dat)
-}
-func TestPermCreateRateLimitSettings(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) (*edgeproto.Result, int, error) {
-	in := &edgeproto.RateLimitSettings{}
-	return TestCreateRateLimitSettings(mcClient, uri, token, region, in, modFuncs...)
-}
-
-func TestDeleteRateLimitSettings(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.RateLimitSettings, modFuncs ...func(*edgeproto.RateLimitSettings)) (*edgeproto.Result, int, error) {
-	dat := &ormapi.RegionRateLimitSettings{}
-	dat.Region = region
-	dat.RateLimitSettings = *in
-	for _, fn := range modFuncs {
-		fn(&dat.RateLimitSettings)
-	}
-	return mcClient.DeleteRateLimitSettings(uri, token, dat)
-}
-func TestPermDeleteRateLimitSettings(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.RateLimitSettings)) (*edgeproto.Result, int, error) {
-	in := &edgeproto.RateLimitSettings{}
-	return TestDeleteRateLimitSettings(mcClient, uri, token, region, in, modFuncs...)
-}
-
 func TestShowRateLimitSettings(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.RateLimitSettings, modFuncs ...func(*edgeproto.RateLimitSettings)) ([]edgeproto.RateLimitSettings, int, error) {
 	dat := &ormapi.RegionRateLimitSettings{}
 	dat.Region = region
@@ -107,6 +79,20 @@ func TestPermDeleteFlowRateLimitSettings(mcClient *mctestclient.Client, uri, tok
 	return TestDeleteFlowRateLimitSettings(mcClient, uri, token, region, in, modFuncs...)
 }
 
+func TestShowFlowRateLimitSettings(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.FlowRateLimitSettings, modFuncs ...func(*edgeproto.FlowRateLimitSettings)) ([]edgeproto.FlowRateLimitSettings, int, error) {
+	dat := &ormapi.RegionFlowRateLimitSettings{}
+	dat.Region = region
+	dat.FlowRateLimitSettings = *in
+	for _, fn := range modFuncs {
+		fn(&dat.FlowRateLimitSettings)
+	}
+	return mcClient.ShowFlowRateLimitSettings(uri, token, dat)
+}
+func TestPermShowFlowRateLimitSettings(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.FlowRateLimitSettings)) ([]edgeproto.FlowRateLimitSettings, int, error) {
+	in := &edgeproto.FlowRateLimitSettings{}
+	return TestShowFlowRateLimitSettings(mcClient, uri, token, region, in, modFuncs...)
+}
+
 func TestCreateMaxReqsRateLimitSettings(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.MaxReqsRateLimitSettings, modFuncs ...func(*edgeproto.MaxReqsRateLimitSettings)) (*edgeproto.Result, int, error) {
 	dat := &ormapi.RegionMaxReqsRateLimitSettings{}
 	dat.Region = region
@@ -149,6 +135,20 @@ func TestPermDeleteMaxReqsRateLimitSettings(mcClient *mctestclient.Client, uri, 
 	return TestDeleteMaxReqsRateLimitSettings(mcClient, uri, token, region, in, modFuncs...)
 }
 
+func TestShowMaxReqsRateLimitSettings(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.MaxReqsRateLimitSettings, modFuncs ...func(*edgeproto.MaxReqsRateLimitSettings)) ([]edgeproto.MaxReqsRateLimitSettings, int, error) {
+	dat := &ormapi.RegionMaxReqsRateLimitSettings{}
+	dat.Region = region
+	dat.MaxReqsRateLimitSettings = *in
+	for _, fn := range modFuncs {
+		fn(&dat.MaxReqsRateLimitSettings)
+	}
+	return mcClient.ShowMaxReqsRateLimitSettings(uri, token, dat)
+}
+func TestPermShowMaxReqsRateLimitSettings(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.MaxReqsRateLimitSettings)) ([]edgeproto.MaxReqsRateLimitSettings, int, error) {
+	in := &edgeproto.MaxReqsRateLimitSettings{}
+	return TestShowMaxReqsRateLimitSettings(mcClient, uri, token, region, in, modFuncs...)
+}
+
 func (s *TestClient) CreateFlowRateLimitSettings(ctx context.Context, in *edgeproto.FlowRateLimitSettings) (*edgeproto.Result, error) {
 	inR := &ormapi.RegionFlowRateLimitSettings{
 		Region:                s.Region,
@@ -179,6 +179,18 @@ func (s *TestClient) DeleteFlowRateLimitSettings(ctx context.Context, in *edgepr
 		FlowRateLimitSettings: *in,
 	}
 	out, status, err := s.McClient.DeleteFlowRateLimitSettings(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) ShowFlowRateLimitSettings(ctx context.Context, in *edgeproto.FlowRateLimitSettings) ([]edgeproto.FlowRateLimitSettings, error) {
+	inR := &ormapi.RegionFlowRateLimitSettings{
+		Region:                s.Region,
+		FlowRateLimitSettings: *in,
+	}
+	out, status, err := s.McClient.ShowFlowRateLimitSettings(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}
@@ -221,24 +233,12 @@ func (s *TestClient) DeleteMaxReqsRateLimitSettings(ctx context.Context, in *edg
 	return out, err
 }
 
-func (s *TestClient) CreateRateLimitSettings(ctx context.Context, in *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {
-	inR := &ormapi.RegionRateLimitSettings{
-		Region:            s.Region,
-		RateLimitSettings: *in,
+func (s *TestClient) ShowMaxReqsRateLimitSettings(ctx context.Context, in *edgeproto.MaxReqsRateLimitSettings) ([]edgeproto.MaxReqsRateLimitSettings, error) {
+	inR := &ormapi.RegionMaxReqsRateLimitSettings{
+		Region:                   s.Region,
+		MaxReqsRateLimitSettings: *in,
 	}
-	out, status, err := s.McClient.CreateRateLimitSettings(s.Uri, s.Token, inR)
-	if err == nil && status != 200 {
-		err = fmt.Errorf("status: %d\n", status)
-	}
-	return out, err
-}
-
-func (s *TestClient) DeleteRateLimitSettings(ctx context.Context, in *edgeproto.RateLimitSettings) (*edgeproto.Result, error) {
-	inR := &ormapi.RegionRateLimitSettings{
-		Region:            s.Region,
-		RateLimitSettings: *in,
-	}
-	out, status, err := s.McClient.DeleteRateLimitSettings(s.Uri, s.Token, inR)
+	out, status, err := s.McClient.ShowMaxReqsRateLimitSettings(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}

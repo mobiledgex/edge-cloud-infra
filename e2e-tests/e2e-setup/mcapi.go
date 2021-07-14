@@ -204,23 +204,6 @@ func runMcRateLimit(api, uri, apiFile, curUserFile, outputDir string, mods []str
 	}
 
 	switch api {
-	case "mcratelimitcreate":
-		fallthrough
-	case "mcratelimitdelete":
-		in := &ormapi.McRateLimitSettings{}
-		err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
-		if err != nil && !util.IsYamlOk(err, "config") {
-			log.Printf("error in unmarshal ormapi.Config for %s: %v\n", apiFile, err)
-			return false
-		}
-		if api == "mcratelimitcreate" {
-			st, err := mcClient.CreateRateLimitSettingsMc(uri, token, in)
-			checkMcErr("CreateRateLimitSettingsMc", st, err, &rc)
-		} else {
-			st, err := mcClient.DeleteRateLimitSettingsMc(uri, token, in)
-			checkMcErr("DeleteRateLimitSettingsMc", st, err, &rc)
-		}
-
 	case "mcratelimitflowcreate":
 		fallthrough
 	case "mcratelimitflowdelete":

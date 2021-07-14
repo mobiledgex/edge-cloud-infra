@@ -23,36 +23,6 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-var CreateRateLimitSettingsCmd = &ApiCommand{
-	Name:         "CreateRateLimitSettings",
-	Use:          "create",
-	Short:        "Create RateLimitSettings for an API endpoint and target",
-	RequiredArgs: "region " + strings.Join(RateLimitSettingsRequiredArgs, " "),
-	OptionalArgs: strings.Join(RateLimitSettingsOptionalArgs, " "),
-	AliasArgs:    strings.Join(RateLimitSettingsAliasArgs, " "),
-	SpecialArgs:  &RateLimitSettingsSpecialArgs,
-	Comments:     addRegionComment(RateLimitSettingsComments),
-	ReqData:      &ormapi.RegionRateLimitSettings{},
-	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/CreateRateLimitSettings",
-	ProtobufApi:  true,
-}
-
-var DeleteRateLimitSettingsCmd = &ApiCommand{
-	Name:         "DeleteRateLimitSettings",
-	Use:          "delete",
-	Short:        "Delete RateLimit settings for an API endpoint and target (ie. no rate limiting)",
-	RequiredArgs: "region " + strings.Join(RateLimitSettingsRequiredArgs, " "),
-	OptionalArgs: strings.Join(RateLimitSettingsOptionalArgs, " "),
-	AliasArgs:    strings.Join(RateLimitSettingsAliasArgs, " "),
-	SpecialArgs:  &RateLimitSettingsSpecialArgs,
-	Comments:     addRegionComment(RateLimitSettingsComments),
-	ReqData:      &ormapi.RegionRateLimitSettings{},
-	ReplyData:    &edgeproto.Result{},
-	Path:         "/auth/ctrl/DeleteRateLimitSettings",
-	ProtobufApi:  true,
-}
-
 var ShowRateLimitSettingsCmd = &ApiCommand{
 	Name:         "ShowRateLimitSettings",
 	Use:          "show",
@@ -135,6 +105,22 @@ var DeleteFlowRateLimitSettingsCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
+var ShowFlowRateLimitSettingsCmd = &ApiCommand{
+	Name:         "ShowFlowRateLimitSettings",
+	Use:          "showflow",
+	Short:        "Show Flow RateLimit settings for an API endpoint and target",
+	RequiredArgs: "region",
+	OptionalArgs: strings.Join(append(FlowRateLimitSettingsRequiredArgs, FlowRateLimitSettingsOptionalArgs...), " "),
+	AliasArgs:    strings.Join(FlowRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:  &FlowRateLimitSettingsSpecialArgs,
+	Comments:     addRegionComment(FlowRateLimitSettingsComments),
+	ReqData:      &ormapi.RegionFlowRateLimitSettings{},
+	ReplyData:    &edgeproto.FlowRateLimitSettings{},
+	Path:         "/auth/ctrl/ShowFlowRateLimitSettings",
+	StreamOut:    true,
+	ProtobufApi:  true,
+}
+
 var CreateMaxReqsRateLimitSettingsCmd = &ApiCommand{
 	Name:         "CreateMaxReqsRateLimitSettings",
 	Use:          "createmaxreqs",
@@ -201,16 +187,32 @@ var DeleteMaxReqsRateLimitSettingsCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
+var ShowMaxReqsRateLimitSettingsCmd = &ApiCommand{
+	Name:         "ShowMaxReqsRateLimitSettings",
+	Use:          "showmaxreqs",
+	Short:        "Show MaxReqs RateLimit settings for an API endpoint and target",
+	RequiredArgs: "region",
+	OptionalArgs: strings.Join(append(MaxReqsRateLimitSettingsRequiredArgs, MaxReqsRateLimitSettingsOptionalArgs...), " "),
+	AliasArgs:    strings.Join(MaxReqsRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:  &MaxReqsRateLimitSettingsSpecialArgs,
+	Comments:     addRegionComment(MaxReqsRateLimitSettingsComments),
+	ReqData:      &ormapi.RegionMaxReqsRateLimitSettings{},
+	ReplyData:    &edgeproto.MaxReqsRateLimitSettings{},
+	Path:         "/auth/ctrl/ShowMaxReqsRateLimitSettings",
+	StreamOut:    true,
+	ProtobufApi:  true,
+}
+
 var RateLimitSettingsApiCmds = []*ApiCommand{
-	CreateRateLimitSettingsCmd,
-	DeleteRateLimitSettingsCmd,
 	ShowRateLimitSettingsCmd,
 	CreateFlowRateLimitSettingsCmd,
 	UpdateFlowRateLimitSettingsCmd,
 	DeleteFlowRateLimitSettingsCmd,
+	ShowFlowRateLimitSettingsCmd,
 	CreateMaxReqsRateLimitSettingsCmd,
 	UpdateMaxReqsRateLimitSettingsCmd,
 	DeleteMaxReqsRateLimitSettingsCmd,
+	ShowMaxReqsRateLimitSettingsCmd,
 }
 
 const RateLimitSettingsGroup = "RateLimitSettings"
@@ -288,9 +290,9 @@ var MaxReqsRateLimitSettingsSpecialArgs = map[string]string{
 	"maxreqsratelimitsettings.fields": "StringArray",
 }
 var RateLimitSettingsRequiredArgs = []string{
-	"apiname",
-	"apiendpointtype",
-	"ratelimittarget",
+	"key.apiname",
+	"key.apiendpointtype",
+	"key.ratelimittarget",
 }
 var RateLimitSettingsOptionalArgs = []string{
 	"flowsettings:#.key",
@@ -303,9 +305,9 @@ var RateLimitSettingsOptionalArgs = []string{
 	"maxreqssettings:#.value.interval",
 }
 var RateLimitSettingsAliasArgs = []string{
-	"apiname=ratelimitsettings.key.apiname",
-	"apiendpointtype=ratelimitsettings.key.apiendpointtype",
-	"ratelimittarget=ratelimitsettings.key.ratelimittarget",
+	"key.apiname=ratelimitsettings.key.apiname",
+	"key.apiendpointtype=ratelimitsettings.key.apiendpointtype",
+	"key.ratelimittarget=ratelimitsettings.key.ratelimittarget",
 	"flowsettings:#.key=ratelimitsettings.flowsettings:#.key",
 	"flowsettings:#.value.flowalgorithm=ratelimitsettings.flowsettings:#.value.flowalgorithm",
 	"flowsettings:#.value.reqspersecond=ratelimitsettings.flowsettings:#.value.reqspersecond",
@@ -316,9 +318,9 @@ var RateLimitSettingsAliasArgs = []string{
 	"maxreqssettings:#.value.interval=ratelimitsettings.maxreqssettings:#.value.interval",
 }
 var RateLimitSettingsComments = map[string]string{
-	"apiname":                                  "Name of API (eg. CreateApp or RegisterClient) (Use Global if not a specific API)",
-	"apiendpointtype":                          "API Endpoint type, one of UnknownApiEndpointType, Dme",
-	"ratelimittarget":                          "Target to rate limit, one of UnknownTarget, AllRequests, PerIp, PerUser",
+	"key.apiname":                              "Name of API (eg. CreateApp or RegisterClient) (Use Global if not a specific API)",
+	"key.apiendpointtype":                      "API Endpoint type, one of UnknownApiEndpointType, Dme",
+	"key.ratelimittarget":                      "Target to rate limit, one of UnknownTarget, AllRequests, PerIp, PerUser",
 	"flowsettings:#.value.flowalgorithm":       "Flow Rate Limit algorithm, one of UnknownFlowAlgorithm, TokenBucketAlgorithm, LeakyBucketAlgorithm",
 	"flowsettings:#.value.reqspersecond":       "requests per second for flow rate limiting",
 	"flowsettings:#.value.burstsize":           "burst size for flow rate limiting",

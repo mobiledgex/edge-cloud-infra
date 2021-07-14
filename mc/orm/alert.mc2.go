@@ -1676,27 +1676,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AccessCloudlet", AccessCloudlet)
-	// swagger:route POST /auth/ctrl/CreateRateLimitSettings RateLimitSettings CreateRateLimitSettings
-	// Create RateLimitSettings for an API endpoint and target.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateRateLimitSettings", CreateRateLimitSettings)
-	// swagger:route POST /auth/ctrl/DeleteRateLimitSettings RateLimitSettings DeleteRateLimitSettings
-	// Delete RateLimit settings for an API endpoint and target (ie.
-	//  no rate limiting)
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteRateLimitSettings", DeleteRateLimitSettings)
 	// swagger:route POST /auth/ctrl/ShowRateLimitSettings RateLimitSettings ShowRateLimitSettings
 	// Show RateLimit settings for an API endpoint and target.
 	// Security:
@@ -1750,6 +1729,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteFlowRateLimitSettings", DeleteFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/ShowFlowRateLimitSettings FlowRateLimitSettings ShowFlowRateLimitSettings
+	// Show Flow RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowFlowRateLimitSettings", ShowFlowRateLimitSettings)
 	// swagger:route POST /auth/ctrl/CreateMaxReqsRateLimitSettings MaxReqsRateLimitSettings CreateMaxReqsRateLimitSettings
 	// Create MaxReqs RateLimit settings for an API endpoint and target.
 	// Security:
@@ -1793,6 +1782,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteMaxReqsRateLimitSettings", DeleteMaxReqsRateLimitSettings)
+	// swagger:route POST /auth/ctrl/ShowMaxReqsRateLimitSettings MaxReqsRateLimitSettings ShowMaxReqsRateLimitSettings
+	// Show MaxReqs RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowMaxReqsRateLimitSettings", ShowMaxReqsRateLimitSettings)
 	// swagger:route POST /auth/ctrl/StreamAppInst AppInstKey StreamAppInst
 	// Stream Application Instance current progress.
 	// Security:

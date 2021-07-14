@@ -27,24 +27,6 @@ var MaxReqsRateLimitSettingsMcRequiredArgs = []string{
 
 func init() {
 	cmds := []*ApiCommand{&ApiCommand{
-		Name:         "DeleteRateLimitSettingsMc",
-		Use:          "delete",
-		Short:        "Delete master controller ratelimitsettings",
-		RequiredArgs: strings.Join(RateLimitSettingsMcRequiredArgs, " "),
-		OptionalArgs: strings.Join(RateLimitSettingsOptionalArgs, " "),
-		Comments:     RateLimitSettingsComments,
-		ReqData:      &ormapi.McRateLimitSettings{},
-		Path:         "/auth/ratelimitsettingsmc/delete",
-	}, &ApiCommand{
-		Name:         "CreateRateLimitSettingsMc",
-		Use:          "create",
-		Short:        "Create master controller ratelimitsettings",
-		RequiredArgs: strings.Join(RateLimitSettingsMcRequiredArgs, " "),
-		OptionalArgs: strings.Join(RateLimitSettingsOptionalArgs, " "),
-		Comments:     RateLimitSettingsComments,
-		ReqData:      &ormapi.McRateLimitSettings{},
-		Path:         "/auth/ratelimitsettingsmc/create",
-	}, &ApiCommand{
 		Name:         "ShowRateLimitSettingsMc",
 		Use:          "show",
 		Short:        "Show master controller ratelimitsettings",
@@ -81,6 +63,15 @@ func init() {
 		ReqData:      &ormapi.McRateLimitFlowSettings{},
 		Path:         "/auth/ratelimitsettingsmc/deleteflow",
 	}, &ApiCommand{
+		Name:         "ShowFlowRateLimitSettingsMc",
+		Use:          "showflow",
+		Short:        "Show master controller flowratelimitsettings",
+		OptionalArgs: strings.Join(append(FlowRateLimitSettingsMcRequiredArgs, FlowRateLimitSettingsOptionalArgs...), " "),
+		Comments:     FlowRateLimitSettingsComments,
+		ReqData:      &ormapi.McRateLimitFlowSettings{},
+		ReplyData:    &[]ormapi.McRateLimitFlowSettings{},
+		Path:         "/auth/ratelimitsettingsmc/showflow",
+	}, &ApiCommand{
 		Name:         "CreateMaxReqsRateLimitSettingsMc",
 		Use:          "createmaxreqs",
 		Short:        "Create master controller maxreqsratelimitsettings",
@@ -107,6 +98,15 @@ func init() {
 		Comments:     MaxReqsRateLimitSettingsComments,
 		ReqData:      &ormapi.McRateLimitMaxReqsSettings{},
 		Path:         "/auth/ratelimitsettingsmc/deletemaxreqs",
+	}, &ApiCommand{
+		Name:         "ShowMaxReqsRateLimitSettingsMc",
+		Use:          "showmaxreqs",
+		Short:        "Show master controller maxreqsratelimitsettings",
+		OptionalArgs: strings.Join(append(MaxReqsRateLimitSettingsMcRequiredArgs, MaxReqsRateLimitSettingsOptionalArgs...), " "),
+		Comments:     MaxReqsRateLimitSettingsComments,
+		ReqData:      &ormapi.McRateLimitMaxReqsSettings{},
+		ReplyData:    &[]ormapi.McRateLimitMaxReqsSettings{},
+		Path:         "/auth/ratelimitsettingsmc/showmaxreqs",
 	}}
 	AllApis.AddGroup(RateLimitSettingsMcGroup, "Manage global ratelimitsettings", cmds)
 }

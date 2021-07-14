@@ -249,6 +249,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			}
 		}()
 
+		features := v.VMProvider.GetFeatures()
 		// set up DNS
 		var rootLBIPaddr *ServerIP
 		rootLBIPaddr, err = v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName, pc.WithCachedIp(true))
@@ -259,7 +260,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				action.PatchIP = masterIP.ExternalAddr
 				action.ExternalIP = rootLBIPaddr.ExternalAddr
 				// Should only add DNS for external ports
-				action.AddDNS = !app.InternalPorts
+				// and if ips are per service.
+				action.AddDNS = !app.InternalPorts && features.IPAllocatedPerService
 				return &action, nil
 			}
 			// If this is an internal ports, all we need is patch of kube service
@@ -299,7 +301,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
 		pp := edgeproto.TrustPolicy{}
-		err = v.SetupRootLB(ctx, orchVals.lbName, &clusterInst.Key.CloudletKey, &pp, false, updateCallback)
+		err = v.SetupRootLB(ctx, orchVals.lbName, orchVals.lbName, &clusterInst.Key.CloudletKey, &pp, false, updateCallback)
 		if err != nil {
 			return err
 		}

@@ -41,6 +41,11 @@ if node.normal['tags'].include?('vmtype/rootlb')
       returns 0
     end
     apt_update
+    # Upgrade virtual kernel image, if a new version is available
+    apt_package 'linux-image-virtual' do
+      action :upgrade
+      options '--allow-change-held-packages'
+    end
     apt_package 'mobiledgex' do
       action :upgrade
     end

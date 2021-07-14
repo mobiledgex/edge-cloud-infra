@@ -239,7 +239,7 @@
             prompt: |
               Configure the Azure secrets engine:
                 - Navigate to the "vault" app "Certificates & secrets" page in Azure
-                    https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/Credentials/appId/89c5d15b-437f-495f-a0ac-b808e3e950bd/isMSAApp/
+                    https://portal.azure.com/#blade/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/Credentials/appId/{{ azure_vault_app_client_id }}/isMSAApp/
                 - Add a client secret for "vault-{{ deploy_environ }}"
                 - Enable the Azure secrets engine in vault:
                     vault secrets enable azure
@@ -247,7 +247,7 @@
                     vault write azure/config \
                       subscription_id={{ azure_subscription_id }} \
                       tenant_id={{ azure_tenant_id }} \
-                      client_id={{ azure_client_id }} \
+                      client_id={{ azure_vault_app_client_id }} \
                       client_secret=$AZURE_CLIENT_SECRET
 
               Hit <Enter> when done.

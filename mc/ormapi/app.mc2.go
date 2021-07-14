@@ -35,6 +35,25 @@ type RegionApp struct {
 	App    edgeproto.App
 }
 
+func (s *RegionApp) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionApp) GetObj() interface{} {
+	return &s.App
+}
+
+func (s *RegionApp) GetObjName() string {
+	return "App"
+}
+func (s *RegionApp) GetObjFields() []string {
+	return s.App.Fields
+}
+
+func (s *RegionApp) SetObjFields(fields []string) {
+	s.App.Fields = fields
+}
+
 // Request summary for DeleteApp
 // swagger:parameters DeleteApp
 type swaggerDeleteApp struct {
@@ -70,6 +89,18 @@ type RegionAppAutoProvPolicy struct {
 	AppAutoProvPolicy edgeproto.AppAutoProvPolicy
 }
 
+func (s *RegionAppAutoProvPolicy) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionAppAutoProvPolicy) GetObj() interface{} {
+	return &s.AppAutoProvPolicy
+}
+
+func (s *RegionAppAutoProvPolicy) GetObjName() string {
+	return "AppAutoProvPolicy"
+}
+
 // Request summary for RemoveAppAutoProvPolicy
 // swagger:parameters RemoveAppAutoProvPolicy
 type swaggerRemoveAppAutoProvPolicy struct {
@@ -91,6 +122,18 @@ type RegionAppUserDefinedAlert struct {
 	AppUserDefinedAlert edgeproto.AppUserDefinedAlert
 }
 
+func (s *RegionAppUserDefinedAlert) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionAppUserDefinedAlert) GetObj() interface{} {
+	return &s.AppUserDefinedAlert
+}
+
+func (s *RegionAppUserDefinedAlert) GetObjName() string {
+	return "AppUserDefinedAlert"
+}
+
 // Request summary for RemoveAppUserDefinedAlert
 // swagger:parameters RemoveAppUserDefinedAlert
 type swaggerRemoveAppUserDefinedAlert struct {
@@ -110,4 +153,16 @@ type RegionDeploymentCloudletRequest struct {
 	// Region name
 	Region                    string
 	DeploymentCloudletRequest edgeproto.DeploymentCloudletRequest
+}
+
+func (s *RegionDeploymentCloudletRequest) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionDeploymentCloudletRequest) GetObj() interface{} {
+	return &s.DeploymentCloudletRequest
+}
+
+func (s *RegionDeploymentCloudletRequest) GetObjName() string {
+	return "DeploymentCloudletRequest"
 }

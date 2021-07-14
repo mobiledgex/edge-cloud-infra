@@ -34,6 +34,25 @@ type RegionUserAlert struct {
 	UserAlert edgeproto.UserAlert
 }
 
+func (s *RegionUserAlert) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionUserAlert) GetObj() interface{} {
+	return &s.UserAlert
+}
+
+func (s *RegionUserAlert) GetObjName() string {
+	return "UserAlert"
+}
+func (s *RegionUserAlert) GetObjFields() []string {
+	return s.UserAlert.Fields
+}
+
+func (s *RegionUserAlert) SetObjFields(fields []string) {
+	s.UserAlert.Fields = fields
+}
+
 // Request summary for DeleteUserAlert
 // swagger:parameters DeleteUserAlert
 type swaggerDeleteUserAlert struct {

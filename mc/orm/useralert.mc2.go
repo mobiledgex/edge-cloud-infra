@@ -11,6 +11,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
@@ -36,8 +37,9 @@ func CreateUserAlert(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionUserAlert{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -90,8 +92,9 @@ func DeleteUserAlert(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionUserAlert{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -144,14 +147,19 @@ func UpdateUserAlert(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionUserAlert{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	dat, err := ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.UserAlert.GetKey().GetTags())
 	span.SetTag("org", in.UserAlert.Key.Organization)
+	err = ormutil.SetRegionObjFields(dat, &in)
+	if err != nil {
+		return err
+	}
 	resp, err := UpdateUserAlertObj(ctx, rc, &in.UserAlert)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -198,8 +206,8 @@ func ShowUserAlert(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionUserAlert{}
-	success, err := ReadConn(c, &in)
-	if !success {
+	_, err = ReadConn(c, &in)
+	if err != nil {
 		return err
 	}
 	rc.region = in.Region

@@ -1,0 +1,15 @@
+- name: Destroy influxdb deployment
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: Deployment
+    name: monitoring-influxdb
+    state: absent
+
+- name: "Deleting influxdb persistent volume: {{ influxdb_volume_name }}"
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    kind: PersistentVolumeClaim
+    name: "{{ influxdb_volume_name }}"
+    state: absent

@@ -537,15 +537,12 @@ regiondata:
       - proto: LProtoTcp
         internalport: 80
         publicport: 80
-        fqdnprefix: ep1-tcp-
       - proto: LProtoTcp
         internalport: 443
         publicport: 443
-        fqdnprefix: ep1-tcp-
       - proto: LProtoUdp
         internalport: 10002
         publicport: 10002
-        fqdnprefix: ep1-udp-
       flavor:
         name: x1.small
       state: Ready
@@ -568,7 +565,6 @@ regiondata:
       cloudletloc:
         latitude: 31
         longitude: -91
-      uri: smallcluster.tmus-cloud-1.tmus.mobiledgex.net
       liveness: LivenessStatic
       mappedports:
       - proto: LProtoTcp
@@ -636,7 +632,6 @@ regiondata:
       cloudletloc:
         latitude: 35
         longitude: -95
-      uri: smallcluster.tmus-cloud-2.tmus.mobiledgex.net
       liveness: LivenessStatic
       mappedports:
       - proto: LProtoTcp
@@ -670,15 +665,12 @@ regiondata:
       - proto: LProtoTcp
         internalport: 80
         publicport: 80
-        fqdnprefix: someapplication1-tcp-
       - proto: LProtoTcp
         internalport: 443
         publicport: 443
-        fqdnprefix: someapplication1-tcp-
       - proto: LProtoUdp
         internalport: 10002
         publicport: 10002
-        fqdnprefix: someapplication1-udp-
       flavor:
         name: x1.small
       state: Ready
@@ -701,13 +693,12 @@ regiondata:
       cloudletloc:
         latitude: 35
         longitude: -95
-      uri: tmus-cloud-2.tmus.mobiledgex.net
+      uri: shared.tmus-cloud-2.tmus.mobiledgex.net
       liveness: LivenessStatic
       mappedports:
       - proto: LProtoTcp
         internalport: 80
         publicport: 80
-        fqdnprefix: someapplication1-tcp-
       - proto: LProtoTcp
         internalport: 443
         publicport: 443
@@ -715,7 +706,6 @@ regiondata:
       - proto: LProtoUdp
         internalport: 10002
         publicport: 10002
-        fqdnprefix: someapplication1-udp-
       flavor:
         name: x1.small
       state: Ready
@@ -738,7 +728,6 @@ regiondata:
       cloudletloc:
         latitude: 31
         longitude: -91
-      uri: smallcluster.enterprise-1.enterprise.mobiledgex.net
       liveness: LivenessStatic
       mappedports:
       - proto: LProtoTcp

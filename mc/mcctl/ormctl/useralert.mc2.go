@@ -9,7 +9,6 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud/cli"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
 	math "math"
@@ -54,39 +53,18 @@ var DeleteUserAlertCmd = &ApiCommand{
 }
 
 var UpdateUserAlertCmd = &ApiCommand{
-	Name:          "UpdateUserAlert",
-	Use:           "update",
-	Short:         "Update a User Defined Alert",
-	RequiredArgs:  "region " + strings.Join(UserAlertRequiredArgs, " "),
-	OptionalArgs:  strings.Join(UserAlertOptionalArgs, " "),
-	AliasArgs:     strings.Join(UserAlertAliasArgs, " "),
-	SpecialArgs:   &UserAlertSpecialArgs,
-	Comments:      addRegionComment(UserAlertComments),
-	ReqData:       &ormapi.RegionUserAlert{},
-	ReplyData:     &edgeproto.Result{},
-	Path:          "/auth/ctrl/UpdateUserAlert",
-	SetFieldsFunc: SetUpdateUserAlertFields,
-	ProtobufApi:   true,
-}
-
-func SetUpdateUserAlertFields(in map[string]interface{}) {
-	// get map for edgeproto object in region struct
-	obj := in["UserAlert"]
-	if obj == nil {
-		return
-	}
-	objmap, ok := obj.(map[string]interface{})
-	if !ok {
-		return
-	}
-	fields := cli.GetSpecifiedFields(objmap, &edgeproto.UserAlert{}, cli.JsonNamespace)
-	// include fields already specified
-	if inFields, found := objmap["fields"]; found {
-		if fieldsArr, ok := inFields.([]string); ok {
-			fields = append(fields, fieldsArr...)
-		}
-	}
-	objmap["fields"] = fields
+	Name:         "UpdateUserAlert",
+	Use:          "update",
+	Short:        "Update a User Defined Alert",
+	RequiredArgs: "region " + strings.Join(UserAlertRequiredArgs, " "),
+	OptionalArgs: strings.Join(UserAlertOptionalArgs, " "),
+	AliasArgs:    strings.Join(UserAlertAliasArgs, " "),
+	SpecialArgs:  &UserAlertSpecialArgs,
+	Comments:     addRegionComment(UserAlertComments),
+	ReqData:      &ormapi.RegionUserAlert{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/UpdateUserAlert",
+	ProtobufApi:  true,
 }
 
 var ShowUserAlertCmd = &ApiCommand{
@@ -104,7 +82,6 @@ var ShowUserAlertCmd = &ApiCommand{
 	StreamOut:    true,
 	ProtobufApi:  true,
 }
-
 var UserAlertApiCmds = []*ApiCommand{
 	CreateUserAlertCmd,
 	DeleteUserAlertCmd,
@@ -162,14 +139,14 @@ var UserAlertAliasArgs = []string{
 var UserAlertComments = map[string]string{
 	"alert-org":          "Name of the organization for the app that this alert can be applied to",
 	"name":               "Alert name",
-	"cpu-utilization":    "CPU",
-	"mem-usage":          "Mem",
-	"disk-usage":         "Disk",
-	"active-connections": "Active Connections",
+	"cpu-utilization":    "CPU percent alert threshold",
+	"mem-usage":          "Memory usage alert threshold",
+	"disk-usage":         "Disk usage alert threshold",
+	"active-connections": "Active Connections alert threshold",
 	"severity":           "Alert Severity",
-	"trigger-time":       "Trigger threshold interval",
-	"labels":             "Additional Labels",
-	"annotations":        "Additional Annotations for extra information about the alert",
+	"trigger-time":       "Duration for which alert interval is active",
+	"labels":             "Additional Labels, specify labels:empty=true to clear",
+	"annotations":        "Additional Annotations for extra information about the alert, specify annotations:empty=true to clear",
 }
 var UserAlertSpecialArgs = map[string]string{
 	"useralert.annotations": "StringToString",

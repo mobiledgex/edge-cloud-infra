@@ -169,6 +169,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// AppinstClientCleanupInterval: 33
 	// ClusterAutoScaleAveragingDurationSec: 34
 	// ClusterAutoScaleRetryDelay: 35
+	// UserDefinedAlertMinTriggerTime: 36
 	// ```
 	// Security:
 	//   Bearer:

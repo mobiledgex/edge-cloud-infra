@@ -35,6 +35,7 @@ var CloudletPrometheusAddr = "0.0.0.0:" + intprocess.CloudletPrometheusPort
 
 var promTargetTemplate *template.Template
 var targetsLock sync.Mutex
+var alertRulesLock sync.Mutex
 
 var promTargetT = `
 {
@@ -170,12 +171,25 @@ func deleteCloudletPrometheusAlertFile(ctx context.Context, file string) error {
 
 // Write prometheus rules file and reload rules
 func writeCloudletPrometheusAlerts(ctx context.Context, file string, alertsBuf []byte) error {
+	alertRulesLock.Lock()
+	defer alertRulesLock.Unlock()
 	// write alerting rules
 	log.SpanLog(ctx, log.DebugLevelInfo, "writing alerts file", "file", file)
 	err := ioutil.WriteFile(file, alertsBuf, 0644)
 	if err != nil {
 		return err
 	}
+	if runtime.GOOS == "darwin" {
+		// probably because of the way docker uses VMs on mac,
+		// the file watch doesn't detect changes done to the targets
+		// file in the host.
+		cmd := exec.Command("docker", "exec", intprocess.PrometheusContainer, "touch", file)
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Failed to touch prom rules file in container to trigger refresh in Prometheus", "out", string(out), "err", err)
+		}
+	}
+
 	// need to force prometheus to re-read the rules file
 	reloadCloudletProm(ctx)
 	return nil
@@ -374,7 +388,11 @@ func writePrometheusAlertRuleForAppInst(ctx context.Context, k interface{}) {
 		}
 	}
 	if len(grps.Groups) == 0 {
-		// no rules
+		// no rules - rulefile should not exist for this
+		fileName := getAppInstRulesFileName(key)
+		if err := deleteCloudletPrometheusAlertFile(ctx, fileName); err != nil {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to delete prometheus rules", "file", fileName, "err", err)
+		}
 		return
 	}
 	byt, err := yaml.Marshal(grps)

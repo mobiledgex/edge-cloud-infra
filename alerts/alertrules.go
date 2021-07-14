@@ -26,7 +26,8 @@ var MEXPrometheusUserAlertsT = `additionalPrometheusRules:
       expr: [[ .RuleExpression ]]
       for: [[ .TriggerTimeString ]]
       labels:
-        severity: [[ .Severity ]]        
+        severity: [[ .Severity ]]
+        type: "User Defined"
         [[- range $key, $value := .Labels ]]
         [[ $key ]]: "[[ $value ]]"
         [[- end ]]
@@ -92,15 +93,11 @@ func getAlertRulesArgs(ctx context.Context, appInst *edgeproto.AppInst, alerts [
 			expressions = append(expressions, exp)
 		}
 		promAlert.RuleExpression = strings.Join(expressions, " and ")
-		// Add all the appinst labels
-		promAlert.Labels[edgeproto.AppKeyTagOrganization] = alerts[ii].Key.Organization
 		promAlert.Labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopeApp
-		promAlert.Labels[edgeproto.AppKeyTagName] = appInst.Key.AppKey.Name
-		promAlert.Labels[edgeproto.AppKeyTagVersion] = appInst.Key.AppKey.Version
-		promAlert.Labels[edgeproto.CloudletKeyTagName] = appInst.Key.ClusterInstKey.CloudletKey.Name
-		promAlert.Labels[edgeproto.CloudletKeyTagOrganization] = appInst.Key.ClusterInstKey.CloudletKey.Organization
-		promAlert.Labels[edgeproto.ClusterKeyTagName] = appInst.Key.ClusterInstKey.ClusterKey.Name
-		promAlert.Labels[edgeproto.ClusterInstKeyTagOrganization] = appInst.Key.ClusterInstKey.Organization
+		promAlert.Labels[cloudcommon.AlertTypeLabel] = cloudcommon.AlertTypeUserDefined
+		// Add all the appinst labels
+		promAlert.Labels = util.AddMaps(promAlert.Labels, appInst.Key.GetTags())
+
 		log.SpanLog(ctx, log.DebugLevelInfo, "Adding Prometheus user alert rule", "appInst", appInst,
 			"alert", promAlert)
 
@@ -109,7 +106,7 @@ func getAlertRulesArgs(ctx context.Context, appInst *edgeproto.AppInst, alerts [
 	return alertArgs
 }
 
-func GetAlertsRules(ctx context.Context, appInst *edgeproto.AppInst, alerts []edgeproto.UserAlert) (string, error) {
+func GetAlertRules(ctx context.Context, appInst *edgeproto.AppInst, alerts []edgeproto.UserAlert) (string, error) {
 	// no user defined alerts
 	if len(alerts) == 0 {
 		return "", nil
@@ -145,15 +142,11 @@ func GetCloudletAlertRules(ctx context.Context, appInst *edgeproto.AppInst, aler
 
 		// add labels
 		rule.Labels = util.CopyStringMap(alerts[ii].Labels)
-		rule.Annotations = util.CopyStringMap(alerts[ii].Annotations)
-		rule.Labels[edgeproto.AppKeyTagOrganization] = alerts[ii].Key.Organization
 		rule.Labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopeApp
-		rule.Labels[edgeproto.AppKeyTagName] = appInst.Key.AppKey.Name
-		rule.Labels[edgeproto.AppKeyTagVersion] = appInst.Key.AppKey.Version
-		rule.Labels[edgeproto.CloudletKeyTagName] = appInst.Key.ClusterInstKey.CloudletKey.Name
-		rule.Labels[edgeproto.CloudletKeyTagOrganization] = appInst.Key.ClusterInstKey.CloudletKey.Organization
-		rule.Labels[edgeproto.ClusterKeyTagName] = appInst.Key.ClusterInstKey.ClusterKey.Name
-		rule.Labels[edgeproto.ClusterInstKeyTagOrganization] = appInst.Key.ClusterInstKey.Organization
+		rule.Labels[cloudcommon.AlertTypeLabel] = cloudcommon.AlertTypeUserDefined
+		rule.Labels[cloudcommon.AlertSeverityLabel] = alerts[ii].Severity
+		rule.Labels = util.AddMaps(rule.Labels, appInst.Key.GetTags())
+		rule.Annotations = util.CopyStringMap(alerts[ii].Annotations)
 
 		log.SpanLog(ctx, log.DebugLevelInfo, "Adding Cloudlet Prometheus user alert rule", "appInst", appInst,
 			"rule", rule)

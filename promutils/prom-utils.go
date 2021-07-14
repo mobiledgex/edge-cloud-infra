@@ -61,22 +61,22 @@ type PromAlert struct {
 	Annotations map[string]string
 	State       string
 	ActiveAt    *time.Time `json:"activeAt,omitempty"`
-	Value       PromValue
+	Value       PromAlertValue
 }
 
 // Prometheus Alert Value may be a string or a numeric, depending on
 // the version of the prometheus operator used. Handle either.
-type PromValue float64
+type PromAlertValue float64
 
-func (s PromValue) MarshalJSON() ([]byte, error) {
+func (s PromAlertValue) MarshalJSON() ([]byte, error) {
 	return json.Marshal(float64(s))
 }
 
-func (s *PromValue) UnmarshalJSON(b []byte) error {
+func (s *PromAlertValue) UnmarshalJSON(b []byte) error {
 	var val float64
 	err := json.Unmarshal(b, &val)
 	if err == nil {
-		*s = PromValue(val)
+		*s = PromAlertValue(val)
 		return nil
 	}
 	var str string
@@ -84,7 +84,7 @@ func (s *PromValue) UnmarshalJSON(b []byte) error {
 	if err == nil {
 		val, err = strconv.ParseFloat(str, 64)
 		if err == nil {
-			*s = PromValue(val)
+			*s = PromAlertValue(val)
 			return nil
 		}
 		return err

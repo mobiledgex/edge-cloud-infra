@@ -21,6 +21,7 @@ var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
       for: 30s
       labels:
         severity: warning
+        type: "User Defined"
         app: "Pokemon Go!"
         apporg: "NianticInc"
         appver: "1.0.0"
@@ -29,13 +30,15 @@ var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
         cluster: "Pokemons"
         clusterorg: "NianticInc"
         scope: "Application"
+        type: "UserDefined"
     - alert: testAlert3
       expr: max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(rate(container_cpu_usage_seconds_total{image!=""}[1m]))by(pod)) > 100
       for: 30s
       labels:
         severity: error
+        type: "User Defined"
         app: "Pokemon Go!"
-        apporg: "Ever.ai"
+        apporg: "NianticInc"
         appver: "1.0.0"
         cloudlet: "San Jose Site"
         cloudletorg: "AT&T Inc."
@@ -44,6 +47,7 @@ var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
         scope: "Application"
         testLabel1: "testValue1"
         testLabel2: "testValue2"
+        type: "UserDefined"
       annotations:
         testAnnotation1: "description1"
         testAnnotation2: "description2"

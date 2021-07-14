@@ -621,13 +621,11 @@ func userAlertCb(ctx context.Context, old *edgeproto.UserAlert, new *edgeproto.U
 		// deleted, so all the appInsts should've been cleaned up already
 		return
 	}
-	fields := make(map[string]struct{})
-	new.DiffFields(old, fields)
-	_, found := fields[edgeproto.UserAlertFieldActiveConnLimit]
-	if len(fields) == 0 || !found {
+	if new.Matches(old) || new.ActiveConnLimit == old.ActiveConnLimit {
 		// nothing to update
 		return
 	}
+
 	apps := map[edgeproto.AppKey]struct{}{}
 	appKeyFilter := edgeproto.AppKey{
 		Organization: new.Key.Organization,
@@ -667,10 +665,8 @@ func appUpdateCb(ctx context.Context, old *edgeproto.App, new *edgeproto.App) {
 		return
 	}
 
-	fields := make(map[string]struct{})
-	new.DiffFields(old, fields)
-	// We only care about user alerts field
-	if _, found := fields[edgeproto.AppFieldUserDefinedAlerts]; !found {
+	if new.Matches(old) || !old.AppUserAlertsDifferent(new) {
+		// nothing to update
 		return
 	}
 

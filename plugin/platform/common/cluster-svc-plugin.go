@@ -26,7 +26,7 @@ func (s *ClusterSvc) GetAppInstConfigs(ctx context.Context, clusterInst *edgepro
 	}
 
 	if len(userAlerts) > 0 {
-		file, err := alerts.GetAlertsRules(ctx, appInst, userAlerts)
+		file, err := alerts.GetAlertRules(ctx, appInst, userAlerts)
 		if err != nil {
 			return nil, err
 		}

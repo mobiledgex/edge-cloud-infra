@@ -7,6 +7,9 @@ import json
 
 vault_addr = None
 
+class VaultAzureRoleError(Exception):
+    pass
+
 def run_module():
     module_args = dict(
         name=dict(type="str", required=True),
@@ -31,7 +34,9 @@ def run_module():
     vault = vault_request(module.params["vault_addr"], module.params["vault_token"])
     r = vault("azure/roles/{}".format(module.params["name"]),
               success_code=[200, 404])
-    if "data" not in r and len(r["errors"]) < 1:
+    if len(r.get("errors", [])) > 0:
+        raise VaultAzureRoleError("Role creation error: " + "\n".join(r["errors"]))
+    elif "data" not in r:
         # Role does not exist; create it
         result["changed"] = True
         result["action"] = "create"

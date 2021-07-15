@@ -54,6 +54,7 @@ from ansible.utils.display import Display
 import json
 import os
 import re
+import time
 
 try:
     import requests
@@ -69,8 +70,19 @@ class LookupModule(LookupBase):
         url = "{0}/v1/{1}".format(vault_addr, path)
         if version:
             url += '?version={0}'.format(version)
-        r = requests.get(url, headers={'X-Vault-Token': token})
-        if r.status_code != requests.codes.ok:
+        retries = 10
+        while retries > 0:
+            retries -= 1
+            r = requests.get(url, headers={'X-Vault-Token': token})
+            if r.status_code == requests.codes.ok:
+                break
+            if r.status_code == 502:
+                # This is vault's status code for errors with third-party services,
+                # for instance, when Azure's token generation takes too long.
+                # Retry after a wait for these.
+                time.sleep(5)
+                continue
+        else:
             raise AnsibleError("Vault lookup of path \"{0}\" returned response code \"{1}\"".format(
                 url, r.status_code))
 

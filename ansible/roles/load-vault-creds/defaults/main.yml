@@ -1,6 +1,7 @@
 artifactory_apidocs_account_path: secret/ansible/common/accounts/artifactory_apidocs
 artifactory_publish_account_path: secret/ansible/common/accounts/artifactory_publish
 azure_account_path: secret/ansible/common/accounts/azure
+azure_aks_creds_path: azure/creds/get-aks-credentials
 cloudflare_account_path: secret/ansible/common/accounts/cloudflare
 esproxy_account_path: secret/ansible/common/accounts/esproxy
 esproxy_cleanup_account_path: secret/ansible/common/accounts/esproxy_cleanup

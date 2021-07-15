@@ -894,9 +894,6 @@ func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool)
 		},
 	}
 	for _, selector := range ormapi.ClientAppUsageSelectors {
-		if selector == "custom" {
-			continue
-		}
 		if selector == "latency" {
 			clientAppUsageQuery.LocationTile = targets.LocationTileLatency
 		} else {
@@ -920,9 +917,6 @@ func showMcClientCloudletMetrics(uri, token string, targets *MetricTargets, rc *
 		},
 	}
 	for _, selector := range ormapi.ClientCloudletUsageSelectors {
-		if selector == "custom" {
-			continue
-		}
 		if selector == "latency" {
 			clientCloudletUsageQuery.LocationTile = targets.LocationTileLatency
 		} else {

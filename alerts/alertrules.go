@@ -82,7 +82,7 @@ func getAlertRulesArgs(ctx context.Context, appInst *edgeproto.AppInst, alerts [
 			exp := fmt.Sprintf("%s > %d", cpuQuery, alerts[ii].CpuUtilizationLimit)
 			expressions = append(expressions, exp)
 		}
-		if alerts[ii].CpuUtilizationLimit != 0 {
+		if alerts[ii].MemUtilizationLimit != 0 {
 			memQuery := promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQMemPercentPod)
 			exp := fmt.Sprintf("%s > %d", memQuery, alerts[ii].MemUtilizationLimit)
 			expressions = append(expressions, exp)

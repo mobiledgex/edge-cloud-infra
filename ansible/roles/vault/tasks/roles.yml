@@ -12,6 +12,9 @@
       - auth-approle.destroy.v1
       - auth-github-config.read.v1
       - auth-ldap-config.read.v1
+      - azure-aks-creds.read.v1
+      - azure-config.read.v1
+      - azure-roles.read.v1
       - certs.read.v1
       - chef.read.v1
       - edge-cloud-registry.read.v1

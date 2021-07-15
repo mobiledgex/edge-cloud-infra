@@ -1,0 +1,21 @@
+---
+- import_role:
+    name: azure-aks
+    tasks_from: platform-regions-load
+
+- set_fact:
+    az_roles: []
+
+- name: Compute Azure roles for AKS access
+  set_fact:
+    az_roles: "{{ az_roles + [ lookup('template', 'aks-credentials-role.json.j2') ] }}"
+  vars:
+    resource_group: "{{ platform_region.resource_group }}"
+  loop: "{{ platform_regions }}"
+  loop_control:
+    loop_var: platform_region
+
+- name: Create Azure role for AKS access
+  vault_azure_role:
+    name: get-aks-credentials
+    azure_roles: "{{ az_roles }}"

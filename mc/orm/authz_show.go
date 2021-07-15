@@ -138,6 +138,11 @@ func newShowAppInstAuthz(ctx context.Context, region, username string, resource,
 }
 
 func (s *AuthzAppInstShow) Ok(obj *edgeproto.AppInst) (bool, bool) {
+
+	if obj.Liveness == edgeproto.Liveness_LIVENESS_DYNAMIC {
+		return false, false
+	}
+
 	return s.AuthzShow.OkCloudlet(obj.Key.AppKey.Organization, obj.Key.ClusterInstKey.CloudletKey)
 }
 

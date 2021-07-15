@@ -138,7 +138,7 @@ func (s *AlertMgrServer) Stop() {
 	s.waitGrp.Wait()
 }
 
-// Prune labels we don't want to show on the alerts sent to the external alert intergations
+// Prune labels we don't want to show on the alerts sent to the external alert integrations
 func isLabelInternal(label string) bool {
 	if label == "instance" || label == "job" || label == cloudcommon.AlertTypeLabel {
 		return true

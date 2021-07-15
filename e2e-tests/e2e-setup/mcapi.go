@@ -1405,10 +1405,8 @@ func runMcAppUserAlertApi(api, uri, apiFile, curUserFile, outputDir string, mods
 		output, status, err := apiFunc(uri, token, &alert)
 		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
 		checkMcErr("AddAppUserDefinedAlert", status, err, &rc)
-
 	}
 	return rc
-
 }
 
 func runMcAddUserAlertToApp(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string) bool {

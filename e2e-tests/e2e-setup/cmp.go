@@ -386,6 +386,50 @@ func CompareYamlFiles(firstYamlFile string, secondYamlFile string, fileType stri
 
 		y1 = a1
 		y2 = a2
+	} else if fileType == "mcratelimitflow" {
+		var a1 []ormapi.McRateLimitFlowSettings
+		var a2 []ormapi.McRateLimitFlowSettings
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		sort.Slice(a1, func(i, j int) bool {
+			if a1[i].ApiName != a1[j].ApiName {
+				return a1[i].ApiName < a1[j].ApiName
+			}
+			return a1[i].RateLimitTarget < a1[j].RateLimitTarget
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			if a2[i].ApiName != a2[j].ApiName {
+				return a2[i].ApiName < a2[j].ApiName
+			}
+			return a2[i].RateLimitTarget < a2[j].RateLimitTarget
+		})
+
+		y1 = a1
+		y2 = a2
+	} else if fileType == "mcratelimitmaxreqs" {
+		var a1 []ormapi.McRateLimitMaxReqsSettings
+		var a2 []ormapi.McRateLimitMaxReqsSettings
+
+		err1 = util.ReadYamlFile(firstYamlFile, &a1)
+		err2 = util.ReadYamlFile(secondYamlFile, &a2)
+
+		sort.Slice(a1, func(i, j int) bool {
+			if a1[i].ApiName != a1[j].ApiName {
+				return a1[i].ApiName < a1[j].ApiName
+			}
+			return a1[i].RateLimitTarget < a1[j].RateLimitTarget
+		})
+		sort.Slice(a2, func(i, j int) bool {
+			if a2[i].ApiName != a2[j].ApiName {
+				return a2[i].ApiName < a2[j].ApiName
+			}
+			return a2[i].RateLimitTarget < a2[j].RateLimitTarget
+		})
+
+		y1 = a1
+		y2 = a2
 	} else if fileType == "errs" {
 		var a1 []edgetestutil.Err
 		var a2 []edgetestutil.Err

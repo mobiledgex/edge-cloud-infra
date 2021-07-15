@@ -34,5 +34,5 @@ regiondata:
       influxdbdownsampledmetricsretention: 672h0m0s
       edgeeventsmetricscontinuousqueriescollectionintervals:
       - interval: 2s
-      disabledmeratelimit: true
+      disableratelimit: true
       maxnumperipratelimiters: 10000

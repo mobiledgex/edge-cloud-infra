@@ -196,6 +196,18 @@ func runMcRateLimit(api, uri, apiFile, curUserFile, outputDir string, mods []str
 		checkMcErr("ShowRateLimitSettingsMc", st, err, &rc)
 		util.PrintToYamlFile("show-commands.yml", outputDir, settings, true)
 		return rc
+	} else if api == "mcratelimitflowshow" {
+		filter := &ormapi.McRateLimitFlowSettings{}
+		settings, st, err := mcClient.ShowFlowRateLimitSettingsMc(uri, token, filter)
+		checkMcErr("ShowFlowRateLimitSettingsMc", st, err, &rc)
+		util.PrintToYamlFile("show-commands.yml", outputDir, settings, true)
+		return rc
+	} else if api == "mcratelimitmaxreqsshow" {
+		filter := &ormapi.McRateLimitMaxReqsSettings{}
+		settings, st, err := mcClient.ShowMaxReqsRateLimitSettingsMc(uri, token, filter)
+		checkMcErr("ShowMaxReqsRateLimitSettingsMc", st, err, &rc)
+		util.PrintToYamlFile("show-commands.yml", outputDir, settings, true)
+		return rc
 	}
 
 	if apiFile == "" {

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -21,7 +20,7 @@ var (
 	testMetricSent = 0
 
 	testPayloadData = map[string]string{
-		url.QueryEscape(promutils.PromQCpuClust): `{
+		promutils.PromQCpuClustUrlEncoded: `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -36,7 +35,7 @@ var (
 		  ]
 		}
 	  }`,
-		url.QueryEscape(promutils.PromQMemClust): `{
+		promutils.PromQMemClustUrlEncoded: `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -51,7 +50,7 @@ var (
 		  ]
 		}
 	  }`,
-		url.QueryEscape(promutils.PromQDiskClust): `{
+		promutils.PromQDiskClustUrlEncoded: `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -66,7 +65,7 @@ var (
 		  ]
 		}
 	  }`,
-		url.QueryEscape(promutils.PromQSentBytesRateClust): `{
+		promutils.PromQSentBytesRateClustUrlEncoded: `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -81,7 +80,7 @@ var (
 		  ]
 		}
 	  }`,
-		url.QueryEscape(promutils.PromQRecvBytesRateClust): `{
+		promutils.PromQRecvBytesRateClustUrlEncoded: `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -192,9 +191,7 @@ var (
 )
 
 func initAppInstTestData() {
-	q := promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQCpuPod)
-	q = url.QueryEscape(q)
-	testPayloadData[q] = `{
+	testPayloadData[promutils.PromQCpuPodUrlEncoded] = `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -213,9 +210,7 @@ func initAppInstTestData() {
 			]
 		  }
 		  }`
-	q = promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQMemPod)
-	q = url.QueryEscape(q)
-	testPayloadData[q] = `{
+	testPayloadData[promutils.PromQMemPodUrlEncoded] = `{
 		"status": "success",
 		"data": {
   		"resultType": "vector",
@@ -234,9 +229,7 @@ func initAppInstTestData() {
   		]
 		}
 		}`
-	q = promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQDiskPod)
-	q = url.QueryEscape(q)
-	testPayloadData[q] = `{
+	testPayloadData[promutils.PromQDiskPodUrlEncoded] = `{
 		"status": "success",
 		"data": {
 		  "resultType": "vector",
@@ -255,9 +248,7 @@ func initAppInstTestData() {
 		]
 		}
 		}`
-	q = promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQNetSentRate)
-	q = url.QueryEscape(q)
-	testPayloadData[q] = `{
+	testPayloadData[promutils.PromQNetSentRateUrlEncoded] = `{
 		"status": "success",
 		"data": {
   		"resultType": "vector",
@@ -276,9 +267,7 @@ func initAppInstTestData() {
   		]
 		}
 		}`
-	q = promutils.GetPromQueryWithK8sLabels(promutils.PromLabelsAllMobiledgeXApps, promutils.PromQNetRecvRate)
-	q = url.QueryEscape(q)
-	testPayloadData[q] = `{
+	testPayloadData[promutils.PromQNetRecvRateUrlEncoded] = `{
 		"status": "success",
 		"data": {
   		"resultType": "vector",

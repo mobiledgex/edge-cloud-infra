@@ -77,19 +77,19 @@ func getAlertRulesArgs(ctx context.Context, appInst *edgeproto.AppInst, alerts [
 
 		// Create a prometheus expression for the alert rule
 		expressions := []string{}
-		if alerts[ii].CpuLimit != 0 {
+		if alerts[ii].CpuUtilizationLimit != 0 {
 			cpuQuery := promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQCpuPod)
-			exp := fmt.Sprintf("%s > %d", cpuQuery, alerts[ii].CpuLimit)
+			exp := fmt.Sprintf("%s > %d", cpuQuery, alerts[ii].CpuUtilizationLimit)
 			expressions = append(expressions, exp)
 		}
-		if alerts[ii].MemLimit != 0 {
-			memQuery := promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQMemPod)
-			exp := fmt.Sprintf("%s > %d", memQuery, alerts[ii].MemLimit)
+		if alerts[ii].CpuUtilizationLimit != 0 {
+			memQuery := promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQMemPercentPod)
+			exp := fmt.Sprintf("%s > %d", memQuery, alerts[ii].CpuUtilizationLimit)
 			expressions = append(expressions, exp)
 		}
-		if alerts[ii].DiskLimit != 0 {
-			diskQuery := promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQDiskPod)
-			exp := fmt.Sprintf("%s > %d", diskQuery, alerts[ii].DiskLimit)
+		if alerts[ii].DiskUtilizationLimit != 0 {
+			diskQuery := promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQDiskPercentPod)
+			exp := fmt.Sprintf("%s > %d", diskQuery, alerts[ii].DiskUtilizationLimit)
 			expressions = append(expressions, exp)
 		}
 		promAlert.RuleExpression = strings.Join(expressions, " and ")

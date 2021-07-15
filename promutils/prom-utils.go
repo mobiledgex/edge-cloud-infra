@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/url"
 	"strconv"
 	"time"
 
@@ -16,28 +17,58 @@ var ClusterPrometheusAppVersionLabel = "label_" + cloudcommon.MexAppVersionLabel
 
 var PromLabelsAllMobiledgeXApps = `{` + ClusterPrometheusAppLabel + `!=""}`
 
-var PromQCpuClust = `sum(rate(container_cpu_usage_seconds_total{id="/"}[1m]))/sum(machine_cpu_cores)*100`
-var PromQMemClust = `sum(container_memory_working_set_bytes{id="/"})/sum(machine_memory_bytes)*100`
-var PromQDiskClust = `sum(container_fs_usage_bytes{device=~"^/dev/[sv]d[a-z][1-9]$",id="/"})/sum(container_fs_limit_bytes{device=~"^/dev/[sv]d[a-z][1-9]$",id="/"})*100`
-var PromQSentBytesRateClust = `sum(irate(container_network_transmit_bytes_total[1m]))`
-var PromQRecvBytesRateClust = `sum(irate(container_network_receive_bytes_total[1m]))`
-var PromQTcpConnClust = "node_netstat_Tcp_CurrEstab"
-var PromQTcpRetransClust = "node_netstat_Tcp_RetransSegs"
-var PromQUdpSentPktsClust = "node_netstat_Udp_OutDatagrams"
-var PromQUdpRecvPktsClust = "node_netstat_Udp_InDatagrams"
-var PromQUdpRecvErr = "node_netstat_Udp_InErrors"
+const (
+	PromQCpuClust           = `sum(rate(container_cpu_usage_seconds_total{id="/"}[1m]))/sum(machine_cpu_cores)*100`
+	PromQMemClust           = `sum(container_memory_working_set_bytes{id="/"})/sum(machine_memory_bytes)*100`
+	PromQDiskClust          = `sum(container_fs_usage_bytes{device=~"^/dev/[sv]d[a-z][1-9]$",id="/"})/sum(container_fs_limit_bytes{device=~"^/dev/[sv]d[a-z][1-9]$",id="/"})*100`
+	PromQSentBytesRateClust = `sum(irate(container_network_transmit_bytes_total[1m]))`
+	PromQRecvBytesRateClust = `sum(irate(container_network_receive_bytes_total[1m]))`
+	PromQTcpConnClust       = "node_netstat_Tcp_CurrEstab"
+	PromQTcpRetransClust    = "node_netstat_Tcp_RetransSegs"
+	PromQUdpSentPktsClust   = "node_netstat_Udp_OutDatagrams"
+	PromQUdpRecvPktsClust   = "node_netstat_Udp_InDatagrams"
+	PromQUdpRecvErr         = "node_netstat_Udp_InErrors"
 
-// This is a template which takes a pod query and adds instance label to it
-var PromQAppLabelsWrapperFmt = "max(kube_pod_labels%s)by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(%s)"
+	// This is a template which takes a pod query and adds instance label to it
+	PromQAppLabelsWrapperFmt = "max(kube_pod_labels%s)by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(%s)"
 
-var PromQCpuPod = `sum(rate(container_cpu_usage_seconds_total{image!=""}[1m]))by(pod)`
-var PromQMemPod = `sum(container_memory_working_set_bytes{image!=""})by(pod)`
-var PromQDiskPod = `sum(container_fs_usage_bytes{image!=""})by(pod)`
-var PromQNetRecvRate = `sum(irate(container_network_receive_bytes_total{image!=""}[1m]))by(pod)`
-var PromQNetSentRate = `sum(irate(container_network_transmit_bytes_total{image!=""}[1m]))by(pod)`
+	PromQCpuPod         = `sum(rate(container_cpu_usage_seconds_total{image!=""}[1m]))by(pod)`
+	PromQMemPod         = `sum(container_memory_working_set_bytes{image!=""})by(pod)`
+	PromQMemPercentPod  = `sum(container_memory_working_set_bytes{image!=""})by(pod) / ignoring (pod) group_left sum( machine_memory_bytes{}) * 100`
+	PromQDiskPod        = `sum(container_fs_usage_bytes{image!=""})by(pod)`
+	PromQDiskPercentPod = `sum(container_fs_usage_bytes{image!=""})by(pod) / ignoring (pod) group_left sum(container_fs_limit_bytes{device=~"^/dev/[sv]d[a-z][1-9]$",id="/"})*100`
+	PromQNetRecvRate    = `sum(irate(container_network_receive_bytes_total{image!=""}[1m]))by(pod)`
+	PromQNetSentRate    = `sum(irate(container_network_transmit_bytes_total{image!=""}[1m]))by(pod)`
 
-var PromQAutoScaleCpuTotalU = "stabilized_max_total_worker_node_cpu_utilisation"
-var PromQAutoScaleMemTotalU = "stabilized_max_total_worker_node_mem_utilisation"
+	PromQAutoScaleCpuTotalU = "stabilized_max_total_worker_node_cpu_utilisation"
+	PromQAutoScaleMemTotalU = "stabilized_max_total_worker_node_mem_utilisation"
+)
+
+// Url-encoded strings, so we don't have to encode them every time
+var (
+	PromQCpuClustUrlEncoded           = url.QueryEscape(PromQCpuClust)
+	PromQMemClustUrlEncoded           = url.QueryEscape(PromQMemClust)
+	PromQDiskClustUrlEncoded          = url.QueryEscape(PromQDiskClust)
+	PromQSentBytesRateClustUrlEncoded = url.QueryEscape(PromQSentBytesRateClust)
+	PromQRecvBytesRateClustUrlEncoded = url.QueryEscape(PromQRecvBytesRateClust)
+	PromQTcpConnClustUrlEncoded       = url.QueryEscape(PromQTcpConnClust)
+	PromQTcpRetransClustUrlEncoded    = url.QueryEscape(PromQTcpRetransClust)
+	PromQUdpSentPktsClustUrlEncoded   = url.QueryEscape(PromQUdpSentPktsClust)
+	PromQUdpRecvPktsClustUrlEncoded   = url.QueryEscape(PromQUdpRecvPktsClust)
+	PromQUdpRecvErrUrlEncoded         = url.QueryEscape(PromQUdpRecvErr)
+
+	// For Pod metrics we need to join them with k8s pod labels
+	PromQCpuPodUrlEncoded         = url.QueryEscape(GetPromQueryWithK8sLabels(PromLabelsAllMobiledgeXApps, PromQCpuPod))
+	PromQMemPodUrlEncoded         = url.QueryEscape(GetPromQueryWithK8sLabels(PromLabelsAllMobiledgeXApps, PromQMemPod))
+	PromQMemPercentPodUrlEncoded  = url.QueryEscape(GetPromQueryWithK8sLabels(PromLabelsAllMobiledgeXApps, PromQMemPercentPod))
+	PromQDiskPodUrlEncoded        = url.QueryEscape(GetPromQueryWithK8sLabels(PromLabelsAllMobiledgeXApps, PromQDiskPod))
+	PromQDiskPercentPodUrlEncoded = url.QueryEscape(GetPromQueryWithK8sLabels(PromLabelsAllMobiledgeXApps, PromQDiskPercentPod))
+	PromQNetRecvRateUrlEncoded    = url.QueryEscape(GetPromQueryWithK8sLabels(PromLabelsAllMobiledgeXApps, PromQNetRecvRate))
+	PromQNetSentRateUrlEncoded    = url.QueryEscape(GetPromQueryWithK8sLabels(PromLabelsAllMobiledgeXApps, PromQNetSentRate))
+
+	PromQAutoScaleCpuTotalUUrlEncoded = url.QueryEscape(PromQAutoScaleCpuTotalU)
+	PromQAutoScaleMemTotalUUrlEncoded = url.QueryEscape(PromQAutoScaleMemTotalU)
+)
 
 type PromResp struct {
 	Status string   `json:"status,omitempty"`

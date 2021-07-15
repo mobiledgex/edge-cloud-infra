@@ -1607,9 +1607,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// Key: 2
 	// KeyOrganization: 2.1
 	// KeyName: 2.2
-	// CpuLimit: 3
-	// MemLimit: 4
-	// DiskLimit: 5
+	// CpuUtilizationLimit: 3
+	// MemUtilizationLimit: 4
+	// DiskUtilizationLimit: 5
 	// ActiveConnLimit: 6
 	// Severity: 7
 	// TriggerTime: 8

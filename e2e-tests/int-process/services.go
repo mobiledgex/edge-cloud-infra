@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -180,7 +181,9 @@ func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) erro
 
 func StopFakeEnvoyExporters(ctx context.Context) error {
 	c := make(chan string)
-	go process.KillProcessesByName("fake_envoy_exporter", time.Second, "", c)
+	// send " " as process args to use "pgrep -f" as "pgrep -x" doesn't work for Linux
+	// "pgrep -f" will work for both MacOS & Linux
+	go process.KillProcessesByName("fake_envoy_exporter", time.Second, " ", c)
 	log.SpanLog(ctx, log.DebugLevelInfra, "stopped fake_envoy_exporter", "msg", <-c)
 	return nil
 }
@@ -228,6 +231,11 @@ func StartCloudletPrometheus(ctx context.Context, cloudlet *edgeproto.Cloudlet, 
 
 	// local container specific options
 	args = append([]string{"run", "--rm"}, args...)
+	if runtime.GOOS != "darwin" {
+		// For Linux, "host.docker.internal" host name doesn't work from inside docker container
+		// Use "--add-host" to add this mapping, only works if Docker version >= 20.04
+		args = append(args, "--add-host", "host.docker.internal:host-gateway")
+	}
 	// set name and image path
 	promImage := PrometheusImagePath + ":" + PrometheusImageVersion
 	args = append(args, []string{"--name", PrometheusContainer, promImage}...)

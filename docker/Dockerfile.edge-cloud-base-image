@@ -75,4 +75,8 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" | tar xz -C /tmp \
 	&& mv /tmp/eksctl /usr/local/bin
 
+## VCD CLI
+RUN curl -sL -u apt:mobiledgex -O "https://artifactory.mobiledgex.net:443/artifactory/downloads/vcd/vcd-cli_24.0.1-1_amd64.deb" \
+    && dpkg -i vcd-cli_24.0.1-1_amd64.deb \
+
 COPY edge-cloud-base-image.root/_ssh /root/.ssh

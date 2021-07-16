@@ -119,6 +119,7 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 				return err
 			}
 		}
+		v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr)
 	}
 	return nil
 }

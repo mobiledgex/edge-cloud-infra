@@ -621,7 +621,7 @@ func userAlertCb(ctx context.Context, old *edgeproto.UserAlert, new *edgeproto.U
 		// deleted, so all the appInsts should've been cleaned up already
 		return
 	}
-	if new.Matches(old) || new.ActiveConnLimit == old.ActiveConnLimit {
+	if new.ActiveConnLimit == old.ActiveConnLimit {
 		// nothing to update
 		return
 	}
@@ -664,8 +664,7 @@ func appUpdateCb(ctx context.Context, old *edgeproto.App, new *edgeproto.App) {
 		// or a new app - no appInsts on it yet
 		return
 	}
-
-	if new.Matches(old) || !old.AppUserAlertsDifferent(new) {
+	if !old.AppUserAlertsDifferent(new) {
 		// nothing to update
 		return
 	}

@@ -72,7 +72,7 @@ func (s *RootCommand) runDownloadReport(path string) func(c *cli.Command, args [
 			return fmt.Errorf("unable to fetch report args: %v", c.ReqData)
 		}
 
-		st, err := s.sendReqAndDownloadPDF(path, report.Filename, in)
+		st, err := s.sendReqAndDownloadPDF(path, report.Filename, in.Data)
 		return check(c, st, err, nil)
 	}
 }

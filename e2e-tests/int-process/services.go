@@ -181,9 +181,7 @@ func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) erro
 
 func StopFakeEnvoyExporters(ctx context.Context) error {
 	c := make(chan string)
-	// send " " as process args to use "pgrep -f" as "pgrep -x" doesn't work for Linux
-	// "pgrep -f" will work for both MacOS & Linux
-	go process.KillProcessesByName("fake_envoy_exporter", time.Second, " ", c)
+	go process.KillProcessesByName("fake_envoy_exporter", time.Second, "--cluster", c)
 	log.SpanLog(ctx, log.DebugLevelInfra, "stopped fake_envoy_exporter", "msg", <-c)
 	return nil
 }

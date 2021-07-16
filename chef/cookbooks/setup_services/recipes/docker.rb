@@ -77,6 +77,14 @@ docker_container "shepherd" do
   command cmd
 end
 
+cookbook_file '/tmp/prometheus.yml' do
+  source 'prometheus.yml'
+  mode '0644'
+  action :create_if_missing
+  force_unlink true
+  notifies :restart, 'docker_container[cloudletPrometheus]', :delayed
+end
+
 cmd = cloudlet_prometheus_cmd
 docker_container "cloudletPrometheus" do
   Chef::Log.info("Start cloudlet prometheus container, cmd: #{cmd}")

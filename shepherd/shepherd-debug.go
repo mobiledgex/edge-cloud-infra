@@ -44,7 +44,7 @@ func setScrapeInterval(ctx context.Context, req *edgeproto.DebugRequest) string 
 	if err != nil {
 		return err.Error()
 	}
-	return "set prometheus scrape interval to " + promScrapeInterval.String()
+	return "set prometheus scrape interval to " + metricsScrapingInterval.String()
 }
 
 func resetScrapeInterval(ctx context.Context, req *edgeproto.DebugRequest) string {

@@ -428,12 +428,11 @@ func start() {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
 
-	// Init cloudlet Prometheus config file and trigger a reload
-	err = intprocess.WriteCloudletPromConfig(ctx, &metricsScrapingInterval, (*time.Duration)(&settings.ShepherdAlertEvaluationInterval))
+	// Init cloudlet Prometheus config file
+	err = updateCloudletPrometheusConfig(ctx, &metricsScrapingInterval, &settings.ShepherdAlertEvaluationInterval)
 	if err != nil {
 		log.FatalLog("Failed to write cloudlet prometheus config", "err", err)
 	}
-	reloadCloudletProm(ctx)
 
 	targetFileWorkers.Init("cloudlet-prom-targets", writePrometheusTargetsFile)
 	appInstAlertWorkers.Init("alert-file-writer", writePrometheusAlertRuleForAppInst)

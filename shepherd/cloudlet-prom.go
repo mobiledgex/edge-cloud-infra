@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/autoprov/autorules"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
@@ -94,6 +95,15 @@ func init() {
 	promTargetTemplate = template.Must(template.New("prometheustarget").Parse(promTargetT))
 }
 
+func updateCloudletPrometheusConfig(ctx context.Context, promScrapeInterval *time.Duration, alertEvalInterval *edgeproto.Duration) error {
+	err := intprocess.WriteCloudletPromConfig(ctx, &metricsScrapingInterval, (*time.Duration)(&settings.ShepherdAlertEvaluationInterval))
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to write cloudlet prometheus config", "err", err)
+		return err
+	}
+	reloadCloudletProm(ctx)
+	return nil
+}
 func getAppInstPrometheusTargetString(appInstKey *edgeproto.AppInstKey) (string, error) {
 	host := *metricsAddr
 	switch *platformName {

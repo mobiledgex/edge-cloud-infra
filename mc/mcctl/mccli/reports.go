@@ -49,7 +49,7 @@ func (s *RootCommand) runGenerateReport(path string) func(c *cli.Command, args [
 		}
 
 		filename := ormapi.GetReportFileName(report)
-		st, err := s.sendReqAndDownloadPDF(path, filename, in)
+		st, err := s.sendReqAndDownloadPDF(path, filename, in.Data)
 		return check(c, st, err, nil)
 	}
 }

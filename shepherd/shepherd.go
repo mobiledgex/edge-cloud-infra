@@ -252,12 +252,10 @@ func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Setti
 	old := settings
 	settings = *new
 	reloadCProm := false
-	if old.ShepherdMetricsCollectionInterval !=
-		new.ShepherdMetricsCollectionInterval ||
-		old.ShepherdAlertEvaluationInterval !=
-			new.ShepherdAlertEvaluationInterval {
+	if old.ShepherdAlertEvaluationInterval !=
+		new.ShepherdAlertEvaluationInterval {
 		// re-write Cloudlet Prometheus config and reload
-		err := intprocess.WriteCloudletPromConfig(ctx, new)
+		err := intprocess.WriteCloudletPromConfig(ctx, &metricsScrapingInterval, (*time.Duration)(&new.ShepherdAlertEvaluationInterval))
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelNotify, "Failed to write cloudlet prometheus config", "err", err)
 		} else {
@@ -429,6 +427,13 @@ func start() {
 	if err != nil {
 		log.FatalLog("Failed to get platform", "platformName", platformName, "err", err)
 	}
+
+	// Init cloudlet Prometheus config file and trigger a reload
+	err = intprocess.WriteCloudletPromConfig(ctx, &metricsScrapingInterval, (*time.Duration)(&settings.ShepherdAlertEvaluationInterval))
+	if err != nil {
+		log.FatalLog("Failed to write cloudlet prometheus config", "err", err)
+	}
+	reloadCloudletProm(ctx)
 
 	targetFileWorkers.Init("cloudlet-prom-targets", writePrometheusTargetsFile)
 	appInstAlertWorkers.Init("alert-file-writer", writePrometheusAlertRuleForAppInst)

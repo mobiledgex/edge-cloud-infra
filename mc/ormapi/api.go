@@ -247,7 +247,7 @@ type McRateLimitMaxReqsSettings struct {
 	// Maximum number of requests for the specified interval
 	MaxRequests int64
 	// Time interval
-	Interval time.Duration
+	Interval edgeproto.Duration
 }
 
 type McRateLimitSettings struct {

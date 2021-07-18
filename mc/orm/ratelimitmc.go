@@ -4,7 +4,6 @@ import (
 	"context"
 	fmt "fmt"
 	"net/http"
-	"time"
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
@@ -155,7 +154,7 @@ func executeDbOperationOnMcRateLimitSettings(settings *ormapi.McRateLimitSetting
 			RateLimitTarget:     rateLimitTarget,
 			MaxReqsAlgorithm:    maxreqssetting.MaxReqsAlgorithm,
 			MaxRequests:         maxreqssetting.MaxRequests,
-			Interval:            time.Duration(maxreqssetting.Interval),
+			Interval:            maxreqssetting.Interval,
 		}
 		err := operation(mcmaxreqssettings)
 		if err != nil {
@@ -306,7 +305,7 @@ func convertToEdgeProtoMaxReqsSettings(maxreqssettings *ormapi.McRateLimitMaxReq
 	return edgeproto.MaxReqsSettings{
 		MaxReqsAlgorithm: maxreqssettings.MaxReqsAlgorithm,
 		MaxRequests:      maxreqssettings.MaxRequests,
-		Interval:         edgeproto.Duration(maxreqssettings.Interval),
+		Interval:         maxreqssettings.Interval,
 	}
 }
 

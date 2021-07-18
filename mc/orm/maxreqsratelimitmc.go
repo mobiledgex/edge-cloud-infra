@@ -198,7 +198,7 @@ func convertToMaxReqsRateLimitSettings(m *ormapi.McRateLimitMaxReqsSettings) *ed
 		Settings: &edgeproto.MaxReqsSettings{
 			MaxReqsAlgorithm: m.MaxReqsAlgorithm,
 			MaxRequests:      m.MaxRequests,
-			Interval:         edgeproto.Duration(m.Interval),
+			Interval:         m.Interval,
 		},
 	}
 }

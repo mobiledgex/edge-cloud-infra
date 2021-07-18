@@ -78,7 +78,7 @@ regiondata:
       clusterautoscaleaveragingdurationsec: 1
       clusterautoscaleretrydelay: 1s
       userdefinedalertmintriggertime: 1s
-      disabledmeratelimit: true
+      disableratelimit: true
       maxnumperipratelimiters: 10000
     flavors:
     - key:
@@ -135,7 +135,7 @@ regiondata:
       clusterautoscaleaveragingdurationsec: 1
       clusterautoscaleretrydelay: 1s
       userdefinedalertmintriggertime: 1s
-      disabledmeratelimit: true
+      disableratelimit: true
       maxnumperipratelimiters: 10000
     flavors:
     - key:

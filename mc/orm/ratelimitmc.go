@@ -4,6 +4,7 @@ import (
 	"context"
 	fmt "fmt"
 	"net/http"
+	"time"
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
@@ -18,8 +19,8 @@ import (
 var GlobalAllRequestsMcRateLimitSettings = &ormapi.McRateLimitSettings{
 	ApiName:         edgeproto.GlobalApiName,
 	RateLimitTarget: edgeproto.RateLimitTarget_ALL_REQUESTS,
-	FlowSettings: []edgeproto.FlowSettings{
-		edgeproto.FlowSettings{
+	FlowSettings: map[string]edgeproto.FlowSettings{
+		"mcglobalallreqs1": edgeproto.FlowSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
 			ReqsPerSecond: 10000,
 			BurstSize:     500,
@@ -30,8 +31,8 @@ var GlobalAllRequestsMcRateLimitSettings = &ormapi.McRateLimitSettings{
 var GlobalPerIpMcRateLimitSettings = &ormapi.McRateLimitSettings{
 	ApiName:         edgeproto.GlobalApiName,
 	RateLimitTarget: edgeproto.RateLimitTarget_PER_IP,
-	FlowSettings: []edgeproto.FlowSettings{
-		edgeproto.FlowSettings{
+	FlowSettings: map[string]edgeproto.FlowSettings{
+		"mcglobalperip1": edgeproto.FlowSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
 			ReqsPerSecond: 1000,
 			BurstSize:     100,
@@ -42,8 +43,8 @@ var GlobalPerIpMcRateLimitSettings = &ormapi.McRateLimitSettings{
 var GlobalPerUserMcRateLimitSettings = &ormapi.McRateLimitSettings{
 	ApiName:         edgeproto.GlobalApiName,
 	RateLimitTarget: edgeproto.RateLimitTarget_PER_USER,
-	FlowSettings: []edgeproto.FlowSettings{
-		edgeproto.FlowSettings{
+	FlowSettings: map[string]edgeproto.FlowSettings{
+		"mcglobalperuser1": edgeproto.FlowSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
 			ReqsPerSecond: 1000,
 			BurstSize:     100,
@@ -54,8 +55,8 @@ var GlobalPerUserMcRateLimitSettings = &ormapi.McRateLimitSettings{
 var UserCreateAllRequestsMcRateLimitSettings = &ormapi.McRateLimitSettings{
 	ApiName:         "/api/v1/usercreate",
 	RateLimitTarget: edgeproto.RateLimitTarget_ALL_REQUESTS,
-	FlowSettings: []edgeproto.FlowSettings{
-		edgeproto.FlowSettings{
+	FlowSettings: map[string]edgeproto.FlowSettings{
+		"usercreateallreqs1": edgeproto.FlowSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
 			ReqsPerSecond: 100,
 			BurstSize:     5,
@@ -66,8 +67,8 @@ var UserCreateAllRequestsMcRateLimitSettings = &ormapi.McRateLimitSettings{
 var UserCreatePerIpMcRateLimitSettings = &ormapi.McRateLimitSettings{
 	ApiName:         "/api/v1/usercreate",
 	RateLimitTarget: edgeproto.RateLimitTarget_PER_IP,
-	FlowSettings: []edgeproto.FlowSettings{
-		edgeproto.FlowSettings{
+	FlowSettings: map[string]edgeproto.FlowSettings{
+		"usercreateperip1": edgeproto.FlowSettings{
 			FlowAlgorithm: edgeproto.FlowRateLimitAlgorithm_TOKEN_BUCKET_ALGORITHM,
 			ReqsPerSecond: 2,
 			BurstSize:     2,
@@ -127,18 +128,18 @@ func generateId(apiName string, rateLimitTarget edgeproto.RateLimitTarget, idx i
  * Executes provided db operation on each
  */
 func executeDbOperationOnMcRateLimitSettings(settings *ormapi.McRateLimitSettings, operation func(settings interface{}) error) error {
-	apiName := settings.ApiName
+	ApiName := settings.ApiName
 	rateLimitTarget := settings.RateLimitTarget
 
 	// Add FlowSettings to postgres
-	for idx, flowsetting := range settings.FlowSettings {
+	for name, flowsetting := range settings.FlowSettings {
 		mcflowsettings := &ormapi.McRateLimitFlowSettings{
-			Id:              generateId(apiName, rateLimitTarget, idx),
-			ApiName:         apiName,
-			RateLimitTarget: rateLimitTarget,
-			FlowAlgorithm:   flowsetting.FlowAlgorithm,
-			ReqsPerSecond:   flowsetting.ReqsPerSecond,
-			BurstSize:       flowsetting.BurstSize,
+			FlowSettingsName: name,
+			ApiName:          ApiName,
+			RateLimitTarget:  rateLimitTarget,
+			FlowAlgorithm:    flowsetting.FlowAlgorithm,
+			ReqsPerSecond:    flowsetting.ReqsPerSecond,
+			BurstSize:        flowsetting.BurstSize,
 		}
 		err := operation(mcflowsettings)
 		if err != nil {
@@ -147,14 +148,14 @@ func executeDbOperationOnMcRateLimitSettings(settings *ormapi.McRateLimitSetting
 	}
 
 	// Add MaxReqsSettings to postgres
-	for idx, maxreqssetting := range settings.MaxReqsSettings {
+	for name, maxreqssetting := range settings.MaxReqsSettings {
 		mcmaxreqssettings := &ormapi.McRateLimitMaxReqsSettings{
-			Id:               generateId(apiName, rateLimitTarget, idx),
-			ApiName:          apiName,
-			RateLimitTarget:  rateLimitTarget,
-			MaxReqsAlgorithm: maxreqssetting.MaxReqsAlgorithm,
-			MaxRequests:      maxreqssetting.MaxRequests,
-			Interval:         int64(maxreqssetting.Interval),
+			MaxReqsSettingsName: name,
+			ApiName:             ApiName,
+			RateLimitTarget:     rateLimitTarget,
+			MaxReqsAlgorithm:    maxreqssetting.MaxReqsAlgorithm,
+			MaxRequests:         maxreqssetting.MaxRequests,
+			Interval:            time.Duration(maxreqssetting.Interval),
 		}
 		err := operation(mcmaxreqssettings)
 		if err != nil {
@@ -230,181 +231,6 @@ func getMaxNumPerUserRateLimiters(ctx context.Context) int {
 	return config.MaxNumPerUserRateLimiters
 }
 
-func createRateLimitSettingsMcInternal(ctx context.Context, db *gorm.DB, in *ormapi.McRateLimitSettings) error {
-	// Insert new value into db
-	createFunc := func(settings interface{}) error {
-		if err := db.Create(settings).Error; err != nil {
-			return fmt.Errorf("Unable to create RateLimitSettings %v - error: %s", in, err.Error())
-		}
-		return nil
-	}
-
-	err := executeDbOperationOnMcRateLimitSettings(in, createFunc)
-	if err != nil {
-		return err
-	}
-
-	// Update RateLimitMgr with new RateLimitSettings
-	rateLimitMgr.UpdateRateLimitSettings(convertToRateLimitSettings(in))
-	return nil
-}
-
-// Create MC RateLimit settings
-func CreateRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
-
-	// Check if rate limiting is disabled
-	if getDisableRateLimit(ctx) {
-		return fmt.Errorf("DisableRateLimit must be false to create ratelimitsettingsmc")
-	}
-
-	// Validate rbac
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionManage); err != nil {
-		return err
-	}
-
-	// Get McRateLimitSettings from request
-	in := ormapi.McRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
-	}
-
-	db := loggedDB(ctx)
-	return createRateLimitSettingsMcInternal(ctx, db, &in)
-}
-
-func deleteRateLimitSettingsMcInternal(ctx context.Context, db *gorm.DB, in *ormapi.McRateLimitSettings) error {
-	found := false
-
-	// Search for all McRateLimitFlowSettings entries with specified apiname and ratelimittarget
-	searchFlow := &ormapi.McRateLimitFlowSettings{
-		ApiName:         in.ApiName,
-		RateLimitTarget: in.RateLimitTarget,
-	}
-	r := db.Where(searchFlow).Delete(ormapi.McRateLimitFlowSettings{})
-	if r.RecordNotFound() {
-		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find McRateLimitFlowSettings for specified name and target", "search", searchFlow)
-	} else {
-		if r.RowsAffected > 0 {
-			found = true
-		}
-		if r.Error != nil {
-			return dbErr(r.Error)
-		}
-	}
-
-	// Search for all McRateLimitMaxReqsSettings entries with specified apiname and ratelimittarget
-	searchMaxReqs := &ormapi.McRateLimitMaxReqsSettings{
-		ApiName:         in.ApiName,
-		RateLimitTarget: in.RateLimitTarget,
-	}
-	r = db.Where(searchMaxReqs).Delete(ormapi.McRateLimitMaxReqsSettings{})
-	if r.RecordNotFound() {
-		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find McRateLimitMaxReqsSettings for specified name and target", "search", searchMaxReqs)
-	} else {
-		if r.RowsAffected > 0 {
-			found = true
-		}
-		if r.Error != nil {
-			return dbErr(r.Error)
-		}
-	}
-
-	// If there are no McRateLimitFlowSettings or McRateLimitMaxReqsSettings with specified apiname and ratelimittarget, return error
-	if !found {
-		return fmt.Errorf("Specified Key not found")
-	}
-
-	// Remove RateLimitSettings from RateLimitMgr
-	key := edgeproto.RateLimitSettingsKey{
-		ApiName:         in.ApiName,
-		RateLimitTarget: in.RateLimitTarget,
-	}
-	rateLimitMgr.RemoveRateLimitSettings(key)
-	return nil
-}
-
-// Delete MC RateLimit settings (ie. no rate limiting for specified api and ratelimittarget)
-func DeleteRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
-
-	// Check if rate limiting is disabled
-	if getDisableRateLimit(ctx) {
-		return fmt.Errorf("DisableRateLimit must be false to delete ratelimitsettingsmc")
-	}
-
-	// Validate rbac
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionManage); err != nil {
-		return err
-	}
-
-	// Get McRateLimitSettings from request
-	in := ormapi.McRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
-	}
-
-	db := loggedDB(ctx)
-	return deleteRateLimitSettingsMcInternal(ctx, db, &in)
-}
-
-// Update MC RateLimit settings
-func UpdateRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
-
-	// Check if rate limiting is disabled
-	if getDisableRateLimit(ctx) {
-		return fmt.Errorf("DisableRateLimit must be false to update ratelimitsettingsmc")
-	}
-
-	// Validate rbac
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionManage); err != nil {
-		return err
-	}
-
-	// Get McRateLimitSettings from request
-	in := ormapi.McRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
-	}
-
-	db := loggedDB(ctx)
-	tx := db.Begin()
-
-	if err := tx.Error; err != nil {
-		return fmt.Errorf("Unable to update settings, error starting database transaction - error is %s", err.Error())
-	}
-
-	// delete old settings
-	err = deleteRateLimitSettingsMcInternal(ctx, tx, &in)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("Unable to delete old settings before updating - error is %s", err.Error())
-	}
-
-	// create new settings
-	err = createRateLimitSettingsMcInternal(ctx, tx, &in)
-	if err != nil {
-		tx.Rollback()
-		return fmt.Errorf("Unable to update settings - error is %s", err.Error())
-	}
-
-	tx.Commit()
-	return nil
-}
-
 // Show MC RateLimit settings
 func ShowRateLimitSettingsMc(c echo.Context) error {
 	ctx := GetContext(c)
@@ -429,34 +255,44 @@ func ShowRateLimitSettingsMc(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	search := &ormapi.McRateLimitFlowSettings{
-		ApiName:         in.ApiName,
-		RateLimitTarget: in.RateLimitTarget,
+	db := loggedDB(ctx)
+	mcflowrecords, mcmaxreqsrecords, err := getAllEntriesForApiAndTarget(ctx, db, in.ApiName, in.RateLimitTarget)
+	if err != nil {
+		return err
 	}
 
-	// Search for all entries with specified primary keys (if fields are not specified, fields are left out of search)
-	db := loggedDB(ctx)
+	show := buildMcRateLimitSettings(mcflowrecords, mcmaxreqsrecords)
+	return setReply(c, &show)
+}
+
+// Search for all entries with specified primary keys (if fields are not specified, fields are left out of search)
+func getAllEntriesForApiAndTarget(ctx context.Context, db *gorm.DB, apiName string, rateLimitTarget edgeproto.RateLimitTarget) ([]*ormapi.McRateLimitFlowSettings, []*ormapi.McRateLimitMaxReqsSettings, error) {
+	search := &ormapi.McRateLimitFlowSettings{
+		ApiName:         apiName,
+		RateLimitTarget: rateLimitTarget,
+	}
+
 	r := db.Where(search)
 	if r.RecordNotFound() {
-		return fmt.Errorf("Specified Key not found")
+		return nil, nil, fmt.Errorf("Specified Key not found")
 	}
 	if r.Error != nil {
-		return dbErr(r.Error)
+		return nil, nil, dbErr(r.Error)
 	}
 
 	mcflowrecords := make([]*ormapi.McRateLimitFlowSettings, 0)
 	mcmaxreqsrecords := make([]*ormapi.McRateLimitMaxReqsSettings, 0)
-	if err = r.Find(&mcflowrecords).Error; err != nil {
+	if err := r.Find(&mcflowrecords).Error; err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find records for flow", "error", err.Error())
 	}
-	if err = r.Find(&mcmaxreqsrecords).Error; err != nil {
+	if err := r.Find(&mcmaxreqsrecords).Error; err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find records for maxreqs", "error", err.Error())
 	}
 
-	show := convertToMcRateLimitSettings(mcflowrecords, mcmaxreqsrecords)
-	return setReply(c, &show)
+	return mcflowrecords, mcmaxreqsrecords, nil
 }
 
+// Helper function that converts McRateLimitFlowSettings to edgeproto.FlowSettings
 func convertToEdgeProtoFlowSettings(flowsettings *ormapi.McRateLimitFlowSettings) edgeproto.FlowSettings {
 	return edgeproto.FlowSettings{
 		FlowAlgorithm: flowsettings.FlowAlgorithm,
@@ -465,6 +301,7 @@ func convertToEdgeProtoFlowSettings(flowsettings *ormapi.McRateLimitFlowSettings
 	}
 }
 
+// Helper function that converts McRateLimitMaxReqsSettings to edgeproto.MaxReqsSettings
 func convertToEdgeProtoMaxReqsSettings(maxreqssettings *ormapi.McRateLimitMaxReqsSettings) edgeproto.MaxReqsSettings {
 	return edgeproto.MaxReqsSettings{
 		MaxReqsAlgorithm: maxreqssettings.MaxReqsAlgorithm,
@@ -474,7 +311,7 @@ func convertToEdgeProtoMaxReqsSettings(maxreqssettings *ormapi.McRateLimitMaxReq
 }
 
 // Helper function to convert lists of McRateLimitFlowSettings and McRateLimitMaxReqsSettings to McRateLimitSettings to return to api caller
-func convertToMcRateLimitSettings(flowsettings []*ormapi.McRateLimitFlowSettings, maxreqssettings []*ormapi.McRateLimitMaxReqsSettings) []*ormapi.McRateLimitSettings {
+func buildMcRateLimitSettings(flowsettings []*ormapi.McRateLimitFlowSettings, maxreqssettings []*ormapi.McRateLimitMaxReqsSettings) []*ormapi.McRateLimitSettings {
 	settingsmap := make(map[edgeproto.RateLimitSettingsKey]*ormapi.McRateLimitSettings)
 
 	for _, flowsetting := range flowsettings {
@@ -487,11 +324,11 @@ func convertToMcRateLimitSettings(flowsettings []*ormapi.McRateLimitFlowSettings
 			mcratelimitsetting = &ormapi.McRateLimitSettings{
 				ApiName:         flowsetting.ApiName,
 				RateLimitTarget: flowsetting.RateLimitTarget,
-				FlowSettings:    make([]edgeproto.FlowSettings, 0),
-				MaxReqsSettings: make([]edgeproto.MaxReqsSettings, 0),
+				FlowSettings:    make(map[string]edgeproto.FlowSettings),
+				MaxReqsSettings: make(map[string]edgeproto.MaxReqsSettings),
 			}
 		}
-		mcratelimitsetting.FlowSettings = append(mcratelimitsetting.FlowSettings, convertToEdgeProtoFlowSettings(flowsetting))
+		mcratelimitsetting.FlowSettings[flowsetting.FlowSettingsName] = convertToEdgeProtoFlowSettings(flowsetting)
 		settingsmap[key] = mcratelimitsetting
 	}
 
@@ -505,11 +342,11 @@ func convertToMcRateLimitSettings(flowsettings []*ormapi.McRateLimitFlowSettings
 			mcratelimitsetting = &ormapi.McRateLimitSettings{
 				ApiName:         maxreqssetting.ApiName,
 				RateLimitTarget: maxreqssetting.RateLimitTarget,
-				FlowSettings:    make([]edgeproto.FlowSettings, 0),
-				MaxReqsSettings: make([]edgeproto.MaxReqsSettings, 0),
+				FlowSettings:    make(map[string]edgeproto.FlowSettings),
+				MaxReqsSettings: make(map[string]edgeproto.MaxReqsSettings),
 			}
 		}
-		mcratelimitsetting.MaxReqsSettings = append(mcratelimitsetting.MaxReqsSettings, convertToEdgeProtoMaxReqsSettings(maxreqssetting))
+		mcratelimitsetting.MaxReqsSettings[maxreqssetting.MaxReqsSettingsName] = convertToEdgeProtoMaxReqsSettings(maxreqssetting)
 		settingsmap[key] = mcratelimitsetting
 	}
 
@@ -532,18 +369,18 @@ func convertToRateLimitSettings(mcsettings *ormapi.McRateLimitSettings) *edgepro
 
 	// Add FlowSettings
 	if mcsettings.FlowSettings != nil && len(mcsettings.FlowSettings) > 0 {
-		flowsettings := make([]*edgeproto.FlowSettings, 0)
-		for _, settings := range mcsettings.FlowSettings {
-			flowsettings = append(flowsettings, &settings)
+		flowsettings := make(map[string]*edgeproto.FlowSettings)
+		for name, settings := range mcsettings.FlowSettings {
+			flowsettings[name] = &settings
 		}
 		settings.FlowSettings = flowsettings
 	}
 
 	// Add MaxReqsSettings
 	if mcsettings.MaxReqsSettings != nil && len(mcsettings.MaxReqsSettings) > 0 {
-		maxreqssettings := make([]*edgeproto.MaxReqsSettings, 0)
-		for _, settings := range mcsettings.MaxReqsSettings {
-			maxreqssettings = append(maxreqssettings, &settings)
+		maxreqssettings := make(map[string]*edgeproto.MaxReqsSettings)
+		for name, setting := range mcsettings.MaxReqsSettings {
+			maxreqssettings[name] = &setting
 		}
 		settings.MaxReqsSettings = maxreqssettings
 	}

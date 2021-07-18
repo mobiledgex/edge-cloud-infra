@@ -20,9 +20,9 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-// Request summary for CreateRateLimitSettings
-// swagger:parameters CreateRateLimitSettings
-type swaggerCreateRateLimitSettings struct {
+// Request summary for ShowRateLimitSettings
+// swagger:parameters ShowRateLimitSettings
+type swaggerShowRateLimitSettings struct {
 	// in: body
 	Body RegionRateLimitSettings
 }
@@ -34,23 +34,72 @@ type RegionRateLimitSettings struct {
 	RateLimitSettings edgeproto.RateLimitSettings
 }
 
-// Request summary for UpdateRateLimitSettings
-// swagger:parameters UpdateRateLimitSettings
-type swaggerUpdateRateLimitSettings struct {
+// Request summary for CreateFlowRateLimitSettings
+// swagger:parameters CreateFlowRateLimitSettings
+type swaggerCreateFlowRateLimitSettings struct {
 	// in: body
-	Body RegionRateLimitSettings
+	Body RegionFlowRateLimitSettings
 }
 
-// Request summary for DeleteRateLimitSettings
-// swagger:parameters DeleteRateLimitSettings
-type swaggerDeleteRateLimitSettings struct {
-	// in: body
-	Body RegionRateLimitSettings
+type RegionFlowRateLimitSettings struct {
+	// required: true
+	// Region name
+	Region                string
+	FlowRateLimitSettings edgeproto.FlowRateLimitSettings
 }
 
-// Request summary for ShowRateLimitSettings
-// swagger:parameters ShowRateLimitSettings
-type swaggerShowRateLimitSettings struct {
+// Request summary for UpdateFlowRateLimitSettings
+// swagger:parameters UpdateFlowRateLimitSettings
+type swaggerUpdateFlowRateLimitSettings struct {
 	// in: body
-	Body RegionRateLimitSettings
+	Body RegionFlowRateLimitSettings
+}
+
+// Request summary for DeleteFlowRateLimitSettings
+// swagger:parameters DeleteFlowRateLimitSettings
+type swaggerDeleteFlowRateLimitSettings struct {
+	// in: body
+	Body RegionFlowRateLimitSettings
+}
+
+// Request summary for ShowFlowRateLimitSettings
+// swagger:parameters ShowFlowRateLimitSettings
+type swaggerShowFlowRateLimitSettings struct {
+	// in: body
+	Body RegionFlowRateLimitSettings
+}
+
+// Request summary for CreateMaxReqsRateLimitSettings
+// swagger:parameters CreateMaxReqsRateLimitSettings
+type swaggerCreateMaxReqsRateLimitSettings struct {
+	// in: body
+	Body RegionMaxReqsRateLimitSettings
+}
+
+type RegionMaxReqsRateLimitSettings struct {
+	// required: true
+	// Region name
+	Region                   string
+	MaxReqsRateLimitSettings edgeproto.MaxReqsRateLimitSettings
+}
+
+// Request summary for UpdateMaxReqsRateLimitSettings
+// swagger:parameters UpdateMaxReqsRateLimitSettings
+type swaggerUpdateMaxReqsRateLimitSettings struct {
+	// in: body
+	Body RegionMaxReqsRateLimitSettings
+}
+
+// Request summary for DeleteMaxReqsRateLimitSettings
+// swagger:parameters DeleteMaxReqsRateLimitSettings
+type swaggerDeleteMaxReqsRateLimitSettings struct {
+	// in: body
+	Body RegionMaxReqsRateLimitSettings
+}
+
+// Request summary for ShowMaxReqsRateLimitSettings
+// swagger:parameters ShowMaxReqsRateLimitSettings
+type swaggerShowMaxReqsRateLimitSettings struct {
+	// in: body
+	Body RegionMaxReqsRateLimitSettings
 }

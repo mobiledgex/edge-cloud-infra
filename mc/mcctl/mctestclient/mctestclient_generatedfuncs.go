@@ -2318,7 +2318,11 @@ func (s *Client) UpdateFlowRateLimitSettings(uri string, token string, in *ormap
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
-	rundata.In = in
+	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
+	if err != nil {
+		return nil, 0, err
+	}
+	rundata.In = mm
 	var out edgeproto.Result
 	rundata.Out = &out
 
@@ -2382,7 +2386,11 @@ func (s *Client) UpdateMaxReqsRateLimitSettings(uri string, token string, in *or
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
-	rundata.In = in
+	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
+	if err != nil {
+		return nil, 0, err
+	}
+	rundata.In = mm
 	var out edgeproto.Result
 	rundata.Out = &out
 
@@ -2455,7 +2463,7 @@ func (s *Client) CreateFlowRateLimitSettingsMc(uri string, token string, in *orm
 	return rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) UpdateFlowRateLimitSettingsMc(uri string, token string, in map[string]interface{}) (int, error) {
+func (s *Client) UpdateFlowRateLimitSettingsMc(uri string, token string, in *cli.MapData) (int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -2504,7 +2512,7 @@ func (s *Client) CreateMaxReqsRateLimitSettingsMc(uri string, token string, in *
 	return rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) UpdateMaxReqsRateLimitSettingsMc(uri string, token string, in map[string]interface{}) (int, error) {
+func (s *Client) UpdateMaxReqsRateLimitSettingsMc(uri string, token string, in *cli.MapData) (int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token

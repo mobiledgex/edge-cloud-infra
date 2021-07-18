@@ -11,6 +11,7 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
@@ -36,8 +37,8 @@ func ShowRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionRateLimitSettings{}
-	success, err := ReadConn(c, &in)
-	if !success {
+	_, err = ReadConn(c, &in)
+	if err != nil {
 		return err
 	}
 	rc.region = in.Region
@@ -122,8 +123,9 @@ func CreateFlowRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionFlowRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -175,13 +177,18 @@ func UpdateFlowRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionFlowRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	dat, err := ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.FlowRateLimitSettings.GetKey().GetTags())
+	err = ormutil.SetRegionObjFields(dat, &in)
+	if err != nil {
+		return err
+	}
 	resp, err := UpdateFlowRateLimitSettingsObj(ctx, rc, &in.FlowRateLimitSettings)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -228,8 +235,9 @@ func DeleteFlowRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionFlowRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -281,8 +289,8 @@ func ShowFlowRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionFlowRateLimitSettings{}
-	success, err := ReadConn(c, &in)
-	if !success {
+	_, err = ReadConn(c, &in)
+	if err != nil {
 		return err
 	}
 	rc.region = in.Region
@@ -367,8 +375,9 @@ func CreateMaxReqsRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionMaxReqsRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -420,13 +429,18 @@ func UpdateMaxReqsRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionMaxReqsRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	dat, err := ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.MaxReqsRateLimitSettings.GetKey().GetTags())
+	err = ormutil.SetRegionObjFields(dat, &in)
+	if err != nil {
+		return err
+	}
 	resp, err := UpdateMaxReqsRateLimitSettingsObj(ctx, rc, &in.MaxReqsRateLimitSettings)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -473,8 +487,9 @@ func DeleteMaxReqsRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionMaxReqsRateLimitSettings{}
-	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
 	}
 	rc.region = in.Region
 	span := log.SpanFromContext(ctx)
@@ -526,8 +541,8 @@ func ShowMaxReqsRateLimitSettings(c echo.Context) error {
 	rc.username = claims.Username
 
 	in := ormapi.RegionMaxReqsRateLimitSettings{}
-	success, err := ReadConn(c, &in)
-	if !success {
+	_, err = ReadConn(c, &in)
+	if err != nil {
 		return err
 	}
 	rc.region = in.Region

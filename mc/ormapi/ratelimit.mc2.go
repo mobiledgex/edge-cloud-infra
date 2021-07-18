@@ -34,6 +34,18 @@ type RegionRateLimitSettings struct {
 	RateLimitSettings edgeproto.RateLimitSettings
 }
 
+func (s *RegionRateLimitSettings) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionRateLimitSettings) GetObj() interface{} {
+	return &s.RateLimitSettings
+}
+
+func (s *RegionRateLimitSettings) GetObjName() string {
+	return "RateLimitSettings"
+}
+
 // Request summary for CreateFlowRateLimitSettings
 // swagger:parameters CreateFlowRateLimitSettings
 type swaggerCreateFlowRateLimitSettings struct {
@@ -46,6 +58,25 @@ type RegionFlowRateLimitSettings struct {
 	// Region name
 	Region                string
 	FlowRateLimitSettings edgeproto.FlowRateLimitSettings
+}
+
+func (s *RegionFlowRateLimitSettings) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionFlowRateLimitSettings) GetObj() interface{} {
+	return &s.FlowRateLimitSettings
+}
+
+func (s *RegionFlowRateLimitSettings) GetObjName() string {
+	return "FlowRateLimitSettings"
+}
+func (s *RegionFlowRateLimitSettings) GetObjFields() []string {
+	return s.FlowRateLimitSettings.Fields
+}
+
+func (s *RegionFlowRateLimitSettings) SetObjFields(fields []string) {
+	s.FlowRateLimitSettings.Fields = fields
 }
 
 // Request summary for UpdateFlowRateLimitSettings
@@ -81,6 +112,25 @@ type RegionMaxReqsRateLimitSettings struct {
 	// Region name
 	Region                   string
 	MaxReqsRateLimitSettings edgeproto.MaxReqsRateLimitSettings
+}
+
+func (s *RegionMaxReqsRateLimitSettings) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionMaxReqsRateLimitSettings) GetObj() interface{} {
+	return &s.MaxReqsRateLimitSettings
+}
+
+func (s *RegionMaxReqsRateLimitSettings) GetObjName() string {
+	return "MaxReqsRateLimitSettings"
+}
+func (s *RegionMaxReqsRateLimitSettings) GetObjFields() []string {
+	return s.MaxReqsRateLimitSettings.Fields
+}
+
+func (s *RegionMaxReqsRateLimitSettings) SetObjFields(fields []string) {
+	s.MaxReqsRateLimitSettings.Fields = fields
 }
 
 // Request summary for UpdateMaxReqsRateLimitSettings

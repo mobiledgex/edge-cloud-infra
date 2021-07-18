@@ -9,7 +9,6 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	"github.com/mobiledgex/edge-cloud/cli"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
 	math "math"
@@ -55,39 +54,18 @@ var CreateFlowRateLimitSettingsCmd = &ApiCommand{
 }
 
 var UpdateFlowRateLimitSettingsCmd = &ApiCommand{
-	Name:          "UpdateFlowRateLimitSettings",
-	Use:           "updateflow",
-	Short:         "Update Flow RateLimit settings for an API endpoint and target",
-	RequiredArgs:  "region " + strings.Join(FlowRateLimitSettingsRequiredArgs, " "),
-	OptionalArgs:  strings.Join(FlowRateLimitSettingsOptionalArgs, " "),
-	AliasArgs:     strings.Join(FlowRateLimitSettingsAliasArgs, " "),
-	SpecialArgs:   &FlowRateLimitSettingsSpecialArgs,
-	Comments:      addRegionComment(FlowRateLimitSettingsComments),
-	ReqData:       &ormapi.RegionFlowRateLimitSettings{},
-	ReplyData:     &edgeproto.Result{},
-	Path:          "/auth/ctrl/UpdateFlowRateLimitSettings",
-	SetFieldsFunc: SetUpdateFlowRateLimitSettingsFields,
-	ProtobufApi:   true,
-}
-
-func SetUpdateFlowRateLimitSettingsFields(in map[string]interface{}) {
-	// get map for edgeproto object in region struct
-	obj := in["FlowRateLimitSettings"]
-	if obj == nil {
-		return
-	}
-	objmap, ok := obj.(map[string]interface{})
-	if !ok {
-		return
-	}
-	fields := cli.GetSpecifiedFields(objmap, &edgeproto.FlowRateLimitSettings{}, cli.JsonNamespace)
-	// include fields already specified
-	if inFields, found := objmap["fields"]; found {
-		if fieldsArr, ok := inFields.([]string); ok {
-			fields = append(fields, fieldsArr...)
-		}
-	}
-	objmap["fields"] = fields
+	Name:         "UpdateFlowRateLimitSettings",
+	Use:          "updateflow",
+	Short:        "Update Flow RateLimit settings for an API endpoint and target",
+	RequiredArgs: "region " + strings.Join(FlowRateLimitSettingsRequiredArgs, " "),
+	OptionalArgs: strings.Join(FlowRateLimitSettingsOptionalArgs, " "),
+	AliasArgs:    strings.Join(FlowRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:  &FlowRateLimitSettingsSpecialArgs,
+	Comments:     addRegionComment(FlowRateLimitSettingsComments),
+	ReqData:      &ormapi.RegionFlowRateLimitSettings{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/UpdateFlowRateLimitSettings",
+	ProtobufApi:  true,
 }
 
 var DeleteFlowRateLimitSettingsCmd = &ApiCommand{
@@ -137,39 +115,18 @@ var CreateMaxReqsRateLimitSettingsCmd = &ApiCommand{
 }
 
 var UpdateMaxReqsRateLimitSettingsCmd = &ApiCommand{
-	Name:          "UpdateMaxReqsRateLimitSettings",
-	Use:           "updatemaxreqs",
-	Short:         "Update MaxReqs RateLimit settings for an API endpoint and target",
-	RequiredArgs:  "region " + strings.Join(MaxReqsRateLimitSettingsRequiredArgs, " "),
-	OptionalArgs:  strings.Join(MaxReqsRateLimitSettingsOptionalArgs, " "),
-	AliasArgs:     strings.Join(MaxReqsRateLimitSettingsAliasArgs, " "),
-	SpecialArgs:   &MaxReqsRateLimitSettingsSpecialArgs,
-	Comments:      addRegionComment(MaxReqsRateLimitSettingsComments),
-	ReqData:       &ormapi.RegionMaxReqsRateLimitSettings{},
-	ReplyData:     &edgeproto.Result{},
-	Path:          "/auth/ctrl/UpdateMaxReqsRateLimitSettings",
-	SetFieldsFunc: SetUpdateMaxReqsRateLimitSettingsFields,
-	ProtobufApi:   true,
-}
-
-func SetUpdateMaxReqsRateLimitSettingsFields(in map[string]interface{}) {
-	// get map for edgeproto object in region struct
-	obj := in["MaxReqsRateLimitSettings"]
-	if obj == nil {
-		return
-	}
-	objmap, ok := obj.(map[string]interface{})
-	if !ok {
-		return
-	}
-	fields := cli.GetSpecifiedFields(objmap, &edgeproto.MaxReqsRateLimitSettings{}, cli.JsonNamespace)
-	// include fields already specified
-	if inFields, found := objmap["fields"]; found {
-		if fieldsArr, ok := inFields.([]string); ok {
-			fields = append(fields, fieldsArr...)
-		}
-	}
-	objmap["fields"] = fields
+	Name:         "UpdateMaxReqsRateLimitSettings",
+	Use:          "updatemaxreqs",
+	Short:        "Update MaxReqs RateLimit settings for an API endpoint and target",
+	RequiredArgs: "region " + strings.Join(MaxReqsRateLimitSettingsRequiredArgs, " "),
+	OptionalArgs: strings.Join(MaxReqsRateLimitSettingsOptionalArgs, " "),
+	AliasArgs:    strings.Join(MaxReqsRateLimitSettingsAliasArgs, " "),
+	SpecialArgs:  &MaxReqsRateLimitSettingsSpecialArgs,
+	Comments:     addRegionComment(MaxReqsRateLimitSettingsComments),
+	ReqData:      &ormapi.RegionMaxReqsRateLimitSettings{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/UpdateMaxReqsRateLimitSettings",
+	ProtobufApi:  true,
 }
 
 var DeleteMaxReqsRateLimitSettingsCmd = &ApiCommand{
@@ -202,7 +159,6 @@ var ShowMaxReqsRateLimitSettingsCmd = &ApiCommand{
 	StreamOut:    true,
 	ProtobufApi:  true,
 }
-
 var RateLimitSettingsApiCmds = []*ApiCommand{
 	ShowRateLimitSettingsCmd,
 	CreateFlowRateLimitSettingsCmd,

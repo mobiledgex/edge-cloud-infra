@@ -243,8 +243,8 @@ func runMcRateLimit(api, uri, apiFile, curUserFile, outputDir string, mods []str
 	case "mcratelimitflowdelete":
 		in := &ormapi.McRateLimitFlowSettings{}
 		err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
-		if err != nil && !util.IsYamlOk(err, "config") {
-			log.Printf("error in unmarshal ormapi.Config for %s: %v\n", apiFile, err)
+		if err != nil && !util.IsYamlOk(err, "mcratelimitflowsettings") {
+			log.Printf("error in unmarshal ormapi.McRateLimitFlowSettings for %s: %v\n", apiFile, err)
 			return false
 		}
 		if api == "mcratelimitflowcreate" {
@@ -260,8 +260,8 @@ func runMcRateLimit(api, uri, apiFile, curUserFile, outputDir string, mods []str
 	case "mcratelimitmaxreqsdelete":
 		in := &ormapi.McRateLimitMaxReqsSettings{}
 		err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
-		if err != nil && !util.IsYamlOk(err, "config") {
-			log.Printf("error in unmarshal ormapi.Config for %s: %v\n", apiFile, err)
+		if err != nil && !util.IsYamlOk(err, "mcratelimitmaxreqssettings") {
+			log.Printf("error in unmarshal ormapi.McRateLimitMaxReqsSettings for %s: %v\n", apiFile, err)
 			return false
 		}
 		if api == "mcratelimitmaxreqscreate" {
@@ -276,20 +276,24 @@ func runMcRateLimit(api, uri, apiFile, curUserFile, outputDir string, mods []str
 		fallthrough
 	case "mcratelimitmaxreqsupdate":
 		data := make(map[string]interface{})
-		err := util.ReadYamlFile(apiFile, &data, util.WithVars(vars), util.ValidateReplacedVars())
+		err := util.ReadYamlFile(apiFile, data, util.WithVars(vars), util.ValidateReplacedVars())
+		mdata := &cli.MapData{
+			Namespace: cli.ArgsNamespace,
+			Data:      data,
+		}
 		if api == "mcratelimitflowupdate" {
 			if err != nil && !util.IsYamlOk(err, "mcratelimitflowsettings") {
 				log.Printf("error in unmarshal ormapi.McRateLimitFlowSettings for %s: %v\n", apiFile, err)
 				return false
 			}
-			st, err := mcClient.UpdateFlowRateLimitSettingsMc(uri, token, data)
+			st, err := mcClient.UpdateFlowRateLimitSettingsMc(uri, token, mdata)
 			checkMcErr("UpdateFlowRateLimitSettingsMc", st, err, &rc)
 		} else {
 			if err != nil && !util.IsYamlOk(err, "mcratelimitmaxreqssettings") {
 				log.Printf("error in unmarshal ormapi.McRateLimitMaxReqsSettings for %s: %v\n", apiFile, err)
 				return false
 			}
-			st, err := mcClient.UpdateMaxReqsRateLimitSettingsMc(uri, token, data)
+			st, err := mcClient.UpdateMaxReqsRateLimitSettingsMc(uri, token, mdata)
 			checkMcErr("UpdateMaxReqsRateLimitSettingsMc", st, err, &rc)
 		}
 	}

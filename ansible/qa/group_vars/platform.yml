@@ -4,11 +4,11 @@ regions:
     region: US
     latitude: 29.4167
     longitude: -98.5
-    kubernetes_version: 1.18.10
+    kubernetes_version: 1.18.19
 
   - name: mexplat-qa-eu
-    location: southcentralus
+    location: northeurope
     region: EU
     latitude: 52.3667
     longitude: 4.9
-    kubernetes_version: 1.18.10
+    kubernetes_version: 1.18.19

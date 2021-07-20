@@ -42,15 +42,17 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "createAppDNS")
 
-	if kubeNames.AppURI == "" {
-		log.SpanLog(ctx, log.DebugLevelInfra, "URI not specified, no DNS entries to create")
-		return nil
-	}
-	if !kubeNames.IsUriIPAddr {
-		err := validateDomain(kubeNames.AppURI)
-		if err != nil {
-			return err
+	fqdnBase := ""
+	if kubeNames.AppURI != "" {
+		if !kubeNames.IsUriIPAddr {
+			err := validateDomain(kubeNames.AppURI)
+			if err != nil {
+				return err
+			}
 		}
+		fqdnBase = uri2fqdn(kubeNames.AppURI)
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "URI not specified, no DNS entries to create")
 	}
 	svcs, err := k8smgmt.GetServices(ctx, client, kubeNames)
 	if err != nil {
@@ -59,8 +61,6 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 	if len(svcs) < 1 {
 		return fmt.Errorf("no load balancer services for %s", kubeNames.AppURI)
 	}
-
-	fqdnBase := uri2fqdn(kubeNames.AppURI)
 
 	for _, svc := range svcs {
 		if kubeNames.DeploymentType != cloudcommon.DeploymentTypeDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {

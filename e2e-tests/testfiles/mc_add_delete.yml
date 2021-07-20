@@ -63,6 +63,8 @@ tests:
     yaml2: '{{datadir2}}/mc_user2_data_show.yml'
     filetype: mcdata
 
+- includefile: alerttest_clustersvc.yml
+
 - name: verify stream data for user2 created objects
   actions: [mcapi-stream]
   apifile: '{{datadir2}}/mc_user2_data.yml'

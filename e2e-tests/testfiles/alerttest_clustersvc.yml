@@ -1,0 +1,33 @@
+##
+description: run Cluster-svc Alert  tests
+
+tests:
+# user1 create cloudlet
+- name: $$$$$$$$$$$$$$$ user1 create cloudelet for creating ClusterSvcAppInstFailure alert
+  actions: [mcapi-create]
+  apifile: '{{datadir2}}/mc_user1_alert_clustersvc.yml'
+  curuserfile: '{{datadir2}}/mc_user1.yml'
+
+# user2 create cluster
+- name: $$$$$$$$$$$$$$$ user2 create clusterinst for creating ClusterSvcAppInstFailure alert
+  actions: [mcapi-create]
+  apifile: '{{datadir2}}/mc_user2_create_cluster.yml'
+  curuserfile: '{{datadir2}}/mc_user2.yml'
+
+# admin "show alert" - should match
+- name: check for cluster-svc appInst failure alerts
+  actions: [mcapi-showalerts]
+  apifile: '{{datadir2}}/show_local_region.yml'
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  retrycount: 5
+  retryintervalsec: 1
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/clustersvc_appinst_fail_alerts_show.yml'
+    filetype: mcalerts
+
+# TO DO
+# create an alert receiver 
+# user2 "show alert" - should be empty
+# delete cluster
+# delete cloudlet

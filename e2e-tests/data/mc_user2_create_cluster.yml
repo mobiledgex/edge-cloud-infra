@@ -1,0 +1,16 @@
+regiondata:
+- region: local
+  appdata:
+    clusterinsts:
+    - key:
+        clusterkey:
+          name: tmusSmallCluster
+        cloudletkey:
+          organization: tmus
+          name: tmus-cloud-13
+        organization: AcmeAppCo
+      flavor:
+        name: x1.small
+      ipaccess: IpAccessShared
+      nummasters: 1
+      numnodes: 1

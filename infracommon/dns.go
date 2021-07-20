@@ -42,17 +42,12 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "createAppDNS")
 
-	fqdnBase := ""
-	if kubeNames.AppURI != "" {
-		if !kubeNames.IsUriIPAddr {
-			err := validateDomain(kubeNames.AppURI)
-			if err != nil {
-				return err
-			}
+	// Validate URI just once
+	if kubeNames.AppURI != "" && !kubeNames.IsUriIPAddr {
+		err := validateDomain(kubeNames.AppURI)
+		if err != nil {
+			return err
 		}
-		fqdnBase = uri2fqdn(kubeNames.AppURI)
-	} else {
-		log.SpanLog(ctx, log.DebugLevelInfra, "URI not specified, no DNS entries to create")
 	}
 	svcs, err := k8smgmt.GetServices(ctx, client, kubeNames)
 	if err != nil {
@@ -89,6 +84,10 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 			}
 		}
 		if action.AddDNS {
+			if kubeNames.AppURI == "" {
+				return fmt.Errorf("URI not specified")
+			}
+			fqdnBase := uri2fqdn(kubeNames.AppURI)
 			mappedAddr := c.GetMappedExternalIP(action.ExternalIP)
 			fqdn := cloudcommon.ServiceFQDN(sn, fqdnBase)
 			if overrideDns != "" {

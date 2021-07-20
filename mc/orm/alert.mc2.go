@@ -169,6 +169,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// AppinstClientCleanupInterval: 33
 	// ClusterAutoScaleAveragingDurationSec: 34
 	// ClusterAutoScaleRetryDelay: 35
+	// UserDefinedAlertMinTriggerTime: 36
+	// DisableRateLimit: 37
+	// MaxNumPerIpRateLimiters: 39
 	// ```
 	// Security:
 	//   Bearer:
@@ -457,6 +460,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ServerlessConfigRam: 40.2
 	// ServerlessConfigMinReplicas: 40.3
 	// VmAppOsType: 41
+	// UserDefinedAlerts: 42
 	// ```
 	// Security:
 	//   Bearer:
@@ -497,6 +501,26 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
+	// swagger:route POST /auth/ctrl/AddAppUserDefinedAlert AppUserDefinedAlert AddAppUserDefinedAlert
+	// Add an UserAlert to the App.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AddAppUserDefinedAlert", AddAppUserDefinedAlert)
+	// swagger:route POST /auth/ctrl/RemoveAppUserDefinedAlert AppUserDefinedAlert RemoveAppUserDefinedAlert
+	// Remove an UserAlert from the App.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RemoveAppUserDefinedAlert", RemoveAppUserDefinedAlert)
 	// swagger:route POST /auth/ctrl/ShowCloudletsForAppDeployment DeploymentCloudletRequest ShowCloudletsForAppDeployment
 	// Discover cloudlets supporting deployments of App.
 	// DefaultFlavor
@@ -1558,6 +1582,181 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInstRefs", ShowAppInstRefs)
+	// swagger:route POST /auth/ctrl/CreateUserAlert UserAlert CreateUserAlert
+	// Create a User Defined Alert.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateUserAlert", CreateUserAlert)
+	// swagger:route POST /auth/ctrl/DeleteUserAlert UserAlert DeleteUserAlert
+	// Delete a User Defined Alert.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteUserAlert", DeleteUserAlert)
+	// swagger:route POST /auth/ctrl/UpdateUserAlert UserAlert UpdateUserAlert
+	// Update a User Defined Alert.
+	// The following values should be added to `UserAlert.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// CpuUtilizationLimit: 3
+	// MemUtilizationLimit: 4
+	// DiskUtilizationLimit: 5
+	// ActiveConnLimit: 6
+	// Severity: 7
+	// TriggerTime: 8
+	// Labels: 9
+	// LabelsKey: 9.1
+	// LabelsValue: 9.2
+	// Annotations: 10
+	// AnnotationsKey: 10.1
+	// AnnotationsValue: 10.2
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateUserAlert", UpdateUserAlert)
+	// swagger:route POST /auth/ctrl/ShowUserAlert UserAlert ShowUserAlert
+	// Show User Defined Alerts.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowUserAlert", ShowUserAlert)
+	// swagger:route POST /auth/ctrl/ShowRateLimitSettings RateLimitSettings ShowRateLimitSettings
+	// Show RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowRateLimitSettings", ShowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/CreateFlowRateLimitSettings FlowRateLimitSettings CreateFlowRateLimitSettings
+	// Create Flow RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateFlowRateLimitSettings", CreateFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/UpdateFlowRateLimitSettings FlowRateLimitSettings UpdateFlowRateLimitSettings
+	// Update Flow RateLimit settings for an API endpoint and target.
+	// The following values should be added to `FlowRateLimitSettings.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyFlowSettingsName: 2.1
+	// KeyRateLimitKey: 2.2
+	// KeyRateLimitKeyApiName: 2.2.1
+	// KeyRateLimitKeyApiEndpointType: 2.2.2
+	// KeyRateLimitKeyRateLimitTarget: 2.2.3
+	// Settings: 3
+	// SettingsFlowAlgorithm: 3.1
+	// SettingsReqsPerSecond: 3.2
+	// SettingsBurstSize: 3.3
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateFlowRateLimitSettings", UpdateFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/DeleteFlowRateLimitSettings FlowRateLimitSettings DeleteFlowRateLimitSettings
+	// Delete Flow RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteFlowRateLimitSettings", DeleteFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/ShowFlowRateLimitSettings FlowRateLimitSettings ShowFlowRateLimitSettings
+	// Show Flow RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowFlowRateLimitSettings", ShowFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/CreateMaxReqsRateLimitSettings MaxReqsRateLimitSettings CreateMaxReqsRateLimitSettings
+	// Create MaxReqs RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateMaxReqsRateLimitSettings", CreateMaxReqsRateLimitSettings)
+	// swagger:route POST /auth/ctrl/UpdateMaxReqsRateLimitSettings MaxReqsRateLimitSettings UpdateMaxReqsRateLimitSettings
+	// Update MaxReqs RateLimit settings for an API endpoint and target.
+	// The following values should be added to `MaxReqsRateLimitSettings.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyMaxReqsSettingsName: 2.1
+	// KeyRateLimitKey: 2.2
+	// KeyRateLimitKeyApiName: 2.2.1
+	// KeyRateLimitKeyApiEndpointType: 2.2.2
+	// KeyRateLimitKeyRateLimitTarget: 2.2.3
+	// Settings: 3
+	// SettingsMaxReqsAlgorithm: 3.1
+	// SettingsMaxRequests: 3.2
+	// SettingsInterval: 3.3
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateMaxReqsRateLimitSettings", UpdateMaxReqsRateLimitSettings)
+	// swagger:route POST /auth/ctrl/DeleteMaxReqsRateLimitSettings MaxReqsRateLimitSettings DeleteMaxReqsRateLimitSettings
+	// Delete MaxReqs RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteMaxReqsRateLimitSettings", DeleteMaxReqsRateLimitSettings)
+	// swagger:route POST /auth/ctrl/ShowMaxReqsRateLimitSettings MaxReqsRateLimitSettings ShowMaxReqsRateLimitSettings
+	// Show MaxReqs RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowMaxReqsRateLimitSettings", ShowMaxReqsRateLimitSettings)
 	// swagger:route POST /auth/ctrl/ShowAppInstClient AppInstClientKey ShowAppInstClient
 	// Show application instance clients.
 	//

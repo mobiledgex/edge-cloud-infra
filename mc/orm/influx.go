@@ -625,7 +625,6 @@ func getFieldsSlice(selector, measurementType string) []string {
 			fields = append(fields, LatencyFields...)
 		case "deviceinfo":
 			fields = append(fields, DeviceInfoFields...)
-		case "custom":
 		}
 	}
 	return fields
@@ -853,16 +852,6 @@ func GetMetricsCommon(c echo.Context) error {
 		return err
 	}
 	return nil
-}
-
-func checkForTimeError(errStr string) string {
-	// special case for errors regarding time format
-	// golang's reference time is "2006-01-02T15:04:05Z07:00" (123456 in the posix date command), which is confusing
-	refTime := "2006-01-02T15:04:05Z07:00"
-	if strings.Contains(errStr, refTime) {
-		return fmt.Sprintf("%s into RFC3339 format failed. Example: \"%s\"", strings.Split(errStr, " as")[0], refTime)
-	}
-	return errStr
 }
 
 // Check that the user is authorized to access all of the devOrgsPruned's devResource resources

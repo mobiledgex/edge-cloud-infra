@@ -118,6 +118,36 @@ var RemoveAppAutoProvPolicyCmd = &ApiCommand{
 	ProtobufApi:  true,
 }
 
+var AddAppUserDefinedAlertCmd = &ApiCommand{
+	Name:         "AddAppUserDefinedAlert",
+	Use:          "adduserdefinedalert",
+	Short:        "Add an UserAlert to the App",
+	RequiredArgs: "region " + strings.Join(AppUserDefinedAlertRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppUserDefinedAlertOptionalArgs, " "),
+	AliasArgs:    strings.Join(AppUserDefinedAlertAliasArgs, " "),
+	SpecialArgs:  &AppUserDefinedAlertSpecialArgs,
+	Comments:     addRegionComment(AppUserDefinedAlertComments),
+	ReqData:      &ormapi.RegionAppUserDefinedAlert{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/AddAppUserDefinedAlert",
+	ProtobufApi:  true,
+}
+
+var RemoveAppUserDefinedAlertCmd = &ApiCommand{
+	Name:         "RemoveAppUserDefinedAlert",
+	Use:          "removeuserdefinedalert",
+	Short:        "Remove an UserAlert from the App",
+	RequiredArgs: "region " + strings.Join(AppUserDefinedAlertRequiredArgs, " "),
+	OptionalArgs: strings.Join(AppUserDefinedAlertOptionalArgs, " "),
+	AliasArgs:    strings.Join(AppUserDefinedAlertAliasArgs, " "),
+	SpecialArgs:  &AppUserDefinedAlertSpecialArgs,
+	Comments:     addRegionComment(AppUserDefinedAlertComments),
+	ReqData:      &ormapi.RegionAppUserDefinedAlert{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/RemoveAppUserDefinedAlert",
+	ProtobufApi:  true,
+}
+
 var ShowCloudletsForAppDeploymentCmd = &ApiCommand{
 	Name:                 "ShowCloudletsForAppDeployment",
 	Use:                  "showcloudletsfordeployment",
@@ -142,6 +172,8 @@ var AppApiCmds = []*ApiCommand{
 	ShowAppCmd,
 	AddAppAutoProvPolicyCmd,
 	RemoveAppAutoProvPolicyCmd,
+	AddAppUserDefinedAlertCmd,
+	RemoveAppUserDefinedAlertCmd,
 	ShowCloudletsForAppDeploymentCmd,
 }
 
@@ -190,6 +222,7 @@ var AppOptionalArgs = []string{
 	"serverlessconfig.ram",
 	"serverlessconfig.minreplicas",
 	"vmappostype",
+	"userdefinedalerts",
 }
 var AppAliasArgs = []string{
 	"fields=app.fields",
@@ -236,6 +269,7 @@ var AppAliasArgs = []string{
 	"serverlessconfig.ram=app.serverlessconfig.ram",
 	"serverlessconfig.minreplicas=app.serverlessconfig.minreplicas",
 	"vmappostype=app.vmappostype",
+	"userdefinedalerts=app.userdefinedalerts",
 }
 var AppComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -243,7 +277,7 @@ var AppComments = map[string]string{
 	"appname":                                "App name",
 	"appvers":                                "App version",
 	"imagepath":                              "URI of where image resides",
-	"imagetype":                              "Image type (see ImageType), one of ImageTypeUnknown, ImageTypeDocker, ImageTypeQcow, ImageTypeHelm, ImageTypeOvf",
+	"imagetype":                              "Image type (see ImageType), one of Unknown, Docker, Qcow, Helm, Ovf",
 	"accessports":                            "Comma separated list of protocol:port pairs that the App listens on. Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
 	"defaultflavor":                          "Flavor name",
 	"authpublickey":                          "Public key used for authentication",
@@ -263,7 +297,7 @@ var AppComments = map[string]string{
 	"officialfqdn":                           "Official FQDN is the FQDN that the app uses to connect by default",
 	"md5sum":                                 "MD5Sum of the VM-based app image",
 	"autoprovpolicy":                         "(_deprecated_) Auto provisioning policy name",
-	"accesstype":                             "(Deprecated) Access type, one of AccessTypeDefaultForDeployment, AccessTypeDirect, AccessTypeLoadBalancer",
+	"accesstype":                             "(Deprecated) Access type, one of DefaultForDeployment, Direct, LoadBalancer",
 	"deleteprepare":                          "Preparing to be deleted",
 	"autoprovpolicies":                       "Auto provisioning policy names, may be specified multiple times, specify autoprovpolicies:empty=true to clear",
 	"templatedelimiter":                      "Delimiter to be used for template parsing, defaults to [[ ]]",
@@ -277,11 +311,13 @@ var AppComments = map[string]string{
 	"serverlessconfig.vcpus":                 "Virtual CPUs allocation per container when serverless, may be fractional in increments of 0.001",
 	"serverlessconfig.ram":                   "RAM allocation in megabytes per container when serverless",
 	"serverlessconfig.minreplicas":           "Minimum number of replicas when serverless",
-	"vmappostype":                            "OS Type for VM Apps, one of VmAppOsUnknown, VmAppOsLinux, VmAppOsWindows10, VmAppOsWindows2012, VmAppOsWindows2016, VmAppOsWindows2019",
+	"vmappostype":                            "OS Type for VM Apps, one of Unknown, Linux, Windows10, Windows2012, Windows2016, Windows2019",
+	"userdefinedalerts":                      "User Defined Alerts, specify userdefinedalerts:empty=true to clear",
 }
 var AppSpecialArgs = map[string]string{
-	"app.autoprovpolicies": "StringArray",
-	"app.fields":           "StringArray",
+	"app.autoprovpolicies":  "StringArray",
+	"app.fields":            "StringArray",
+	"app.userdefinedalerts": "StringArray",
 }
 var AppAutoProvPolicyRequiredArgs = []string{
 	"app-org",
@@ -303,6 +339,26 @@ var AppAutoProvPolicyComments = map[string]string{
 	"autoprovpolicy": "Auto provisioning policy name",
 }
 var AppAutoProvPolicySpecialArgs = map[string]string{}
+var AppUserDefinedAlertRequiredArgs = []string{
+	"app-org",
+	"appname",
+	"appvers",
+	"alert-name",
+}
+var AppUserDefinedAlertOptionalArgs = []string{}
+var AppUserDefinedAlertAliasArgs = []string{
+	"app-org=appuserdefinedalert.appkey.organization",
+	"appname=appuserdefinedalert.appkey.name",
+	"appvers=appuserdefinedalert.appkey.version",
+	"alert-name=appuserdefinedalert.userdefinedalert",
+}
+var AppUserDefinedAlertComments = map[string]string{
+	"app-org":    "App developer organization",
+	"appname":    "App name",
+	"appvers":    "App version",
+	"alert-name": "Alert name",
+}
+var AppUserDefinedAlertSpecialArgs = map[string]string{}
 var DeploymentCloudletRequestRequiredArgs = []string{}
 var DeploymentCloudletRequestOptionalArgs = []string{
 	"app.fields",
@@ -340,6 +396,7 @@ var DeploymentCloudletRequestOptionalArgs = []string{
 	"app.serverlessconfig.ram",
 	"app.serverlessconfig.minreplicas",
 	"app.vmappostype",
+	"app.userdefinedalerts",
 	"dryrundeploy",
 	"numnodes",
 }
@@ -386,6 +443,7 @@ var DeploymentCloudletRequestAliasArgs = []string{
 	"app.serverlessconfig.ram=deploymentcloudletrequest.app.serverlessconfig.ram",
 	"app.serverlessconfig.minreplicas=deploymentcloudletrequest.app.serverlessconfig.minreplicas",
 	"app.vmappostype=deploymentcloudletrequest.app.vmappostype",
+	"app.userdefinedalerts=deploymentcloudletrequest.app.userdefinedalerts",
 	"dryrundeploy=deploymentcloudletrequest.dryrundeploy",
 	"numnodes=deploymentcloudletrequest.numnodes",
 }
@@ -395,7 +453,7 @@ var DeploymentCloudletRequestComments = map[string]string{
 	"appname":                 "App name",
 	"appvers":                 "App version",
 	"app.imagepath":           "URI of where image resides",
-	"app.imagetype":           "Image type (see ImageType), one of ImageTypeUnknown, ImageTypeDocker, ImageTypeQcow, ImageTypeHelm, ImageTypeOvf",
+	"app.imagetype":           "Image type (see ImageType), one of Unknown, Docker, Qcow, Helm, Ovf",
 	"app.accessports":         "Comma separated list of protocol:port pairs that the App listens on. Numerical values must be decimal format. i.e. tcp:80,udp:10002,http:443",
 	"app.defaultflavor.name":  "Flavor name",
 	"app.authpublickey":       "Public key used for authentication",
@@ -414,7 +472,7 @@ var DeploymentCloudletRequestComments = map[string]string{
 	"app.officialfqdn":        "Official FQDN is the FQDN that the app uses to connect by default",
 	"app.md5sum":              "MD5Sum of the VM-based app image",
 	"app.autoprovpolicy":      "(_deprecated_) Auto provisioning policy name",
-	"app.accesstype":          "(Deprecated) Access type, one of AccessTypeDefaultForDeployment, AccessTypeDirect, AccessTypeLoadBalancer",
+	"app.accesstype":          "(Deprecated) Access type, one of DefaultForDeployment, Direct, LoadBalancer",
 	"app.deleteprepare":       "Preparing to be deleted",
 	"app.autoprovpolicies":    "Auto provisioning policy names, may be specified multiple times",
 	"app.templatedelimiter":   "Delimiter to be used for template parsing, defaults to [[ ]]",
@@ -427,11 +485,13 @@ var DeploymentCloudletRequestComments = map[string]string{
 	"app.serverlessconfig.vcpus":                 "Virtual CPUs allocation per container when serverless, may be fractional in increments of 0.001",
 	"app.serverlessconfig.ram":                   "RAM allocation in megabytes per container when serverless",
 	"app.serverlessconfig.minreplicas":           "Minimum number of replicas when serverless",
-	"app.vmappostype":                            "OS Type for VM Apps, one of VmAppOsUnknown, VmAppOsLinux, VmAppOsWindows10, VmAppOsWindows2012, VmAppOsWindows2016, VmAppOsWindows2019",
+	"app.vmappostype":                            "OS Type for VM Apps, one of Unknown, Linux, Windows10, Windows2012, Windows2016, Windows2019",
+	"app.userdefinedalerts":                      "User Defined Alerts",
 	"dryrundeploy":                               "Attempt to qualify cloudlet resources for deployment",
 	"numnodes":                                   "Optional number of worker VMs in dry run K8s Cluster, default = 2",
 }
 var DeploymentCloudletRequestSpecialArgs = map[string]string{
-	"deploymentcloudletrequest.app.autoprovpolicies": "StringArray",
-	"deploymentcloudletrequest.app.fields":           "StringArray",
+	"deploymentcloudletrequest.app.autoprovpolicies":  "StringArray",
+	"deploymentcloudletrequest.app.fields":            "StringArray",
+	"deploymentcloudletrequest.app.userdefinedalerts": "StringArray",
 }

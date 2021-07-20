@@ -24,11 +24,13 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/ratelimit"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/notify"
 	edgetls "github.com/mobiledgex/edge-cloud/tls"
+	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/nmcclain/ldap"
 	gitlab "github.com/xanzy/go-gitlab"
@@ -105,6 +107,7 @@ var AlertManagerServer *alertmgr.AlertMgrServer
 var allRegionCaches AllRegionCaches
 
 var unitTestNodeMgrOps []node.NodeOp
+var rateLimitMgr *ratelimit.RateLimitManager
 
 func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	server := Server{config: config}
@@ -290,7 +293,10 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
-	e.Use(logger)
+
+	// AuthCookie needs to be done here at the root so it can run before RateLimit and extract the user information needed by the RateLimit middleware.
+	// AuthCookie will only run for the /auth path.
+	e.Use(logger, AuthCookie, RateLimit)
 
 	// login route
 	root := "api/v1"
@@ -332,7 +338,6 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	e.POST(root+"/resendverify", ResendVerify)
 	// authenticated routes - jwt middleware
 	auth := e.Group(root + "/auth")
-	auth.Use(AuthCookie)
 	// refresh auth cookie
 	auth.POST("/refresh", RefreshAuthCookie)
 
@@ -571,6 +576,15 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/cloudletpoolaccesspending/show", ShowCloudletPoolAccessPending)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
 	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
+	auth.POST("/ratelimitsettingsmc/show", ShowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/createflow", CreateFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/deleteflow", DeleteFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/updateflow", UpdateFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/showflow", ShowFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/createmaxreqs", CreateMaxReqsRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/deletemaxreqs", DeleteMaxReqsRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/updatemaxreqs", UpdateMaxReqsRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/showmaxreqs", ShowMaxReqsRateLimitSettingsMc)
 
 	// Support multiple connection types: HTTP(s), Websockets
 	addControllerApis("POST", auth)
@@ -1059,19 +1073,22 @@ func ReadConn(c echo.Context, in interface{}) ([]byte, error) {
 	}
 	if err == nil {
 		err = json.Unmarshal(dat, in)
+		if err != nil {
+			// this is a copy of error handling from c.Bind()
+			if ute, ok := err.(*json.UnmarshalTypeError); ok {
+				err = echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Unmarshal type error: expected=%v, got=%v, field=%v, offset=%v", ute.Type, ute.Value, ute.Field, ute.Offset))
+			} else if se, ok := err.(*json.SyntaxError); ok {
+				err = echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Syntax error: offset=%v, error=%v", se.Offset, se.Error()))
+			}
+		}
+		err = util.NiceTimeParseError(err)
 	}
 
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			return nil, fmt.Errorf("Invalid data")
 		}
-		// echo returns HTTPError which may include "code: ..., message:", chop code
-		if errObj, ok := err.(*echo.HTTPError); ok {
-			err = fmt.Errorf("%v", errObj.Message)
-		}
-
-		errStr := checkForTimeError(fmt.Sprintf("Invalid data: %v", err))
-		return nil, fmt.Errorf(errStr)
+		return nil, bindErr(err)
 	}
 
 	return dat, nil

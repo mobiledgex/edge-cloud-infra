@@ -1,6 +1,5 @@
 ---
 - block:
-
   - name: Retrieve kube config
     azure_rm_aks_info:
       name: "{{ k8s_cluster_name }}"

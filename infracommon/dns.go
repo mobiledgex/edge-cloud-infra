@@ -42,10 +42,8 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "createAppDNS")
 
-	if kubeNames.AppURI == "" {
-		return fmt.Errorf("URI not specified")
-	}
-	if !kubeNames.IsUriIPAddr {
+	// Validate URI just once
+	if kubeNames.AppURI != "" && !kubeNames.IsUriIPAddr {
 		err := validateDomain(kubeNames.AppURI)
 		if err != nil {
 			return err
@@ -58,8 +56,6 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 	if len(svcs) < 1 {
 		return fmt.Errorf("no load balancer services for %s", kubeNames.AppURI)
 	}
-
-	fqdnBase := uri2fqdn(kubeNames.AppURI)
 
 	for _, svc := range svcs {
 		if kubeNames.DeploymentType != cloudcommon.DeploymentTypeDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {
@@ -88,6 +84,10 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 			}
 		}
 		if action.AddDNS {
+			if kubeNames.AppURI == "" {
+				return fmt.Errorf("URI not specified")
+			}
+			fqdnBase := uri2fqdn(kubeNames.AppURI)
 			mappedAddr := c.GetMappedExternalIP(action.ExternalIP)
 			fqdn := cloudcommon.ServiceFQDN(sn, fqdnBase)
 			if overrideDns != "" {
@@ -114,7 +114,8 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 func (c *CommonPlatform) DeleteAppDNS(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, overrideDns string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteAppDNS", "kubeNames", kubeNames)
 	if kubeNames.AppURI == "" {
-		return fmt.Errorf("URI not specified")
+		log.SpanLog(ctx, log.DebugLevelInfra, "URI not specified, no DNS entry to delete")
+		return nil
 	}
 	err := validateDomain(kubeNames.AppURI)
 	if err != nil {

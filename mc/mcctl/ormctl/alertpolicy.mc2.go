@@ -25,7 +25,7 @@ var _ = math.Inf
 var CreateAlertPolicyCmd = &ApiCommand{
 	Name:         "CreateAlertPolicy",
 	Use:          "create",
-	Short:        "Create a User Defined Alert",
+	Short:        "Create an Alert Policy",
 	RequiredArgs: "region " + strings.Join(CreateAlertPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(CreateAlertPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AlertPolicyAliasArgs, " "),
@@ -40,7 +40,7 @@ var CreateAlertPolicyCmd = &ApiCommand{
 var DeleteAlertPolicyCmd = &ApiCommand{
 	Name:         "DeleteAlertPolicy",
 	Use:          "delete",
-	Short:        "Delete a User Defined Alert",
+	Short:        "Delete an Alert Policy",
 	RequiredArgs: "region " + strings.Join(AlertPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AlertPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AlertPolicyAliasArgs, " "),
@@ -55,7 +55,7 @@ var DeleteAlertPolicyCmd = &ApiCommand{
 var UpdateAlertPolicyCmd = &ApiCommand{
 	Name:         "UpdateAlertPolicy",
 	Use:          "update",
-	Short:        "Update a User Defined Alert",
+	Short:        "Update an Alert Policy",
 	RequiredArgs: "region " + strings.Join(AlertPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AlertPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AlertPolicyAliasArgs, " "),
@@ -70,7 +70,7 @@ var UpdateAlertPolicyCmd = &ApiCommand{
 var ShowAlertPolicyCmd = &ApiCommand{
 	Name:         "ShowAlertPolicy",
 	Use:          "show",
-	Short:        "Show User Defined Alerts. Any fields specified will be used to filter results.",
+	Short:        "Show Alert Policies. Any fields specified will be used to filter results.",
 	RequiredArgs: "region",
 	OptionalArgs: strings.Join(append(AlertPolicyRequiredArgs, AlertPolicyOptionalArgs...), " "),
 	AliasArgs:    strings.Join(AlertPolicyAliasArgs, " "),

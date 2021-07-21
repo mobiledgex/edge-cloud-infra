@@ -467,7 +467,7 @@ func start() {
 	edgeproto.InitVMPoolInfoCache(&VMPoolInfoCache)
 	edgeproto.InitCloudletCache(&CloudletCache)
 	edgeproto.InitAlertPolicyCache(&AlertPolicyCache)
-	AlertPolicyCache.SetUpdatedCb(userAlertCb)
+	AlertPolicyCache.SetUpdatedCb(alertPolicyCb)
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient = notify.NewClient(nodeMgr.Name(), addrs,
 		tls.GetGrpcDialOption(clientTlsConfig),
@@ -619,7 +619,7 @@ func (s *sendAllRecv) RecvAllEnd(ctx context.Context) {
 
 // update active connection alerts for cloudlet prometheus
 // walk appCache and check which apps use this alert
-func userAlertCb(ctx context.Context, old *edgeproto.AlertPolicy, new *edgeproto.AlertPolicy) {
+func alertPolicyCb(ctx context.Context, old *edgeproto.AlertPolicy, new *edgeproto.AlertPolicy) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "User Alert update", "new", new, "old", old)
 	if new == nil || old == nil {
 		// deleted, so all the appInsts should've been cleaned up already

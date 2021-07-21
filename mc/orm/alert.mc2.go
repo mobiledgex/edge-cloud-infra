@@ -132,7 +132,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAlert", ShowAlert)
 	// swagger:route POST /auth/ctrl/CreateAlertPolicy AlertPolicy CreateAlertPolicy
-	// Create a User Defined Alert.
+	// Create an Alert Policy.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -142,7 +142,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateAlertPolicy", CreateAlertPolicy)
 	// swagger:route POST /auth/ctrl/DeleteAlertPolicy AlertPolicy DeleteAlertPolicy
-	// Delete a User Defined Alert.
+	// Delete an Alert Policy.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -152,7 +152,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteAlertPolicy", DeleteAlertPolicy)
 	// swagger:route POST /auth/ctrl/UpdateAlertPolicy AlertPolicy UpdateAlertPolicy
-	// Update a User Defined Alert.
+	// Update an Alert Policy.
 	// The following values should be added to `AlertPolicy.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
@@ -180,7 +180,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateAlertPolicy", UpdateAlertPolicy)
 	// swagger:route POST /auth/ctrl/ShowAlertPolicy AlertPolicy ShowAlertPolicy
-	// Show User Defined Alerts.
+	// Show Alert Policies.
 	//  Any fields specified will be used to filter results.
 	// Security:
 	//   Bearer:
@@ -561,7 +561,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
 	// swagger:route POST /auth/ctrl/AddAppAlertPolicy AppAlertPolicy AddAppAlertPolicy
-	// Add an UserAlert to the App.
+	// Add an AlertPolicy to the App.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -571,7 +571,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddAppAlertPolicy", AddAppAlertPolicy)
 	// swagger:route POST /auth/ctrl/RemoveAppAlertPolicy AppAlertPolicy RemoveAppAlertPolicy
-	// Remove an UserAlert from the App.
+	// Remove an AlertPolicy from the App.
 	// Security:
 	//   Bearer:
 	// responses:

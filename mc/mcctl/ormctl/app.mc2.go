@@ -121,7 +121,7 @@ var RemoveAppAutoProvPolicyCmd = &ApiCommand{
 var AddAppAlertPolicyCmd = &ApiCommand{
 	Name:         "AddAppAlertPolicy",
 	Use:          "addalertpolicy",
-	Short:        "Add an UserAlert to the App",
+	Short:        "Add an AlertPolicy to the App",
 	RequiredArgs: "region " + strings.Join(AppAlertPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppAlertPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAlertPolicyAliasArgs, " "),
@@ -136,7 +136,7 @@ var AddAppAlertPolicyCmd = &ApiCommand{
 var RemoveAppAlertPolicyCmd = &ApiCommand{
 	Name:         "RemoveAppAlertPolicy",
 	Use:          "removealertpolicy",
-	Short:        "Remove an UserAlert from the App",
+	Short:        "Remove an AlertPolicy from the App",
 	RequiredArgs: "region " + strings.Join(AppAlertPolicyRequiredArgs, " "),
 	OptionalArgs: strings.Join(AppAlertPolicyOptionalArgs, " "),
 	AliasArgs:    strings.Join(AppAlertPolicyAliasArgs, " "),

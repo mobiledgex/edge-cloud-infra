@@ -65,11 +65,6 @@ ldconfig
 [[ $? -ne 0 ]] && die "Failed to rebuild ldcache"
 echo ""
 
-echo ">> Verify GPU driver $DRIVERPATH is installed..."
-nvidia-smi -L
-[[ $? -ne 0 ]] && die "Failed to verify if $DRIVERPATH package is installed"
-echo ""
-
 if [[ ! -z $LICENSECFGPATH ]]; then
 	# License configuration for nvidia-gridd service
 	systemctl cat nvidia-gridd.service > /dev/null
@@ -120,5 +115,10 @@ if [[ ! -z $LICENSECFGPATH ]]; then
 	fi
 	echo ""
 fi
+
+echo ">> Verify GPU driver $DRIVERPATH is installed..."
+nvidia-smi -L
+[[ $? -ne 0 ]] && die "Failed to verify if $DRIVERPATH package is installed"
+echo ""
 
 echo ">> Done setting up GPU driver $DRIVERNAME"

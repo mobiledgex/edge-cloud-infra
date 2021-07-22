@@ -668,7 +668,7 @@ func appUpdateCb(ctx context.Context, old *edgeproto.App, new *edgeproto.App) {
 		// or a new app - no appInsts on it yet
 		return
 	}
-	if !old.AppAlertPoliciessDifferent(new) {
+	if !old.AppAlertPoliciesDifferent(new) {
 		// nothing to update
 		return
 	}

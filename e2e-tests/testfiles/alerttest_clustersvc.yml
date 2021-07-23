@@ -44,6 +44,11 @@ tests:
 - name: user2 creates clusterinst for creating ClusterSvcAppInstFailure alert
   actions: [mcapi-create]
   apifile: '{{datadir2}}/mc_user2_create_cluster.yml'
+  apifilevars:
+    cloudlet_org: tmus
+    cloudlet_name: tmus-cloud-13
+    cluster_name: tmusSmallCluster
+    cluster_org: AcmeAppCo
   curuserfile: '{{datadir2}}/mc_user2.yml'
 
 # admin "show alert" - should match
@@ -108,6 +113,11 @@ tests:
 - name: user2 deletes clusterinst for ClusterSvcAppInstFailure alert
   actions: [mcapi-delete]
   apifile: '{{datadir2}}/mc_user2_create_cluster.yml'
+  apifilevars:
+    cloudlet_org: tmus
+    cloudlet_name: tmus-cloud-13
+    cluster_name: tmusSmallCluster
+    cluster_org: AcmeAppCo
   curuserfile: '{{datadir2}}/mc_user2.yml'
 
 # user1 (operator) deletes cloudlet

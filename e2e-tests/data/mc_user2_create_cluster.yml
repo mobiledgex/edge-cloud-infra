@@ -4,11 +4,11 @@ regiondata:
     clusterinsts:
     - key:
         clusterkey:
-          name: tmusSmallCluster
+          name: {{cluster_name}}
         cloudletkey:
-          organization: tmus
-          name: tmus-cloud-13
-        organization: AcmeAppCo
+          organization: {{cloudlet_org}}
+          name: {{cloudlet_name}}
+        organization: {{cluster_org}}
       flavor:
         name: x1.small
       ipaccess: IpAccessShared

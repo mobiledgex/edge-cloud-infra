@@ -3,8 +3,8 @@ regiondata:
   appdata:
     cloudlets:
     - key:
-        organization: tmus
-        name: tmus-cloud-13
+        organization: {{cloudlet_org}}
+        name: {{cloudlet_name}}
       location:
         latitude: 31
         longitude: -91

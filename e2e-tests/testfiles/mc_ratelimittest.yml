@@ -128,14 +128,14 @@ tests:
     yaml2: '{{datadir2}}/mc_ratelimit_showapp_show.yml'
     filetype: mcdata
 
-#- name: ShowApp2 maxreqs rate limited (fail)
-#  actions: [mcapi-showfiltered-expecterr]
-#  apifile: '{{datadir2}}/mc_ratelimit_showapp.yml'
-#  curuserfile: '{{datadir2}}/mc_admin.yml'
-#  compareyaml:
-#    yaml1: '{{outputdir}}/api-output.yml'
-#    yaml2: '{{datadir2}}/mc_ratelimitmaxreqs_showapp_fail_show.yml'
-#    filetype: errs
+- name: ShowApp2 maxreqs rate limited (fail)
+  actions: [mcapi-showfiltered-expecterr]
+  apifile: '{{datadir2}}/mc_ratelimit_showapp.yml'
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/api-output.yml'
+    yaml2: '{{datadir2}}/mc_ratelimitmaxreqs_showapp_fail_show.yml'
+    filetype: errs
 
 - name: sleep, allow time for fixed window to reset
   actions: [sleep=3]

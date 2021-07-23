@@ -6,4 +6,3 @@ alertreceivers:
   cloudlet:
     organization: {{cloudlet_org}}
     name: {{cloudlet_name}}
-

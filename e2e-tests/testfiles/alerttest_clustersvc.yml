@@ -24,6 +24,7 @@ tests:
   apifile: '{{datadir2}}/mc_admin_clustersvc_appinst_alert_receiver.yml'
   apifilevars:
     severity: error
+    alert_receiver_name: emailClusterInstPlatformAlertReceiver
   curuserfile: '{{datadir2}}/mc_admin.yml'
 
 # Admin verifies an alert receiver is created
@@ -32,8 +33,9 @@ tests:
   curuserfile: '{{datadir2}}/mc_admin.yml'
   compareyaml:
     yaml1: '{{outputdir}}/show-commands.yml'
-    yaml2: '{{datadir2}}/mc_admin_cloudlet_alert_receiver_show.yml'
+    yaml2: '{{datadir2}}/mc_admin_clustersvc_appinst_alert_receiver_show.yml'
     yaml2vars:
+      alert_receiver_name: emailClusterInstPlatformAlertReceiver
       severity: error
       cloudlet_org: tmus
       cloudlet_name: tmus-cloud-13
@@ -87,7 +89,8 @@ tests:
       cloudlet_name: tmus-cloud-13
       cluster_name: tmusSmallCluster
       cluster_org: AcmeAppCo
-      alert_name: "ClusterSvcAppInstFailure"
+      alert_name: ClusterSvcAppInstFailure
+      alert_receiver_name: emailClusterInstPlatformAlertReceiver
       scope: Platform
       region: local
       severity: error

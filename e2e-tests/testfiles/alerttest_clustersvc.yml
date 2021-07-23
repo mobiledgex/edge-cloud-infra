@@ -20,13 +20,11 @@ tests:
   actions: [mcapi-create]
   apifilevars:
     severity: "error"
-    cloudlet_org: "tmus"
-    cloudlet_name: "tmus-cloud-13"
-  apifile: '{{datadir2}}/mc_user1_cloudlet_alert_receiver.yml'
+  apifile: '{{datadir2}}/mc_admin_clustersvc_appinst_alert_receiver.yml'
   curuserfile: '{{datadir2}}/mc_admin.yml'
 
 # Admin verifies an alert receiver is created
-- name: verify cloudlet alert receiver was created
+- name: Verify cloudlet alert receiver was created
   actions: [mcapi-showalertreceivers]
   curuserfile: '{{datadir2}}/mc_admin.yml'
   compareyaml:
@@ -72,9 +70,10 @@ tests:
     yaml2: '{{datadir2}}/mcappdata_empty.yml'
     filetype: mcalerts
 
-# user1 verify email for the alert
+# admin verify email for the alert
 - name: verify that email notification about the cloudlet alert was sent
   actions: [email-check]
+  curuserfile: '{{datadir2}}/mc_admin.yml'
   retrycount: 5
   retryintervalsec: 1
   compareyaml:

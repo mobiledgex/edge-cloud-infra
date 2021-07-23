@@ -301,6 +301,8 @@ func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]s
 			labels[edgeproto.ClusterKeyTagName] = in.AppInst.ClusterInstKey.ClusterKey.Name
 		}
 	} else {
+		// Default to Platform scope when no org (from cloudlet/appkey/clusterinstkey) is specified
+		// Only admin can see platform scope alerts.
 		labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopePlatform
 	}
 	return labels
@@ -455,7 +457,6 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create alertmanager receiver", "err", err, "res", res)
 		return err
 	}
-
 	return nil
 }
 
@@ -542,7 +543,6 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 	// walk config receivers and create an ormReceiver from it
 	for _, rec := range sidecarReceiverConfigs {
 		// skip default receiver
-
 		if rec.Receiver.Name == "default" {
 			continue
 		}
@@ -590,12 +590,10 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 				receiver.Cloudlet.Name = cloudlet
 			}
 		}
-
 		// get the region if it was configured
 		if region, ok := route.Match["region"]; ok {
 			receiver.Region = region
 		}
-
 		// Check against a filter
 		if alertReceiverMatchesFilter(receiver, filter) {
 			alertReceivers = append(alertReceivers, *receiver)

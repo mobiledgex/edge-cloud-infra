@@ -3,10 +3,10 @@
     app: MEXPrometheusAppName
     apporg: MobiledgeX
     appver: "1.0"
-    cloudlet: tmus-cloud-13
-    cloudletorg: tmus
-    cluster: tmusSmallCluster
-    clusterorg: AcmeAppCo
+    cloudlet: {{cloudlet_name}}
+    cloudletorg: {{cloudlet_org}}
+    cluster: {{cluster_name}}
+    clusterorg: {{cluster_org}}
     region: local
     scope: Platform
   annotations:

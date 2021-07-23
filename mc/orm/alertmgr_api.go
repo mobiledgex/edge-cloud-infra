@@ -190,7 +190,7 @@ func ShowAlertReceiver(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	log.SpanLog(ctx, log.DebugLevelApi, "ShowAlertReceiver() Show Alertmanager Receivers", "context", c, "claims", claims)
+	log.SpanLog(ctx, log.DebugLevelApi, "Show Alertmanager Receivers", "context", c, "claims", claims)
 
 	filter := ormapi.AlertReceiver{}
 	if c.Request().ContentLength > 0 {

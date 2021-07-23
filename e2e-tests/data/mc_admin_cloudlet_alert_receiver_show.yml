@@ -1,0 +1,7 @@
+alertreceivers:
+- name: emailCloudletAlertReceiver
+  type: email
+  severity: {{severity}}
+  user: mexadmin
+  email: ops@mobiledgex.net
+

@@ -25,17 +25,17 @@ tests:
   apifile: '{{datadir2}}/mc_user1_cloudlet_alert_receiver.yml'
   curuserfile: '{{datadir2}}/mc_admin.yml'
 
-# # Admin verifies an alert receiver is created
-# - name: verify cloudlet alert receiver was created
-#   actions: [mcapi-showalertreceivers]
-#   curuserfile: '{{datadir2}}/mc_admin.yml'
-#   compareyaml:
-#     yaml1: '{{outputdir}}/show-commands.yml'
-#     yaml2: '{{datadir2}}/mc_user1_cloudlet_alert_receiver_show.yml'
-#     yaml2vars:
-#       severity: "error"
-#       cloudlet_org: "tmus"
-#       cloudlet_name: "tmus-cloud-13"
+# Admin verifies an alert receiver is created
+- name: verify cloudlet alert receiver was created
+  actions: [mcapi-showalertreceivers]
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mc_admin_cloudlet_alert_receiver_show.yml'
+    yaml2vars:
+      severity: "error"
+      cloudlet_org: "tmus"
+      cloudlet_name: "tmus-cloud-13"
 
 # user2 (developer) creates cluster and thus creates ClusterSvcAppInstFailure alert
 - name: user2 creates clusterinst for creating ClusterSvcAppInstFailure alert
@@ -53,6 +53,11 @@ tests:
   compareyaml:
     yaml1: '{{outputdir}}/show-commands.yml'
     yaml2: '{{datadir2}}/clustersvc_appinst_fail_alerts_show.yml'
+    yaml2vars:
+      cloudlet_name: tmus-cloud-13
+      cloudlet_org: tmus
+      cluster_name: tmusSmallCluster
+      cluster_org: AcmeAppCo
     filetype: mcalerts
 
 # As a developer (user2), "show alert" - should be empty
@@ -76,12 +81,14 @@ tests:
     yaml1: '{{outputdir}}/show-commands.yml'
     yaml2: '{{datadir2}}/emaildata_clustersvc_appinst_alert_firing.yml'
     yaml2vars:
-      cloudlet_org: "tmus"
-      cloudlet_name: "tmus-cloud-13"
+      cloudlet_org: tmus
+      cloudlet_name: tmus-cloud-13
+      cluster_name: tmusSmallCluster
+      cluster_org: AcmeAppCo
       alert_name: "ClusterSvcAppInstFailure"
-      scope: "Platform"
-      region: "local"
-      severity: "error"
+      scope: Platform
+      region: local
+      severity: error
     filetype: emaildata
 
 # clean up emails

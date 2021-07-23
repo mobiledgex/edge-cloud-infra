@@ -1,5 +1,5 @@
 - text: "\nMobiledX Monitoring System: 1 alert for \n  alertname=CloudletDown\n\n
-    \ cloudlet=tmus-cloud-1\n\n  cloudletorg=tmus\n\n  region=local\n\n  scope=Cloudlet\n\n
+    \ cloudlet=tmus-cloud-1\n\n  cloudletorg=tmus\n\n  region=local\n\n  scope=Platform\n\n
     \ severity=error\n\n\n  [1] Firing\n\n\n"
   headers:
     subject: '[FIRING:1] Alert for emailCloudletAlertReceiver: CloudletDown Cloudlet: tmus-cloud-1'

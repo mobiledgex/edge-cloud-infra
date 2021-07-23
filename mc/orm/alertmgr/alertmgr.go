@@ -300,6 +300,8 @@ func getRouteMatchLabelsFromAlertReceiver(in *ormapi.AlertReceiver) map[string]s
 		if in.AppInst.ClusterInstKey.ClusterKey.Name != "" {
 			labels[edgeproto.ClusterKeyTagName] = in.AppInst.ClusterInstKey.ClusterKey.Name
 		}
+	} else {
+		labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopePlatform
 	}
 	return labels
 }
@@ -353,6 +355,7 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 
 	// We create one entry per receiver, to make it simpler
 	receiverName := getAlertmgrReceiverName(receiver)
+	log.SpanLog(ctx, log.DebugLevelApi, "DEVDATTA1 CreateReceiver()", "receiver", receiverName)
 
 	notifierCfg := alertmanager_config.NotifierConfig{
 		VSendResolved: true,
@@ -453,6 +456,8 @@ func (s *AlertMgrServer) CreateReceiver(ctx context.Context, receiver *ormapi.Al
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to create alertmanager receiver", "err", err, "res", res)
 		return err
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "DEVDATTA2 CreateReceiver()", "receiver", receiverName)
+
 	return nil
 }
 
@@ -535,10 +540,13 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to unmarshal Alert receivers", "err", err, "data", data)
 		return nil, err
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "DEVDATTA0 ShowReceivers")
 
 	// walk config receivers and create an ormReceiver from it
 	for _, rec := range sidecarReceiverConfigs {
 		// skip default receiver
+		log.SpanLog(ctx, log.DebugLevelApi, "DEVDATTA1 ShowReceivers", "receiver", rec.Receiver.Name)
+
 		if rec.Receiver.Name == "default" {
 			continue
 		}
@@ -593,8 +601,11 @@ func (s *AlertMgrServer) ShowReceivers(ctx context.Context, filter *ormapi.Alert
 		if region, ok := route.Match["region"]; ok {
 			receiver.Region = region
 		}
+		log.SpanLog(ctx, log.DebugLevelApi, "DEVDATTA2 ShowReceivers", "receiver", rec.Receiver)
+
 		// Check against a filter
 		if alertReceiverMatchesFilter(receiver, filter) {
+			log.SpanLog(ctx, log.DebugLevelApi, "DEVDATTA3 ShowReceivers", "receiver", rec.Receiver)
 			alertReceivers = append(alertReceivers, *receiver)
 		}
 	}

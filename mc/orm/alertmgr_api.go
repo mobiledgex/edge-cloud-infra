@@ -49,7 +49,8 @@ func CreateAlertReceiver(c echo.Context) error {
 	in.User = claims.Username
 	if in.Cloudlet.Organization == "" &&
 		in.AppInst.AppKey.Organization == "" &&
-		in.AppInst.ClusterInstKey.Organization == "" {
+		in.AppInst.ClusterInstKey.Organization == "" &&
+		!isAdmin(ctx, claims.Username) {
 		return fmt.Errorf("Either cloudlet, cluster or app instance details have to be specified")
 	}
 	if in.Cloudlet.Organization != "" {
@@ -189,7 +190,7 @@ func ShowAlertReceiver(c echo.Context) error {
 		return err
 	}
 	ctx := GetContext(c)
-	log.SpanLog(ctx, log.DebugLevelApi, "Show Alertmanager Receivers", "context", c, "claims", claims)
+	log.SpanLog(ctx, log.DebugLevelApi, "ShowAlertReceiver() Show Alertmanager Receivers", "context", c, "claims", claims)
 
 	filter := ormapi.AlertReceiver{}
 	if c.Request().ContentLength > 0 {

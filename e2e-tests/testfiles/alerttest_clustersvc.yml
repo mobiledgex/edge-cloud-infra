@@ -56,8 +56,6 @@ tests:
   actions: [mcapi-showalerts]
   apifile: '{{datadir2}}/show_local_region.yml'
   curuserfile: '{{datadir2}}/mc_admin.yml'
-  retrycount: 5
-  retryintervalsec: 1
   compareyaml:
     yaml1: '{{outputdir}}/show-commands.yml'
     yaml2: '{{datadir2}}/clustersvc_appinst_fail_alerts_show.yml'
@@ -128,3 +126,17 @@ tests:
     cloudlet_org: tmus
     cloudlet_name: tmus-cloud-13
   curuserfile: '{{datadir2}}/mc_user1.yml'
+
+# After deleting offending cluster, admin's "show alert" - should be empty
+- name: admin checks for cluster-svc appInst failure alert (empty)
+  actions: [mcapi-showalerts]
+  apifile: '{{datadir2}}/show_local_region.yml'
+  curuserfile: '{{datadir2}}/mc_admin.yml'
+  compareyaml:
+    yaml1: '{{outputdir}}/show-commands.yml'
+    yaml2: '{{datadir2}}/mcappdata_empty.yml'
+    filetype: mcalerts
+
+#  It would be good to also test alert resolution as well.
+#  Though there isn't an easy way to change the env var on the cloudlet after the creation,
+#  this is just a note for future.

@@ -4,4 +4,3 @@ alertreceivers:
   severity: {{severity}}
   user: mexadmin
   email: ops@mobiledgex.net
-

@@ -12,7 +12,7 @@ regiondata:
       numdynamicips: 254
       platformtype: PlatformTypeFake
       envvar:
-        FAKE_CLUSTER_SVC_APPINST_FAIL: true
+        FAKE_PLATFORM_APPINST_CREATE_FAIL: true
         FAKE_VCPUS_MAX: "500"
         FAKE_RAM_MAX: "409600"
       resourcequotas:

@@ -285,7 +285,7 @@ func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Setti
 	}
 
 	if old.ShepherdMetricsCollectionInterval !=
-		new.ShepherdMetricsCollectionInterval {
+		new.ShepherdMetricsCollectionInterval || scrapeChanged {
 		updateClusterWorkers(ctx, new.ShepherdMetricsCollectionInterval)
 	}
 

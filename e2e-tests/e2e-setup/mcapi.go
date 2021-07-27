@@ -429,7 +429,6 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		if errs == nil || len(errs) == 0 {
 			util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
 			util.PrintToYamlFile("api-output.yml", outputDir, "", true)
-
 		} else {
 			util.PrintToYamlFile("api-output.yml", outputDir, errs, true)
 			util.PrintToYamlFile("show-commands.yml", outputDir, "", true)

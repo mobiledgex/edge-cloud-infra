@@ -509,12 +509,12 @@ func validateSelectorString(selector, metricType string) error {
 		if !Contains(validSelectors, s) {
 			helpStr := strings.Join(validSelectors, "\", \"")
 			if len(validSelectors) > 1 {
-				helpStr = "Must be one of \"" + helpStr + "\""
+				helpStr = "must be one of \"" + helpStr + "\""
 			} else {
-				helpStr = "Only \"" + helpStr + "\" is supported"
+				helpStr = "only \"" + helpStr + "\" is supported"
 			}
 
-			return fmt.Errorf("Invalid %s selector: %s. %s", metricType, s, helpStr)
+			return fmt.Errorf("Invalid %s selector: %s, %s", metricType, s, helpStr)
 		}
 	}
 	return nil

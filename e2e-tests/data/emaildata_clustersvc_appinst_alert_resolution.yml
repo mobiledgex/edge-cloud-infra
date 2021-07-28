@@ -1,4 +1,3 @@
-
 - text: "\nMobiledX Monitoring System: 1 alert for \n  alertname={{alert_name}}\n\n
     \ app=MEXPrometheusAppName\n\n  apporg=MobiledgeX\n\n  appver=1.0\n\n  cloudlet={{cloudlet_name}}\n\n  cloudletorg={{cloudlet_org}}\n\n  cluster={{cluster_name}}\n\n  clusterorg={{cluster_org}}\n\n  region={{region}}\n\n  scope={{scope}}\n\n
     \ severity={{severity}}\n\n\n  [1] Firing\n\n\n"

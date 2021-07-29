@@ -507,7 +507,14 @@ func validateSelectorString(selector, metricType string) error {
 	selectors := strings.Split(selector, ",")
 	for _, s := range selectors {
 		if !Contains(validSelectors, s) {
-			return fmt.Errorf("Invalid %s selector: %s", metricType, s)
+			helpStr := strings.Join(validSelectors, "\", \"")
+			if len(validSelectors) > 1 {
+				helpStr = "must be one of \"" + helpStr + "\""
+			} else {
+				helpStr = "only \"" + helpStr + "\" is supported"
+			}
+
+			return fmt.Errorf("Invalid %s selector: %s, %s", metricType, s, helpStr)
 		}
 	}
 	return nil
@@ -1030,17 +1037,6 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 	if devOrgPermOk, authDevOrgs, err = isDeveloperAuthorized(ctx, username, devOrgs, devResource); err != nil {
 		return []string{}, err
 	}
-	// if a developer is authorized, just return the list now
-	if devOrgPermOk {
-		return getListFromMap(uniqueCloudlets), nil
-	} else {
-		// no perms for specified orgs, or they forgot to specify an org that
-		// they have perms to (since there are two choices)
-		if len(devOrgs) == 0 && len(authDevOrgs) > 0 {
-			// developer but didn't specify App org
-			return []string{}, fmt.Errorf("Developers please specify the %s Organization", orgField)
-		}
-	}
 
 	// At this point we need to check what cloudlets(cloudletPool members) are allowed for this operator
 	authOperOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceCloudletAnalytics, ActionView)
@@ -1058,6 +1054,18 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 				operOrgPermOk = false
 				break
 			}
+		}
+	}
+
+	// if a developer is authorized, just return the list now
+	if devOrgPermOk {
+		return getListFromMap(uniqueCloudlets), nil
+	} else if !operOrgPermOk { // it could be operator and developer
+		// no perms for specified orgs, or they forgot to specify an org that
+		// they have perms to (since there are two choices)
+		if len(devOrgs) == 0 && len(authDevOrgs) > 0 {
+			// developer but didn't specify App org
+			return []string{}, fmt.Errorf("Developers please specify the %s Organization", orgField)
 		}
 	}
 

@@ -18,6 +18,7 @@ mc_ldap_port: 9389
 mc_vnc_port: 6080
 mc_notify_srv_port: 52001
 notifyroot_port: 53001
+controller_notify_port: 37001
 alertmanager_port: 9094
 postgres_server: postgres.mobiledgex.net:5432
 influxdb_name: monitoring-influxdb

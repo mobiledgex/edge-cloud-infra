@@ -36,7 +36,7 @@ spec:
          - "--httpAddr"
          - "0.0.0.0:36001"
          - "--notifyAddr"
-         - "0.0.0.0:37001"
+         - "0.0.0.0:{{ controller_notify_port }}"
          - "--notifyParentAddrs"
          - "{{ console_vm_hostname }}:{{ mc_notify_srv_port }}"
          - "--notifyRootAddrs"

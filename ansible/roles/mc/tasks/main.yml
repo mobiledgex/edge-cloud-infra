@@ -39,6 +39,8 @@
       - "{{ notifyroot_hostname }}:{{ notifyroot_port }}"
       - "-notifySrvAddr"
       - "0.0.0.0:{{ mc_notify_srv_port }}"
+      - "-controllerNotifyPort"
+      - "{{ controller_notify_port }}"
       - "-sqlAddr"
       - "{{ postgres_hostname }}:5432"
       - "-vaultAddr"

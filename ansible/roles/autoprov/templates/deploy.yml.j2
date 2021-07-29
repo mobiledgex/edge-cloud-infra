@@ -32,7 +32,7 @@ spec:
          - "-influxAddr"
          - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
          - "--notifyAddrs"
-         - "{{ controller_hostname }}:37001"
+         - "{{ controller_hostname }}:{{ controller_notify_port }}"
          - "--region"
          - "{{ region }}"
          - "--vaultAddr"

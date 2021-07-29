@@ -60,11 +60,12 @@ var NoExternalRouter = "NONE"
 
 var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/"
 
-type ExternalNetworkType string
+type NetworkType string
 
-const ExternalNetworkRootLb = "rootlb"
-const ExternalNetworkPlatform = "platform"
-const ExternalNetworkAll = "all"
+const NetworkTypeExternalPrimary NetworkType = "external-primary"
+const NetworkTypeExternalAdditionalRootLb NetworkType = "rootlb"
+const NetworkTypeExternalAdditionalPlatform NetworkType = "platform"
+const NetworkTypeInternal NetworkType = "internal"
 
 // properties common to all VM providers
 var VMProviderProps = map[string]*edgeproto.PropertyInfo{
@@ -250,26 +251,31 @@ func (vp *VMProperties) GetCloudletAdditionalRootLbNetworks() []string {
 	return strings.Split(value, ",")
 }
 
-func (vp *VMProperties) GetExternalNetworks(netType ExternalNetworkType) map[string]string {
-	externalNetMap := make(map[string]string)
-	// always return the main external network
-	externalNetname := vp.GetCloudletExternalNetwork()
-	var nets = []string{externalNetname}
+// GetNetworksByType returns a map of networkName -> Type
+func (vp *VMProperties) GetNetworksByType(ctx context.Context, netTypes []NetworkType) map[string]NetworkType {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworksByType", "netTypes", netTypes)
+	nets := make(map[string]NetworkType)
 
-	// look for additional net based on netType
-	switch netType {
-	case ExternalNetworkPlatform:
-		nets = append(nets, vp.GetCloudletAdditionalPlatformNetworks()...)
-	case ExternalNetworkRootLb:
-		nets = append(nets, vp.GetCloudletAdditionalRootLbNetworks()...)
-	case ExternalNetworkAll:
-		nets = append(nets, vp.GetCloudletAdditionalRootLbNetworks()...)
-		nets = append(nets, vp.GetCloudletAdditionalPlatformNetworks()...)
+	// look for additional net based on netType.
+	for _, netType := range netTypes {
+		switch netType {
+		case NetworkTypeExternalPrimary:
+			nets[vp.GetCloudletExternalNetwork()] = NetworkTypeExternalPrimary
+		case NetworkTypeExternalAdditionalRootLb:
+			for _, n := range vp.GetCloudletAdditionalRootLbNetworks() {
+				nets[n] = NetworkTypeExternalAdditionalRootLb
+			}
+		case NetworkTypeExternalAdditionalPlatform:
+			for _, n := range vp.GetCloudletAdditionalPlatformNetworks() {
+				nets[n] = NetworkTypeExternalAdditionalPlatform
+			}
+		case NetworkTypeInternal:
+			nets[vp.GetCloudletMexNetwork()] = NetworkTypeInternal
+		}
 	}
-	for _, net := range nets {
-		externalNetMap[net] = net
-	}
-	return externalNetMap
+	log.SpanLog(ctx, log.DebugLevelInfra, "XXXX GetNetworksByType returns", "nets", nets)
+
+	return nets
 }
 
 func (vp *VMProperties) GetNtpServers() []string {

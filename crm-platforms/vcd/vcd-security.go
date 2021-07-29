@@ -200,27 +200,6 @@ func (v *VcdPlatform) PopulateOrgLoginCredsFromVcdVars(ctx context.Context) erro
 	return nil
 }
 
-func (v *VcdPlatform) GetExternalIpNetworkCidr(ctx context.Context, vcdClient *govcd.VCDClient) (string, error) {
-
-	extNet, err := v.GetExtNetwork(ctx, vcdClient)
-	if err != nil {
-		return "", err
-	}
-
-	scope := extNet.OrgVDCNetwork.Configuration.IPScopes.IPScope[0]
-	cidr, err := MaskToCidr(scope.Netmask)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetExternalIpNetworkCidr error converting mask to cider", "cidr", cidr, "error", err)
-		return "", err
-	}
-	addr := scope.Gateway + "/" + cidr
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetExternalIpNetworkCidr", "addr", addr)
-
-	return addr, nil
-
-}
-
 func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, rootLBName string, secGrpName string, trustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB", "rootLBName", rootLBName)
 	iptblStart := time.Now()
@@ -250,6 +229,7 @@ func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, root
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setup Root LB time %s", cloudcommon.FormatDuration(time.Since(iptblStart), 2)))
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB SetupIptableRulesForRootLB complete", "rootLBName", rootLBName, "time", time.Since(iptblStart).String())
+
 	return nil
 }
 

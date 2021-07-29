@@ -843,6 +843,91 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "No permissions for Cloudlet")
 
+	// Test Billing Events
+	{
+		// Operator cannot query app billing events without passing cloudlet-org or app-org
+		dat := &ormapi.RegionAppInstEvents{}
+		dat.Region = ctrl.Region
+		dat.AppInst = edgeproto.AppInstKey{}
+		list, status, err := mcClient.ShowAppEvents(uri, tokenOper, dat)
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "Must provide either App organization or Cloudlet organization")
+		// Operator can query app billing events by just passing cloudlet-org along with region
+		dat.AppInst.ClusterInstKey.CloudletKey.Organization = tc3.Organization
+		list, status, err = mcClient.ShowAppEvents(uri, tokenOper, dat)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		require.NotNil(t, list)
+		// Operator can access app billingevents of developers part of their cloudlet pool
+		dat.AppInst.AppKey.Organization = org1
+		list, status, err = mcClient.ShowAppEvents(uri, tokenOper, dat)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		require.NotNil(t, list)
+		// Operator cannot view app billingevents of developers not part of their cloudlet pool
+		dat.AppInst.AppKey.Organization = org2
+		list, status, err = mcClient.ShowAppEvents(uri, tokenOper, dat)
+		// * show is allowed but won't show anything
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		require.NotNil(t, list)
+		require.Equal(t, len(list.Data), 0)
+		// Operator cannot access app billing events of another operator
+		_, status, err = mcClient.ShowAppEvents(uri, tokenOper2, dat)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+
+		// Operator cannot query cluster billing events without passing cloudlet-org or cluster-org
+		clusterDat := &ormapi.RegionClusterInstEvents{}
+		clusterDat.Region = ctrl.Region
+		clusterDat.ClusterInst = edgeproto.ClusterInstKey{}
+		list, status, err = mcClient.ShowClusterEvents(uri, tokenOper, clusterDat)
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "Must provide either Cluster organization or Cloudlet organization")
+		// Operator can query cluster billing events by just passing cloudlet-org along with region
+		clusterDat.ClusterInst.CloudletKey.Organization = tc3.Organization
+		list, status, err = mcClient.ShowClusterEvents(uri, tokenOper, clusterDat)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		require.NotNil(t, list)
+		// Operator can access cluster billingevents of developers part of their cloudlet pool
+		clusterDat.ClusterInst.Organization = org1
+		list, status, err = mcClient.ShowClusterEvents(uri, tokenOper, clusterDat)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		require.NotNil(t, list)
+		// Operator cannot view cluster billingevents of developers not part of their cloudlet pool
+		clusterDat.ClusterInst.Organization = org2
+		list, status, err = mcClient.ShowClusterEvents(uri, tokenOper, clusterDat)
+		// * show is allowed but won't show anything
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		require.NotNil(t, list)
+		require.Equal(t, len(list.Data), 0)
+		// Operator cannot access cluster billing events of another operator
+		_, status, err = mcClient.ShowClusterEvents(uri, tokenOper2, clusterDat)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+
+		// Operator cannot query cloudlet billing events without passing cloudlet-org
+		cloudletDat := &ormapi.RegionCloudletEvents{}
+		cloudletDat.Region = ctrl.Region
+		cloudletDat.Cloudlet = edgeproto.CloudletKey{}
+		list, status, err = mcClient.ShowCloudletEvents(uri, tokenOper, cloudletDat)
+		require.NotNil(t, err)
+		require.Contains(t, err.Error(), "Cloudlet details must be present")
+		// Operator can query cloudlet billing events by just passing cloudlet-org along with region
+		cloudletDat.Cloudlet.Organization = tc3.Organization
+		list, status, err = mcClient.ShowCloudletEvents(uri, tokenOper, cloudletDat)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+		require.NotNil(t, list)
+		// Operator cannot access cloudlet billing events of another operator
+		_, status, err = mcClient.ShowCloudletEvents(uri, tokenOper2, cloudletDat)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+	}
+
 	// Test GPU driver access
 	{
 		// setup:

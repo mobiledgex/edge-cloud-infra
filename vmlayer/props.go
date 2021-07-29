@@ -273,8 +273,6 @@ func (vp *VMProperties) GetNetworksByType(ctx context.Context, netTypes []Networ
 			nets[vp.GetCloudletMexNetwork()] = NetworkTypeInternal
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXXX GetNetworksByType returns", "nets", nets)
-
 	return nets
 }
 

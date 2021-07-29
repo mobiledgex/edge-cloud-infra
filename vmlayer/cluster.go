@@ -580,9 +580,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 		return false, readyCount, nil
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
-
-	masterName = GetClusterMasterName(ctx, clusterInst)
-	if err := infracommon.CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP, masterName); err != nil {
+	if err := infracommon.CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP); err != nil {
 		return false, 0, fmt.Errorf("kubeconfig copy failed, %v", err)
 	}
 	if clusterInst.NumNodes == 0 {

@@ -121,7 +121,7 @@ func (v *VcdPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
 	return vmlayer.AttachPortDuringCreate
 }
 
-func (v *VcdPlatform) haveSharedRootLB(ctx context.Context, vmgp vmlayer.VMGroupOrchestrationParams) bool {
+func (v *VcdPlatform) haveSharedRootLB(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams) bool {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "haveSharedRoot", "GroupName", vmgp.GroupName)
 	// if no external ports, must be serviced by a shared load balancer.
@@ -181,13 +181,11 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp", "VAppName", vmgp.GroupName, "role", vmparams.Role, "type", vmType, "numports", numPorts)
 
 	for n, port := range ports {
-
-		log.SpanLog(ctx, log.DebugLevelInfra, "XXX add ports loop", "n", n, "NetType", port.NetType, "type", vmType, "numports", numPorts)
 		if port.NetType != vmlayer.NetworkTypeInternal {
 			net, err := v.GetExtNetwork(ctx, vcdClient, port.NetworkName)
 			if err == nil {
 				gw, err := v.GetGatewayForOrgVDCNetwork(ctx, net.OrgVDCNetwork)
-				log.InfoLog("XXXX got ext net gw", "netName", port.NetworkName, "gw", gw, "err", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "Got external network gateway", "netName", port.NetworkName, "gw", gw)
 				if err == nil {
 					netMap[port.NetworkName] = networkInfo{
 						Name:        port.NetworkName,
@@ -223,7 +221,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 			if v.Verbose {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetworkName", port.NetworkName, "IP subnet", subnet)
 			}
-			if v.haveSharedRootLB(ctx, vmgp) {
+			if v.haveSharedRootLB(ctx, &vmgp) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net for SharedLB", "vapp", vapp.VApp.Name)
 				// This can return the next available cidr, or an existing cidr from the FreeIsoNets list
 				subnet, err = v.createNextSharedLBSubnet(ctx, vapp, port, updateCallback, vcdClient)
@@ -1362,7 +1360,7 @@ func (v *VcdPlatform) getVappToSubnetMap(ctx context.Context, vdc *govcd.Vdc, vc
 					}
 					net, err := vdc.GetOrgVdcNetworkByName(n, false)
 					if err != nil {
-						log.InfoLog("Cannot get net by name", "netname", n, "err", err)
+						log.SpanLog(ctx, log.DebugLevelInfra, "Cannot get net by name", "netname", n, "err", err)
 						continue
 					}
 					if !strings.HasPrefix(net.OrgVDCNetwork.Name, mexInternalNetRange) {

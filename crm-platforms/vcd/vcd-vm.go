@@ -89,6 +89,7 @@ func (v *VcdPlatform) getVmInternalIp(ctx context.Context, vmparams *vmlayer.VMO
 	log.SpanLog(ctx, log.DebugLevelInfra, "getVmInternalIp", "vm", vmparams.Name, "ports", vmparams.Ports)
 
 	internalNetName := ""
+	gateway := ""
 	for _, p := range vmparams.Ports {
 		if p.NetType == vmlayer.NetworkTypeInternal {
 			internalNetName = p.SubnetId
@@ -99,25 +100,26 @@ func (v *VcdPlatform) getVmInternalIp(ctx context.Context, vmparams *vmlayer.VMO
 	if internalNetName == "" {
 		return "", fmt.Errorf("Could not find internal network for VM - %s", vmparams.Name)
 	}
-	vcdNetName := ""
 	netMap := make(map[string]networkInfo)
-	for _, n := range vapp.VApp.NetworkConfigSection.NetworkNames() {
-		log.SpanLog(ctx, log.DebugLevelInfra, "network name loop", "n", n, "internalNetName", internalNetName)
-		if n == InternalVappSubnet {
-			vcdNetName = n
-			break
-		}
-	}
-	gateway := InternalVappSubnet
-	if vcdNetName == "" {
-		// check iso map -- TODO TEST WITH SHARED
-		netName, err := v.updateIsoNamesMap(ctx, IsoMapActionRead, "", vmparams.Ports[0].SubnetId)
+	if v.haveSharedRootLB(ctx, vmgp) {
+		// the name of the iso mapped network is the gateway for shared
+		netName, err := v.updateIsoNamesMap(ctx, IsoMapActionRead, vmparams.Ports[0].SubnetId, "")
 		if err != nil || netName == "" {
-			return "", fmt.Errorf("error reading iso map - %v", err)
+			return "", fmt.Errorf("error finding subnet %s in iso map - %v", vmparams.Ports[0].SubnetId, err)
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "got netName(gw) from isomap", "netName", netName)
-
 		gateway = netName
+	} else {
+		// for dedicated, if we find the network the gateway is the InternalVappSubnet
+		for _, n := range vapp.VApp.NetworkConfigSection.NetworkNames() {
+			log.SpanLog(ctx, log.DebugLevelInfra, "network name loop", "n", n, "internalNetName", internalNetName)
+			if n == internalNetName {
+				gateway = InternalVappSubnet
+				break
+			}
+		}
+		if gateway == "" {
+			return "", fmt.Errorf("error finding internal network: %s in vapp network config", vmparams.Ports[0].SubnetId)
+		}
 	}
 	netMap[internalNetName] = networkInfo{
 		Name:        internalNetName,
@@ -141,7 +143,7 @@ func (v *VcdPlatform) getIpFromPortParams(ctx context.Context, vmparams *vmlayer
 	for _, port := range vmparams.Ports {
 		for _, p := range vmgp.Ports {
 			if p.Id == port.Id {
-				log.InfoLog("XXXX Found VMGP Port", "vmname", vmparams.Name, "id", port.Id, "fixedips", p.FixedIPs)
+				log.SpanLog(ctx, log.DebugLevelInfra, "Found Port within orch params", "id", port.Id, "fixedips", p.FixedIPs)
 
 				if len(p.FixedIPs) == 1 && p.FixedIPs[0].Address == vmlayer.NextAvailableResource {
 					net, ok := netMap[p.SubnetId]
@@ -152,11 +154,10 @@ func (v *VcdPlatform) getIpFromPortParams(ctx context.Context, vmparams *vmlayer
 					if err != nil {
 						return "", fmt.Errorf("Failed to replace last octet of addr %s, octet %d - %v", vmIp, p.FixedIPs[0].LastIPOctet, err)
 					}
-					log.InfoLog("XXXX returning vmip", "vmIp", vmIp)
-
+					log.SpanLog(ctx, log.DebugLevelInfra, "Found VM IP", "vmIp", vmIp, "port", port.Id)
 					return vmIp, nil
 				}
-				log.InfoLog("XXXX NO FIXED IPS", "vmname", vmparams.Name, "id", port.Id, "fixedips", p.FixedIPs)
+				log.SpanLog(ctx, log.DebugLevelInfra, "No fixd IPs for port", "id", port.Id)
 				return "", nil
 			}
 		}
@@ -290,7 +291,7 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 	log.SpanLog(ctx, log.DebugLevelInfra, "updateNetworksForVM", "vm", vm.VM.Name, "MasterIP", masterIP)
 
 	// Consider internal nextwork assignements,
-	sharedRootLB := v.haveSharedRootLB(ctx, *vmgp)
+	sharedRootLB := v.haveSharedRootLB(ctx, vmgp)
 
 	gwsToRemove := []string{}
 	log.SpanLog(ctx, log.DebugLevelInfra, "XXX Checking role and nettype for gw removal", "vmparams.Role", vmparams.Role, "netmap", netMap)
@@ -325,8 +326,6 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 		return nil, err
 	}
 	ncs.NetworkConnection = []*types.NetworkConnection{}
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXX NCS At start", "ncs", ncs)
-
 	// make sure all networks gone
 	err = vm.UpdateNetworkConnectionSection(ncs)
 	if err != nil {
@@ -335,7 +334,7 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 	}
 	vmIp, err := v.getIpFromPortParams(ctx, vmparams, vmgp, netMap)
 	if err != nil {
-		log.InfoLog("fail to get ip from port params", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to get ip from port params", "err", err)
 		return nil, err
 	}
 	for netConIdx, port := range vmparams.Ports {

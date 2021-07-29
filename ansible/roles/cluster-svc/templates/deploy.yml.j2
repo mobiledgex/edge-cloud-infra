@@ -28,7 +28,7 @@ spec:
         command:
          - "cluster-svc"
          - "--notifyAddrs"
-         - "{{ controller_hostname }}:37001"
+         - "{{ controller_hostname }}:{{ controller_notify_port }}"
          - "--ctrlAddrs"
          - "{{ controller_hostname }}:55001"
          - "--region"

@@ -3,6 +3,7 @@ package orm
 import (
 	"bytes"
 	fmt "fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -183,6 +184,8 @@ var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}
 	`{{if or .TimeDefinition .TagSet}} group by {{end}}` +
 	`{{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}{{.TagSet}}` +
 	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
+
+var locationTileFormatMatch = regexp.MustCompile(`^[0-9-][0-9_.,-]+$`)
 
 func init() {
 	devInfluxClientMetricsDBTemplate = template.Must(template.New("influxquery").Parse(devInfluxClientMetricsDBT))
@@ -419,6 +422,12 @@ func getClientMetricsMeasurementString(settings *edgeproto.Settings, baseMeasure
 // Make sure correct optional fields are provided for ClientAppUsage
 // eg. DeviceOS is not allowed for latency selector/metric
 func validateClientAppUsageMetricReq(req *ormapi.RegionClientAppUsageMetrics, selector string) error {
+	// validate LocationTile format
+	if req.LocationTile != "" {
+		if !locationTileFormatMatch.MatchString(req.LocationTile) {
+			return fmt.Errorf("Invalid format for the location tile.")
+		}
+	}
 	switch selector {
 	case "latency":
 		if req.DeviceOs != "" {

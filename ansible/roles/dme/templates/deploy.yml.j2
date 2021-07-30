@@ -34,7 +34,7 @@ spec:
              --region "{{ region }}" \
              --apiAddr 0.0.0.0:50051 \
              --httpAddr 0.0.0.0:38001 \
-             --notifyAddrs {{ controller_hostname }}:37001 \
+             --notifyAddrs {{ controller_hostname }}:{{ controller_notify_port }} \
              --vaultAddr "{{ vault_address }}" \
              --useVaultPki \
              --deploymentTag "{{ deployment_tag_override | default(deploy_environ) }}" \

@@ -7,34 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
-
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
-
-type MetalConfigmapParams struct {
-	AddressRanges []string
-}
-
-var MetalLbConfigMap = `apiVersion: v1
-kind: ConfigMap
-metadata:
-  namespace: metallb-system
-  name: config
-data:
-  config: |
-    address-pools:
-    - name: default
-      protocol: layer2
-      addresses:
-      {{- range .AddressRanges}}
-       - {{.}}
-      {{- end}}
-`
 
 // getSecretAuth returns secretName, dockerServer, auth, error
 func getSecretAuth(ctx context.Context, imagePath string, authApi cloudcommon.RegistryAuthApi, existingCreds *cloudcommon.RegistryAuth) (string, string, *cloudcommon.RegistryAuth, error) {
@@ -126,49 +104,6 @@ func CreateDockerRegistrySecret(ctx context.Context, client ssh.Client, kconf st
 	}
 	names.ImagePullSecrets = append(names.ImagePullSecrets, secretName)
 	log.SpanLog(ctx, log.DebugLevelInfra, "ok, created registry secret", "out", out)
-	return nil
-}
-
-func InstallMetalLb(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "InstallMetalLb", "clusterInst", clusterInst)
-	kconf := k8smgmt.GetKconfName(clusterInst)
-	cmds := []string{
-		fmt.Sprintf("kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/namespace.yaml --kubeconfig=%s", kconf),
-		fmt.Sprintf("kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/metallb.yaml --kubeconfig=%s", kconf),
-		fmt.Sprintf("kubectl apply -f \"https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')&env.NO_MASQ_LOCAL=1\" --kubeconfig=%s", kconf),
-	}
-	for _, cmd := range cmds {
-		log.SpanLog(ctx, log.DebugLevelInfra, "installing metallb", "cmd", cmd)
-		out, err := client.Output(cmd)
-		if err != nil {
-			return fmt.Errorf("failed to run metalLb cmd %s, %s, %v", cmd, out, err)
-		}
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "ok, installed metallb")
-	return nil
-}
-
-func ConfigureMetalLb(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, addressRanges []string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureMetalLb", "clusterInst", clusterInst)
-	MetalConfigmapParams := MetalConfigmapParams{
-		AddressRanges: addressRanges,
-	}
-	configBuf, err := ExecTemplate("metalLbConfigMap", MetalLbConfigMap, MetalConfigmapParams)
-	if err != nil {
-		return err
-	}
-	fileName := "metalLbConfigMap.yaml"
-	err = pc.WriteFile(client, fileName, configBuf.String(), "configMap", pc.NoSudo)
-	if err != nil {
-		return fmt.Errorf("WriteTemplateFile failed for metal config map: %s", err)
-	}
-	kconf := k8smgmt.GetKconfName(clusterInst)
-	cmd := fmt.Sprintf("kubectl apply -f %s --kubeconfig=%s", fileName, kconf)
-	log.SpanLog(ctx, log.DebugLevelInfra, "installing metallb")
-	out, err := client.Output(cmd)
-	if err != nil {
-		return fmt.Errorf("can't add configure metallb %s, %s, %v", cmd, out, err)
-	}
 	return nil
 }
 

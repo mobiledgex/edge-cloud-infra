@@ -471,11 +471,7 @@ func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgepro
 }
 
 func (v *VMPlatform) GetClusterAccessIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
-	network := v.VMProperties.GetCloudletMexNetwork()
-	subnet := GetClusterSubnetName(ctx, clusterInst)
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterAccessIP", "network", network)
-
-	mip, err := v.GetIPFromServerName(ctx, network, subnet, GetClusterMasterName(ctx, clusterInst))
+	mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
 	if err != nil {
 		return "", err
 	}
@@ -580,6 +576,7 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 		return false, readyCount, nil
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "cluster nodes ready", "numnodes", clusterInst.NumNodes, "nummasters", clusterInst.NumMasters, "readyCount", readyCount, "notReadyCount", notReadyCount)
+
 	if err := infracommon.CopyKubeConfig(ctx, rootLBClient, clusterInst, rootLBName, masterIP); err != nil {
 		return false, 0, fmt.Errorf("kubeconfig copy failed, %v", err)
 	}

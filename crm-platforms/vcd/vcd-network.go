@@ -202,10 +202,11 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 		switch port.NetType {
 		case vmlayer.NetworkTypeExternalPrimary:
 			fallthrough
+		case vmlayer.NetworkTypeExternalAdditionalPlatform:
+			fallthrough
 		case vmlayer.NetworkTypeExternalAdditionalRootLb:
 			log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding external vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "NetworkName", port.NetworkName, "NetworkType", port.NetType)
 			vappNcs, err := v.AddVappNetwork(ctx, vapp, vcdClient, port.NetworkName)
-			log.SpanLog(ctx, log.DebugLevelInfra, "XXX AddVappNetwork done", "vappNcs", vappNcs, "err", err)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "Error adding vapp network", "vappNcs", vappNcs, "err", err)
 				return nil, fmt.Errorf("Error adding vapp net: %s to vapp %s -- %v", port.NetworkName, vapp.VApp.Name, err)

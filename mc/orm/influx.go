@@ -302,7 +302,7 @@ func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings
 	in := &edgeproto.Settings{}
 	rc := &RegionContext{
 		region:    idc.region,
-		skipAuthz: true, // this is internal call, so ok not to call
+		skipAuthz: true, // this is internal call, so no auth needed
 	}
 	return ShowSettingsObj(ctx, rc, in)
 }

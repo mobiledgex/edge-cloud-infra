@@ -229,7 +229,6 @@ func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, root
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setup Root LB time %s", cloudcommon.FormatDuration(time.Since(iptblStart), 2)))
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB SetupIptableRulesForRootLB complete", "rootLBName", rootLBName, "time", time.Since(iptblStart).String())
-
 	return nil
 }
 

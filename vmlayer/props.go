@@ -60,13 +60,6 @@ var NoExternalRouter = "NONE"
 
 var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/"
 
-type NetworkType string
-
-const NetworkTypeExternalPrimary NetworkType = "external-primary"
-const NetworkTypeExternalAdditionalRootLb NetworkType = "rootlb"
-const NetworkTypeExternalAdditionalPlatform NetworkType = "platform"
-const NetworkTypeInternal NetworkType = "internal"
-
 // properties common to all VM providers
 var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 	"MEX_EXT_NETWORK": {

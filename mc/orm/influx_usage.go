@@ -602,6 +602,9 @@ func AppInstUsageEventsQuery(obj *ormapi.RegionAppInstUsage, cloudletList []stri
 }
 
 func checkInfluxOutput(resp *client.Response, measurement string) (bool, error) {
+	if resp == nil {
+		return true, fmt.Errorf("Error processing nil response")
+	}
 	// check to see if the influx output is empty or invalid
 	if len(resp.Results) == 0 || len(resp.Results[0].Series) == 0 {
 		// empty, no event logs at all

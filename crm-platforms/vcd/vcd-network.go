@@ -33,6 +33,14 @@ const VappNetIpAllocationDhcp = "dhcp"
 
 var InternalVappSubnet = "10.101.1.1"
 
+// VCD currently supports all network typesf
+var supportedVcdNetTypes = map[vmlayer.NetworkType]bool{
+	vmlayer.NetworkTypeExternalPrimary:            true,
+	vmlayer.NetworkTypeExternalAdditionalRootLb:   true,
+	vmlayer.NetworkTypeExternalAdditionalPlatform: true,
+	vmlayer.NetworkTypeInternal:                   true,
+}
+
 type networkInfo struct {
 	Name        string
 	Gateway     string
@@ -185,6 +193,9 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 			net, err := v.GetExtNetwork(ctx, vcdClient, port.NetworkName)
 			if err == nil {
 				gw, err := v.GetGatewayForOrgVDCNetwork(ctx, net.OrgVDCNetwork)
+				if err != nil {
+					return nil, fmt.Errorf("Error getting GW for network %s - %v", net.OrgVDCNetwork.Name, err)
+				}
 				log.SpanLog(ctx, log.DebugLevelInfra, "Got external network gateway", "netName", port.NetworkName, "gw", gw)
 				if err == nil {
 					netMap[port.NetworkName] = networkInfo{
@@ -908,8 +919,13 @@ func (v *VcdPlatform) ValidateAdditionalNetworks(ctx context.Context, additional
 		return err
 	}
 
-	for net, _ := range additionalNets {
-		log.SpanLog(ctx, log.DebugLevelInfra, "validating network", "net", net)
+	for net, netType := range additionalNets {
+		log.SpanLog(ctx, log.DebugLevelInfra, "validating network", "net", net, "netType", netType)
+		_, supported := supportedVcdNetTypes[netType]
+		if !supported {
+			return fmt.Errorf("Network type: %s not supported in VCD", netType)
+		}
+
 		network, err := vdc.GetOrgVdcNetworkByName(net, true)
 		if err != nil {
 			return fmt.Errorf("Error getting additional network: %s - %v", net, err)

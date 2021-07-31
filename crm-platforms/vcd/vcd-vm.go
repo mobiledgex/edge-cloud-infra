@@ -294,13 +294,11 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 	sharedRootLB := v.haveSharedRootLB(ctx, vmgp)
 
 	gwsToRemove := []string{}
-	log.SpanLog(ctx, log.DebugLevelInfra, "XXX Checking role and nettype for gw removal", "vmparams.Role", vmparams.Role, "netmap", netMap)
-
 	// currrently only internal and additional networks on the LB need be removed, but this may
 	// be explanded in the future
 	if vmparams.Role == vmlayer.RoleAgent {
 		for netname, netinfo := range netMap {
-			log.SpanLog(ctx, log.DebugLevelInfra, "XXX2 Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
 			if netinfo.NetworkType == vmlayer.NetworkTypeInternal || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb {
 				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
 			}

@@ -91,7 +91,7 @@ func (v *VcdPlatform) getVmInternalIp(ctx context.Context, vmparams *vmlayer.VMO
 	internalNetName := ""
 	gateway := ""
 	for _, p := range vmparams.Ports {
-		if p.NetType == vmlayer.NetworkTypeInternal {
+		if p.NetType == vmlayer.NetworkTypeInternalPrivate || p.NetType == vmlayer.NetworkTypeInternalSharedLb {
 			internalNetName = p.SubnetId
 			log.SpanLog(ctx, log.DebugLevelInfra, "found internal subnet", "internalNetName", internalNetName)
 			break
@@ -101,7 +101,7 @@ func (v *VcdPlatform) getVmInternalIp(ctx context.Context, vmparams *vmlayer.VMO
 		return "", fmt.Errorf("Could not find internal network for VM - %s", vmparams.Name)
 	}
 	netMap := make(map[string]networkInfo)
-	if v.haveSharedRootLB(ctx, vmgp) {
+	if vmgp.ConnectsToSharedRootLB {
 		// the name of the iso mapped network is the gateway for shared
 		netName, err := v.updateIsoNamesMap(ctx, IsoMapActionRead, vmparams.Ports[0].SubnetId, "")
 		if err != nil || netName == "" {
@@ -121,10 +121,14 @@ func (v *VcdPlatform) getVmInternalIp(ctx context.Context, vmparams *vmlayer.VMO
 			return "", fmt.Errorf("error finding internal network: %s in vapp network config", vmparams.Ports[0].SubnetId)
 		}
 	}
+	internalNetType := vmlayer.NetworkTypeInternalPrivate
+	if vmgp.ConnectsToSharedRootLB {
+		internalNetType = vmlayer.NetworkTypeInternalSharedLb
+	}
 	netMap[internalNetName] = networkInfo{
 		Name:        internalNetName,
 		Gateway:     gateway,
-		NetworkType: vmlayer.NetworkTypeInternal,
+		NetworkType: internalNetType,
 	}
 	vmIp, err := v.getIpFromPortParams(ctx, vmparams, vmgp, netMap)
 	log.SpanLog(ctx, log.DebugLevelInfra, "getIpFromPortParams returns", "vmIp", vmIp, "err", err)
@@ -290,16 +294,13 @@ func (v *VcdPlatform) updateVmDisk(vm *govcd.VM, size int64) error {
 func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.VCDClient, vm *govcd.VM, vmgp *vmlayer.VMGroupOrchestrationParams, vmparams *vmlayer.VMOrchestrationParams, vmIdx int, netMap map[string]networkInfo, masterIP string) (*govcd.VM, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "updateNetworksForVM", "vm", vm.VM.Name, "MasterIP", masterIP)
 
-	// Consider internal nextwork assignements,
-	sharedRootLB := v.haveSharedRootLB(ctx, vmgp)
-
 	gwsToRemove := []string{}
 	// currrently only internal and additional networks on the LB need be removed, but this may
 	// be explanded in the future
 	if vmparams.Role == vmlayer.RoleAgent {
 		for netname, netinfo := range netMap {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
-			if netinfo.NetworkType == vmlayer.NetworkTypeInternal || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb {
+			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb {
 				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
 			}
 		}
@@ -336,13 +337,12 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 		return nil, err
 	}
 	for netConIdx, port := range vmparams.Ports {
-		netName := port.SubnetId
-		if port.NetType == vmlayer.NetworkTypeInternal {
-			if sharedRootLB {
-				netName = v.IsoNamesMap[port.SubnetId]
-			}
-		} else {
-			netName = port.NetworkId
+		netName := port.NetworkId
+		switch port.NetType {
+		case vmlayer.NetworkTypeInternalSharedLb:
+			netName = v.IsoNamesMap[port.SubnetId]
+		case vmlayer.NetworkTypeInternalPrivate:
+			netName = port.SubnetId
 		}
 
 		log.SpanLog(ctx, log.DebugLevelInfra, "updateNetworksForVM add connection", "net", netName, "ip", vmIp, "VM", vmparams.Name)
@@ -353,7 +353,9 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 		}
 		extNet := v.vmProperties.GetCloudletExternalNetwork()
 		switch port.NetType {
-		case vmlayer.NetworkTypeInternal:
+		case vmlayer.NetworkTypeInternalPrivate:
+			fallthrough
+		case vmlayer.NetworkTypeInternalSharedLb:
 			if vmIp == "" {
 				return nil, fmt.Errorf("No IP found for internal net %s", netName)
 			}

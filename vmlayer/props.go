@@ -262,8 +262,10 @@ func (vp *VMProperties) GetNetworksByType(ctx context.Context, netTypes []Networ
 			for _, n := range vp.GetCloudletAdditionalPlatformNetworks() {
 				nets[n] = NetworkTypeExternalAdditionalPlatform
 			}
-		case NetworkTypeInternal:
-			nets[vp.GetCloudletMexNetwork()] = NetworkTypeInternal
+		case NetworkTypeInternalPrivate:
+			fallthrough
+		case NetworkTypeInternalSharedLb:
+			nets[vp.GetCloudletMexNetwork()] = netType
 		}
 	}
 	return nets

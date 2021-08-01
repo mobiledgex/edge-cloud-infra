@@ -38,7 +38,8 @@ var supportedVcdNetTypes = map[vmlayer.NetworkType]bool{
 	vmlayer.NetworkTypeExternalPrimary:            true,
 	vmlayer.NetworkTypeExternalAdditionalRootLb:   true,
 	vmlayer.NetworkTypeExternalAdditionalPlatform: true,
-	vmlayer.NetworkTypeInternal:                   true,
+	vmlayer.NetworkTypeInternalPrivate:            true,
+	vmlayer.NetworkTypeInternalSharedLb:           true,
 }
 
 type networkInfo struct {
@@ -129,22 +130,6 @@ func (v *VcdPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolicy {
 	return vmlayer.AttachPortDuringCreate
 }
 
-func (v *VcdPlatform) haveSharedRootLB(ctx context.Context, vmgp *vmlayer.VMGroupOrchestrationParams) bool {
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "haveSharedRoot", "GroupName", vmgp.GroupName)
-	// if no external ports, must be serviced by a shared load balancer.
-	// Only role agent needs an external net, so if any vm in this group has such a role, ShareRootLB = false
-	for _, vmparams := range vmgp.VMs {
-		if vmparams.Role == vmlayer.RoleAgent {
-			log.SpanLog(ctx, log.DebugLevelInfra, "haveSharedRoot false", "GroupName", vmgp.GroupName)
-			return false
-		}
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "haveSharedRoot true", "GroupName", vmgp.GroupName)
-	return true
-
-}
-
 var netLock sync.Mutex
 
 func (v *VcdPlatform) createNextSharedLBSubnet(ctx context.Context, vapp *govcd.VApp, port vmlayer.PortOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient) (string, error) {
@@ -189,7 +174,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp", "VAppName", vmgp.GroupName, "role", vmparams.Role, "type", vmType, "numports", numPorts)
 
 	for n, port := range ports {
-		if port.NetType != vmlayer.NetworkTypeInternal {
+		if port.NetType != vmlayer.NetworkTypeInternalPrivate && port.NetType != vmlayer.NetworkTypeInternalSharedLb {
 			net, err := v.GetExtNetwork(ctx, vcdClient, port.NetworkName)
 			if err == nil {
 				gw, err := v.GetGatewayForOrgVDCNetwork(ctx, net.OrgVDCNetwork)
@@ -222,7 +207,9 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 				log.SpanLog(ctx, log.DebugLevelInfra, "Error adding vapp network", "vappNcs", vappNcs, "err", err)
 				return nil, fmt.Errorf("Error adding vapp net: %s to vapp %s -- %v", port.NetworkName, vapp.VApp.Name, err)
 			}
-		case vmlayer.NetworkTypeInternal:
+		case vmlayer.NetworkTypeInternalPrivate:
+			fallthrough
+		case vmlayer.NetworkTypeInternalSharedLb:
 			if intAdded {
 				continue
 			}
@@ -233,7 +220,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 			if v.Verbose {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net", "PortNum", n, "vapp", vapp.VApp.Name, "port.NetworkName", port.NetworkName, "IP subnet", subnet)
 			}
-			if v.haveSharedRootLB(ctx, &vmgp) {
+			if vmgp.ConnectsToSharedRootLB {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net for SharedLB", "vapp", vapp.VApp.Name)
 				// This can return the next available cidr, or an existing cidr from the FreeIsoNets list
 				subnet, err = v.createNextSharedLBSubnet(ctx, vapp, port, updateCallback, vcdClient)
@@ -243,7 +230,6 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 				}
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp created iso vdcnet for SharedLB", "network", port.SubnetId, "vapp", vapp.VApp.Name, "IP subnet", subnet)
 			} else {
-
 				log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding internal vapp net non-shared", "vapp", vapp.VApp.Name)
 				if len(vmgp.Subnets) == 0 {
 					return nil, fmt.Errorf("No subnets specified in orch params")

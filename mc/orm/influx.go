@@ -711,7 +711,7 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.AppInst.GetTags()); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		// New metrics api request
@@ -738,7 +738,7 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.ClusterInst.GetTags()); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		rc.region = in.Region
@@ -764,7 +764,7 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		rc.region = in.Region
@@ -788,7 +788,7 @@ func GetMetricsCommon(c echo.Context) error {
 		// validate all the passed in arguments
 		args := getClientApiUsageMetricsArgs(&in)
 		if err = util.ValidateNames(args); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		rc.region = in.Region
@@ -822,7 +822,7 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		if err = validateSelectorString(in.Selector, CLOUDLETUSAGE); err != nil {
@@ -853,7 +853,7 @@ func GetMetricsCommon(c echo.Context) error {
 		// validate all the passed in arguments
 		args := getClientAppUsageMetricsArgs(&in)
 		if err = util.ValidateNames(args); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		rc.region = in.Region
@@ -888,7 +888,7 @@ func GetMetricsCommon(c echo.Context) error {
 		// validate all the passed in arguments
 		args := getClientCloudletUsageMetricsArgs(&in)
 		if err = util.ValidateNames(args); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		rc.region = in.Region

@@ -132,7 +132,7 @@ func GetEventsCommon(c echo.Context) error {
 		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.AppInst.GetTags()); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		rc.region = in.Region
@@ -150,7 +150,7 @@ func GetEventsCommon(c echo.Context) error {
 		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.ClusterInst.GetTags()); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		rc.region = in.Region
@@ -176,7 +176,7 @@ func GetEventsCommon(c echo.Context) error {
 		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
-			return fmt.Errorf("%s passed in", err.Error())
+			return err
 		}
 
 		rc.region = in.Region

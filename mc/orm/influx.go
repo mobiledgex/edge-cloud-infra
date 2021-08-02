@@ -301,8 +301,8 @@ func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings
 	// Grab settings for specified region
 	in := &edgeproto.Settings{}
 	rc := &RegionContext{
-		username: idc.claims.Username,
-		region:   idc.region,
+		region:    idc.region,
+		skipAuthz: true, // this is internal call, so no auth needed
 	}
 	return ShowSettingsObj(ctx, rc, in)
 }
@@ -439,6 +439,9 @@ func CloudletUsageMetricsQuery(obj *ormapi.RegionCloudletMetrics, platformTypes 
 // TODO: This function should be a streaming function, but currently client library for influxDB
 // doesn't implement it in a way could really be using it
 func influxStream(ctx context.Context, rc *InfluxDBContext, databases []string, dbQuery string, cb func(Data interface{}) error) error {
+	log.SpanLog(ctx, log.DebugLevelApi, "start influxDB api", "region", rc.region)
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish influxDB api")
+
 	if rc.conn == nil {
 		conn, err := ConnectInfluxDB(ctx, rc.region)
 		if err != nil {

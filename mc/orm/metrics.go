@@ -64,6 +64,11 @@ func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
 		if org == "" {
 			return fmt.Errorf("App org must be present")
 		}
+		// validate input
+		if err = util.ValidateNames(app.GetTags()); err != nil {
+			return err
+		}
+
 		orgsToCheck = append(orgsToCheck, org)
 		cloudletsToCheck = append(cloudletsToCheck, app.ClusterInstKey.CloudletKey)
 	}

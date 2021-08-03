@@ -32,6 +32,7 @@ var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
         scope: "Application"
         type: "UserDefined"
       annotations:
+        description: "Sample description"
         title: "testAlert1"
     - alert: testAlert3
       expr: max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(rate(container_cpu_usage_seconds_total{image!=""}[1m])) by (pod) / ignoring (pod) group_left sum(machine_cpu_cores) * 100 ) > 100
@@ -51,6 +52,7 @@ var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
         testLabel2: "testValue2"
         type: "UserDefined"
       annotations:
+        description: ""
         testAnnotation1: "description1"
         testAnnotation2: "description2"
         title: "testAlert3"

@@ -12,4 +12,5 @@ regiondata:
         env: testing
       annotations:
         description: "Too many connections at the same time"
+        title: UserDefinedAlert1
 

@@ -31,6 +31,8 @@ var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
         clusterorg: "NianticInc"
         scope: "Application"
         type: "UserDefined"
+      annotations:
+        title: "testAlert1"
     - alert: testAlert3
       expr: max(kube_pod_labels{label_mexAppName="pokemongo",label_mexAppVersion="100"})by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(sum(rate(container_cpu_usage_seconds_total{image!=""}[1m])) by (pod) / ignoring (pod) group_left sum(machine_cpu_cores) * 100 ) > 100
       for: 30s
@@ -51,6 +53,7 @@ var TestClusterUserDefAlertsRules = `additionalPrometheusRules:
       annotations:
         testAnnotation1: "description1"
         testAnnotation2: "description2"
+        title: "testAlert3"
 `
 
 // TestAutoScaleT primarily checks that AutoScale template parsing works, because

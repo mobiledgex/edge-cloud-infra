@@ -95,6 +95,10 @@ func getAlertRulesArgs(ctx context.Context, appInst *edgeproto.AppInst, alerts [
 		promAlert.RuleExpression = strings.Join(expressions, " and ")
 		promAlert.Labels[cloudcommon.AlertScopeTypeTag] = cloudcommon.AlertScopeApp
 		promAlert.Labels[cloudcommon.AlertTypeLabel] = cloudcommon.AlertTypeUserDefined
+		// Add title annotation if one doesn't exist - our notification templates rely on it being present
+		if _, found := promAlert.Annotations[cloudcommon.AlertAnnotationTitle]; !found {
+			promAlert.Annotations[cloudcommon.AlertAnnotationTitle] = promAlert.Name
+		}
 		// Add all the appinst labels
 		promAlert.Labels = util.AddMaps(promAlert.Labels, appInst.Key.GetTags())
 
@@ -147,6 +151,10 @@ func GetCloudletAlertRules(ctx context.Context, appInst *edgeproto.AppInst, aler
 		rule.Labels[cloudcommon.AlertSeverityLabel] = alerts[ii].Severity
 		rule.Labels = util.AddMaps(rule.Labels, appInst.Key.GetTags())
 		rule.Annotations = util.CopyStringMap(alerts[ii].Annotations)
+		// Add title annotation if one doesn't exist - our notification templates rely on it being present
+		if _, found := rule.Annotations[cloudcommon.AlertAnnotationTitle]; !found {
+			rule.Annotations[cloudcommon.AlertAnnotationTitle] = alerts[ii].Key.Name
+		}
 
 		log.SpanLog(ctx, log.DebugLevelInfo, "Adding Cloudlet Prometheus user alert rule", "appInst", appInst,
 			"rule", rule)

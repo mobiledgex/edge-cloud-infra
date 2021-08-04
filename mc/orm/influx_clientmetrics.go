@@ -182,6 +182,9 @@ func init() {
 
 func getInfluxClientMetricsQueryCmd(q *influxClientMetricsQueryArgs, tmpl *template.Template) string {
 	buf := bytes.Buffer{}
+	if q.Measurement != "" {
+		q.Measurement = addQuotesToMeasurementNames(q.Measurement)
+	}
 	if err := tmpl.Execute(&buf, q); err != nil {
 		log.DebugLog(log.DebugLevelApi, "Failed to run template", "tmpl", tmpl, "args", q, "error", err)
 		return ""

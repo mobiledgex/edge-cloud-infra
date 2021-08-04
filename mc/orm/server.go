@@ -40,27 +40,30 @@ import (
 
 // Server struct is just to track sql/db so we can stop them later.
 type Server struct {
-	config       *ServerConfig
-	sql          *intprocess.Sql
-	database     *gorm.DB
-	echo         *echo.Echo
-	vault        *process.Vault
-	stopInitData bool
-	initDataDone chan error
-	initJWKDone  chan struct{}
-	notifyServer *notify.ServerMgr
-	notifyClient *notify.Client
-	sqlListener  *pq.Listener
-	ldapServer   *ldap.Server
-	done         chan struct{}
+	config         *ServerConfig
+	sql            *intprocess.Sql
+	database       *gorm.DB
+	echo           *echo.Echo
+	vault          *process.Vault
+	stopInitData   bool
+	initDataDone   chan error
+	initJWKDone    chan struct{}
+	notifyServer   *notify.ServerMgr
+	notifyClient   *notify.Client
+	sqlListener    *pq.Listener
+	ldapServer     *ldap.Server
+	done           chan struct{}
+	federationEcho *echo.Echo
 }
 
 type ServerConfig struct {
 	ServAddr                string
 	SqlAddr                 string
 	VaultAddr               string
+	FederationAddr          string
 	RunLocal                bool
 	InitLocal               bool
+	SqlDataDir              string
 	IgnoreEnv               bool
 	ApiTlsCertFile          string
 	ApiTlsKeyFile           string
@@ -235,11 +238,14 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	}
 
 	if config.RunLocal {
+		if config.SqlDataDir == "" {
+			config.SqlDataDir = "./.postgres"
+		}
 		sql := intprocess.Sql{
 			Common: process.Common{
 				Name: "sql1",
 			},
-			DataDir:  "./.postgres",
+			DataDir:  config.SqlDataDir,
 			HttpAddr: config.SqlAddr,
 			Username: dbuser,
 			Dbname:   dbname,
@@ -800,6 +806,11 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/report/show", ShowReport)
 	auth.POST("/report/download", DownloadReport)
 
+	auth.POST("/federation/self/create", CreateSelfFederation)
+	auth.POST("/federation/partner/create", CreatePartnerFederation)
+	auth.POST("/federation/zone/create", CreateFederationZone)
+	auth.POST("/federation/zone/show", ShowFederationZone)
+
 	// Generate new short-lived token to authenticate websocket connections
 	// Note: Web-client should not store auth token as part of local storage,
 	//       instead browser should store it as secure cookies.
@@ -887,6 +898,35 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 	}()
 
+	// Global gMEC Federation
+	// ======================
+	// E/WBoundInterface APIs for Federation between multiple Operator Platforms (OPs)
+	// These are the standard interfaces which are called by other OPs for unified edge platform experience
+	if config.FederationAddr != "" {
+		federationEcho := echo.New()
+		federationEcho.HideBanner = true
+		federationEcho.Binder = &CustomBinder{}
+
+		federationEcho.Use(logger)
+
+		federationEcho.POST(F_API_OPERATOR_PARTNER, FederationOperatorPartner)
+		server.federationEcho = federationEcho
+
+		go func() {
+			/*
+				TODO: mTLS
+				if config.ApiTlsCertFile != "" {
+					err = federationEcho.StartTLS(config.ServAddr, config.ApiTlsCertFile, config.ApiTlsKeyFile)
+				}
+			*/
+			err := federationEcho.Start(config.FederationAddr)
+			if err != nil && err != http.ErrServerClosed {
+				server.Stop()
+				log.FatalLog("Failed to serve federation", "err", err)
+			}
+		}()
+	}
+
 	gitlabSync = GitlabNewSync()
 	artifactorySync = ArtifactoryNewSync()
 
@@ -945,6 +985,9 @@ func (s *Server) Stop() {
 	}
 	if s.echo != nil {
 		s.echo.Close()
+	}
+	if s.federationEcho != nil {
+		s.federationEcho.Close()
 	}
 	if s.database != nil {
 		s.database.Close()

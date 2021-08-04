@@ -130,6 +130,13 @@ test-robot-start:
 test-robot-stop:
 	e2e-tests -testfile ./e2e-tests/testfiles/stop_cleanup.yml -setupfile ./e2e-tests/setups/local_multi_automation.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
 
+# Federation testing
+federation-test-start:
+	e2e-tests -testfile ./e2e-tests/testfiles/federation_start_create.yml -setupfile ./e2e-tests/setups/local_federation.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
+
+federation-test-stop:
+	e2e-tests -testfile ./e2e-tests/testfiles/stop_cleanup.yml -setupfile ./e2e-tests/setups/local_federation.yml -varsfile ./e2e-tests/vars.yml -notimestamp
+
 # Kind local k8s testing
 kind-test-start:
 	e2e-tests -testfile ./e2e-tests/testfiles/kind_deploy_start_create.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp

@@ -14,6 +14,7 @@ import (
 )
 
 var addr = flag.String("addr", "127.0.0.1:9900", "REST listener address")
+var federationAddr = flag.String("federationAddr", "127.0.0.1:9800", "REST listener address for multi-operator platform federation")
 var sqlAddr = flag.String("sqlAddr", "127.0.0.1:5432", "Postgresql address")
 var localSql = flag.Bool("localSql", false, "Run local postgres db")
 var consoleProxyAddr = flag.String("consoleproxyaddr", "127.0.0.1:6080", "Console proxy address")
@@ -57,6 +58,7 @@ func main() {
 		ServAddr:                *addr,
 		SqlAddr:                 *sqlAddr,
 		VaultAddr:               nodeMgr.VaultAddr,
+		FederationAddr:          *federationAddr,
 		RunLocal:                *localSql,
 		InitLocal:               *initSql,
 		LocalVault:              *localVault,

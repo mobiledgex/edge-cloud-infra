@@ -187,7 +187,7 @@ const (
 	CLOUDLETUSAGE = "cloudletusage"
 )
 
-var devInfluxDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
+var devInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE "{{.OrgField}}"='{{.ApiCallerOrg}}'` +
 	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
 	`{{if .AppOrg}} AND "apporg"='{{.AppOrg}}'{{end}}` +
@@ -201,7 +201,7 @@ var devInfluxDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
 	`{{if .CloudletList}} AND ({{.CloudletList}}){{end}}` +
 	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
 
-var operatorInfluxDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
+var operatorInfluxDBT = `SELECT {{.Selector}} from "{{.Measurement}}"` +
 	` WHERE "cloudletorg"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +

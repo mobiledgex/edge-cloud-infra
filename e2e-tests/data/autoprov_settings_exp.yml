@@ -41,4 +41,3 @@ regiondata:
       disableratelimit: true
       maxnumperipratelimiters: 10000
       resourcesnapshotthreadinterval: 10m
-      

@@ -171,15 +171,9 @@ func ShowFlowRateLimitSettingsMc(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	search := &ormapi.McRateLimitFlowSettings{
-		FlowSettingsName: in.FlowSettingsName,
-		ApiName:          in.ApiName,
-		RateLimitTarget:  in.RateLimitTarget,
-	}
-
 	// Search for all entries with specified primary keys (if fields are not specified, fields are left out of search)
 	db := loggedDB(ctx)
-	r := db.Where(search)
+	r := db.Where(&in)
 	if r.RecordNotFound() {
 		return fmt.Errorf("Specified Key not found")
 	}
@@ -204,7 +198,7 @@ func convertToFlowRateLimitSettings(f *ormapi.McRateLimitFlowSettings) *edgeprot
 				RateLimitTarget: f.RateLimitTarget,
 			},
 		},
-		Settings: &edgeproto.FlowSettings{
+		Settings: edgeproto.FlowSettings{
 			FlowAlgorithm: f.FlowAlgorithm,
 			ReqsPerSecond: f.ReqsPerSecond,
 			BurstSize:     f.BurstSize,

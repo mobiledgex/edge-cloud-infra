@@ -171,15 +171,9 @@ func ShowMaxReqsRateLimitSettingsMc(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	search := &ormapi.McRateLimitMaxReqsSettings{
-		MaxReqsSettingsName: in.MaxReqsSettingsName,
-		ApiName:             in.ApiName,
-		RateLimitTarget:     in.RateLimitTarget,
-	}
-
 	// Search for all entries with specified primary keys (if fields are not specified, fields are left out of search)
 	db := loggedDB(ctx)
-	r := db.Where(search)
+	r := db.Where(&in)
 	if r.RecordNotFound() {
 		return fmt.Errorf("Specified Key not found")
 	}
@@ -204,7 +198,7 @@ func convertToMaxReqsRateLimitSettings(m *ormapi.McRateLimitMaxReqsSettings) *ed
 				RateLimitTarget: m.RateLimitTarget,
 			},
 		},
-		Settings: &edgeproto.MaxReqsSettings{
+		Settings: edgeproto.MaxReqsSettings{
 			MaxReqsAlgorithm: m.MaxReqsAlgorithm,
 			MaxRequests:      m.MaxRequests,
 			Interval:         m.Interval,

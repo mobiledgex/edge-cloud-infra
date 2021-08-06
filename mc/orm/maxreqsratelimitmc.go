@@ -43,7 +43,7 @@ func CreateMaxReqsRateLimitSettingsMc(c echo.Context) error {
 	search := &ormapi.McRateLimitMaxReqsSettings{
 		MaxReqsSettingsName: in.MaxReqsSettingsName,
 	}
-	res := db.Where(search)
+	res := db.Where(search).First(&ormapi.McRateLimitMaxReqsSettings{})
 	if !res.RecordNotFound() {
 		return fmt.Errorf("MaxReqsRateLimitSettings with MaxReqsSettingsName %s already exists", in.MaxReqsSettingsName)
 	}

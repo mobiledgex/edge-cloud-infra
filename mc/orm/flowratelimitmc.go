@@ -43,7 +43,7 @@ func CreateFlowRateLimitSettingsMc(c echo.Context) error {
 	search := &ormapi.McRateLimitFlowSettings{
 		FlowSettingsName: in.FlowSettingsName,
 	}
-	res := db.Where(search)
+	res := db.Where(search).First(&ormapi.McRateLimitFlowSettings{})
 	if !res.RecordNotFound() {
 		return fmt.Errorf("FlowRateLimitSettings with FlowSettingsName %s already exists", in.FlowSettingsName)
 	}

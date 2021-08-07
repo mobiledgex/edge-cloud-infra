@@ -913,9 +913,10 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	// developer is able to create appinst/appinst on tc3 part of pool1
 	goodPermCreateAppInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3)
 	goodPermCreateClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3)
-	// operator should be able to see appInsts/clusterInsts of developer part of pool1
+	// operator should be able to see appInsts/clusterInsts/apps of developer part of pool1
 	goodPermTestShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org1, 1)
 	goodPermTestShowClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org1, 1)
+	goodPermTestShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org1, dcnt)
 	// developer deletes appinst/clusterinst
 	goodPermDeleteAppInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3)
 	goodPermDeleteClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3)
@@ -925,6 +926,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	// operator should not able able to access appinsts/clusterinsts of developer who has not confirmed invitation
 	badPermTestShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org2)
 	badPermTestShowClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org2)
+	badPermTestShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org2)
 
 	// Cloudlet Pool access related tests
 	operatorGoodPermCloudletPoolGroup(t, mcClient, uri, ctrl.Region, tokenOper, org1, pool.CloudletPool.Key.Name, tc3)
@@ -1034,9 +1036,10 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	// developer2 is able to create appinst/clusterinst on tc3 part of pool1
 	goodPermCreateAppInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
 	goodPermCreateClusterInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
-	// operator should be able to see appInsts/clusterinsts of developer2 part of pool1
+	// operator should be able to see appInsts/clusterinsts/apps of developer2 part of pool1
 	goodPermTestShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org2, 1)
 	goodPermTestShowClusterInst(t, mcClient, uri, tokenOper, ctrl.Region, org2, 1)
+	goodPermTestShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org2, dcnt)
 	// developer2 deletes appinst/clusterinst
 	goodPermDeleteAppInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
 	goodPermDeleteClusterInst(t, mcClient, uri, tokenDev2, ctrl.Region, org2, tc3)
@@ -1083,6 +1086,10 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	status, err = mcClient.DeleteCloudletPoolAccessInvitation(uri, tokenOper, &op1)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
+
+	// operator can no longer see developer apps
+	forbiddenTestShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org1)
+	forbiddenTestShowApp(t, mcClient, uri, tokenOper, ctrl.Region, org2)
 
 	// developer can also remove response (should fail with not exist)
 	status, err = mcClient.DeleteCloudletPoolAccessResponse(uri, tokenDev, &op1)
@@ -2290,6 +2297,14 @@ func developerBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clie
 	require.Equal(t, http.StatusForbidden, status)
 }
 
+func forbiddenTestShowApp(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string) {
+	// show is allowed but won't show anything
+	list, status, err := ormtestutil.TestPermShowApp(mcClient, uri, token, region, org)
+	require.NotNil(t, err)
+	require.Equal(t, http.StatusForbidden, status)
+	require.Equal(t, 0, len(list))
+}
+
 type StreamDummyServer struct {
 	next chan int
 	fail bool
@@ -2676,6 +2691,15 @@ type OrgCloudletPool struct {
 	CloudletPoolOrg string `gorm:"type:citext REFERENCES organizations(name)"`
 }
 
+// Used to test fixing of null values
+type User struct {
+	Name     string `gorm:"primary_key;type:citext"`
+	Email    string `gorm:"unique;not null"`
+	Passhash string `gorm:"not null"`
+	Salt     string `gorm:"not null"`
+	Iter     int    `gorm:"not null"`
+}
+
 func TestUpgrade(t *testing.T) {
 	log.SetDebugLevel(log.DebugLevelApi)
 	log.InitTracer(nil)
@@ -2737,7 +2761,7 @@ func TestUpgrade(t *testing.T) {
 	database = initdb
 
 	db := loggedDB(ctx)
-	err = db.AutoMigrate(&ormapi.Organization{}, &ormapi.Controller{}, &OrgCloudletPool{}).Error
+	err = db.AutoMigrate(&ormapi.Organization{}, &ormapi.Controller{}, &OrgCloudletPool{}, &User{}).Error
 	require.Nil(t, err)
 	// add old data
 	ctrl := ormapi.Controller{
@@ -2812,6 +2836,20 @@ func TestUpgrade(t *testing.T) {
 	err = db.Exec(cmd).Error
 	require.Nil(t, err)
 
+	// add old users so automigrate will add null columns
+	numOldUsers := 3
+	for ii := 0; ii < numOldUsers; ii++ {
+		user := User{
+			Name:     fmt.Sprintf("user%d", ii),
+			Email:    fmt.Sprintf("email%d", ii),
+			Passhash: "1",
+			Salt:     "1",
+			Iter:     1,
+		}
+		err = db.Create(&user).Error
+		require.Nil(t, err)
+	}
+
 	// ============================================================
 	// start the server, will run all the upgrade functions
 	// ============================================================
@@ -2881,6 +2919,32 @@ func TestUpgrade(t *testing.T) {
 	// should have only found the one expected rule
 	require.True(t, foundExpected)
 	require.Equal(t, 1, found)
+
+	// check that users don't have any null values anymore
+	require.Equal(t, 0, getUsersNullCount(t, ctx))
+}
+
+func getUsersNullCount(t *testing.T, ctx context.Context) int {
+	db := loggedDB(ctx)
+	// refresh stats first
+	err := db.Exec("ANALYZE").Error
+	require.Nil(t, err)
+
+	cmd := "SELECT * FROM users WHERE NOT (users IS NOT NULL)"
+	res := db.Raw(cmd)
+	require.Nil(t, res.Error)
+	rows, err := res.Rows()
+	require.Nil(t, err)
+	defer rows.Close()
+	found := 0
+	for rows.Next() {
+		user := ormapi.User{}
+		err := db.ScanRows(rows, &user)
+		require.Nil(t, err)
+		fmt.Printf("user is %+v\n", user)
+		found++
+	}
+	return found
 }
 
 func testEdgeboxOnlyCloudletCreate(t *testing.T, ctx context.Context, mcClient *mctestclient.Client, uri, region string) {

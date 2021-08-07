@@ -9,6 +9,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 var clusterEventFields = []string{
@@ -129,6 +130,11 @@ func GetEventsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.AppInst.GetTags()); err != nil {
+			return err
+		}
+
 		rc.region = in.Region
 
 		cmd = AppInstEventsQuery(&in, cloudletList)
@@ -136,6 +142,10 @@ func GetEventsCommon(c echo.Context) error {
 		in := ormapi.RegionClusterInstEvents{}
 		_, err := ReadConn(c, &in)
 		if err != nil {
+			return err
+		}
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.ClusterInst.GetTags()); err != nil {
 			return err
 		}
 
@@ -157,6 +167,11 @@ func GetEventsCommon(c echo.Context) error {
 		if in.Cloudlet.Organization == "" {
 			return fmt.Errorf("Cloudlet details must be present")
 		}
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
+			return err
+		}
+
 		rc.region = in.Region
 		org = in.Cloudlet.Organization
 

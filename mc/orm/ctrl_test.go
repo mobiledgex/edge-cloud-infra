@@ -45,6 +45,13 @@ import (
 var Success = true
 var Fail = false
 
+const (
+	// Developer part of same org
+	SameOrgDev int = iota
+	// Developer not part of same org
+	DiffOrgDev
+)
+
 var ClientNoShowFilter = &cli.MapData{}
 
 func TestController(t *testing.T) {
@@ -88,7 +95,6 @@ func TestController(t *testing.T) {
 	}
 	unitTestNodeMgrOps = []node.NodeOp{
 		node.WithESUrls(mockESUrl),
-		node.WithUnitTestMode(),
 	}
 	defer func() {
 		unitTestNodeMgrOps = []node.NodeOp{}
@@ -169,7 +175,7 @@ func TestController(t *testing.T) {
 				}
 			}
 		}
-		measurement := strings.TrimFunc(qFields[3], trimFunc)
+		measurements := strings.Split(qFields[3], ",")
 		for ii := 5; ii < len(qFields); ii++ {
 			qCheck := qFields[ii]
 			if qCheck == "AND" || qCheck == "OR" {
@@ -202,12 +208,17 @@ func TestController(t *testing.T) {
 			valNames = append(valNames, colValMap[c])
 		}
 
-		data := fmt.Sprintf(
-			`{"results":[{"Series": [{"columns":[%s], "name":"%s", "values":[[%s]]}]}]}`,
-			strings.Join(colNames, ","),
-			measurement,
-			strings.Join(valNames, ","),
-		)
+		entries := []string{}
+		for _, measurement := range measurements {
+			measurement = strings.TrimFunc(measurement, trimFunc)
+			entries = append(entries, fmt.Sprintf(
+				`{"columns":[%s], "name":"%s", "values":[[%s]]}`,
+				strings.Join(colNames, ","),
+				measurement,
+				strings.Join(valNames, ","),
+			))
+		}
+		data := fmt.Sprintf(`{"results":[{"Series": [%s]}]}`, strings.Join(entries, ","))
 		fmt.Fprintln(w, data)
 	}))
 	defer influxServer.Close()
@@ -864,6 +875,8 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	// but have not yet confirmed invitation
 	badPermTestShowAppInst(t, mcClient, uri, tokenOper, ctrl.Region, org1)
 
+	developerBadPermCloudletPoolGroup(t, mcClient, uri, ctrl.Region, tokenDev, org1, pool.CloudletPool.Key.Name, tc3, SameOrgDev)
+
 	// developer confirms invitation
 	op1accept := op1
 	op1accept.Decision = ormapi.CloudletPoolAccessDecisionAccept
@@ -930,9 +943,9 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 
 	// Cloudlet Pool access related tests
 	operatorGoodPermCloudletPoolGroup(t, mcClient, uri, ctrl.Region, tokenOper, org1, pool.CloudletPool.Key.Name, tc3)
-	operatorBadPermCloudletPoolGroup(t, mcClient, uri, ctrl.Region, tokenOper, tokenOper2, org1, org2, pool.CloudletPool.Key.Name, tc3)
+	operatorBadPermCloudletPoolGroup(t, mcClient, uri, ctrl.Region, tokenOper2, org1, org2, pool.CloudletPool.Key.Name, tc3)
 	developerGoodPermCloudletPoolGroup(t, mcClient, uri, ctrl.Region, tokenDev, org1, pool.CloudletPool.Key.Name, tc3)
-	developerBadPermCloudletPoolGroup(t, mcClient, uri, ctrl.Region, tokenDev, tokenDev2, org1, pool.CloudletPool.Key.Name, tc3)
+	developerBadPermCloudletPoolGroup(t, mcClient, uri, ctrl.Region, tokenDev2, org1, pool.CloudletPool.Key.Name, tc3, DiffOrgDev)
 
 	// Test GPU driver access
 	{
@@ -1810,15 +1823,14 @@ func operatorGoodPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clie
 	require.Equal(t, http.StatusOK, status)
 }
 
-// tokenOper1 is the token of the manager of the cloudlet pool
-// tokenOper2 is another operator token, but has no permission to access cloudlet pool
+// tokenOper is another operator token, but has no permission to access cloudlet pool
 // poolDevOrg is a developer org part of cloudlet pool
 // poolCloudletKey is the cloudlet key part of cloudlet pool
-func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Client, uri, region, tokenOper1, tokenOper2, poolDevOrg, nonPoolDevOrg, poolName string, poolCloudletKey *edgeproto.CloudletKey) {
+func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Client, uri, region, tokenOper, poolDevOrg, nonPoolDevOrg, poolName string, poolCloudletKey *edgeproto.CloudletKey) {
 	// Test ShowFlavorsFor
 	// ===================
 	// Other operator cannot get cloudlet flavors for private cloudlet
-	_, status, err := ormtestutil.TestShowFlavorsForCloudlet(mcClient, uri, tokenOper2, region, poolCloudletKey)
+	_, status, err := ormtestutil.TestShowFlavorsForCloudlet(mcClient, uri, tokenOper, region, poolCloudletKey)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "No permissions for Cloudlet")
 
@@ -1828,24 +1840,24 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	appEventsData := &ormapi.RegionAppInstEvents{}
 	appEventsData.Region = region
 	appEventsData.AppInst = edgeproto.AppInstKey{}
-	_, status, err = mcClient.ShowAppEvents(uri, tokenOper1, appEventsData)
+	_, status, err = mcClient.ShowAppEvents(uri, tokenOper, appEventsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either App organization or Cloudlet organization")
 	// Operator cannot view app billing events by just passing app-org, it must specify cloudlet-org
 	appEventsData.AppInst.AppKey.Organization = poolDevOrg
 	appEventsData.AppInst.ClusterInstKey.CloudletKey.Organization = ""
-	_, status, err = mcClient.ShowAppEvents(uri, tokenOper1, appEventsData)
+	_, status, err = mcClient.ShowAppEvents(uri, tokenOper, appEventsData)
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), "Operators please specify the Cloudlet Organization")
 	// Operator cannot view app billing events of cloudlet not part of the pool
 	appEventsData.AppInst.AppKey.Organization = ""
 	appEventsData.AppInst.ClusterInstKey.CloudletKey.Organization = poolDevOrg
-	_, status, err = mcClient.ShowAppEvents(uri, tokenOper1, appEventsData)
+	_, status, err = mcClient.ShowAppEvents(uri, tokenOper, appEventsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 	// Operator cannot access app billing events of another operator
 	appEventsData.AppInst.ClusterInstKey.CloudletKey.Organization = poolCloudletKey.Organization
-	_, status, err = mcClient.ShowAppEvents(uri, tokenOper2, appEventsData)
+	_, status, err = mcClient.ShowAppEvents(uri, tokenOper, appEventsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -1853,23 +1865,23 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	clusterEventsData := &ormapi.RegionClusterInstEvents{}
 	clusterEventsData.Region = region
 	clusterEventsData.ClusterInst = edgeproto.ClusterInstKey{}
-	_, status, err = mcClient.ShowClusterEvents(uri, tokenOper1, clusterEventsData)
+	_, status, err = mcClient.ShowClusterEvents(uri, tokenOper, clusterEventsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either Cluster organization or Cloudlet organization")
 	// Operator cannot view cluster billing events by just passing app-org, it must specify cloudlet-org
 	clusterEventsData.ClusterInst.Organization = poolDevOrg
 	clusterEventsData.ClusterInst.CloudletKey.Organization = ""
-	_, status, err = mcClient.ShowClusterEvents(uri, tokenOper1, clusterEventsData)
+	_, status, err = mcClient.ShowClusterEvents(uri, tokenOper, clusterEventsData)
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), "Operators please specify the Cloudlet Organization")
 	// Operator cannot view cluster billing events of cloudlet not part of the pool
 	clusterEventsData.ClusterInst.Organization = ""
 	clusterEventsData.ClusterInst.CloudletKey.Organization = poolDevOrg
-	_, status, err = mcClient.ShowClusterEvents(uri, tokenOper1, clusterEventsData)
+	_, status, err = mcClient.ShowClusterEvents(uri, tokenOper, clusterEventsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 	// Operator cannot access cluster billing events of another operator
-	_, status, err = mcClient.ShowClusterEvents(uri, tokenOper2, clusterEventsData)
+	_, status, err = mcClient.ShowClusterEvents(uri, tokenOper, clusterEventsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -1877,12 +1889,12 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	cloudletEventsData := &ormapi.RegionCloudletEvents{}
 	cloudletEventsData.Region = region
 	cloudletEventsData.Cloudlet = edgeproto.CloudletKey{}
-	_, status, err = mcClient.ShowCloudletEvents(uri, tokenOper1, cloudletEventsData)
+	_, status, err = mcClient.ShowCloudletEvents(uri, tokenOper, cloudletEventsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Cloudlet details must be present")
 	// Operator cannot access cloudlet billing events of another operator
 	cloudletEventsData.Cloudlet.Organization = poolCloudletKey.Organization
-	_, status, err = mcClient.ShowCloudletEvents(uri, tokenOper2, cloudletEventsData)
+	_, status, err = mcClient.ShowCloudletEvents(uri, tokenOper, cloudletEventsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -1893,24 +1905,24 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	appMetricsData.Region = region
 	appMetricsData.Selector = "cpu"
 	appMetricsData.AppInst = edgeproto.AppInstKey{}
-	_, status, err = mcClient.ShowAppMetrics(uri, tokenOper1, appMetricsData)
+	_, status, err = mcClient.ShowAppMetrics(uri, tokenOper, appMetricsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either App organization or Cloudlet organization")
 	// Operator cannot view app metrics by just passing app-org, it must specify cloudlet-org
 	appMetricsData.AppInst.AppKey.Organization = poolDevOrg
 	appMetricsData.AppInst.ClusterInstKey.CloudletKey.Organization = ""
-	_, status, err = mcClient.ShowAppMetrics(uri, tokenOper1, appMetricsData)
+	_, status, err = mcClient.ShowAppMetrics(uri, tokenOper, appMetricsData)
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), "Operators please specify the Cloudlet Organization")
 	// Operator cannot view app metrics of cloudlet not part of the pool
 	appMetricsData.AppInst.AppKey.Organization = ""
 	appMetricsData.AppInst.ClusterInstKey.CloudletKey.Organization = poolDevOrg
-	_, status, err = mcClient.ShowAppMetrics(uri, tokenOper1, appMetricsData)
+	_, status, err = mcClient.ShowAppMetrics(uri, tokenOper, appMetricsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 	// Operator cannot access app metrics of another operator
 	appMetricsData.AppInst.ClusterInstKey.CloudletKey.Organization = poolCloudletKey.Organization
-	_, status, err = mcClient.ShowAppMetrics(uri, tokenOper2, appMetricsData)
+	_, status, err = mcClient.ShowAppMetrics(uri, tokenOper, appMetricsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -1919,23 +1931,23 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	clusterMetricsData.Region = region
 	clusterMetricsData.Selector = "cpu"
 	clusterMetricsData.ClusterInst = edgeproto.ClusterInstKey{}
-	_, status, err = mcClient.ShowClusterMetrics(uri, tokenOper1, clusterMetricsData)
+	_, status, err = mcClient.ShowClusterMetrics(uri, tokenOper, clusterMetricsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either Cluster organization or Cloudlet organization")
 	// Operator cannot view cluster metrics by just passing app-org, it must specify cloudlet-org
 	clusterMetricsData.ClusterInst.Organization = poolDevOrg
 	clusterMetricsData.ClusterInst.CloudletKey.Organization = ""
-	_, status, err = mcClient.ShowClusterMetrics(uri, tokenOper1, clusterMetricsData)
+	_, status, err = mcClient.ShowClusterMetrics(uri, tokenOper, clusterMetricsData)
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), "Operators please specify the Cloudlet Organization")
 	// Operator cannot view cluster metrics of cloudlet not part of the pool
 	clusterMetricsData.ClusterInst.Organization = ""
 	clusterMetricsData.ClusterInst.CloudletKey.Organization = poolDevOrg
-	_, status, err = mcClient.ShowClusterMetrics(uri, tokenOper1, clusterMetricsData)
+	_, status, err = mcClient.ShowClusterMetrics(uri, tokenOper, clusterMetricsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 	// Operator cannot access cluster metrics of another operator
-	_, status, err = mcClient.ShowClusterMetrics(uri, tokenOper2, clusterMetricsData)
+	_, status, err = mcClient.ShowClusterMetrics(uri, tokenOper, clusterMetricsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -1944,12 +1956,12 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	cloudletMetricsData.Region = region
 	cloudletMetricsData.Selector = "network"
 	cloudletMetricsData.Cloudlet = edgeproto.CloudletKey{}
-	_, status, err = mcClient.ShowCloudletMetrics(uri, tokenOper1, cloudletMetricsData)
+	_, status, err = mcClient.ShowCloudletMetrics(uri, tokenOper, cloudletMetricsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Cloudlet details must be present")
 	// Operator cannot access cloudlet metrics of another operator
 	cloudletMetricsData.Cloudlet.Organization = poolCloudletKey.Organization
-	_, status, err = mcClient.ShowCloudletMetrics(uri, tokenOper2, cloudletMetricsData)
+	_, status, err = mcClient.ShowCloudletMetrics(uri, tokenOper, cloudletMetricsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -1961,24 +1973,24 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	appUsageData.StartTime = time.Now().Add(-1 * time.Hour)
 	appUsageData.EndTime = time.Now().Add(1 * time.Hour)
 	appUsageData.AppInst = edgeproto.AppInstKey{}
-	_, status, err = mcClient.ShowAppUsage(uri, tokenOper1, appUsageData)
+	_, status, err = mcClient.ShowAppUsage(uri, tokenOper, appUsageData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either App organization or Cloudlet organization")
 	// Operator cannot view app usage by just passing app-org, it must specify cloudlet-org
 	appUsageData.AppInst.AppKey.Organization = poolDevOrg
 	appUsageData.AppInst.ClusterInstKey.CloudletKey.Organization = ""
-	_, status, err = mcClient.ShowAppUsage(uri, tokenOper1, appUsageData)
+	_, status, err = mcClient.ShowAppUsage(uri, tokenOper, appUsageData)
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), "Operators please specify the Cloudlet Organization")
 	// Operator cannot view app usage of cloudlet not part of the pool
 	appUsageData.AppInst.AppKey.Organization = ""
 	appUsageData.AppInst.ClusterInstKey.CloudletKey.Organization = poolDevOrg
-	_, status, err = mcClient.ShowAppUsage(uri, tokenOper1, appUsageData)
+	_, status, err = mcClient.ShowAppUsage(uri, tokenOper, appUsageData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 	// Operator cannot access app usage of another operator
 	appUsageData.AppInst.ClusterInstKey.CloudletKey.Organization = poolCloudletKey.Organization
-	_, status, err = mcClient.ShowAppUsage(uri, tokenOper2, appUsageData)
+	_, status, err = mcClient.ShowAppUsage(uri, tokenOper, appUsageData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -1988,23 +2000,23 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	clusterUsageData.StartTime = time.Now().Add(-1 * time.Hour)
 	clusterUsageData.EndTime = time.Now().Add(1 * time.Hour)
 	clusterUsageData.ClusterInst = edgeproto.ClusterInstKey{}
-	_, status, err = mcClient.ShowClusterUsage(uri, tokenOper1, clusterUsageData)
+	_, status, err = mcClient.ShowClusterUsage(uri, tokenOper, clusterUsageData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either Cluster organization or Cloudlet organization")
 	// Operator cannot view cluster usage by just passing app-org, it must specify cloudlet-org
 	clusterUsageData.ClusterInst.Organization = poolDevOrg
 	clusterUsageData.ClusterInst.CloudletKey.Organization = ""
-	_, status, err = mcClient.ShowClusterUsage(uri, tokenOper1, clusterUsageData)
+	_, status, err = mcClient.ShowClusterUsage(uri, tokenOper, clusterUsageData)
 	require.NotNil(t, err)
 	require.Equal(t, err.Error(), "Operators please specify the Cloudlet Organization")
 	// Operator cannot view cluster usage of cloudlet not part of the pool
 	clusterUsageData.ClusterInst.Organization = ""
 	clusterUsageData.ClusterInst.CloudletKey.Organization = poolDevOrg
-	_, status, err = mcClient.ShowClusterUsage(uri, tokenOper1, clusterUsageData)
+	_, status, err = mcClient.ShowClusterUsage(uri, tokenOper, clusterUsageData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 	// Operator cannot access cluster usage of another operator
-	_, status, err = mcClient.ShowClusterUsage(uri, tokenOper2, clusterUsageData)
+	_, status, err = mcClient.ShowClusterUsage(uri, tokenOper, clusterUsageData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -2014,13 +2026,13 @@ func operatorBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clien
 	cloudletPoolUsageData.StartTime = time.Now().Add(-1 * time.Hour)
 	cloudletPoolUsageData.EndTime = time.Now().Add(1 * time.Hour)
 	cloudletPoolUsageData.CloudletPool = edgeproto.CloudletPoolKey{}
-	_, status, err = mcClient.ShowCloudletPoolUsage(uri, tokenOper1, cloudletPoolUsageData)
+	_, status, err = mcClient.ShowCloudletPoolUsage(uri, tokenOper, cloudletPoolUsageData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "CloudletPool details must be present")
 	// Operator cannot access cloudlet usage of another operator
 	cloudletPoolUsageData.CloudletPool.Name = poolName
 	cloudletPoolUsageData.CloudletPool.Organization = poolCloudletKey.Organization
-	_, status, err = mcClient.ShowCloudletPoolUsage(uri, tokenOper2, cloudletPoolUsageData)
+	_, status, err = mcClient.ShowCloudletPoolUsage(uri, tokenOper, cloudletPoolUsageData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 }
@@ -2160,15 +2172,14 @@ func developerGoodPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Cli
 	require.Equal(t, http.StatusOK, status)
 }
 
-// tokenDev1 is the token of the developer part of the cloudlet pool
-// tokenDev2 is the token of the developer NOT part of the cloudlet pool
+// tokenDev is the token of the developer NOT part of the cloudlet pool
 // poolDevOrg is a developer org part of cloudlet pool
 // poolCloudletKey is the cloudlet key part of cloudlet pool
-func developerBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Client, uri, region, tokenDev1, tokenDev2, poolDevOrg, poolName string, poolCloudletKey *edgeproto.CloudletKey) {
+func developerBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Client, uri, region, tokenDev, poolDevOrg, poolName string, poolCloudletKey *edgeproto.CloudletKey, devOrgAssociateType int) {
 	// Test ShowFlavorsFor
 	// ===================
 	// Developer not part of cloudletpool should not be able to get cloudlet flavors
-	_, _, err := ormtestutil.TestShowFlavorsForCloudlet(mcClient, uri, tokenDev2, region, poolCloudletKey)
+	_, _, err := ormtestutil.TestShowFlavorsForCloudlet(mcClient, uri, tokenDev, region, poolCloudletKey)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "No permissions for Cloudlet")
 
@@ -2178,35 +2189,39 @@ func developerBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clie
 	appEventsData := &ormapi.RegionAppInstEvents{}
 	appEventsData.Region = region
 	appEventsData.AppInst = edgeproto.AppInstKey{}
-	_, status, err := mcClient.ShowAppEvents(uri, tokenDev1, appEventsData)
+	_, status, err := mcClient.ShowAppEvents(uri, tokenDev, appEventsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either App organization")
-	// Developer cannot access app billing events of the private cloudlet which it does not belong to
-	appEventsData.AppInst.AppKey.Organization = poolDevOrg
-	appEventsData.AppInst.ClusterInstKey.CloudletKey = *poolCloudletKey
-	_, status, err = mcClient.ShowAppEvents(uri, tokenDev2, appEventsData)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
+	if devOrgAssociateType == DiffOrgDev {
+		// Developer cannot access app billing events of the private cloudlet which it does not belong to
+		appEventsData.AppInst.AppKey.Organization = poolDevOrg
+		appEventsData.AppInst.ClusterInstKey.CloudletKey = *poolCloudletKey
+		_, status, err = mcClient.ShowAppEvents(uri, tokenDev, appEventsData)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+	}
 
 	// Developer cannot query cluster billing events by just not passing cluster-org along with region
 	clusterEventsData := &ormapi.RegionClusterInstEvents{}
 	clusterEventsData.Region = region
 	clusterEventsData.ClusterInst = edgeproto.ClusterInstKey{}
-	_, status, err = mcClient.ShowClusterEvents(uri, tokenDev1, clusterEventsData)
+	_, status, err = mcClient.ShowClusterEvents(uri, tokenDev, clusterEventsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either Cluster organization")
-	// Developer cannot access Cluster billing events of the private cloudlet which it does not belong to
-	clusterEventsData.ClusterInst.Organization = poolDevOrg
-	clusterEventsData.ClusterInst.CloudletKey = *poolCloudletKey
-	_, status, err = mcClient.ShowClusterEvents(uri, tokenDev2, clusterEventsData)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
+	if devOrgAssociateType == DiffOrgDev {
+		// Developer cannot access Cluster billing events of the private cloudlet which it does not belong to
+		clusterEventsData.ClusterInst.Organization = poolDevOrg
+		clusterEventsData.ClusterInst.CloudletKey = *poolCloudletKey
+		_, status, err = mcClient.ShowClusterEvents(uri, tokenDev, clusterEventsData)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+	}
 
 	// Developer cannot access cloudlet billing events
 	cloudletEventsData := &ormapi.RegionCloudletEvents{}
 	cloudletEventsData.Region = region
 	cloudletEventsData.Cloudlet = *poolCloudletKey
-	_, status, err = mcClient.ShowCloudletEvents(uri, tokenDev1, cloudletEventsData)
+	_, status, err = mcClient.ShowCloudletEvents(uri, tokenDev, cloudletEventsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -2217,37 +2232,41 @@ func developerBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clie
 	appMetricsData.Region = region
 	appMetricsData.Selector = "cpu"
 	appMetricsData.AppInst = edgeproto.AppInstKey{}
-	_, status, err = mcClient.ShowAppMetrics(uri, tokenDev1, appMetricsData)
+	_, status, err = mcClient.ShowAppMetrics(uri, tokenDev, appMetricsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either App organization")
-	// Developer cannot access app metrics of the private cloudlet which it does not belong to
-	appMetricsData.AppInst.AppKey.Organization = poolDevOrg
-	appMetricsData.AppInst.ClusterInstKey.CloudletKey = *poolCloudletKey
-	_, status, err = mcClient.ShowAppMetrics(uri, tokenDev2, appMetricsData)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
+	if devOrgAssociateType == DiffOrgDev {
+		// Developer cannot access app metrics of the private cloudlet which it does not belong to
+		appMetricsData.AppInst.AppKey.Organization = poolDevOrg
+		appMetricsData.AppInst.ClusterInstKey.CloudletKey = *poolCloudletKey
+		_, status, err = mcClient.ShowAppMetrics(uri, tokenDev, appMetricsData)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+	}
 
 	// Developer cannot query cluster metrics by just not passing cluster-org along with region
 	clusterMetricsData := &ormapi.RegionClusterInstMetrics{}
 	clusterMetricsData.Region = region
 	clusterMetricsData.Selector = "cpu"
 	clusterMetricsData.ClusterInst = edgeproto.ClusterInstKey{}
-	_, status, err = mcClient.ShowClusterMetrics(uri, tokenDev1, clusterMetricsData)
+	_, status, err = mcClient.ShowClusterMetrics(uri, tokenDev, clusterMetricsData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either Cluster organization")
-	// Developer cannot access Cluster metrics of the private cloudlet which it does not belong to
-	clusterMetricsData.ClusterInst.Organization = poolDevOrg
-	clusterMetricsData.ClusterInst.CloudletKey = *poolCloudletKey
-	_, status, err = mcClient.ShowClusterMetrics(uri, tokenDev2, clusterMetricsData)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
+	if devOrgAssociateType == DiffOrgDev {
+		// Developer cannot access Cluster metrics of the private cloudlet which it does not belong to
+		clusterMetricsData.ClusterInst.Organization = poolDevOrg
+		clusterMetricsData.ClusterInst.CloudletKey = *poolCloudletKey
+		_, status, err = mcClient.ShowClusterMetrics(uri, tokenDev, clusterMetricsData)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+	}
 
 	// Developer cannot access cloudlet metrics
 	cloudletMetricsData := &ormapi.RegionCloudletMetrics{}
 	cloudletMetricsData.Region = region
 	cloudletMetricsData.Selector = "network"
 	cloudletMetricsData.Cloudlet = *poolCloudletKey
-	_, status, err = mcClient.ShowCloudletMetrics(uri, tokenDev1, cloudletMetricsData)
+	_, status, err = mcClient.ShowCloudletMetrics(uri, tokenDev, cloudletMetricsData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 
@@ -2259,15 +2278,17 @@ func developerBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clie
 	appUsageData.StartTime = time.Now().Add(-1 * time.Hour)
 	appUsageData.EndTime = time.Now().Add(1 * time.Hour)
 	appUsageData.AppInst = edgeproto.AppInstKey{}
-	_, status, err = mcClient.ShowAppUsage(uri, tokenDev1, appUsageData)
+	_, status, err = mcClient.ShowAppUsage(uri, tokenDev, appUsageData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either App organization")
-	// Developer cannot access app usage of the private cloudlet which it does not belong to
-	appUsageData.AppInst.AppKey.Organization = poolDevOrg
-	appUsageData.AppInst.ClusterInstKey.CloudletKey = *poolCloudletKey
-	_, status, err = mcClient.ShowAppUsage(uri, tokenDev2, appUsageData)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
+	if devOrgAssociateType == DiffOrgDev {
+		// Developer cannot access app usage of the private cloudlet which it does not belong to
+		appUsageData.AppInst.AppKey.Organization = poolDevOrg
+		appUsageData.AppInst.ClusterInstKey.CloudletKey = *poolCloudletKey
+		_, status, err = mcClient.ShowAppUsage(uri, tokenDev, appUsageData)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+	}
 
 	// Developer cannot query cluster usage by just not passing cluster-org along with region
 	clusterUsageData := &ormapi.RegionClusterInstUsage{}
@@ -2275,15 +2296,17 @@ func developerBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clie
 	clusterUsageData.StartTime = time.Now().Add(-1 * time.Hour)
 	clusterUsageData.EndTime = time.Now().Add(1 * time.Hour)
 	clusterUsageData.ClusterInst = edgeproto.ClusterInstKey{}
-	_, status, err = mcClient.ShowClusterUsage(uri, tokenDev1, clusterUsageData)
+	_, status, err = mcClient.ShowClusterUsage(uri, tokenDev, clusterUsageData)
 	require.NotNil(t, err)
 	require.Contains(t, err.Error(), "Must provide either Cluster organization")
-	// Developer cannot access Cluster usage of the private cloudlet which it does not belong to
-	clusterUsageData.ClusterInst.Organization = poolDevOrg
-	clusterUsageData.ClusterInst.CloudletKey = *poolCloudletKey
-	_, status, err = mcClient.ShowClusterUsage(uri, tokenDev2, clusterUsageData)
-	require.NotNil(t, err)
-	require.Equal(t, http.StatusForbidden, status)
+	if devOrgAssociateType == DiffOrgDev {
+		// Developer cannot access Cluster usage of the private cloudlet which it does not belong to
+		clusterUsageData.ClusterInst.Organization = poolDevOrg
+		clusterUsageData.ClusterInst.CloudletKey = *poolCloudletKey
+		_, status, err = mcClient.ShowClusterUsage(uri, tokenDev, clusterUsageData)
+		require.NotNil(t, err)
+		require.Equal(t, http.StatusForbidden, status)
+	}
 
 	// Developer cannot access cloudlet usage
 	cloudletPoolUsageData := &ormapi.RegionCloudletPoolUsage{}
@@ -2292,7 +2315,7 @@ func developerBadPermCloudletPoolGroup(t *testing.T, mcClient *mctestclient.Clie
 	cloudletPoolUsageData.EndTime = time.Now().Add(1 * time.Hour)
 	cloudletPoolUsageData.CloudletPool.Name = poolName
 	cloudletPoolUsageData.CloudletPool.Organization = poolCloudletKey.Organization
-	_, status, err = mcClient.ShowCloudletPoolUsage(uri, tokenDev1, cloudletPoolUsageData)
+	_, status, err = mcClient.ShowCloudletPoolUsage(uri, tokenDev, cloudletPoolUsageData)
 	require.NotNil(t, err)
 	require.Equal(t, http.StatusForbidden, status)
 }

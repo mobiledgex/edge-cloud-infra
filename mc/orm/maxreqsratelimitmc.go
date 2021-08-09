@@ -4,6 +4,7 @@ import (
 	fmt "fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
@@ -39,16 +40,10 @@ func CreateMaxReqsRateLimitSettingsMc(c echo.Context) error {
 	// Create McRateLimitMaxReqsSettings entry
 	db := loggedDB(ctx)
 
-	// Check to make sure MaxReqsSettings doesn't already exist
-	search := &ormapi.McRateLimitMaxReqsSettings{
-		MaxReqsSettingsName: in.MaxReqsSettingsName,
-	}
-	res := db.Where(search).First(&ormapi.McRateLimitMaxReqsSettings{})
-	if !res.RecordNotFound() {
-		return fmt.Errorf("MaxReqsRateLimitSettings with MaxReqsSettingsName %s already exists", in.MaxReqsSettingsName)
-	}
-
 	if err := db.Create(&in).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"mc_rate_limit_max_reqs_settings_pkey") {
+			return fmt.Errorf("MaxReqsRateLimitSettings with MaxReqsSettingsName %s already exists", in.MaxReqsSettingsName)
+		}
 		return fmt.Errorf("Unable to create MaxReqsRateLimitSettings %v - error: %s", in, err.Error())
 	}
 

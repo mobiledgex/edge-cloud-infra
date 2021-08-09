@@ -4,6 +4,7 @@ import (
 	fmt "fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
@@ -39,16 +40,10 @@ func CreateFlowRateLimitSettingsMc(c echo.Context) error {
 	// Create McRateLimitFlowSettings entry
 	db := loggedDB(ctx)
 
-	// Check to make sure FlowSettings doesn't already exist
-	search := &ormapi.McRateLimitFlowSettings{
-		FlowSettingsName: in.FlowSettingsName,
-	}
-	res := db.Where(search).First(&ormapi.McRateLimitFlowSettings{})
-	if !res.RecordNotFound() {
-		return fmt.Errorf("FlowRateLimitSettings with FlowSettingsName %s already exists", in.FlowSettingsName)
-	}
-
 	if err := db.Create(&in).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"mc_rate_limit_flow_settings_pkey") {
+			return fmt.Errorf("FlowRateLimitSettings with FlowSettingsName %s already exists", in.FlowSettingsName)
+		}
 		return fmt.Errorf("Unable to create FlowRateLimitSettings %v - error: %s", in, err.Error())
 	}
 

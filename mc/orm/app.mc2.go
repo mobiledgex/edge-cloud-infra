@@ -69,17 +69,18 @@ func CreateAppObj(ctx context.Context, rc *RegionContext, obj *edgeproto.App) (*
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return nil, err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateApp(ctx, obj)
 }
 
@@ -124,17 +125,18 @@ func DeleteAppObj(ctx context.Context, rc *RegionContext, obj *edgeproto.App) (*
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return nil, err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteApp(ctx, obj)
 }
 
@@ -183,17 +185,18 @@ func UpdateAppObj(ctx context.Context, rc *RegionContext, obj *edgeproto.App) (*
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return nil, err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateApp(ctx, obj)
 }
 
@@ -228,27 +231,33 @@ func ShowApp(c echo.Context) error {
 	return nil
 }
 
+type ShowAppAuthz interface {
+	Ok(obj *edgeproto.App) (bool, bool)
+	Filter(obj *edgeproto.App)
+}
+
 func ShowAppStream(ctx context.Context, rc *RegionContext, obj *edgeproto.App, cb func(res *edgeproto.App) error) error {
-	var authz *AuthzShow
+	var authz ShowAppAuthz
 	var err error
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceApps, ActionView)
+		authz, err = newShowAppAuthz(ctx, rc.region, rc.username, ResourceApps, ActionView)
 		if err != nil {
 			return err
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	stream, err := api.ShowApp(ctx, obj)
 	if err != nil {
 		return err
@@ -263,8 +272,12 @@ func ShowAppStream(ctx context.Context, rc *RegionContext, obj *edgeproto.App, c
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.Organization) {
+			authzOk, filterOutput := authz.Ok(res)
+			if !authzOk {
 				continue
+			}
+			if filterOutput {
+				authz.Filter(res)
 			}
 		}
 		err = cb(res)
@@ -324,17 +337,18 @@ func AddAppAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edgepr
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return nil, err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddAppAutoProvPolicy(ctx, obj)
 }
 
@@ -378,17 +392,18 @@ func RemoveAppAutoProvPolicyObj(ctx context.Context, rc *RegionContext, obj *edg
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return nil, err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.RemoveAppAutoProvPolicy(ctx, obj)
 }
 
@@ -432,17 +447,18 @@ func AddAppAlertPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return nil, err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddAppAlertPolicy(ctx, obj)
 }
 
@@ -486,17 +502,18 @@ func RemoveAppAlertPolicyObj(ctx context.Context, rc *RegionContext, obj *edgepr
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return nil, err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.RemoveAppAlertPolicy(ctx, obj)
 }
 
@@ -544,17 +561,18 @@ func ShowCloudletsForAppDeploymentStream(ctx context.Context, rc *RegionContext,
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAppApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	stream, err := api.ShowCloudletsForAppDeployment(ctx, obj)
 	if err != nil {
 		return err

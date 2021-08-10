@@ -70,17 +70,18 @@ func ShowAlertStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Aler
 		}
 	}
 	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 		if err != nil {
 			return err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.NewAlertApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	stream, err := api.ShowAlert(ctx, obj)
 	if err != nil {
 		return err
@@ -170,6 +171,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// Annotations: 10
 	// AnnotationsKey: 10.1
 	// AnnotationsValue: 10.2
+	// Description: 11
 	// ```
 	// Security:
 	//   Bearer:
@@ -232,6 +234,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// AlertPolicyMinTriggerTime: 36
 	// DisableRateLimit: 37
 	// MaxNumPerIpRateLimiters: 39
+	// ResourceSnapshotThreadInterval: 41
 	// ```
 	// Security:
 	//   Bearer:
@@ -1547,6 +1550,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// MappedPortsEndPort: 9.6
 	// MappedPortsTls: 9.7
 	// MappedPortsNginx: 9.8
+	// MappedPortsMaxPktSize: 9.9
 	// Flavor: 12
 	// FlavorName: 12.1
 	// State: 14

@@ -662,20 +662,21 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 {{- end}}
 	if rc.conn == nil {
 {{- if .NotifyRoot}}
-		conn, err := connectNotifyRoot(ctx)
+		conn, err := connCache.GetNotifyRootConn(ctx)
 {{- else}}
-		conn, err := connectController(ctx, rc.region)
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
 {{- end}}
 		if err != nil {
 			return {{.ReturnErrArg}}err
 		}
 		rc.conn = conn
 		defer func() {
-			rc.conn.Close()
 			rc.conn = nil
 		}()
 	}
 	api := edgeproto.New{{.Service}}Client(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 {{- if .Outstream}}
 	stream, err := api.{{.MethodName}}(ctx, obj)
 	if err != nil {
@@ -996,8 +997,12 @@ func goodPermTestShow{{.Message}}(t *testing.T, mcClient *mctestclient.Client, u
 	// make sure region check works
 	list, status, err = testutil.TestPermShow{{.Message}}(mcClient, uri, token, "bad region", org)
 	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "\"bad region\" not found")
-	require.Equal(t, http.StatusBadRequest, status)
+	if err.Error() == "Forbidden" {
+		require.Equal(t, http.StatusForbidden, status)
+	} else {
+		require.Contains(t, err.Error(), "\"bad region\" not found")
+		require.Equal(t, http.StatusBadRequest, status)
+	}
 	require.Equal(t, 0, len(list))
 }
 

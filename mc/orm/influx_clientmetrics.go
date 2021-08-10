@@ -3,6 +3,7 @@ package orm
 import (
 	"bytes"
 	fmt "fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -63,23 +64,11 @@ var ClientApiUsageTags = []string{
 var ApiFields = []string{
 	"\"reqs\"",
 	"\"errs\"",
-	"\"0s\"",
-	"\"5ms\"",
-	"\"10ms\"",
-	"\"25ms\"",
-	"\"50ms\"",
-	"\"100ms\"",
 }
 
 var ClientApiAggregationFunctions = map[string]string{
-	"reqs":  "sum(\"reqs\")",
-	"errs":  "sum(\"errs\")",
-	"0s":    "sum(\"0s\")",
-	"5ms":   "sum(\"5ms\")",
-	"10ms":  "sum(\"10ms\")",
-	"25ms":  "sum(\"25ms\")",
-	"50ms":  "sum(\"50ms\")",
-	"100ms": "sum(\"100ms\")",
+	"reqs": "sum(\"reqs\")",
+	"errs": "sum(\"errs\")",
 }
 
 var ClientAppUsageTags = []string{
@@ -148,7 +137,7 @@ const (
 	CLIENT_CLOUDLETUSAGE = "clientcloudletusage"
 )
 
-var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
+var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
 	` WHERE "{{.OrgField}}"='{{.ApiCallerOrg}}'` +
 	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
 	`{{if .AppOrg}} AND "apporg"='{{.AppOrg}}'{{end}}` +
@@ -170,7 +159,7 @@ var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
 	`{{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}{{.TagSet}}` +
 	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
 
-var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
+var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
 	` WHERE "cloudletorg"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .DeviceCarrier}} AND "devicecarrier"='{{.DeviceCarrier}}'{{end}}` +
@@ -184,6 +173,8 @@ var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}
 	`{{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}{{.TagSet}}` +
 	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
 
+var locationTileFormatMatch = regexp.MustCompile(`^[0-9-][0-9_.,-]+$`)
+
 func init() {
 	devInfluxClientMetricsDBTemplate = template.Must(template.New("influxquery").Parse(devInfluxClientMetricsDBT))
 	operatorInfluxClientMetricsDBTemplate = template.Must(template.New("influxquery").Parse(operatorInfluxClientMetricsDBT))
@@ -191,6 +182,9 @@ func init() {
 
 func getInfluxClientMetricsQueryCmd(q *influxClientMetricsQueryArgs, tmpl *template.Template) string {
 	buf := bytes.Buffer{}
+	if q.Measurement != "" {
+		q.Measurement = addQuotesToMeasurementNames(q.Measurement)
+	}
 	if err := tmpl.Execute(&buf, q); err != nil {
 		log.DebugLog(log.DebugLevelApi, "Failed to run template", "tmpl", tmpl, "args", q, "error", err)
 		return ""
@@ -211,9 +205,7 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 		AppInstName:  obj.AppInst.AppKey.Name,
 		AppVersion:   obj.AppInst.AppKey.Version,
 		ApiCallerOrg: obj.AppInst.AppKey.Organization,
-		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
 		CloudletList: generateCloudletList(cloudletList),
-		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		Method:       obj.Method,
 		TagSet:       getTagSet(CLIENT_APIUSAGE, obj.Selector),
 	}
@@ -419,6 +411,12 @@ func getClientMetricsMeasurementString(settings *edgeproto.Settings, baseMeasure
 // Make sure correct optional fields are provided for ClientAppUsage
 // eg. DeviceOS is not allowed for latency selector/metric
 func validateClientAppUsageMetricReq(req *ormapi.RegionClientAppUsageMetrics, selector string) error {
+	// validate LocationTile format
+	if req.LocationTile != "" {
+		if !locationTileFormatMatch.MatchString(req.LocationTile) {
+			return fmt.Errorf("Invalid format for the location tile.")
+		}
+	}
 	switch selector {
 	case "latency":
 		if req.DeviceOs != "" {

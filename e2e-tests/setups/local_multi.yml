@@ -225,7 +225,7 @@ dmes:
   locverurl: "{{locverurl}}"
   toksrvurl: "{{toksrvurl}}"
   carrier: TDG
-  cloudletkey: '{"organization":"TDG","name":"tmus-cloud-1-dme"}'
+  cloudletkey: '{"organization":"tmus","name":"tmus-cloud-1"}'
   vaultaddr: "http://127.0.0.1:8200"
   usevaultpki: true
   hostname: "127.0.0.1"
@@ -243,7 +243,7 @@ dmes:
   locverurl: "{{locverurl}}"
   toksrvurl: "{{toksrvurl}}"
   carrier: TDG
-  cloudletkey: '{"organization":"TDG","name":"tmus-cloud-2-dme"}'
+  cloudletkey: '{"organization":"tmus","name":"tmus-cloud-2"}'
   vaultaddr: "http://127.0.0.1:8200"
   usevaultpki: true
   hostname: "127.0.0.1"
@@ -261,7 +261,7 @@ dmes:
   locverurl: "{{locverurl}}"
   toksrvurl: "{{toksrvurl}}"
   carrier: TDG
-  cloudletkey: '{"organization":"TDG","name":"tmus-cloud-3-dme"}'
+  cloudletkey: '{"organization":"tmus","name":"tmus-cloud-3"}'
   vaultaddr: "http://127.0.0.1:8200"
   region: locala
   usevaultpki: true
@@ -280,7 +280,7 @@ dmes:
   locverurl: "{{locverurl}}"
   toksrvurl: "{{toksrvurl}}"
   carrier: TDG
-  cloudletkey: '{"organization":"TDG","name":"tmus-cloud-4-dme"}'
+  cloudletkey: '{"organization":"tmus","name":"tmus-cloud-4"}'
   vaultaddr: "http://127.0.0.1:8200"
   region: locala
   usevaultpki: true

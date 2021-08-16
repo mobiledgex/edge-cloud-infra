@@ -1895,6 +1895,38 @@ func (s *Client) CreatePartnerFederation(uri string, token string, in *ormapi.Op
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) CreateFederationZone(uri string, token string, in *ormapi.OperatorZoneCloudletMap) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateFederationZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowFederationZone(uri string, token string, in *ormapi.OperatorZoneCloudletMap) ([]ormapi.OperatorZoneCloudletMap, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.OperatorZoneCloudletMap
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowFederationZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
 // Generating group Flavor
 
 func (s *Client) CreateFlavor(uri string, token string, in *ormapi.RegionFlavor) (*edgeproto.Result, int, error) {

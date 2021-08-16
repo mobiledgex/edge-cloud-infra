@@ -2,18 +2,21 @@ package orm
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jarcoal/httpmock"
 	"github.com/jinzhu/gorm"
-	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
+	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
@@ -40,22 +43,12 @@ type OPAttr struct {
 	dcnt        int
 	tokenAd     string
 	tokenOper   string
-	nodeMgr     *node.NodeMgr
-	database    *gorm.DB
-	enforcer    *rbac.Enforcer
 	fedAddr     string
-}
-
-func (o *OPAttr) SetupGlobals() {
-	nodeMgr = o.nodeMgr
-	database = o.database
-	enforcer = o.enforcer
 }
 
 func (o *OPAttr) CleanupOperatorPlatform(ctx context.Context) {
 	// nodeMgr is a global object, hence copy the OP specific
 	// nodeMgr for cleanup
-	o.SetupGlobals()
 	o.ds.SetDummyObjs(ctx, testutil.Delete, o.operatorId, o.dcnt)
 	o.ds.SetDummyOrgObjs(ctx, testutil.Delete, o.operatorId, o.dcnt)
 	o.server.Stop()
@@ -66,10 +59,6 @@ func SetupOperatorPlatform(t *testing.T, ctx context.Context, operatorId, countr
 	vaultServer, vaultConfig := vault.DummyServer()
 	defer vaultServer.Close()
 
-	// mock http to redirect requests
-	// ==============================
-	httpmock.Activate()
-	defer httpmock.DeactivateAndReset()
 	// any requests that don't have a registered URL will be fetched normally
 	mockESUrl := "http://mock.es"
 	httpmock.RegisterNoResponder(httpmock.InitialTransport.RoundTrip)
@@ -153,24 +142,6 @@ func SetupOperatorPlatform(t *testing.T, ctx context.Context, operatorId, countr
 	err = server.WaitUntilReady()
 	require.Nil(t, err, "server online")
 
-	server.echo.Use(
-		func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(c echo.Context) error {
-				nodeMgr = config.NodeMgr
-				database = server.database
-				return next(c)
-			}
-		})
-
-	server.federationEcho.Use(
-		func(next echo.HandlerFunc) echo.HandlerFunc {
-			return func(c echo.Context) error {
-				nodeMgr = config.NodeMgr
-				database = server.database
-				return next(c)
-			}
-		})
-
 	defaultConfig.DisableRateLimit = true
 	enforcer.LogEnforce(true)
 
@@ -222,9 +193,6 @@ func SetupOperatorPlatform(t *testing.T, ctx context.Context, operatorId, countr
 		countryCode: countryCode,
 		tokenAd:     tokenAd,
 		tokenOper:   tokenOper,
-		nodeMgr:     nodeMgr,
-		database:    server.database,
-		enforcer:    enforcer,
 		fedAddr:     fedAddr,
 	}
 }
@@ -235,54 +203,126 @@ func TestFederation(t *testing.T) {
 	defer log.FinishTracer()
 	ctx := log.StartTestSpan(context.Background())
 
+	unitTest = true
+
+	httpmock.Activate()
+	defer httpmock.DeactivateAndReset()
+
+	// Setup OP1
 	op1 := SetupOperatorPlatform(t, ctx, "op1", "EU")
 	defer op1.CleanupOperatorPlatform(ctx)
 
-	op2 := SetupOperatorPlatform(t, ctx, "op2", "KR")
-	defer op2.CleanupOperatorPlatform(ctx)
+	// Setup OP2
+	op2FedId := uuid.New().String()
+	op2OperatorId := "op2"
+	op2FedAddr := "111.111.111.111"
+	op2Zones := []ormapi.OPZoneInfo{
+		ormapi.OPZoneInfo{
+			ZoneId:      "op2-testzone0",
+			GeoLocation: "1.1",
+			City:        "New York",
+			State:       "New York",
+			EdgeCount:   2,
+		},
+		ormapi.OPZoneInfo{
+			ZoneId:      "op2-testzone1",
+			GeoLocation: "2.2",
+			City:        "Nevada",
+			State:       "Nevada",
+			EdgeCount:   1,
+		},
+	}
 
-	//for _, clientRun := range getUnitTestClientRuns() {
-	restClient := &ormclient.Client{}
-	testFederationInterconnect(t, ctx, restClient, op1, op2)
-	//}
+	httpmock.RegisterResponder("POST", "http://"+op2FedAddr+"/operator/partner",
+		func(req *http.Request) (*http.Response, error) {
+			body, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "failed to read body"), nil
+			}
+			fedReq := ormapi.OPRegistrationRequest{}
+			err = json.Unmarshal(body, &fedReq)
+			if err != nil {
+				fmt.Printf("failed to unmarshal req data %s: %v\n", body, err)
+				return httpmock.NewStringResponse(400, "failed to read body"), nil
+			}
+
+			out := ormapi.OPRegistrationResponse{
+				OrigOperatorId:    op2OperatorId,
+				OrigFederationId:  op2FedId,
+				PartnerOperatorId: fedReq.OperatorId,
+				DestFederationId:  fedReq.OrigFederationId,
+				MCC:               "340",
+				MNC:               []string{"120", "121", "122"},
+				PartnerZone:       op2Zones,
+			}
+			return httpmock.NewJsonResponse(200, out)
+		},
+	)
+
+	for _, clientRun := range getUnitTestClientRuns() {
+		testFederationInterconnect(t, ctx, clientRun, op1)
+		break
+	}
 }
 
-func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, op1, op2 *OPAttr) {
+func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, op1 *OPAttr) {
 	mcClient := mctestclient.NewClient(clientRun)
+
+	// Create self federation key
 	op1FedReq := &ormapi.OperatorFederation{
 		OperatorId:  op1.operatorId,
 		CountryCode: op1.countryCode,
 		MCC:         "340",
 		MNCs:        "120,121,122",
 	}
-	op1.SetupGlobals()
 	op1Resp, status, err := mcClient.CreateSelfFederation(op1.uri, op1.tokenOper, op1FedReq)
 	require.Nil(t, err, "create self federation")
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, op1Resp.FederationId)
 
-	op2FedReq := &ormapi.OperatorFederation{
-		OperatorId:  op2.operatorId,
-		CountryCode: op2.countryCode,
-		MCC:         "340",
-		MNCs:        "120,121,122",
-	}
-	op2.SetupGlobals()
-	op2Resp, status, err := mcClient.CreateSelfFederation(op2.uri, op2.tokenOper, op2FedReq)
-	require.Nil(t, err, "create self federation")
-	require.Equal(t, http.StatusOK, status)
-	require.NotEmpty(t, op2Resp.FederationId)
+	op2FedId := uuid.New().String()
+	op2OperatorId := "op2"
+	op2CountryCode := "KR"
+	op2FedAddr := "111.111.111.111"
 
+	// Setup partner federation (OP2)
 	partnerOp2FedReq := &ormapi.OperatorFederation{
-		OperatorId:     op2.operatorId,
-		CountryCode:    op2.countryCode,
-		FederationId:   op2Resp.FederationId,
-		FederationAddr: op2.fedAddr,
+		OperatorId:     op2OperatorId,
+		CountryCode:    op2CountryCode,
+		FederationId:   op2FedId,
+		FederationAddr: op2FedAddr,
 	}
-	op1.SetupGlobals()
-	op2SharedZones, status, err := mcClient.CreatePartnerFederation(op1.uri, op1.tokenOper, partnerOp2FedReq)
+	_, status, err = mcClient.CreatePartnerFederation(op1.uri, op1.tokenOper, partnerOp2FedReq)
 	require.Nil(t, err, "create self federation")
 	require.Equal(t, http.StatusOK, status)
+
+	// Create OP1 Operator Zones
+	clList, status, err := ormtestutil.TestPermShowCloudlet(mcClient, op1.uri, op1.tokenOper, op1.countryCode, op1.operatorId)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	for _, cl := range clList {
+		fedZone := &ormapi.OperatorZoneCloudletMap{
+			FederationId: op1Resp.FederationId,
+			ZoneId:       fmt.Sprintf("op1-testzone%s", cl.Key.Name),
+			GeoLocation:  fmt.Sprintf("%s.111", cl.Key.Name),
+			City:         "New York",
+			State:        "New York",
+			Cloudlets:    []string{cl.Key.Name},
+		}
+		_, status, err = mcClient.CreateFederationZone(op1.uri, op1.tokenOper, fedZone)
+		require.Nil(t, err, "create federation zone")
+		require.Equal(t, http.StatusOK, status)
+	}
+	op1ZonesCnt := len(clList)
+	op2ZonesCnt := 2
+
+	// Show operator zones, this will include zones shared by federation partner as well
+	lookup := &ormapi.OperatorZoneCloudletMap{}
+	opZones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, lookup)
+	require.Nil(t, err, "show federation zones")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, op1ZonesCnt+op2ZonesCnt, len(opZones), "op1 + op2 zones")
 
 	require.True(t, false)
 }

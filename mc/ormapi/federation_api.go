@@ -34,7 +34,7 @@ type OperatorZone struct {
 	// required: true
 	ZoneId string `gorm:"primary_key"`
 	// Owner ID of the zone
-	FederationId string `gorm:"unique;not null" json:"federationId"`
+	FederationId string `json:"federationId"`
 	// Mobile country code of operator sending the request
 	MCC string `json:"MCC"`
 	// GPS co-ordinates associated with the zone (in decimal format)
@@ -63,7 +63,7 @@ type OperatorZoneCloudletMap struct {
 	State string
 	// Type of locality eg rural, urban etc.
 	Locality string
-	// Cloudlet name belonging to the federation zone
+	// List of cloudlets belonging to the federation zone
 	Cloudlets []string
 }
 

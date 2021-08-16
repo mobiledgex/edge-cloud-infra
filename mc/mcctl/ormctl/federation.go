@@ -33,6 +33,26 @@ func init() {
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federation/partner/create",
 		},
+		&ApiCommand{
+			Name:         "CreateFederationZone",
+			Use:          "create",
+			Short:        "Create Federation Zones",
+			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
+			Comments:     FederationZoneComments,
+			ReqData:      &ormapi.OperatorZoneCloudletMap{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/zone/create",
+		},
+		&ApiCommand{
+			Name:         "ShowFederationZone",
+			Use:          "show",
+			Short:        "Show Federation Zones",
+			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
+			Comments:     FederationZoneComments,
+			ReqData:      &ormapi.OperatorZoneCloudletMap{},
+			ReplyData:    &[]ormapi.OperatorZoneCloudletMap{},
+			Path:         "/auth/federation/zone/show",
+		},
 	}
 	AllApis.AddGroup(FederationGroup, "Federation APIs", cmds)
 }
@@ -64,4 +84,24 @@ var FederationComments = map[string]string{
 	"mcc":             "Mobile country code of operator sending the request",
 	"mncs":            "Comma separated list of mobile network codes of operator sending the request",
 	"locatorendpoint": "IP and Port of discovery service URL of gMEC",
+}
+
+var FederationZoneOptionalArgs = []string{
+	"zoneid",
+	"federationid",
+	"geolocation",
+	"city",
+	"state",
+	"locality",
+	"cloudlets",
+}
+
+var FederationZoneComments = map[string]string{
+	"zoneid":       "Globally unique string used to authenticate operations over federation interface",
+	"federationid": "Globally unique string used to authenticate operations over federation interface",
+	"geolocation":  "GPS co-ordinates associated with the zone (in decimal format)",
+	"city":         "Comma seperated list of cities under this zone",
+	"state":        "Comma seperated list of states under this zone",
+	"locality":     "Type of locality eg rural, urban etc.",
+	"cloudlets":    "List of cloudlets belonging to the federation zone",
 }

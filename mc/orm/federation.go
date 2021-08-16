@@ -103,6 +103,9 @@ func getSelfFederationInfo(ctx context.Context) (*ormapi.OperatorFederation, err
 
 func sendFederationRequest(method, fedAddr, endpoint string, reqData, replyData interface{}) error {
 	restClient := &ormclient.Client{}
+	if unitTest {
+		restClient.ForceDefaultTransport = true
+	}
 	requestUrl := fmt.Sprintf("http://%s%s", fedAddr, endpoint)
 	status, err := restClient.HttpJsonSend(method, requestUrl, "", reqData, replyData)
 	if err != nil {
@@ -242,6 +245,10 @@ func CreateFederationZone(c echo.Context) error {
 		},
 	}
 	authzCloudlet := AuthzCloudlet{}
+	err = authzCloudlet.populate(ctx, rc.region, rc.username, selfFed.OperatorId, ResourceCloudlets, ActionView)
+	if err != nil {
+		return err
+	}
 	err = ShowCloudletStream(ctx, &rc, &cloudletLookup, func(cloudlet *edgeproto.Cloudlet) error {
 		authzOk, filterOutput := authzCloudlet.Ok(cloudlet)
 		if authzOk {
@@ -336,16 +343,11 @@ func ShowFederationZone(c echo.Context) error {
 	if err := c.Bind(&opZoneReq); err != nil {
 		return bindErr(err)
 	}
-	// sanity check
-	if opZoneReq.ZoneId == "" {
-		return fmt.Errorf("Missing Zone ID")
-	}
 	// get self federation information
 	selfFed, err := getSelfFederationInfo(ctx)
 	if err != nil {
 		return err
 	}
-	opZoneReq.FederationId = selfFed.FederationId
 	if err := authorized(ctx, claims.Username, selfFed.OperatorId,
 		ResourceCloudlets, ActionManage); err != nil {
 		return err
@@ -354,10 +356,7 @@ func ShowFederationZone(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if len(fedZones) != 1 {
-		return fmt.Errorf("Invalid zone ID")
-	}
-	return c.JSON(http.StatusOK, fedZones[0])
+	return c.JSON(http.StatusOK, fedZones)
 }
 
 func VerifyFederationAccess(ctx context.Context, selfFed *ormapi.OperatorFederation, origKey, destKey, operatorId, countryCode string) error {

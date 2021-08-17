@@ -196,7 +196,7 @@ var SettingsComments = map[string]string{
 	"locationtilesidelengthkm":                                    "Length of location tiles side for latency metrics (km)",
 	"edgeeventsmetricscontinuousqueriescollectionintervals:empty": "List of collection intervals for Continuous Queries for EdgeEvents metrics, specify edgeeventsmetricscontinuousqueriescollectionintervals:empty=true to clear",
 	"edgeeventsmetricscontinuousqueriescollectionintervals:#.interval":  "Collection interval for Influxdb (Specifically used for continuous query intervals) (Data from old continuous queries will be inaccessible if intervals are updated)",
-	"edgeeventsmetricscontinuousqueriescollectionintervals:#.retention": "Retention duration for Influxdb interval",
+	"edgeeventsmetricscontinuousqueriescollectionintervals:#.retention": "Retention duration for Influxdb interval (0 uses default retention policy)",
 	"influxdbdownsampledmetricsretention":                               "Default retention policy for downsampled influx db (duration)",
 	"influxdbedgeeventsmetricsretention":                                "Default retention policy for edgeevents metrics influx db (duration)",
 	"appinstclientcleanupinterval":                                      "AppInstClient cleanup thread run interval",

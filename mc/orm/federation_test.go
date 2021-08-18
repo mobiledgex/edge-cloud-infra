@@ -302,7 +302,7 @@ func TestFederation(t *testing.T) {
 				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
 				return httpmock.NewStringResponse(400, "failed to read body"), nil
 			}
-			zoneDeRegReq := ormapi.OPZoneDeRegister{}
+			zoneDeRegReq := ormapi.OPZoneRequest{}
 			err = json.Unmarshal(body, &zoneDeRegReq)
 			if err != nil {
 				fmt.Printf("failed to unmarshal req data %s: %v\n", body, err)

@@ -1895,6 +1895,38 @@ func (s *Client) CreatePartnerFederation(uri string, token string, in *ormapi.Op
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) UpdatePartnerFederation(uri string, token string, in *cli.MapData) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdatePartnerFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeletePartnerFederation(uri string, token string, in *ormapi.OperatorFederation) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeletePartnerFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
 func (s *Client) CreateFederationZone(uri string, token string, in *ormapi.OperatorZoneCloudletMap) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
@@ -1904,6 +1936,22 @@ func (s *Client) CreateFederationZone(uri string, token string, in *ormapi.Opera
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("CreateFederationZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteFederationZone(uri string, token string, in *ormapi.OperatorZoneCloudletMap) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteFederationZone")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError

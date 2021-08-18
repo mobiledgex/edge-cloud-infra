@@ -812,9 +812,13 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 
 	auth.POST("/federation/self/create", CreateSelfFederation)
 	auth.POST("/federation/partner/create", CreatePartnerFederation)
+	auth.POST("/federation/partner/update", UpdatePartnerFederation)
+	auth.POST("/federation/partner/delete", DeletePartnerFederation)
 	auth.POST("/federation/zone/create", CreateFederationZone)
+	auth.POST("/federation/zone/delete", DeleteFederationZone)
 	auth.POST("/federation/zone/show", ShowFederationZone)
 	auth.POST("/federation/zone/register", RegisterFederationZone)
+	auth.POST("/federation/zone/deregister", DeRegisterFederationZone)
 
 	// Generate new short-lived token to authenticate websocket connections
 	// Note: Web-client should not store auth token as part of local storage,
@@ -914,9 +918,21 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 
 		federationEcho.Use(logger)
 
-		federationEcho.POST(F_API_OPERATOR_PARTNER, FederationOperatorPartner)
+		// Create directed federation with partner gMEC
+		federationEcho.POST(F_API_OPERATOR_PARTNER, FederationOperatorPartnerCreate)
+		// Update attributes of an existing federation with a partner gMEC
+		federationEcho.PUT(F_API_OPERATOR_PARTNER, FederationOperatorPartnerUpdate)
+		// Remove existing federation with a partner gMEC
+		federationEcho.DELETE(F_API_OPERATOR_PARTNER, FederationOperatorPartnerDelete)
+		// Register a zone of partner gMEC
 		federationEcho.POST(F_API_OPERATOR_ZONE, FederationOperatorZoneRegister)
+		// Deregister a partner gMEC zone
 		federationEcho.DELETE(F_API_OPERATOR_ZONE, FederationOperatorZoneDeRegister)
+		// Notify partner gMEC about a new zone being added
+		federationEcho.POST(F_API_OPERATOR_NOTIFY_ZONE, FederationOperatorZoneShare)
+		// Notify partner gMEC about a zone being unshared
+		federationEcho.DELETE(F_API_OPERATOR_NOTIFY_ZONE, FederationOperatorZoneUnShare)
+
 		server.federationEcho = federationEcho
 
 		go func() {

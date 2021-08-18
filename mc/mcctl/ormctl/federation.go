@@ -34,6 +34,27 @@ func init() {
 			Path:         "/auth/federation/partner/create",
 		},
 		&ApiCommand{
+			Name:         "UpdatePartnerFederation",
+			Use:          "update",
+			Short:        "Update Partner Federation",
+			RequiredArgs: strings.Join(FederationRequiredArgs, " "),
+			OptionalArgs: strings.Join(FederationUpdateOptionalArgs, " "),
+			Comments:     FederationComments,
+			ReqData:      &ormapi.OperatorFederation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/partner/update",
+		},
+		&ApiCommand{
+			Name:         "DeletePartnerFederation",
+			Use:          "delete",
+			Short:        "Delete Partner Federation",
+			RequiredArgs: strings.Join(FederationRequiredArgs, " "),
+			Comments:     FederationComments,
+			ReqData:      &ormapi.OperatorFederation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/partner/delete",
+		},
+		&ApiCommand{
 			Name:         "CreateFederationZone",
 			Use:          "create",
 			Short:        "Create Federation Zones",
@@ -43,6 +64,17 @@ func init() {
 			ReqData:      &ormapi.OperatorZoneCloudletMap{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federation/zone/create",
+		},
+		&ApiCommand{
+			Name:         "DeleteFederationZone",
+			Use:          "delete",
+			Short:        "Delete Federation Zones",
+			RequiredArgs: strings.Join(FederationZoneRequiredArgs, " "),
+			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
+			Comments:     FederationZoneComments,
+			ReqData:      &ormapi.OperatorZoneCloudletMap{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/zone/delete",
 		},
 		&ApiCommand{
 			Name:         "RegisterFederationZone",
@@ -89,6 +121,12 @@ var FederationRequiredArgs = []string{
 }
 
 var FederationOptionalArgs = []string{
+	"locatorendpoint",
+}
+
+var FederationUpdateOptionalArgs = []string{
+	"mcc",
+	"mncs",
 	"locatorendpoint",
 }
 

@@ -88,6 +88,19 @@ type OPRegistrationRequest struct {
 	ApplicationAnchormentReq bool `json:"applicationAnchormentReq"`
 }
 
+type OPFederationRequest struct {
+	// Request id as sent in federation request
+	RequestId string `json:"requestId"`
+	// Globally unique string to identify an operator gMEC
+	Operator string `json:"operator"`
+	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	Country string `json:"country"`
+	// Origin OP federation ID
+	OrigFederationId string `json:"origFederationId"`
+	// Destination OP federation ID
+	DestFederationId string `json:"destFederationId"`
+}
+
 type OPRegistrationResponse struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
@@ -107,6 +120,25 @@ type OPRegistrationResponse struct {
 	LocatorEndPoint string `json:"locatorEndPoint"`
 	// List of zones partner gMEC is willing to share
 	PartnerZone []OPZoneInfo `json:"partnerZone"`
+}
+
+type OPUpdateMECNetConf struct {
+	// Request id as sent in federation request
+	RequestId string `json:"requestId"`
+	// Globally unique string to identify an operator gMEC
+	Operator string `json:"operator"`
+	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	Country string `json:"country"`
+	// Origin OP federation ID
+	OrigFederationId string `json:"origFederationId"`
+	// Destination OP federation ID
+	DestFederationId string `json:"destFederationId"`
+	// Mobile country code of operator sending the request
+	MCC string `json:"MCC"`
+	// Mobile network codes of operator sending the request
+	MNC []string `json:"MNC"`
+	// IP and Port of discovery service URL of gMEC
+	LocatorEndPoint string `json:"locatorEndPoint"`
 }
 
 type OPZoneInfo struct {
@@ -175,17 +207,32 @@ type OPZoneRegisterResponse struct {
 	Zone OPZoneRegisterDetails `json:"zone"`
 }
 
-type OPZoneDeRegister struct {
+type OPZoneRequest struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
 	// Globally unique string to identify an operator gMEC
 	Operator string `json:"operator"`
 	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
 	Country string `json:"country"`
-	// Zone identifier of partner operator. This zone will be de-registered
+	// Zone identifier of partner operator
 	Zone string `json:"zone"`
 	// Origin OP federation ID
 	OrigFederationId string `json:"origFederationId"`
 	// Destination OP federation ID
 	DestFederationId string `json:"destFederationId"`
+}
+
+type OPZoneNotify struct {
+	// Request id as sent in federation request
+	RequestId string `json:"requestId"`
+	// Globally unique string to identify an operator gMEC
+	Operator string `json:"operator"`
+	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	Country string `json:"country"`
+	// Origin OP federation ID
+	OrigFederationId string `json:"origFederationId"`
+	// Destination OP federation ID
+	DestFederationId string `json:"destFederationId"`
+	// Details of the new zone to be shared
+	PartnerZone OPZoneInfo `json:"partnerZone"`
 }

@@ -814,6 +814,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/federation/partner/create", CreatePartnerFederation)
 	auth.POST("/federation/zone/create", CreateFederationZone)
 	auth.POST("/federation/zone/show", ShowFederationZone)
+	auth.POST("/federation/zone/register", RegisterFederationZone)
 
 	// Generate new short-lived token to authenticate websocket connections
 	// Note: Web-client should not store auth token as part of local storage,
@@ -914,6 +915,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		federationEcho.Use(logger)
 
 		federationEcho.POST(F_API_OPERATOR_PARTNER, FederationOperatorPartner)
+		federationEcho.POST(F_API_OPERATOR_ZONE, FederationOperatorZoneRegister)
+		federationEcho.DELETE(F_API_OPERATOR_ZONE, FederationOperatorZoneDeRegister)
 		server.federationEcho = federationEcho
 
 		go func() {

@@ -13,13 +13,11 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jarcoal/httpmock"
-	"github.com/jinzhu/gorm"
 	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
 	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/nodetest"
@@ -44,6 +42,8 @@ type OPAttr struct {
 	tokenAd     string
 	tokenOper   string
 	fedAddr     string
+	fedId       string
+	zones       []ormapi.OPZoneInfo
 }
 
 func (o *OPAttr) CleanupOperatorPlatform(ctx context.Context) {
@@ -214,26 +214,31 @@ func TestFederation(t *testing.T) {
 
 	// Setup OP2
 	op2FedId := uuid.New().String()
-	op2OperatorId := "op2"
-	op2FedAddr := "111.111.111.111"
+	op2 := &OPAttr{
+		operatorId:  "op2",
+		countryCode: "KR",
+		fedId:       op2FedId,
+		fedAddr:     "111.111.111.111",
+	}
 	op2Zones := []ormapi.OPZoneInfo{
 		ormapi.OPZoneInfo{
-			ZoneId:      "op2-testzone0",
+			ZoneId:      fmt.Sprintf("%s-testzone0", op2.operatorId),
 			GeoLocation: "1.1",
 			City:        "New York",
 			State:       "New York",
 			EdgeCount:   2,
 		},
 		ormapi.OPZoneInfo{
-			ZoneId:      "op2-testzone1",
+			ZoneId:      fmt.Sprintf("%s-testzone1", op2.operatorId),
 			GeoLocation: "2.2",
 			City:        "Nevada",
 			State:       "Nevada",
 			EdgeCount:   1,
 		},
 	}
+	op2.zones = op2Zones
 
-	httpmock.RegisterResponder("POST", "http://"+op2FedAddr+"/operator/partner",
+	httpmock.RegisterResponder("POST", "http://"+op2.fedAddr+"/operator/partner",
 		func(req *http.Request) (*http.Response, error) {
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
@@ -248,7 +253,7 @@ func TestFederation(t *testing.T) {
 			}
 
 			out := ormapi.OPRegistrationResponse{
-				OrigOperatorId:    op2OperatorId,
+				OrigOperatorId:    op2.operatorId,
 				OrigFederationId:  op2FedId,
 				PartnerOperatorId: fedReq.OperatorId,
 				DestFederationId:  fedReq.OrigFederationId,
@@ -260,13 +265,61 @@ func TestFederation(t *testing.T) {
 		},
 	)
 
+	httpmock.RegisterResponder("POST", "http://"+op2.fedAddr+"/operator/zone",
+		func(req *http.Request) (*http.Response, error) {
+			body, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "failed to read body"), nil
+			}
+			zoneRegReq := ormapi.OPZoneRegister{}
+			err = json.Unmarshal(body, &zoneRegReq)
+			if err != nil {
+				fmt.Printf("failed to unmarshal req data %s: %v\n", body, err)
+				return httpmock.NewStringResponse(400, "failed to read body"), nil
+			}
+
+			if len(zoneRegReq.Zones) != 1 {
+				return httpmock.NewStringResponse(400, "only one zone allowed"), nil
+			}
+
+			out := ormapi.OPZoneRegisterResponse{
+				LeadOperatorId:    op2.operatorId,
+				FederationId:      op2FedId,
+				PartnerOperatorId: op1.operatorId,
+				Zone: ormapi.OPZoneRegisterDetails{
+					ZoneId:            zoneRegReq.Zones[0],
+					RegistrationToken: zoneRegReq.OrigFederationId,
+				},
+			}
+			return httpmock.NewJsonResponse(200, out)
+		},
+	)
+	httpmock.RegisterResponder("DELETE", "http://"+op2.fedAddr+"/operator/zone",
+		func(req *http.Request) (*http.Response, error) {
+			body, err := ioutil.ReadAll(req.Body)
+			if err != nil {
+				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "failed to read body"), nil
+			}
+			zoneDeRegReq := ormapi.OPZoneDeRegister{}
+			err = json.Unmarshal(body, &zoneDeRegReq)
+			if err != nil {
+				fmt.Printf("failed to unmarshal req data %s: %v\n", body, err)
+				return httpmock.NewStringResponse(400, "failed to read body"), nil
+			}
+
+			return httpmock.NewStringResponse(200, "successfully deregistered"), nil
+		},
+	)
+
 	for _, clientRun := range getUnitTestClientRuns() {
-		testFederationInterconnect(t, ctx, clientRun, op1)
+		testFederationInterconnect(t, ctx, clientRun, op1, op2)
 		break
 	}
 }
 
-func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, op1 *OPAttr) {
+func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, op1, op2 *OPAttr) {
 	mcClient := mctestclient.NewClient(clientRun)
 
 	// Create self federation key
@@ -281,17 +334,12 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, op1Resp.FederationId)
 
-	op2FedId := uuid.New().String()
-	op2OperatorId := "op2"
-	op2CountryCode := "KR"
-	op2FedAddr := "111.111.111.111"
-
 	// Setup partner federation (OP2)
 	partnerOp2FedReq := &ormapi.OperatorFederation{
-		OperatorId:     op2OperatorId,
-		CountryCode:    op2CountryCode,
-		FederationId:   op2FedId,
-		FederationAddr: op2FedAddr,
+		OperatorId:     op2.operatorId,
+		CountryCode:    op2.countryCode,
+		FederationId:   op2.fedId,
+		FederationAddr: op2.fedAddr,
 	}
 	_, status, err = mcClient.CreatePartnerFederation(op1.uri, op1.tokenOper, partnerOp2FedReq)
 	require.Nil(t, err, "create self federation")
@@ -315,7 +363,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 		require.Equal(t, http.StatusOK, status)
 	}
 	op1ZonesCnt := len(clList)
-	op2ZonesCnt := 2
+	op2ZonesCnt := len(op2.zones)
 
 	// Show operator zones, this will include zones shared by federation partner as well
 	lookup := &ormapi.OperatorZoneCloudletMap{}
@@ -323,6 +371,20 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Nil(t, err, "show federation zones")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, op1ZonesCnt+op2ZonesCnt, len(opZones), "op1 + op2 zones")
+
+	// Register all the partner zones to be used
+	for _, opZone := range opZones {
+		zoneRegReq := &ormapi.OperatorZoneCloudletMap{
+			ZoneId: opZone.ZoneId,
+		}
+		_, status, err := mcClient.RegisterFederationZone(op1.uri, op1.tokenOper, zoneRegReq)
+		if opZone.FederationId == op1Resp.FederationId {
+			require.NotNil(t, err, "cannot register self federation zone")
+		} else {
+			require.Nil(t, err, "register federation zone")
+			require.Equal(t, http.StatusOK, status)
+		}
+	}
 
 	require.True(t, false)
 }

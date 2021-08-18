@@ -45,6 +45,8 @@ type OperatorZone struct {
 	State string `json:"state"`
 	// Type of locality eg rural, urban etc.
 	Locality string `json:"locality"`
+	// Status of the zone: Registered/DeRegistered
+	Status int `json:"status"`
 }
 
 // API Objects
@@ -120,4 +122,70 @@ type OPZoneInfo struct {
 	Locality string `json:"locality"`
 	// Number of edges in the zone
 	EdgeCount int `json:"edgeCount"`
+}
+
+type OPZoneRegister struct {
+	// Request id as sent in federation request
+	RequestId string `json:"requestId"`
+	// Globally unique string to identify an operator gMEC
+	Operator string `json:"operator"`
+	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	Country string `json:"country"`
+	// Unique identifier for zone in the country of partner operator
+	Zones []string `json:"zones"`
+	// Origin OP federation ID
+	OrigFederationId string `json:"origFederationId"`
+	// Destination OP federation ID
+	DestFederationId string `json:"destFederationId"`
+}
+
+// Resource details on a zone
+type OPZoneResourceInfo struct {
+	// Total maximum cpu physical cores that can be allocated for lead operator user apps
+	CPU int64 `json:"cpu"`
+	// Total maximum memory (GBs) that can be allocated for lead operator user apps
+	RAM int64 `json:"ram"`
+	// Total maximum disk (Gbs) that can be allocated for lead operator user apps
+	Disk int64 `json:"disk"`
+	// Total maximum gpu that can be allocated for lead operator user apps
+	GPU int64 `json:"gpu"`
+}
+
+type OPZoneRegisterDetails struct {
+	// Globally Unique identifier of the zone
+	ZoneId string `json:"zoneId"`
+	// Federation key of operator responding the request
+	RegistrationToken string `json:"registrationToken"`
+	// Guaranteed resource details on a zone
+	GuaranteedResources OPZoneResourceInfo `json:"guaranteedResources"`
+	// Upper limit quota of resources in a zone
+	UpperLimitQuota OPZoneResourceInfo `json:"upperLimitQuota"`
+}
+
+type OPZoneRegisterResponse struct {
+	// Request id as sent in federation request
+	RequestId string `json:"requestId"`
+	// Globally unique string to identify an operator gMEC
+	LeadOperatorId string `json:"leadOperatorId"`
+	// Globally unique string to identify an operator gMEC
+	PartnerOperatorId string `json:"partnerOperatorId"`
+	// Federation ID
+	FederationId string `json:"federationId"`
+	// Partner gMEC zone details
+	Zone OPZoneRegisterDetails `json:"zone"`
+}
+
+type OPZoneDeRegister struct {
+	// Request id as sent in federation request
+	RequestId string `json:"requestId"`
+	// Globally unique string to identify an operator gMEC
+	Operator string `json:"operator"`
+	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	Country string `json:"country"`
+	// Zone identifier of partner operator. This zone will be de-registered
+	Zone string `json:"zone"`
+	// Origin OP federation ID
+	OrigFederationId string `json:"origFederationId"`
+	// Destination OP federation ID
+	DestFederationId string `json:"destFederationId"`
 }

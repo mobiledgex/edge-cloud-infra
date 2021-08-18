@@ -37,6 +37,7 @@ func init() {
 			Name:         "CreateFederationZone",
 			Use:          "create",
 			Short:        "Create Federation Zones",
+			RequiredArgs: strings.Join(FederationZoneRequiredArgs, " "),
 			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
 			Comments:     FederationZoneComments,
 			ReqData:      &ormapi.OperatorZoneCloudletMap{},
@@ -44,10 +45,32 @@ func init() {
 			Path:         "/auth/federation/zone/create",
 		},
 		&ApiCommand{
+			Name:         "RegisterFederationZone",
+			Use:          "register",
+			Short:        "Register Federation Zone",
+			RequiredArgs: strings.Join(FederationZoneRequiredArgs, " "),
+			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
+			Comments:     FederationZoneComments,
+			ReqData:      &ormapi.OperatorZoneCloudletMap{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/zone/register",
+		},
+		&ApiCommand{
+			Name:         "DeRegisterFederationZone",
+			Use:          "deregister",
+			Short:        "DeRegister Federation Zone",
+			RequiredArgs: strings.Join(FederationZoneRequiredArgs, " "),
+			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
+			Comments:     FederationZoneComments,
+			ReqData:      &ormapi.OperatorZoneCloudletMap{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/zone/deregister",
+		},
+		&ApiCommand{
 			Name:         "ShowFederationZone",
 			Use:          "show",
 			Short:        "Show Federation Zones",
-			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
+			OptionalArgs: strings.Join(append(FederationZoneRequiredArgs, FederationZoneOptionalArgs...), " "),
 			Comments:     FederationZoneComments,
 			ReqData:      &ormapi.OperatorZoneCloudletMap{},
 			ReplyData:    &[]ormapi.OperatorZoneCloudletMap{},
@@ -87,13 +110,16 @@ var FederationComments = map[string]string{
 }
 
 var FederationZoneOptionalArgs = []string{
-	"zoneid",
 	"federationid",
 	"geolocation",
 	"city",
 	"state",
 	"locality",
 	"cloudlets",
+}
+
+var FederationZoneRequiredArgs = []string{
+	"zoneid",
 }
 
 var FederationZoneComments = map[string]string{

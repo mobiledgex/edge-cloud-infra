@@ -1911,6 +1911,38 @@ func (s *Client) CreateFederationZone(uri string, token string, in *ormapi.Opera
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) RegisterFederationZone(uri string, token string, in *ormapi.OperatorZoneCloudletMap) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("RegisterFederationZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeRegisterFederationZone(uri string, token string, in *ormapi.OperatorZoneCloudletMap) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeRegisterFederationZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
 func (s *Client) ShowFederationZone(uri string, token string, in *ormapi.OperatorZoneCloudletMap) ([]ormapi.OperatorZoneCloudletMap, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri

@@ -119,6 +119,7 @@ var SettingsOptionalArgs = []string{
 	"disableratelimit",
 	"maxnumperipratelimiters",
 	"resourcesnapshotthreadinterval",
+	"flavorrefreshthreadinterval",
 }
 var SettingsAliasArgs = []string{
 	"fields=settings.fields",
@@ -161,6 +162,7 @@ var SettingsAliasArgs = []string{
 	"disableratelimit=settings.disableratelimit",
 	"maxnumperipratelimiters=settings.maxnumperipratelimiters",
 	"resourcesnapshotthreadinterval=settings.resourcesnapshotthreadinterval",
+	"flavorrefreshthreadinterval=settings.flavorrefreshthreadinterval",
 }
 var SettingsComments = map[string]string{
 	"fields":                                                      "Fields are used for the Update API to specify which fields to apply",
@@ -203,6 +205,7 @@ var SettingsComments = map[string]string{
 	"disableratelimit":                                                 "Disable rate limiting for APIs (default is false)",
 	"maxnumperipratelimiters":                                          "Maximum number of perip rate limiters for an endpoint (ie. number of ips stored to rate limit)",
 	"resourcesnapshotthreadinterval":                                   "ResourceSnapshot Refresh thread run interval",
+	"flavorrefreshthreadinterval":                                      "Flavor refresh thread cadence",
 }
 var SettingsSpecialArgs = map[string]string{
 	"settings.fields": "StringArray",

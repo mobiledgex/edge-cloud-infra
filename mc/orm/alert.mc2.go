@@ -235,6 +235,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// DisableRateLimit: 37
 	// MaxNumPerIpRateLimiters: 39
 	// ResourceSnapshotThreadInterval: 41
+	// FlavorRefreshThreadInterval: 42
 	// ```
 	// Security:
 	//   Bearer:

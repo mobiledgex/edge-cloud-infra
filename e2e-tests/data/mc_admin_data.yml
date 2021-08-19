@@ -82,6 +82,7 @@ regiondata:
       disableratelimit: true
       maxnumperipratelimiters: 10000
       resourcesnapshotthreadinterval: 10m
+      flavorrefreshthreadinterval: 60m
     flavors:
     - key:
         name: x1.tiny
@@ -141,6 +142,7 @@ regiondata:
       disableratelimit: true
       maxnumperipratelimiters: 10000
       resourcesnapshotthreadinterval: 10m
+      flavorrefreshthreadinterval: 60m
     flavors:
     - key:
         name: x1.tiny

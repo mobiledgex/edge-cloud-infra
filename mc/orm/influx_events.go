@@ -57,7 +57,6 @@ func AppInstEventsQuery(obj *ormapi.RegionAppInstEvents, cloudletList []string) 
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		CloudletList: generateCloudletList(cloudletList),
 	}
-	arg.Limit = obj.Limit
 	if obj.AppInst.AppKey.Organization != "" {
 		arg.OrgField = "apporg"
 		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
@@ -67,8 +66,8 @@ func AppInstEventsQuery(obj *ormapi.RegionAppInstEvents, cloudletList []string) 
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
-
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -79,7 +78,6 @@ func ClusterEventsQuery(obj *ormapi.RegionClusterInstEvents, cloudletList []stri
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
 		CloudletList: generateCloudletList(cloudletList),
 	}
-	arg.Limit = obj.Limit
 	if obj.ClusterInst.Organization != "" {
 		arg.OrgField = "clusterorg"
 		arg.ApiCallerOrg = obj.ClusterInst.Organization
@@ -89,8 +87,8 @@ func ClusterEventsQuery(obj *ormapi.RegionClusterInstEvents, cloudletList []stri
 		arg.ApiCallerOrg = obj.ClusterInst.CloudletKey.Organization
 		arg.ClusterOrg = obj.ClusterInst.Organization
 	}
-
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -103,8 +101,8 @@ func CloudletEventsQuery(obj *ormapi.RegionCloudletEvents) string {
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
 	}
-	arg.Limit = obj.Limit
-	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, operatorInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
 // Common method to handle both app and cluster metrics

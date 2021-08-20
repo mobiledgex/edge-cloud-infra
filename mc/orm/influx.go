@@ -37,24 +37,20 @@ type InfluxDBContext struct {
 
 type influxQueryArgs struct {
 	metricsCommonQueryArgs
-	Selector     string
-	Measurement  string
-	AppInstName  string
-	AppVersion   string
-	ClusterName  string
-	CloudletName string
-	OrgField     string
-	ApiCallerOrg string
-	CloudletOrg  string
-	ClusterOrg   string
-	AppOrg       string
-	//	StartTime      string - part of metricsCommonQueryArgs
-	//	EndTime        string - part of metricsCommonQueryArgs
-	Last           int // it's Limit and part of metricsCommonQueryArgs
+	Selector       string
+	Measurement    string
+	AppInstName    string
+	AppVersion     string
+	ClusterName    string
+	CloudletName   string
+	OrgField       string
+	ApiCallerOrg   string
+	CloudletOrg    string
+	ClusterOrg     string
+	AppOrg         string
 	DeploymentType string
 	CloudletList   string
 	QueryFilter    string
-	//TimeDefinition string - part of metricsCommonQueryArgs
 }
 
 // TODO: embed this into influxQueryArgs
@@ -309,7 +305,6 @@ func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings
 	return ShowSettingsObj(ctx, rc, in)
 }
 
-// TODO: replace calls to fillTimeAndGetCmd with this function and getInfluxQueryCmd when all metrics structs embed MetricsCommon
 // Fill in MetricsCommonQueryArgs: Depending on if the user specified "Limit", "NumSamples", "StartTime", and "EndTime", adjust the query
 func fillMetricsCommonQueryArgs(m *metricsCommonQueryArgs, tmpl *template.Template, c *ormapi.MetricsCommon, timeDefinition string, minTimeWindow time.Duration) {
 	// Set one of Last or TimeDefinition
@@ -351,36 +346,6 @@ func addQuotesToMeasurementNames(measurement string) string {
 		measurementNames = append(measurementNames, `"`+m+`"`)
 	}
 	return strings.Join(measurementNames, ",")
-}
-
-func fillTimeAndGetCmd(q *influxQueryArgs, tmpl *template.Template, start *time.Time, end *time.Time) string {
-	// Figure out the start/end time range for the query
-	if !start.IsZero() {
-		buf, err := start.MarshalText()
-		if err == nil {
-			q.StartTime = string(buf)
-		}
-	}
-	if !end.IsZero() {
-		buf, err := end.MarshalText()
-		if err == nil {
-			q.EndTime = string(buf)
-		}
-	}
-	// We set max number of responses we will get from InfluxDB
-	if q.Last == 0 {
-		q.Last = maxEntriesFromInfluxDb
-	}
-	if q.Measurement != "" {
-		q.Measurement = addQuotesToMeasurementNames(q.Measurement)
-	}
-	// now that we know all the details of the query - build it
-	buf := bytes.Buffer{}
-	if err := tmpl.Execute(&buf, q); err != nil {
-		log.DebugLog(log.DebugLevelApi, "Failed to run template", "tmpl", tmpl, "args", q, "error", err)
-		return ""
-	}
-	return buf.String()
 }
 
 // Query is a template with a specific set of if/else

@@ -98,7 +98,7 @@ func getCloudletsFromAppInsts(apps *ormapi.RegionAppInstMetrics) []string {
 	return cloudlets
 }
 
-func TestFillTimeAndGetCmd(t *testing.T) {
+func TestGetInfluxMetricsQueryCmd(t *testing.T) {
 	// Single App, default time insterval
 	testSingleApp.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
 	err := validateMetricsCommon(&testSingleApp.MetricsCommon)

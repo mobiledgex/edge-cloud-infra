@@ -27,9 +27,6 @@ var (
 		` group by {{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg` +
 		` fill(previous)` +
 		` order by time desc {{if ne .Limit 0}}limit {{.Limit}}{{end}}`
-
-	ClusterInstGroupQueryT  = ``
-	CloudletInstGroupQueryT = ``
 )
 
 func init() {

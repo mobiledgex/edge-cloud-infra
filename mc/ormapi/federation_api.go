@@ -45,7 +45,7 @@ type OperatorZone struct {
 	State string `json:"state"`
 	// Type of locality eg rural, urban etc.
 	Locality string `json:"locality"`
-	// Status of the zone: Registered/DeRegistered
+	// Status of the zone: None/Registered
 	Status int `json:"status"`
 }
 

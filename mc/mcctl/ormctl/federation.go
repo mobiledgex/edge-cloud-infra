@@ -13,51 +13,70 @@ const (
 func init() {
 	cmds := []*ApiCommand{
 		&ApiCommand{
-			Name:         "CreateSelfFederation",
+			Name:         "CreateFederation",
 			Use:          "create",
-			Short:        "Create Self Federation",
-			RequiredArgs: strings.Join(FederationRequiredArgs, " "),
-			OptionalArgs: strings.Join(FederationOptionalArgs, " "),
+			Short:        "Create Federation",
+			RequiredArgs: "operatorid countrycode mcc mncs",
+			OptionalArgs: "locatorendpoint",
 			Comments:     FederationComments,
 			ReqData:      &ormapi.OperatorFederation{},
 			ReplyData:    &ormapi.OperatorFederation{},
-			Path:         "/auth/federation/self/create",
+			Path:         "/auth/federation/create",
 		},
 		&ApiCommand{
-			Name:         "CreatePartnerFederation",
-			Use:          "create",
-			Short:        "Create Partner Federation",
-			RequiredArgs: strings.Join(FederationRequiredArgs, " "),
-			Comments:     FederationComments,
-			ReqData:      &ormapi.OperatorFederation{},
-			ReplyData:    &ormapi.Result{},
-			Path:         "/auth/federation/partner/create",
-		},
-		&ApiCommand{
-			Name:         "UpdatePartnerFederation",
+			Name:         "UpdateFederation",
 			Use:          "update",
-			Short:        "Update Partner Federation",
-			RequiredArgs: strings.Join(FederationRequiredArgs, " "),
-			OptionalArgs: strings.Join(FederationUpdateOptionalArgs, " "),
+			Short:        "Update Federation",
+			OptionalArgs: "mcc mncs locatorendpoint",
 			Comments:     FederationComments,
 			ReqData:      &ormapi.OperatorFederation{},
 			ReplyData:    &ormapi.Result{},
-			Path:         "/auth/federation/partner/update",
+			Path:         "/auth/federation/update",
 		},
 		&ApiCommand{
-			Name:         "DeletePartnerFederation",
+			Name:         "DeleteFederation",
 			Use:          "delete",
-			Short:        "Delete Partner Federation",
-			RequiredArgs: strings.Join(FederationRequiredArgs, " "),
+			Short:        "Delete Federation",
+			RequiredArgs: "federationid",
 			Comments:     FederationComments,
 			ReqData:      &ormapi.OperatorFederation{},
 			ReplyData:    &ormapi.Result{},
-			Path:         "/auth/federation/partner/delete",
+			Path:         "/auth/federation/delete",
+		},
+		&ApiCommand{
+			Name:         "ShowFederation",
+			Use:          "show",
+			Short:        "Show Federation",
+			OptionalArgs: strings.Join(FederationArgs, " "),
+			Comments:     FederationComments,
+			ReqData:      &ormapi.OperatorFederation{},
+			ReplyData:    &[]ormapi.OperatorFederation{},
+			Path:         "/auth/federation/show",
+		},
+		&ApiCommand{
+			Name:         "AddFederationPartner",
+			Use:          "addpartner",
+			Short:        "Add Federation Partner",
+			RequiredArgs: "federationid federationaddr operatorid countrycode",
+			Comments:     FederationComments,
+			ReqData:      &ormapi.OperatorFederation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/partner/add",
+		},
+		&ApiCommand{
+			Name:         "RemoveFederationPartner",
+			Use:          "removepartner",
+			Short:        "Remove Federation Partner",
+			RequiredArgs: "federationid",
+			Comments:     FederationComments,
+			ReqData:      &ormapi.OperatorFederation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/partner/remove",
 		},
 		&ApiCommand{
 			Name:         "CreateFederationZone",
-			Use:          "create",
-			Short:        "Create Federation Zones",
+			Use:          "createzone",
+			Short:        "Create Federation Zone",
 			RequiredArgs: strings.Join(FederationZoneRequiredArgs, " "),
 			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
 			Comments:     FederationZoneComments,
@@ -67,10 +86,9 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "DeleteFederationZone",
-			Use:          "delete",
-			Short:        "Delete Federation Zones",
+			Use:          "deletezone",
+			Short:        "Delete Federation Zone",
 			RequiredArgs: strings.Join(FederationZoneRequiredArgs, " "),
-			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
 			Comments:     FederationZoneComments,
 			ReqData:      &ormapi.OperatorZoneCloudletMap{},
 			ReplyData:    &ormapi.Result{},
@@ -78,10 +96,9 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "RegisterFederationZone",
-			Use:          "register",
+			Use:          "registerzone",
 			Short:        "Register Federation Zone",
 			RequiredArgs: strings.Join(FederationZoneRequiredArgs, " "),
-			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
 			Comments:     FederationZoneComments,
 			ReqData:      &ormapi.OperatorZoneCloudletMap{},
 			ReplyData:    &ormapi.Result{},
@@ -89,10 +106,9 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "DeRegisterFederationZone",
-			Use:          "deregister",
+			Use:          "deregisterzone",
 			Short:        "DeRegister Federation Zone",
 			RequiredArgs: strings.Join(FederationZoneRequiredArgs, " "),
-			OptionalArgs: strings.Join(FederationZoneOptionalArgs, " "),
 			Comments:     FederationZoneComments,
 			ReqData:      &ormapi.OperatorZoneCloudletMap{},
 			ReplyData:    &ormapi.Result{},
@@ -100,7 +116,7 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "ShowFederationZone",
-			Use:          "show",
+			Use:          "showzone",
 			Short:        "Show Federation Zones",
 			OptionalArgs: strings.Join(append(FederationZoneRequiredArgs, FederationZoneOptionalArgs...), " "),
 			Comments:     FederationZoneComments,
@@ -112,39 +128,27 @@ func init() {
 	AllApis.AddGroup(FederationGroup, "Federation APIs", cmds)
 }
 
-var FederationRequiredArgs = []string{
+var FederationArgs = []string{
 	"federationid",
 	"operatorid",
 	"countrycode",
 	"mcc",
 	"mncs",
-}
-
-var FederationOptionalArgs = []string{
 	"locatorendpoint",
-}
-
-var FederationUpdateOptionalArgs = []string{
-	"mcc",
-	"mncs",
-	"locatorendpoint",
-}
-
-var FederationPartnerRequiredArgs = []string{
-	"federationid",
-	"federationAddr",
-	"operatorid",
-	"countrycode",
 }
 
 var FederationComments = map[string]string{
 	"federationid":    "Globally unique string used to authenticate operations over federation interface",
-	"federationAddr":  "Federation access point address",
+	"federationaddr":  "Federation access point address",
 	"operatorid":      "Globally unique string to identify an operator gMEC",
 	"countrycode":     "ISO 3166-1 Alpha-2 code for the country where operator gMEC is located",
 	"mcc":             "Mobile country code of operator sending the request",
 	"mncs":            "Comma separated list of mobile network codes of operator sending the request",
 	"locatorendpoint": "IP and Port of discovery service URL of gMEC",
+}
+
+var FederationZoneRequiredArgs = []string{
+	"zoneid",
 }
 
 var FederationZoneOptionalArgs = []string{
@@ -154,10 +158,6 @@ var FederationZoneOptionalArgs = []string{
 	"state",
 	"locality",
 	"cloudlets",
-}
-
-var FederationZoneRequiredArgs = []string{
-	"zoneid",
 }
 
 var FederationZoneComments = map[string]string{

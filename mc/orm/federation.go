@@ -13,24 +13,21 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
-var FederationTypeSelf = "self"
-var FederationTypePartner = "partner"
-
-type ZoneStatus int
-
-var (
-	ZoneStatusNone     ZoneStatus = 0
-	ZoneStatusRegister ZoneStatus = 1
-)
-
 const (
+	ZoneStatusNone int = iota
+	ZoneStatusRegister
+
+	// Federation Types
+	FederationTypeSelf    = "self"
+	FederationTypePartner = "partner"
+
 	// Federation APIs
 	F_API_OPERATOR_PARTNER     = "/operator/partner"
 	F_API_OPERATOR_ZONE        = "/operator/zone"
 	F_API_OPERATOR_NOTIFY_ZONE = "/operator/notify/zone"
 )
 
-func CreateSelfFederation(c echo.Context) error {
+func CreateFederation(c echo.Context) error {
 	ctx := GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -89,6 +86,120 @@ func CreateSelfFederation(c echo.Context) error {
 	return c.JSON(http.StatusOK, &opFedOut)
 }
 
+func UpdateFederation(c echo.Context) error {
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	opFed := ormapi.OperatorFederation{}
+	if err := c.Bind(&opFed); err != nil {
+		return bindErr(err)
+	}
+
+	// get self federation information
+	selfFed, err := getSelfFederationInfo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := authorized(ctx, claims.Username, selfFed.OperatorId,
+		ResourceCloudlets, ActionManage); err != nil {
+		return err
+	}
+
+	db := loggedDB(ctx)
+	lookup := ormapi.OperatorFederation{
+		Type: FederationTypeSelf,
+	}
+	curOPFed := ormapi.OperatorFederation{}
+	err = db.Where(&lookup).First(&curOPFed).Error
+	if err != nil {
+		return dbErr(err)
+	}
+
+	update := false
+	if opFed.MCC != curOPFed.MCC {
+		update = true
+		curOPFed.MCC = opFed.MCC
+	}
+	if opFed.MNCs != curOPFed.MNCs {
+		update = true
+		curOPFed.MNCs = opFed.MNCs
+	}
+	if opFed.LocatorEndPoint != curOPFed.LocatorEndPoint {
+		update = true
+		curOPFed.LocatorEndPoint = opFed.LocatorEndPoint
+	}
+	if update {
+		err = db.Save(curOPFed).Error
+		if err != nil {
+			return dbErr(err)
+		}
+	}
+
+	partnerLookup := ormapi.OperatorFederation{
+		Type: FederationTypePartner,
+	}
+	partnerOPs := []ormapi.OperatorFederation{}
+	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
+	if err != nil {
+		return dbErr(err)
+	}
+	for _, partnerOP := range partnerOPs {
+		// Notify partner OP about the update
+		opConf := ormapi.OPUpdateMECNetConf{
+			OrigFederationId: selfFed.FederationId,
+			DestFederationId: partnerOP.FederationId,
+			Operator:         selfFed.OperatorId,
+			Country:          selfFed.CountryCode,
+			MCC:              curOPFed.MCC,
+			MNC:              strings.Split(curOPFed.MNCs, ","),
+			LocatorEndPoint:  curOPFed.LocatorEndPoint,
+		}
+		err = sendFederationRequest("PUT", partnerOP.FederationAddr, F_API_OPERATOR_PARTNER, &opConf, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	return setReply(c, Msg("Updated OP successfully"))
+}
+
+func DeleteFederation(c echo.Context) error {
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	opFed := ormapi.OperatorFederation{}
+	if err := c.Bind(&opFed); err != nil {
+		return bindErr(err)
+	}
+	// sanity check
+	if opFed.FederationId == "" {
+		return fmt.Errorf("Missing Federation ID")
+	}
+
+	// get self federation information
+	selfFed, err := getSelfFederationInfo(ctx)
+	if err != nil {
+		return err
+	}
+	if err := authorized(ctx, claims.Username, selfFed.OperatorId,
+		ResourceCloudlets, ActionManage); err != nil {
+		return err
+	}
+	opFed.Type = FederationTypeSelf
+
+	db := loggedDB(ctx)
+	if err := db.Delete(&opFed).Error; err != nil {
+		return dbErr(err)
+	}
+
+	return setReply(c, Msg("Deleted federation successfully"))
+}
+
 func getSelfFederationInfo(ctx context.Context) (*ormapi.OperatorFederation, error) {
 	// get self federation information
 	db := loggedDB(ctx)
@@ -119,7 +230,7 @@ func sendFederationRequest(method, fedAddr, endpoint string, reqData, replyData 
 	return nil
 }
 
-func CreatePartnerFederation(c echo.Context) error {
+func AddFederationPartner(c echo.Context) error {
 	ctx := GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -195,7 +306,7 @@ func CreatePartnerFederation(c echo.Context) error {
 	return setReply(c, Msg("Added partner OP successfully"))
 }
 
-func UpdatePartnerFederation(c echo.Context) error {
+func RemoveFederationPartner(c echo.Context) error {
 	ctx := GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -223,80 +334,7 @@ func UpdatePartnerFederation(c echo.Context) error {
 	}
 
 	db := loggedDB(ctx)
-	old := ormapi.OperatorFederation{}
-	err = db.Where(&opFed).First(old).Error
-	if err != nil {
-		return dbErr(err)
-	}
-
-	update := false
-	if opFed.MCC != old.MCC {
-		update = true
-		old.MCC = opFed.MCC
-	}
-	if opFed.MNCs != old.MNCs {
-		update = true
-		old.MNCs = opFed.MNCs
-	}
-	if opFed.LocatorEndPoint != old.LocatorEndPoint {
-		update = true
-		old.LocatorEndPoint = opFed.LocatorEndPoint
-	}
-
-	// call REST API /operator/partner
-	opConf := ormapi.OPUpdateMECNetConf{
-		OrigFederationId: selfFed.FederationId,
-		DestFederationId: opFed.FederationId,
-		Operator:         selfFed.OperatorId,
-		Country:          selfFed.CountryCode,
-		MCC:              old.MCC,
-		MNC:              strings.Split(old.MNCs, ","),
-		LocatorEndPoint:  old.LocatorEndPoint,
-	}
-	err = sendFederationRequest("PUT", opFed.FederationAddr, F_API_OPERATOR_PARTNER, &opConf, nil)
-	if err != nil {
-		return err
-	}
-
-	if update {
-		err = db.Save(old).Error
-		if err != nil {
-			return dbErr(err)
-		}
-	}
-
-	return setReply(c, Msg("Updated OP successfully"))
-}
-
-func DeletePartnerFederation(c echo.Context) error {
-	ctx := GetContext(c)
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	opFed := ormapi.OperatorFederation{}
-	if err := c.Bind(&opFed); err != nil {
-		return bindErr(err)
-	}
-	// sanity check
-	if opFed.FederationId == "" {
-		return fmt.Errorf("Missing partner federation key")
-	}
-	opFed.Type = FederationTypePartner
-
-	// get self federation information
-	selfFed, err := getSelfFederationInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	if err := authorized(ctx, claims.Username, selfFed.OperatorId,
-		ResourceCloudlets, ActionManage); err != nil {
-		return err
-	}
-
-	db := loggedDB(ctx)
-	err = db.Where(&opFed).First(opFed).Error
+	err = db.Where(&opFed).First(&opFed).Error
 	if err != nil {
 		return dbErr(err)
 	}
@@ -335,6 +373,37 @@ func DeletePartnerFederation(c echo.Context) error {
 	}
 
 	return setReply(c, Msg("Added partner OP successfully"))
+}
+
+func ShowFederation(c echo.Context) error {
+	ctx := GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	opFed := ormapi.OperatorFederation{}
+	if err := c.Bind(&opFed); err != nil {
+		return bindErr(err)
+	}
+
+	// get self federation information
+	selfFed, err := getSelfFederationInfo(ctx)
+	if err != nil {
+		return err
+	}
+
+	if err := authorized(ctx, claims.Username, selfFed.OperatorId,
+		ResourceCloudlets, ActionManage); err != nil {
+		return err
+	}
+
+	db := loggedDB(ctx)
+	feds := []ormapi.OperatorFederation{}
+	err = db.Where(&opFed).Find(&feds).Error
+	if err != nil {
+		return dbErr(err)
+	}
+	return c.JSON(http.StatusOK, feds)
 }
 
 func CreateFederationZone(c echo.Context) error {
@@ -438,6 +507,38 @@ func CreateFederationZone(c echo.Context) error {
 		}
 	}
 
+	// Share zone details with partner OPs
+	zoneInfo := ormapi.OPZoneInfo{
+		ZoneId:      opZone.ZoneId,
+		GeoLocation: opZone.GeoLocation,
+		City:        opZone.City,
+		State:       opZone.State,
+		Locality:    opZone.Locality,
+		EdgeCount:   len(opZone.Cloudlets),
+	}
+	partnerLookup := ormapi.OperatorFederation{
+		Type: FederationTypePartner,
+	}
+	partnerOPs := []ormapi.OperatorFederation{}
+	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
+	if err != nil {
+		return dbErr(err)
+	}
+	for _, partnerOP := range partnerOPs {
+		// Notify federated partner about new zone
+		opZoneShare := ormapi.OPZoneNotify{
+			Operator:         selfFed.OperatorId,
+			Country:          selfFed.CountryCode,
+			OrigFederationId: selfFed.FederationId,
+			DestFederationId: partnerOP.FederationId,
+			PartnerZone:      zoneInfo,
+		}
+		err = sendFederationRequest("POST", partnerOP.FederationAddr, F_API_OPERATOR_NOTIFY_ZONE, &opZoneShare, nil)
+		if err != nil {
+			return err
+		}
+	}
+
 	return setReply(c, Msg("Created OP zone successfully"))
 }
 
@@ -488,6 +589,30 @@ func DeleteFederationZone(c echo.Context) error {
 	zCloudlet.ZoneId = opZone.ZoneId
 	if err := db.Delete(&zCloudlet).Error; err != nil {
 		return dbErr(err)
+	}
+
+	// Notify deleted zone details with partner OPs
+	partnerLookup := ormapi.OperatorFederation{
+		Type: FederationTypePartner,
+	}
+	partnerOPs := []ormapi.OperatorFederation{}
+	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
+	if err != nil {
+		return dbErr(err)
+	}
+	for _, partnerOP := range partnerOPs {
+		// Notify federated partner about deleted zone
+		opZoneUnShare := ormapi.OPZoneRequest{
+			Operator:         selfFed.OperatorId,
+			Country:          selfFed.CountryCode,
+			OrigFederationId: selfFed.FederationId,
+			DestFederationId: partnerOP.FederationId,
+			Zone:             opZone.ZoneId,
+		}
+		err = sendFederationRequest("DELETE", partnerOP.FederationAddr, F_API_OPERATOR_NOTIFY_ZONE, &opZoneUnShare, nil)
+		if err != nil {
+			return err
+		}
 	}
 
 	return setReply(c, Msg("Deleted zone successfully"))
@@ -597,7 +722,7 @@ func RegisterFederationZone(c echo.Context) error {
 	if existingFed.FederationId == selfFed.FederationId {
 		return fmt.Errorf("Cannot register self zones, only federated zones are allowed to be registered")
 	}
-	if existingFed.Status == int(ZoneStatusRegister) {
+	if existingFed.Status == ZoneStatusRegister {
 		return fmt.Errorf("Zone %s is already registered", reg.ZoneId)
 	}
 
@@ -627,7 +752,7 @@ func RegisterFederationZone(c echo.Context) error {
 	}
 
 	// Mark zone as registered in DB
-	existingFed.Status = int(ZoneStatusRegister)
+	existingFed.Status = ZoneStatusRegister
 	if err := db.Model(&existingFed).Updates(&existingFed).Error; err != nil {
 		return dbErr(err)
 	}
@@ -669,7 +794,7 @@ func DeRegisterFederationZone(c echo.Context) error {
 	if existingFed.FederationId == selfFed.FederationId {
 		return fmt.Errorf("Cannot register self zones, only federated zones are allowed to be registered")
 	}
-	if existingFed.Status == int(ZoneStatusNone) {
+	if existingFed.Status == ZoneStatusNone {
 		return fmt.Errorf("Zone %s is already deregistered", reg.ZoneId)
 	}
 
@@ -698,7 +823,7 @@ func DeRegisterFederationZone(c echo.Context) error {
 	}
 
 	// Mark zone as deregistered in DB
-	existingFed.Status = int(ZoneStatusNone)
+	existingFed.Status = ZoneStatusNone
 	if err := db.Model(&existingFed).Updates(&existingFed).Error; err != nil {
 		return dbErr(err)
 	}
@@ -963,9 +1088,9 @@ func FederationOperatorZoneRegister(c echo.Context) error {
 	if existingFed.FederationId != selfFed.FederationId {
 		return fmt.Errorf("Cannot register partner zones, only self zones are allowed to be registered")
 	}
-	if existingFed.Status != int(ZoneStatusRegister) {
+	if existingFed.Status != ZoneStatusRegister {
 		// Mark zone as registered in DB
-		existingFed.Status = int(ZoneStatusRegister)
+		existingFed.Status = ZoneStatusRegister
 		if err := db.Model(&existingFed).Updates(&existingFed).Error; err != nil {
 			return dbErr(err)
 		}
@@ -1029,9 +1154,9 @@ func FederationOperatorZoneDeRegister(c echo.Context) error {
 	if existingFed.FederationId != selfFed.FederationId {
 		return fmt.Errorf("Cannot deregister partner zones, only self zones are allowed to be deregistered")
 	}
-	if existingFed.Status != int(ZoneStatusNone) {
+	if existingFed.Status != ZoneStatusNone {
 		// Mark zone as deregistered in DB
-		existingFed.Status = int(ZoneStatusNone)
+		existingFed.Status = ZoneStatusNone
 		if err := db.Model(&existingFed).Updates(&existingFed).Error; err != nil {
 			return dbErr(err)
 		}

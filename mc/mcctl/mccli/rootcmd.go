@@ -60,6 +60,8 @@ func GetRootCommand() *RootCommand {
 		rc.getCmdGroup(ormctl.VMPoolGroup),
 		rc.getCmdGroup(ormctl.ReporterGroup),
 		rc.getCmdGroup(ormctl.GPUDriverGroup),
+		rc.getCmdGroup(ormctl.TrustPolicyExceptionApiResponseGroup),
+
 		rc.getReportCmdGroup(),
 	}
 	developerCommands := []*cobra.Command{
@@ -73,6 +75,7 @@ func GetRootCommand() *RootCommand {
 		rc.getCmdGroup(ormctl.AppInstClientGroup),
 		rc.getCmdGroup(ormctl.AppInstRefsGroup),
 		rc.getCmdGroup(ormctl.AppInstLatencyGroup),
+		rc.getCmdGroup(ormctl.TrustPolicyExceptionGroup),
 		rc.getExecCmd("RunCommandCli"),
 		rc.getExecCmd("RunConsole"),
 		rc.getExecCmd("ShowLogsCli"),

@@ -448,6 +448,114 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GetResTagTable", GetResTagTable)
+	// swagger:route POST /auth/ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
+	// Create an Auto Scale Policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateAutoScalePolicy", CreateAutoScalePolicy)
+	// swagger:route POST /auth/ctrl/DeleteAutoScalePolicy AutoScalePolicy DeleteAutoScalePolicy
+	// Delete an Auto Scale Policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteAutoScalePolicy", DeleteAutoScalePolicy)
+	// swagger:route POST /auth/ctrl/UpdateAutoScalePolicy AutoScalePolicy UpdateAutoScalePolicy
+	// Update an Auto Scale Policy.
+	// The following values should be added to `AutoScalePolicy.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// MinNodes: 3
+	// MaxNodes: 4
+	// ScaleUpCpuThresh: 5
+	// ScaleDownCpuThresh: 6
+	// TriggerTimeSec: 7
+	// StabilizationWindowSec: 8
+	// TargetCpu: 9
+	// TargetMem: 10
+	// TargetActiveConnections: 11
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateAutoScalePolicy", UpdateAutoScalePolicy)
+	// swagger:route POST /auth/ctrl/ShowAutoScalePolicy AutoScalePolicy ShowAutoScalePolicy
+	// Show Auto Scale Policies.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowAutoScalePolicy", ShowAutoScalePolicy)
+	// swagger:route POST /auth/ctrl/CreateTrustPolicy TrustPolicy CreateTrustPolicy
+	// Create a Trust Policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateTrustPolicy", CreateTrustPolicy)
+	// swagger:route POST /auth/ctrl/DeleteTrustPolicy TrustPolicy DeleteTrustPolicy
+	// Delete a Trust policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteTrustPolicy", DeleteTrustPolicy)
+	// swagger:route POST /auth/ctrl/UpdateTrustPolicy TrustPolicy UpdateTrustPolicy
+	// Update a Trust policy.
+	// The following values should be added to `TrustPolicy.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// OutboundSecurityRules: 3
+	// OutboundSecurityRulesProtocol: 3.1
+	// OutboundSecurityRulesPortRangeMin: 3.2
+	// OutboundSecurityRulesPortRangeMax: 3.3
+	// OutboundSecurityRulesRemoteCidr: 3.4
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateTrustPolicy", UpdateTrustPolicy)
+	// swagger:route POST /auth/ctrl/ShowTrustPolicy TrustPolicy ShowTrustPolicy
+	// Show Trust Policies.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowTrustPolicy", ShowTrustPolicy)
 	// swagger:route POST /auth/ctrl/CreateApp App CreateApp
 	// Create Application.
 	//  Creates a definition for an application instance for Cloudlet deployment.
@@ -515,8 +623,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// Trusted: 37
 	// RequiredOutboundConnections: 38
 	// RequiredOutboundConnectionsProtocol: 38.1
-	// RequiredOutboundConnectionsPort: 38.2
-	// RequiredOutboundConnectionsRemoteIp: 38.4
+	// RequiredOutboundConnectionsPortRangeMin: 38.2
+	// RequiredOutboundConnectionsPortRangeMax: 38.3
+	// RequiredOutboundConnectionsRemoteCidr: 38.4
 	// AllowServerless: 39
 	// ServerlessConfig: 40
 	// ServerlessConfigVcpus: 40.1
@@ -1163,62 +1272,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveVMPoolMember", RemoveVMPoolMember)
-	// swagger:route POST /auth/ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
-	// Create an Auto Scale Policy.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateAutoScalePolicy", CreateAutoScalePolicy)
-	// swagger:route POST /auth/ctrl/DeleteAutoScalePolicy AutoScalePolicy DeleteAutoScalePolicy
-	// Delete an Auto Scale Policy.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteAutoScalePolicy", DeleteAutoScalePolicy)
-	// swagger:route POST /auth/ctrl/UpdateAutoScalePolicy AutoScalePolicy UpdateAutoScalePolicy
-	// Update an Auto Scale Policy.
-	// The following values should be added to `AutoScalePolicy.fields` field array to specify which fields will be updated.
-	// ```
-	// Key: 2
-	// KeyOrganization: 2.1
-	// KeyName: 2.2
-	// MinNodes: 3
-	// MaxNodes: 4
-	// ScaleUpCpuThresh: 5
-	// ScaleDownCpuThresh: 6
-	// TriggerTimeSec: 7
-	// StabilizationWindowSec: 8
-	// TargetCpu: 9
-	// TargetMem: 10
-	// TargetActiveConnections: 11
-	// ```
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateAutoScalePolicy", UpdateAutoScalePolicy)
-	// swagger:route POST /auth/ctrl/ShowAutoScalePolicy AutoScalePolicy ShowAutoScalePolicy
-	// Show Auto Scale Policies.
-	//  Any fields specified will be used to filter results.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowAutoScalePolicy", ShowAutoScalePolicy)
 	// swagger:route POST /auth/ctrl/CreateClusterInst ClusterInst CreateClusterInst
 	// Create Cluster Instance.
 	//  Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key. ClusterInst is a collection of compute resources on a Cloudlet on which AppInsts are deployed.
@@ -1427,58 +1480,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAutoProvPolicyCloudlet", RemoveAutoProvPolicyCloudlet)
-	// swagger:route POST /auth/ctrl/CreateTrustPolicy TrustPolicy CreateTrustPolicy
-	// Create a Trust Policy.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateTrustPolicy", CreateTrustPolicy)
-	// swagger:route POST /auth/ctrl/DeleteTrustPolicy TrustPolicy DeleteTrustPolicy
-	// Delete a Trust policy.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteTrustPolicy", DeleteTrustPolicy)
-	// swagger:route POST /auth/ctrl/UpdateTrustPolicy TrustPolicy UpdateTrustPolicy
-	// Update a Trust policy.
-	// The following values should be added to `TrustPolicy.fields` field array to specify which fields will be updated.
-	// ```
-	// Key: 2
-	// KeyOrganization: 2.1
-	// KeyName: 2.2
-	// OutboundSecurityRules: 3
-	// OutboundSecurityRulesProtocol: 3.1
-	// OutboundSecurityRulesPortRangeMin: 3.2
-	// OutboundSecurityRulesPortRangeMax: 3.3
-	// OutboundSecurityRulesRemoteCidr: 3.4
-	// ```
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateTrustPolicy", UpdateTrustPolicy)
-	// swagger:route POST /auth/ctrl/ShowTrustPolicy TrustPolicy ShowTrustPolicy
-	// Show Trust Policies.
-	//  Any fields specified will be used to filter results.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowTrustPolicy", ShowTrustPolicy)
 	// swagger:route POST /auth/ctrl/CreateAppInst AppInst CreateAppInst
 	// Create Application Instance.
 	//  Creates an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key. Many of the fields here are inherited from the App definition.
@@ -1944,4 +1945,83 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/StreamGPUDriver", StreamGPUDriver)
+	// swagger:route POST /auth/ctrl/CreateTrustPolicyException TrustPolicyException CreateTrustPolicyException
+	// Create a Trust Policy Exception, by App Developer Organization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateTrustPolicyException", CreateTrustPolicyException)
+	// swagger:route POST /auth/ctrl/UpdateTrustPolicyException TrustPolicyException UpdateTrustPolicyException
+	// Update a Trust Policy Exception, by App Developer Organization.
+	// The following values should be added to `TrustPolicyException.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyAppKey: 2.1
+	// KeyAppKeyOrganization: 2.1.1
+	// KeyAppKeyName: 2.1.2
+	// KeyAppKeyVersion: 2.1.3
+	// KeyCloudletKey: 2.2
+	// KeyCloudletKeyOrganization: 2.2.1
+	// KeyCloudletKeyName: 2.2.2
+	// KeyName: 2.3
+	// OutboundSecurityRules: 3
+	// OutboundSecurityRulesProtocol: 3.1
+	// OutboundSecurityRulesPortRangeMin: 3.2
+	// OutboundSecurityRulesPortRangeMax: 3.3
+	// OutboundSecurityRulesRemoteCidr: 3.4
+	// State: 4
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateTrustPolicyException", UpdateTrustPolicyException)
+	// swagger:route POST /auth/ctrl/RequestTrustPolicyException TrustPolicyException RequestTrustPolicyException
+	// Request a Trust Policy Exception to be approved, request made by App Developer Organization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RequestTrustPolicyException", RequestTrustPolicyException)
+	// swagger:route POST /auth/ctrl/DeleteTrustPolicyException TrustPolicyException DeleteTrustPolicyException
+	// Delete a Trust policy exception, by App Developer Organization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteTrustPolicyException", DeleteTrustPolicyException)
+	// swagger:route POST /auth/ctrl/ShowTrustPolicyException TrustPolicyException ShowTrustPolicyException
+	// Show Trust Policies.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowTrustPolicyException", ShowTrustPolicyException)
+	// swagger:route POST /auth/ctrl/SendTrustPolicyExceptionResponse TrustPolicyExceptionResponse SendTrustPolicyExceptionResponse
+	// Approve or reject a Trust Policy Exception, by Cloudlet Operator Organization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/SendTrustPolicyExceptionResponse", SendTrustPolicyExceptionResponse)
 }

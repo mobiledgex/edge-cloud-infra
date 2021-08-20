@@ -282,13 +282,11 @@ func (o *OpenstackPlatform) ConfigureCloudletSecurityRules(ctx context.Context, 
 	return nil
 }
 
-func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
-	grpName := o.VMProperties.CloudletSecgrpName
+func (o *OpenstackPlatform) CreateOrUpdateSecgrpStack(ctx context.Context, grpName string, egressRestricted bool, rules []edgeproto.SecurityRule, updateCallback edgeproto.CacheUpdateCallback) error {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateCloudletSecgrpStack", "grpName", grpName, "TrustPolicy", TrustPolicy)
 	grpExists := false
 	stackExists := false
-	_, err := o.GetSecurityGroupIDForName(ctx, o.VMProperties.CloudletSecgrpName)
+	_, err := o.GetSecurityGroupIDForName(ctx, grpName)
 	if err != nil {
 		if strings.Contains(err.Error(), SecgrpDoesNotExist) {
 			// this is ok
@@ -299,11 +297,11 @@ func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Contex
 	} else {
 		grpExists = true
 	}
-	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromTrustPolicy(ctx, o.VMProperties.CloudletSecgrpName, TrustPolicy, egressRestricted, vmlayer.SecGrpWithAccessPorts("tcp:22", infracommon.RemoteCidrAll))
+	vmgp, err := vmlayer.GetVMGroupOrchestrationParamsFromTrustPolicy(ctx, grpName, rules, egressRestricted, vmlayer.SecGrpWithAccessPorts("tcp:22", infracommon.RemoteCidrAll))
 	if err != nil {
 		return err
 	}
-	_, err = o.getHeatStackDetail(ctx, o.VMProperties.CloudletSecgrpName)
+	_, err = o.getHeatStackDetail(ctx, grpName)
 	if err != nil {
 		if strings.Contains(err.Error(), StackNotFound) {
 			// this is ok
@@ -318,7 +316,7 @@ func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Contex
 		if stackExists {
 			// update the existing stack
 			log.SpanLog(ctx, log.DebugLevelInfra, "Updating heat stack for existing cloudlet security group", "name", grpName)
-			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, o.VMProperties.CloudletSecgrpName, VmGroupTemplate, updateCallback)
+			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
 			if err != nil {
 				return err
 			}
@@ -331,13 +329,13 @@ func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Contex
 		if stackExists {
 			// the stack exists but the group does not.  It could have been deleted separately, so attempt to modify the stack and re-create the group
 			log.SpanLog(ctx, log.DebugLevelInfra, "Updating heat stack for missing cloudlet security group", "name", grpName)
-			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, o.VMProperties.CloudletSecgrpName, VmGroupTemplate, updateCallback)
+			err = o.UpdateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
 			if err != nil {
 				return err
 			}
 		} else {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Creating heat stack for new cloudlet security group", "name", grpName)
-			err = o.CreateHeatStackFromTemplate(ctx, vmgp, o.VMProperties.CloudletSecgrpName, VmGroupTemplate, updateCallback)
+			err = o.CreateHeatStackFromTemplate(ctx, vmgp, grpName, VmGroupTemplate, updateCallback)
 			if err != nil {
 				return err
 			}
@@ -346,8 +344,43 @@ func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Contex
 	return nil
 }
 
+func (o *OpenstackPlatform) CreateOrUpdateCloudletSecgrpStack(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, updateCallback edgeproto.CacheUpdateCallback) error {
+	grpName := o.VMProperties.CloudletSecgrpName
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateCloudletSecgrpStack", "grpName", grpName, "TrustPolicy", TrustPolicy)
+
+	return o.CreateOrUpdateSecgrpStack(ctx, grpName, egressRestricted, TrustPolicy.OutboundSecurityRules, updateCallback)
+}
+
 func (o *OpenstackPlatform) DeleteCloudletSecgrpStack(ctx context.Context, updateCallback edgeproto.CacheUpdateCallback) error {
 	grpName := o.VMProperties.CloudletSecgrpName
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudletSecgrpStack", "grpName", grpName)
+	return o.deleteHeatStack(ctx, grpName)
+}
+
+func (o *OpenstackPlatform) ConfigureTrustPolicyExceptionSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicyException *edgeproto.TrustPolicyException, rootLbClients map[string]ssh.Client, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
+
+	grpName := TrustPolicyException.Key.AppKey.String() + TrustPolicyException.Key.CloudletKey.String()
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureTrustPolicyExceptionSecurityRules", "TrustPolicyExceptionSecgrpName", grpName, "action", action, "egressRestricted", egressRestricted)
+
+	if action == vmlayer.ActionCreate || action == vmlayer.ActionUpdate {
+		return o.CreateOrUpdateTrustPolicyExceptionSecgrpStack(ctx, egressRestricted, TrustPolicyException, updateCallback)
+	}
+	return o.DeleteTrustPolicyExceptionSecgrpStack(ctx, TrustPolicyException, updateCallback)
+}
+
+func (o *OpenstackPlatform) CreateOrUpdateTrustPolicyExceptionSecgrpStack(ctx context.Context, egressRestricted bool, TrustPolicyException *edgeproto.TrustPolicyException, updateCallback edgeproto.CacheUpdateCallback) error {
+
+	grpName := TrustPolicyException.Key.AppKey.String() + TrustPolicyException.Key.CloudletKey.String()
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateTrustPolicyExceptionSecgrpStack", "grpName", grpName, "TrustPolicyException", TrustPolicyException)
+
+	return o.CreateOrUpdateSecgrpStack(ctx, grpName, egressRestricted, TrustPolicyException.OutboundSecurityRules, updateCallback)
+}
+
+func (o *OpenstackPlatform) DeleteTrustPolicyExceptionSecgrpStack(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, updateCallback edgeproto.CacheUpdateCallback) error {
+	grpName := TrustPolicyException.Key.AppKey.String() + TrustPolicyException.Key.CloudletKey.String()
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteTrustPolicyExceptionSecgrpStack", "grpName", grpName)
 	return o.deleteHeatStack(ctx, grpName)
 }

@@ -511,6 +511,10 @@ func (v *VcdPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egress
 
 }
 
+func (o *VcdPlatform) ConfigureTrustPolicyExceptionSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicyException *edgeproto.TrustPolicyException, rootLbClients map[string]ssh.Client, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
+	return nil
+}
+
 // GetVcdClientFromContext returns a client object if one exists, otherwise nil
 func (v *VcdPlatform) GetVcdClientFromContext(ctx context.Context) *govcd.VCDClient {
 	vcdClient, found := ctx.Value(VCDClientCtxKey).(*govcd.VCDClient)

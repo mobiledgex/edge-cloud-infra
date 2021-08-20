@@ -220,7 +220,7 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 	definition := getTimeDefinitionDuration(&obj.MetricsCommon, minTimeDef)
 	arg := influxClientMetricsQueryArgs{
 		Selector:     getClientMetricsSelector(obj.Selector, CLIENT_APIUSAGE, definition, ClientApiAggregationFunctions),
-		Measurement:  fmt.Sprintf("\"%s\"", getMeasurementString(obj.Selector, CLIENT_APIUSAGE)),
+		Measurement:  fmt.Sprintf("%q", getMeasurementString(obj.Selector, CLIENT_APIUSAGE)),
 		AppInstName:  obj.AppInst.AppKey.Name,
 		AppVersion:   obj.AppInst.AppKey.Version,
 		ApiCallerOrg: obj.AppInst.AppKey.Organization,
@@ -360,7 +360,7 @@ func getClientMetricsSelector(selector string, measurementType string, definitio
 			field = strings.ReplaceAll(field, `"`, ``)
 			function, ok := selectorFuncMap[field]
 			if ok {
-				function = fmt.Sprintf("%s AS \"%s\"", function, field)
+				function = fmt.Sprintf("%s AS %q", function, field)
 				fieldsWithFuncs = append(fieldsWithFuncs, function)
 			}
 		}
@@ -387,7 +387,7 @@ func getMeasurementAndDbAndMapFromClientUsageReq(settings *edgeproto.Settings, s
 	optCi := getOptimalCollectionInterval(settings, basemeasurement, definition)
 	if optCi == nil { // raw data
 		db = cloudcommon.EdgeEventsMetricsDbName
-		measurement = fmt.Sprintf("\"%s\"", basemeasurement)
+		measurement = fmt.Sprintf("%q", basemeasurement)
 	} else { // downsampled data
 		db = cloudcommon.DownsampledMetricsDbName
 		measurement = influxq.CreateInfluxFullyQualifiedMeasurementName(db, basemeasurement, time.Duration(optCi.Interval), time.Duration(optCi.Retention))

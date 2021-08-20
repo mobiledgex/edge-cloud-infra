@@ -55,9 +55,9 @@ func AppInstEventsQuery(obj *ormapi.RegionAppInstEvents, cloudletList []string) 
 		Measurement:  EVENT_APPINST,
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		Last:         obj.Last,
 		CloudletList: generateCloudletList(cloudletList),
 	}
+	arg.Limit = obj.Limit
 	if obj.AppInst.AppKey.Organization != "" {
 		arg.OrgField = "apporg"
 		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
@@ -77,9 +77,9 @@ func ClusterEventsQuery(obj *ormapi.RegionClusterInstEvents, cloudletList []stri
 		Selector:     getEventFields(EVENT_CLUSTERINST),
 		Measurement:  EVENT_CLUSTERINST,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
-		Last:         obj.Last,
 		CloudletList: generateCloudletList(cloudletList),
 	}
+	arg.Limit = obj.Limit
 	if obj.ClusterInst.Organization != "" {
 		arg.OrgField = "clusterorg"
 		arg.ApiCallerOrg = obj.ClusterInst.Organization
@@ -102,8 +102,8 @@ func CloudletEventsQuery(obj *ormapi.RegionCloudletEvents) string {
 		ApiCallerOrg: obj.Cloudlet.Organization,
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
-		Last:         obj.Last,
 	}
+	arg.Limit = obj.Limit
 	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
 }
 

@@ -36,24 +36,25 @@ type InfluxDBContext struct {
 }
 
 type influxQueryArgs struct {
-	Selector       string
-	Measurement    string
-	AppInstName    string
-	AppVersion     string
-	ClusterName    string
-	CloudletName   string
-	OrgField       string
-	ApiCallerOrg   string
-	CloudletOrg    string
-	ClusterOrg     string
-	AppOrg         string
-	StartTime      string
-	EndTime        string
-	Last           int
+	metricsCommonQueryArgs
+	Selector     string
+	Measurement  string
+	AppInstName  string
+	AppVersion   string
+	ClusterName  string
+	CloudletName string
+	OrgField     string
+	ApiCallerOrg string
+	CloudletOrg  string
+	ClusterOrg   string
+	AppOrg       string
+	//	StartTime      string - part of metricsCommonQueryArgs
+	//	EndTime        string - part of metricsCommonQueryArgs
+	Last           int // it's Limit and part of metricsCommonQueryArgs
 	DeploymentType string
 	CloudletList   string
 	QueryFilter    string
-	TimeDefinition string
+	//TimeDefinition string - part of metricsCommonQueryArgs
 }
 
 // TODO: embed this into influxQueryArgs
@@ -200,14 +201,14 @@ var devInfluxDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
 	`{{if .DeploymentType}} AND deployment = '{{.DeploymentType}}'{{end}}` +
 	`{{if .CloudletList}} AND ({{.CloudletList}}){{end}}` +
-	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
 
 var operatorInfluxDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
 	` WHERE "cloudletorg"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
-	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
 
 type InfluxDbConnCache struct {
 	sync.RWMutex
@@ -392,7 +393,6 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, cloudletList []string
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
 		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
 		CloudletList: generateCloudletList(cloudletList),
-		Last:         obj.Last,
 	}
 	if obj.AppInst.AppKey.Organization != "" {
 		arg.OrgField = "apporg"
@@ -403,7 +403,8 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, cloudletList []string
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -413,7 +414,6 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, cloudletList []st
 		Measurement:  getMeasurementString(obj.Selector, CLUSTER),
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
 		CloudletList: generateCloudletList(cloudletList),
-		Last:         obj.Last,
 	}
 	if obj.ClusterInst.Organization != "" {
 		arg.OrgField = "clusterorg"
@@ -424,7 +424,8 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, cloudletList []st
 		arg.ApiCallerOrg = obj.ClusterInst.CloudletKey.Organization
 		arg.ClusterOrg = obj.ClusterInst.Organization
 	}
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -434,9 +435,9 @@ func CloudletMetricsQuery(obj *ormapi.RegionCloudletMetrics) string {
 		Measurement:  getMeasurementString(obj.Selector, CLOUDLET),
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
-		Last:         obj.Last,
 	}
-	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, operatorInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -446,9 +447,9 @@ func CloudletUsageMetricsQuery(obj *ormapi.RegionCloudletMetrics, platformTypes 
 		Measurement:  getCloudletUsageMeasurementString(obj.Selector, platformTypes),
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
-		Last:         obj.Last,
 	}
-	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, operatorInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
 // TODO: This function should be a streaming function, but currently client library for influxDB
@@ -731,6 +732,10 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 
+		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+
 		// New metrics api request
 		if len(in.AppInsts) > 0 {
 			return GetAppMetrics(c, &in)
@@ -758,6 +763,10 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 
+		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+
 		rc.region = in.Region
 		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.ClusterInst.Organization},
 			ResourceClusterAnalytics, []edgeproto.CloudletKey{in.ClusterInst.CloudletKey})
@@ -781,6 +790,10 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
+			return err
+		}
+
+		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
 

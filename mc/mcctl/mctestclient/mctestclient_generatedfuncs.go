@@ -3282,9 +3282,9 @@ func (s *Client) ShowTrustPolicyException(uri string, token string, in *ormapi.R
 	return out, rundata.RetStatus, rundata.RetError
 }
 
-// Generating group TrustPolicyExceptionApiResponse
+// Generating group TrustPolicyExceptionResponse
 
-func (s *Client) SendTrustPolicyExceptionResponse(uri string, token string, in *ormapi.RegionTrustPolicyExceptionResponse) ([]edgeproto.Result, int, error) {
+func (s *Client) CreateTrustPolicyExceptionResponse(uri string, token string, in *ormapi.RegionTrustPolicyExceptionResponse) ([]edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -3292,7 +3292,59 @@ func (s *Client) SendTrustPolicyExceptionResponse(uri string, token string, in *
 	var out []edgeproto.Result
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("SendTrustPolicyExceptionResponse")
+	apiCmd := ormctl.MustGetCommand("CreateTrustPolicyExceptionResponse")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateTrustPolicyExceptionResponse(uri string, token string, in *ormapi.RegionTrustPolicyExceptionResponse) ([]edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
+	if err != nil {
+		return nil, 0, err
+	}
+	rundata.In = mm
+	var out []edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdateTrustPolicyExceptionResponse")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteTrustPolicyExceptionResponse(uri string, token string, in *ormapi.RegionTrustPolicyExceptionResponse) ([]edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteTrustPolicyExceptionResponse")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowTrustPolicyExceptionResponse(uri string, token string, in *ormapi.RegionTrustPolicyExceptionResponse) ([]edgeproto.TrustPolicyExceptionResponse, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.TrustPolicyExceptionResponse
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowTrustPolicyExceptionResponse")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError

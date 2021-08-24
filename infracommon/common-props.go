@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 
 	sh "github.com/codeskyblue/go-sh"
@@ -51,6 +52,11 @@ var InfraCommonProps = map[string]*edgeproto.PropertyInfo{
 		Internal:    true,
 		Value:       "3600",
 	},
+	"MEX_METALLB_OCTET3_RANGE": {
+		Name:        "MetalLB IP IP third octet range",
+		Description: "Start and end value of MetalLB IP range third octet, (start-end)",
+		Value:       "200-250",
+	},
 }
 
 func (ip *InfraProperties) GetCloudletCRMGatewayIPAndPort() (string, int) {
@@ -84,6 +90,35 @@ func (ip *InfraProperties) GetPlatformStatsMaxCacheTime() (uint64, error) {
 		return 0, fmt.Errorf("ERROR: unable to parse MEX_PLATFORM_STATS_MAX_CACHE_TIME %s - %v", val, err)
 	}
 	return v, nil
+}
+
+func (ip *InfraProperties) GetUsesMetalLb() bool {
+	value, _ := ip.GetValue("MEX_METALLB_OCTET3_RANGE")
+	return value != ""
+}
+
+func (ip *InfraProperties) GetMetalLbIpRange() (uint64, uint64, error) {
+	value, _ := ip.GetValue("MEX_METALLB_OCTET3_RANGE")
+	if value == "" {
+		// should not happen as GetUsesMetalLb should be called first
+		return 0, 0, fmt.Errorf("No MetalLB range defined in MEX_METALLB_OCTET3_RANGE")
+	}
+	vals := strings.Split(value, "-")
+	if len(vals) != 2 {
+		return 0, 0, fmt.Errorf("MetalLB range not properly defined (start-end) in MEX_METALLB_OCTET3_RANGE")
+	}
+	start, err := strconv.ParseUint(vals[0], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start - %v", err)
+	}
+	end, err := strconv.ParseUint(vals[1], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start - %v", err)
+	}
+	if start > 255 || end > 255 || start > end {
+		return 0, 0, fmt.Errorf("Invalid MetalLB range in MEX_METALLB_OCTET3_RANGE")
+	}
+	return start, end, nil
 }
 
 type InfraProperties struct {

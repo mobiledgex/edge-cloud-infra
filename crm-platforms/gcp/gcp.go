@@ -173,3 +173,7 @@ func (g *GCPPlatform) SetProperties(props *infracommon.InfraProperties) error {
 func (g *GCPPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	return nil, nil
 }
+
+func (g *GCPPlatform) GetRootLBAddrs(ctx context.Context) (string, map[string]string, error) {
+	return "", nil, nil
+}

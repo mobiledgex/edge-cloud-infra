@@ -313,10 +313,12 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		var proxyOps []proxy.Op
 		client, err := v.GetSSHClientForServer(ctx, orchVals.externalServerName, v.VMProperties.GetCloudletExternalNetwork())
+		serverIp, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", orchVals.externalServerName)
 		if err != nil {
 			return err
 		}
-		proxycerts.NewDedicatedLB(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
+		rootLBAddr := serverIp.ExternalAddr
+		proxycerts.NewDedicatedLB(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, rootLBAddr, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 		// clusterInst is empty but that is ok here
 		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 		if err != nil {

@@ -136,6 +136,14 @@ func (k *K8sBareMetalPlatform) GetNodePlatformClient(ctx context.Context, node *
 	return k.commonPf.GetSSHClientFromIPAddr(ctx, controlIp, ops...)
 }
 
+func (k *K8sBareMetalPlatform) GetSSHClient(ctx context.Context, addr string) (ssh.Client, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetSSHClient", "addr", addr)
+	if addr == "" {
+		return nil, fmt.Errorf("cannot GetSSHClient, addr is empty")
+	}
+	return k.commonPf.GetSSHClientFromIPAddr(ctx, addr)
+}
+
 // TODO
 func (k *K8sBareMetalPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst, vmAppInsts []edgeproto.AppInst) ([]edgeproto.CloudletMgmtNode, error) {
 	return []edgeproto.CloudletMgmtNode{}, nil
@@ -192,6 +200,10 @@ func (k *K8sBareMetalPlatform) GetRestrictedCloudletStatus(ctx context.Context, 
 
 func (k *K8sBareMetalPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	return nil, nil
+}
+
+func (k *K8sBareMetalPlatform) GetRootLBAddrs(ctx context.Context) (string, map[string]string, error) {
+	return "", nil, nil
 }
 
 func (k *K8sBareMetalPlatform) GetVersionProperties() map[string]string {

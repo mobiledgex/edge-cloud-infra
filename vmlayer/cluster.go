@@ -494,7 +494,13 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		}
 	}
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		proxycerts.NewDedicatedLB(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
+		rootLBName = cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
+		serverIp, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName)
+		if err != nil {
+			return err
+		}
+		rootLBAddr := serverIp.ExternalAddr
+		proxycerts.NewDedicatedLB(ctx, &clusterInst.Key.CloudletKey, rootLBName, rootLBAddr, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created cluster")
 	return nil

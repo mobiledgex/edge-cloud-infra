@@ -99,6 +99,10 @@ func (s *EdgeboxPlatform) GetNodePlatformClient(ctx context.Context, node *edgep
 	return s.generic.GetNodePlatformClient(ctx, node)
 }
 
+func (s *EdgeboxPlatform) GetSSHClient(ctx context.Context, addr string) (ssh.Client, error) {
+	return s.generic.GetSSHClient(ctx, addr)
+}
+
 func (s *EdgeboxPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst, vmAppInsts []edgeproto.AppInst) ([]edgeproto.CloudletMgmtNode, error) {
 	return s.generic.ListCloudletMgmtNodes(ctx, clusterInsts, vmAppInsts)
 }
@@ -113,4 +117,8 @@ func (s *EdgeboxPlatform) GetAccessData(ctx context.Context, cloudlet *edgeproto
 
 func (s *EdgeboxPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	return s.generic.GetRootLBClients(ctx)
+}
+
+func (s *EdgeboxPlatform) GetRootLBAddrs(ctx context.Context) (string, map[string]string, error) {
+	return s.generic.GetRootLBAddrs(ctx)
 }

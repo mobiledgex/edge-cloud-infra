@@ -623,10 +623,38 @@ func (v *VMPlatform) GetAllRootLBClients(ctx context.Context) (map[string]ssh.Cl
 
 // GetRootLBClients gets all RootLB Clients for dedicated LBs
 func (v *VMPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
-	if v.Caches == nil {
-		return nil, fmt.Errorf("caches is nil")
-	}
 	rootLBClients := make(map[string]ssh.Client)
+	_, rootLBAddrs, err := v.GetRootLBAddrs(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for lbName, rootLBAddr := range rootLBAddrs {
+		client, err := v.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, rootLBAddr)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client", "addr", rootLBAddr, "error", err)
+			client = nil
+			// set client as nil and continue, caller will generate alert accordingly
+		}
+		rootLBClients[lbName] = client
+	}
+	return rootLBClients, nil
+}
+
+func (v *VMPlatform) GetSSHClient(ctx context.Context, addr string) (ssh.Client, error) {
+	return v.VMProperties.CommonPf.GetSSHClientFromIPAddr(ctx, addr)
+}
+
+// GetRootLBAddrs gets all the addresses for dedicated LBs & shared LB
+func (v *VMPlatform) GetRootLBAddrs(ctx context.Context) (string, map[string]string, error) {
+	if v.Caches == nil {
+		return "", nil, fmt.Errorf("caches is nil")
+	}
+	serverIp, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", v.VMProperties.SharedRootLBName)
+	if err != nil {
+		return "", nil, err
+	}
+	sharedLBAddr := serverIp.ExternalAddr
+	rootLBAddrs := make(map[string]string)
 	clusterInstKeys := []edgeproto.ClusterInstKey{}
 	v.Caches.ClusterInstCache.GetAllKeys(ctx, func(k *edgeproto.ClusterInstKey, modRev int64) {
 		clusterInstKeys = append(clusterInstKeys, *k)
@@ -636,13 +664,16 @@ func (v *VMPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Clien
 		if v.Caches.ClusterInstCache.Get(&k, &clusterInst) {
 			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 				lbName := v.VMProperties.GetRootLBNameForCluster(ctx, &clusterInst)
-				client, err := v.GetClusterPlatformClient(ctx, &clusterInst, cloudcommon.ClientTypeRootLB)
+				rootLBName := cloudcommon.GetDedicatedLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
+				rootLBAddr := ""
+				serverIp, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", rootLBName)
 				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client for dedicated cluster", "key", clusterInst.Key, "error", err)
-					// set client as nil and continue, caller will generate alert accordingly
-					client = nil
+					log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB addr for dedicated cluster", "key", clusterInst.Key, "error", err)
+					// set addr as "" and continue, caller will generate alert accordingly
+				} else {
+					rootLBAddr = serverIp.ExternalAddr
 				}
-				rootLBClients[lbName] = client
+				rootLBAddrs[lbName] = rootLBAddr
 			}
 		}
 	}
@@ -670,15 +701,17 @@ func (v *VMPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Clien
 			continue
 		}
 		lbName := cloudcommon.GetVMAppFQDN(&k, &k.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
-		client, err := v.GetSSHClientForServer(ctx, lbName, v.VMProperties.GetCloudletExternalNetwork())
+		rootLBAddr := ""
+		serverIp, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletExternalNetwork(), "", lbName)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client for VM app instance", "key", k, "error", err)
-			client = nil
-			// set client as nil and continue, caller will generate alert accordingly
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB addr for VM app instance", "key", k, "error", err)
+			// set addr as "" and continue, caller will generate alert accordingly
+		} else {
+			rootLBAddr = serverIp.ExternalAddr
 		}
-		rootLBClients[lbName] = client
+		rootLBAddrs[lbName] = rootLBAddr
 	}
-	return rootLBClients, nil
+	return sharedLBAddr, rootLBAddrs, nil
 }
 
 func (v *VMPlatform) GetRootLBFlavor(ctx context.Context) (*edgeproto.Flavor, error) {

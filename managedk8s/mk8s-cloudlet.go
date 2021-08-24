@@ -135,3 +135,7 @@ func (v *ManagedK8sPlatform) GetRestrictedCloudletStatus(ctx context.Context, cl
 func (v *ManagedK8sPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	return nil, nil
 }
+
+func (v *ManagedK8sPlatform) GetRootLBAddrs(ctx context.Context) (string, map[string]string, error) {
+	return "", nil, nil
+}

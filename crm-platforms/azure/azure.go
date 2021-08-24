@@ -126,6 +126,10 @@ func (a *AzurePlatform) GetNodePlatformClient(ctx context.Context, node *edgepro
 	return &pc.LocalClient{}, nil
 }
 
+func (a *AzurePlatform) GetSSHClient(ctx context.Context, addr string) (ssh.Client, error) {
+	return &pc.LocalClient{}, nil
+}
+
 func (a *AzurePlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst, vmAppInsts []edgeproto.AppInst) ([]edgeproto.CloudletMgmtNode, error) {
 	return []edgeproto.CloudletMgmtNode{}, nil
 }
@@ -170,4 +174,8 @@ func (a *AzurePlatform) SetProperties(props *infracommon.InfraProperties) error 
 
 func (a *AzurePlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	return nil, nil
+}
+
+func (a *AzurePlatform) GetRootLBAddrs(ctx context.Context) (string, map[string]string, error) {
+	return "", nil, nil
 }

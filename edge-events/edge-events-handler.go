@@ -77,7 +77,7 @@ func (e *EdgeEventsHandlerPlugin) AddClient(ctx context.Context, appInstKey edge
 }
 
 // Send new FindCloudletReply with available appinst information to all clients that are closer to this appinst
-func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, newAppInstKey edgeproto.AppInstKey, appinst *dmecommon.DmeAppInst) {
+func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, newAppInstKey edgeproto.AppInstKey, newAppInst *dmecommon.DmeAppInst, newAppInstCarrier string) {
 	e.Lock()
 	defer e.Unlock()
 	// Get cloudletinfo for specified cloudlet or create entry if needed
@@ -93,7 +93,7 @@ func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, newA
 	if !ok {
 		appinstinfo = new(AppInstInfo)
 		appinstinfo.Clients = make(map[Client]*ClientInfo)
-		appinstinfo.loc = appinst.Location
+		appinstinfo.loc = newAppInst.Location
 		cloudletinfo.AppInsts[newAppInstKey] = appinstinfo
 	}
 
@@ -103,14 +103,18 @@ func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, newA
 		for appinstkey, appinstinfo := range e.Cloudlets[cloudletKey].AppInsts {
 			if appinstkey.AppKey == newAppInstKey.AppKey {
 				for _, clientinfo := range appinstinfo.Clients {
-					if dmecommon.DistanceBetween(clientinfo.lastLoc, appinst.Location) < dmecommon.DistanceBetween(clientinfo.lastLoc, appinstinfo.loc) {
-						newCloudletEdgeEvent := new(dme.ServerEdgeEvent)
-						newCloudletEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_CLOUDLET_UPDATE
-						// construct FindCloudletReply from DmeAppInst struct
-						newCloudlet := new(dme.FindCloudletReply)
-						dmecommon.ConstructFindCloudletReplyFromDmeAppInst(ctx, appinst, &clientinfo.lastLoc, newCloudlet, e.EdgeEventsCookieExpiration)
-						newCloudletEdgeEvent.NewCloudlet = newCloudlet
-						clientinfo.sendFunc(newCloudletEdgeEvent)
+					// make sure carrier is correct for appinst
+					if dmecommon.SearchCarrier(newAppInstCarrier, clientinfo.carrier) {
+						// make sure client is closer to new appinst
+						if dmecommon.DistanceBetween(clientinfo.lastLoc, newAppInst.Location) < dmecommon.DistanceBetween(clientinfo.lastLoc, appinstinfo.loc) {
+							newCloudletEdgeEvent := new(dme.ServerEdgeEvent)
+							newCloudletEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_CLOUDLET_UPDATE
+							// construct FindCloudletReply from DmeAppInst struct
+							newCloudlet := new(dme.FindCloudletReply)
+							dmecommon.ConstructFindCloudletReplyFromDmeAppInst(ctx, newAppInst, &clientinfo.lastLoc, newCloudlet, e.EdgeEventsCookieExpiration)
+							newCloudletEdgeEvent.NewCloudlet = newCloudlet
+							clientinfo.sendFunc(newCloudletEdgeEvent)
+						}
 					}
 				}
 			}

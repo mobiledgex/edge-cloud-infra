@@ -316,8 +316,8 @@ func (c *DockerClusterStats) GetContainerDiskUsage(ctx context.Context) (map[str
 			diskAndLabels.AppVer = ver
 		} else {
 			// no point in processing disk if we don't know what app it's for
+			log.SpanLog(ctx, log.DebugLevelInfo, "Could not extract app name and version", "labels", containerDisk.Labels, "err", err)
 			continue
-
 		}
 
 		// Convert the Disk string into uint64 and

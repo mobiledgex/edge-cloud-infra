@@ -51,6 +51,7 @@ type influxQueryArgs struct {
 	DeploymentType string
 	CloudletList   string
 	QueryFilter    string
+	GroupFields    string
 }
 
 // TODO: embed this into influxQueryArgs

@@ -485,7 +485,8 @@ type RegionAppInstMetrics struct {
 
 type RegionClusterInstMetrics struct {
 	Region        string
-	ClusterInst   edgeproto.ClusterInstKey
+	ClusterInst   edgeproto.ClusterInstKey   `json:",omitempty"`
+	ClusterInsts  []edgeproto.ClusterInstKey `json:",omitempty"`
 	Selector      string
 	MetricsCommon `json:",inline"`
 }

@@ -16,27 +16,169 @@ import (
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
-var appInstGroupQueryTemplate *template.Template
-
 // select mean(cpu) from \"appinst-cpu\" where (apporg='DevOrg') and time >=now() -20m group by time(2m), app fill(previous)"
 var (
-	AppInstGroupQueryT = `SELECT {{.Selector}} FROM {{.Measurement}}` +
+	developerGroupQueryTemplate *template.Template
+	cloudletGroupQueryTemplate  *template.Template
+
+	AppInstGroupFields   = "app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg"
+	DeveloperGroupQueryT = `SELECT {{.Selector}} FROM {{.Measurement}}` +
 		` WHERE ({{.QueryFilter}}{{if .CloudletList}} AND ({{.CloudletList}}){{end}})` +
 		`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 		`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
-		` group by {{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg` +
+		` group by {{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}{{.GroupFields}}` +
 		` fill(previous)` +
 		` order by time desc {{if ne .Limit 0}}limit {{.Limit}}{{end}}`
+
+	ClusterInstGroupFields = "app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg"
+
+	CloudletGroupQueryT = ``
 )
 
-func init() {
-	appInstGroupQueryTemplate = template.Must(template.New("influxquery").Parse(AppInstGroupQueryT))
+type MetricsObject interface {
+	GetType() string
+	GetRegion() string
+	GetObjCount() int
+	ValidateSelector() error
+	ValidateObjects() error
+	GetDbNames() []string
+	CheckPermissionsAndGetCloudletList(ctx context.Context, username string) ([]string, error)
+	GetGroupQuery(cloudletList []string, settings *edgeproto.Settings) string
 }
 
-// handle app metrics
-func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
-	var cmd, org string
+type appInstMetrics struct {
+	*ormapi.RegionAppInstMetrics
+}
 
+func (m *appInstMetrics) GetType() string {
+	return APPINST
+}
+
+func (m *appInstMetrics) GetRegion() string {
+	return m.Region
+}
+
+func (m *appInstMetrics) GetObjCount() int {
+	return len(m.AppInsts)
+}
+
+func (m *appInstMetrics) GetDbNames() []string {
+	return []string{cloudcommon.DeveloperMetricsDbName}
+}
+
+func (m *appInstMetrics) ValidateSelector() error {
+	if m.Selector == "*" {
+		return fmt.Errorf("MetricsV2 api does not allow for a wildcard selector")
+	}
+	return validateSelectorString(m.Selector, m.GetType())
+}
+
+func (m *appInstMetrics) ValidateObjects() error {
+	for _, app := range m.AppInsts {
+		org := app.AppKey.Organization
+		// Developer name has to be specified
+		if org == "" {
+			return fmt.Errorf("App org must be present")
+		}
+		// validate input
+		if err := util.ValidateNames(app.GetTags()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *appInstMetrics) CheckPermissionsAndGetCloudletList(ctx context.Context, username string) ([]string, error) {
+	orgsToCheck := []string{}
+	cloudletsToCheck := []edgeproto.CloudletKey{}
+	for _, app := range m.AppInsts {
+		org := app.AppKey.Organization
+		orgsToCheck = append(orgsToCheck, org)
+		cloudletsToCheck = append(cloudletsToCheck, app.ClusterInstKey.CloudletKey)
+	}
+	cloudletList, err := checkPermissionsAndGetCloudletList(ctx, username, m.GetRegion(), orgsToCheck,
+		ResourceAppAnalytics, cloudletsToCheck)
+	if err != nil {
+		return nil, err
+	}
+	return cloudletList, nil
+}
+
+func (m *appInstMetrics) GetGroupQuery(cloudletList []string, settings *edgeproto.Settings) string {
+	return GetAppInstsGroupQuery(m.RegionAppInstMetrics, cloudletList, settings)
+}
+
+type clusterInstMetrics struct {
+	*ormapi.RegionClusterInstMetrics
+}
+
+func (m *clusterInstMetrics) GetType() string {
+	return CLUSTER
+}
+
+func (m *clusterInstMetrics) GetRegion() string {
+	return m.Region
+}
+
+func (m *clusterInstMetrics) GetObjCount() int {
+	return len(m.ClusterInsts)
+}
+
+func (m *clusterInstMetrics) GetDbNames() []string {
+	return []string{cloudcommon.DeveloperMetricsDbName}
+}
+
+func (m *clusterInstMetrics) ValidateObjects() error {
+	for _, cluster := range m.ClusterInsts {
+		org := cluster.Organization
+		// Developer name has to be specified
+		if org == "" {
+			return fmt.Errorf("Cluster org must be present")
+		}
+		// validate input
+		if err := util.ValidateNames(cluster.GetTags()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *clusterInstMetrics) ValidateSelector() error {
+	if m.Selector == "*" {
+		return fmt.Errorf("MetricsV2 api does not allow for a wildcard selector")
+	}
+	return validateSelectorString(m.Selector, m.GetType())
+}
+
+func (m *clusterInstMetrics) CheckPermissionsAndGetCloudletList(ctx context.Context, username string) ([]string, error) {
+	orgsToCheck := []string{}
+	cloudletsToCheck := []edgeproto.CloudletKey{}
+	for _, cluster := range m.ClusterInsts {
+		org := cluster.Organization
+		orgsToCheck = append(orgsToCheck, org)
+		cloudletsToCheck = append(cloudletsToCheck, cluster.CloudletKey)
+	}
+	cloudletList, err := checkPermissionsAndGetCloudletList(ctx, username, m.GetRegion(), orgsToCheck,
+		ResourceClusterAnalytics, cloudletsToCheck)
+	if err != nil {
+		return nil, err
+	}
+	return cloudletList, nil
+
+}
+func (m *clusterInstMetrics) GetGroupQuery(cloudletList []string, settings *edgeproto.Settings) string {
+	//TODO
+	return ""
+}
+
+// TODO - cloudlet metrics are a bit different, so for now just appInst and cluster metrics
+
+func init() {
+	developerGroupQueryTemplate = template.Must(template.New("influxquery").Parse(DeveloperGroupQueryT))
+	cloudletGroupQueryTemplate = template.Must(template.New("influxquery").Parse(CloudletGroupQueryT))
+}
+
+func ShowMetricsCommon(c echo.Context, in MetricsObject) error {
 	rc := &InfluxDBContext{}
 	claims, err := getClaims(c)
 	if err != nil {
@@ -50,35 +192,15 @@ func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
 		maxEntriesFromInfluxDb = config.MaxMetricsDataPoints
 	}
 
-	// At least one AppInst org has to be specified
-	if len(in.AppInsts) == 0 {
-		return fmt.Errorf("At least one app org has to be specified")
+	// At least one obj org has to be specified
+	if in.GetObjCount() == 0 {
+		return fmt.Errorf("At least one %s org has to be specified", in.GetType())
 	}
-	rc.region = in.Region
-	if in.Selector == "*" {
-		return fmt.Errorf("MetricsV2 api does not allow for a wildcard selector")
-	}
-	if err = validateSelectorString(in.Selector, APPINST); err != nil {
+	rc.region = in.GetRegion()
+	if err = in.ValidateSelector(); err != nil {
 		return err
 	}
-	orgsToCheck := []string{}
-	cloudletsToCheck := []edgeproto.CloudletKey{}
-	for _, app := range in.AppInsts {
-		org = app.AppKey.Organization
-		// Developer name has to be specified
-		if org == "" {
-			return fmt.Errorf("App org must be present")
-		}
-		// validate input
-		if err = util.ValidateNames(app.GetTags()); err != nil {
-			return err
-		}
-
-		orgsToCheck = append(orgsToCheck, org)
-		cloudletsToCheck = append(cloudletsToCheck, app.ClusterInstKey.CloudletKey)
-	}
-	cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, orgsToCheck,
-		ResourceAppAnalytics, cloudletsToCheck)
+	cloudletList, err := in.CheckPermissionsAndGetCloudletList(ctx, claims.Username)
 	if err != nil {
 		return err
 	}
@@ -86,10 +208,9 @@ func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
 	}
+	cmd := in.GetGroupQuery(cloudletList, settings)
 
-	cmd = GetAppInstsGroupQuery(ctx, in, cloudletList, settings)
-
-	err = influxStream(ctx, rc, []string{cloudcommon.DeveloperMetricsDbName}, cmd, func(res interface{}) error {
+	err = influxStream(ctx, rc, in.GetDbNames(), cmd, func(res interface{}) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
@@ -100,7 +221,19 @@ func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
 	return nil
 }
 
-func GetAppInstsGroupQuery(ctx context.Context, apps *ormapi.RegionAppInstMetrics, cloudletList []string, settings *edgeproto.Settings) string {
+// handle cluster metrics
+func GetClusterMetrics(c echo.Context, in *ormapi.RegionClusterInstMetrics) error {
+	ShowMetricsCommon(c, &clusterInstMetrics{RegionClusterInstMetrics: in})
+	return nil
+}
+
+// handle app metrics
+func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
+	ShowMetricsCommon(c, &appInstMetrics{RegionAppInstMetrics: in})
+	return nil
+}
+
+func GetAppInstsGroupQuery(apps *ormapi.RegionAppInstMetrics, cloudletList []string, settings *edgeproto.Settings) string {
 	// get time definition
 	minTimeDef := DefaultAppInstTimeWindow
 	if settings != nil {
@@ -112,9 +245,10 @@ func GetAppInstsGroupQuery(ctx context.Context, apps *ormapi.RegionAppInstMetric
 		Selector:    getSelectorForMeasurement(apps.Selector, selectorFunction),
 		Measurement: getMeasurementString(apps.Selector, APPINST),
 		QueryFilter: getAppInstQueryFilter(apps, cloudletList),
+		GroupFields: AppInstGroupFields,
 	}
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, appInstGroupQueryTemplate, &apps.MetricsCommon, timeDef, minTimeDef)
-	return getInfluxMetricsQueryCmd(&args, appInstGroupQueryTemplate)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &apps.MetricsCommon, timeDef, minTimeDef)
+	return getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
 }
 
 // Combine appInst definitions into a filter string in influxDB

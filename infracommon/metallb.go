@@ -3,7 +3,7 @@ package infracommon
 import (
 	"context"
 	"fmt"
-	"net"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -11,6 +11,9 @@ import (
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
+
+// metalLb usually installs here but can be configured in a different NS
+var DefaultMetalLbNamespace = "metallb-system"
 
 type MetalConfigmapParams struct {
 	AddressRanges []string
@@ -32,23 +35,40 @@ data:
       {{- end}}
 `
 
-// GetMetalLbIpRangeFromMasterIp gives an IP range on the same subnet as the master IP
-func (ip *InfraProperties) GetMetalLbIpRangeFromMasterIp(ctx context.Context, masterIP string) ([]string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetMetalLbIpRangeFromMasterIp", "masterIP", masterIP)
-	mip := net.ParseIP(masterIP)
-	if mip == nil {
-		return nil, fmt.Errorf("unable to parse master ip %s", masterIP)
-	}
-	start, end, err := ip.GetMetalLbIpRange()
+func InstallAndConfigMetalLbIfNotInstalled(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, addressRanges []string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InstallAndConfigMetalLbIfNotInstalled", "clusterInst", clusterInst)
+	installed, err := IsMetalLbInstalled(ctx, client, clusterInst, DefaultMetalLbNamespace)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	addr := mip.To4()
-	addr[3] = byte(start)
-	startAddr := addr.String()
-	addr[3] = byte(end)
-	endAddr := addr.String()
-	return []string{fmt.Sprintf("%s-%s", startAddr, endAddr)}, nil
+	if installed {
+		return nil
+	}
+	if err := InstallMetalLb(ctx, client, clusterInst); err != nil {
+		return err
+	}
+	if err := ConfigureMetalLb(ctx, client, clusterInst, addressRanges); err != nil {
+		return err
+	}
+	return nil
+}
+
+func IsMetalLbInstalled(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, metalLbNameSpace string) (bool, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "IsMetalLbInstalled", "clusterInst", clusterInst, "metalLbNameSpace", metalLbNameSpace)
+	kconf := k8smgmt.GetKconfName(clusterInst)
+	cmd := fmt.Sprintf("kubectl kubectl get deployment -n %s metallb-controller --kubeconfig=%s", metalLbNameSpace, kconf)
+	out, err := client.Output(cmd)
+	if err != nil {
+		if strings.Contains("NotFound", out) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "metalLb is not installed on the cluster")
+			return false, nil
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "unexpected error looking for metalLb", "out", out, "err", err)
+			return false, fmt.Errorf("Unexpected error looking for metalLb: %s - %v", out, err)
+		}
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "metalLb is already installed on the cluster")
+	return true, nil
 }
 
 func InstallMetalLb(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) error {
@@ -57,7 +77,6 @@ func InstallMetalLb(ctx context.Context, client ssh.Client, clusterInst *edgepro
 	cmds := []string{
 		fmt.Sprintf("kubectl create -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/namespace.yaml --kubeconfig=%s", kconf),
 		fmt.Sprintf("kubectl create -f https://raw.githubusercontent.com/metallb/metallb/v0.10.2/manifests/metallb.yaml --kubeconfig=%s", kconf),
-		// fmt.Sprintf("kubectl apply -f \"https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')&env.NO_MASQ_LOCAL=1\" --kubeconfig=%s", kconf),
 	}
 	for _, cmd := range cmds {
 		log.SpanLog(ctx, log.DebugLevelInfra, "installing metallb", "cmd", cmd)

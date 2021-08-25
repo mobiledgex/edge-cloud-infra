@@ -202,15 +202,15 @@ func (k *K8sBareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edg
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get shared LB info", "sharedLbName", sharedLbName, "err", err)
 	} else {
 		externalDev := k.GetExternalEthernetInterface()
-		internalDev := k.GetInternalEthernetInterface()
+		//		internalDev := k.GetInternalEthernetInterface()
 		err = k.RemoveIp(ctx, sshClient, lbInfo.ExternalIpAddr, externalDev)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.ExternalIpAddr", lbInfo.ExternalIpAddr)
 		}
-		err = k.RemoveIp(ctx, sshClient, lbInfo.InternalIpAddr, internalDev)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.InternalIpAddr", lbInfo.InternalIpAddr)
-		}
+		//	err = k.RemoveIp(ctx, sshClient, lbInfo.InternalIpAddr, internalDev)
+		//	if err != nil {
+		//		log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.InternalIpAddr", lbInfo.InternalIpAddr)
+		//	}
 		err = k.DeleteLbInfo(ctx, sshClient, sharedLbName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "error deleting lbinfo", "err", err)

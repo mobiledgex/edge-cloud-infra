@@ -254,9 +254,18 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				appWaitChan <- ""
 			}
 		}()
-		useMetalLb := v.VMProperties.CommonPf.Properties.GetUsesMetalLb()
+		useMetalLb := v.VMProperties.GetUsesMetalLb()
 		patchIp := ""
 		if useMetalLb {
+			// generally MetalLB should already be installed, but if the cluster is pre-existing it is
+			// possible that the install was not yet done
+			lbIpRange, err := v.VMProperties.GetMetalLbIpRangeFromMasterIp(ctx, masterIP.ExternalAddr)
+			if err != nil {
+				return err
+			}
+			if err := infracommon.InstallAndConfigMetalLbIfNotInstalled(ctx, client, clusterInst, lbIpRange); err != nil {
+				return err
+			}
 			err = k8smgmt.PopulateAppInstLoadBalancerIps(ctx, client, names, appInst)
 			if err != nil {
 				return err

@@ -475,15 +475,12 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
 			return err
 		}
-		if v.VMProperties.CommonPf.Properties.GetUsesMetalLb() {
-			lbIpRange, err := v.VMProperties.CommonPf.Properties.GetMetalLbIpRangeFromMasterIp(ctx, masterIP)
+		if v.VMProperties.GetUsesMetalLb() {
+			lbIpRange, err := v.VMProperties.GetMetalLbIpRangeFromMasterIp(ctx, masterIP)
 			if err != nil {
 				return err
 			}
-			if err := infracommon.InstallMetalLb(ctx, client, clusterInst); err != nil {
-				return err
-			}
-			if err := infracommon.ConfigureMetalLb(ctx, client, clusterInst, lbIpRange); err != nil {
+			if err := infracommon.InstallAndConfigMetalLbIfNotInstalled(ctx, client, clusterInst, lbIpRange); err != nil {
 				return err
 			}
 		}

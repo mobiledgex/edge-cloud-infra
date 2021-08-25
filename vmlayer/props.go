@@ -3,6 +3,7 @@ package vmlayer
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -168,6 +169,11 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "VM App Metrics collect interval, in minutes",
 		Description: "Determines how often VM metrics are collected",
 		Value:       "5",
+	},
+	"MEX_METALLB_OCTET3_RANGE": {
+		Name:        "MetalLB IP IP third octet range",
+		Description: "Start and end value of MetalLB IP range third octet, (start-end)",
+		Value:       "200-250",
 	},
 }
 
@@ -378,6 +384,54 @@ func (vp *VMProperties) GetRegion() string {
 
 func (vp *VMProperties) GetDeploymentTag() string {
 	return vp.CommonPf.DeploymentTag
+}
+
+func (vp *VMProperties) GetUsesMetalLb() bool {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_METALLB_OCTET3_RANGE")
+	return value != ""
+}
+
+func (vp *VMProperties) GetMetalLbIpRange() (uint64, uint64, error) {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_METALLB_OCTET3_RANGE")
+	if value == "" {
+		// should not happen as GetUsesMetalLb should be called first
+		return 0, 0, fmt.Errorf("No MetalLB range defined in MEX_METALLB_OCTET3_RANGE")
+	}
+	vals := strings.Split(value, "-")
+	if len(vals) != 2 {
+		return 0, 0, fmt.Errorf("MetalLB range not properly defined (start-end) in MEX_METALLB_OCTET3_RANGE")
+	}
+	start, err := strconv.ParseUint(vals[0], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start - %v", err)
+	}
+	end, err := strconv.ParseUint(vals[1], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start - %v", err)
+	}
+	if start > 255 || end > 255 || start > end {
+		return 0, 0, fmt.Errorf("Invalid MetalLB range in MEX_METALLB_OCTET3_RANGE")
+	}
+	return start, end, nil
+}
+
+// GetMetalLbIpRangeFromMasterIp gives an IP range on the same subnet as the master IP
+func (vp *VMProperties) GetMetalLbIpRangeFromMasterIp(ctx context.Context, masterIP string) ([]string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetMetalLbIpRangeFromMasterIp", "masterIP", masterIP)
+	mip := net.ParseIP(masterIP)
+	if mip == nil {
+		return nil, fmt.Errorf("unable to parse master ip %s", masterIP)
+	}
+	start, end, err := vp.GetMetalLbIpRange()
+	if err != nil {
+		return nil, err
+	}
+	addr := mip.To4()
+	addr[3] = byte(start)
+	startAddr := addr.String()
+	addr[3] = byte(end)
+	endAddr := addr.String()
+	return []string{fmt.Sprintf("%s-%s", startAddr, endAddr)}, nil
 }
 
 // For platforms without native flavor support, just use our meta flavors

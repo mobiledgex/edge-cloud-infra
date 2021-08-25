@@ -77,7 +77,7 @@ func (e *EdgeEventsHandlerPlugin) AddClient(ctx context.Context, appInstKey edge
 }
 
 // Send new FindCloudletReply with available appinst information to all clients that are closer to this appinst
-func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, newAppInstKey edgeproto.AppInstKey, newAppInst *dmecommon.DmeAppInst, newAppInstCarrier string) {
+func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, app *dmecommon.DmeApp, newAppInstKey edgeproto.AppInstKey, newAppInst *dmecommon.DmeAppInst, newAppInstCarrier string) {
 	e.Lock()
 	defer e.Unlock()
 	// Get cloudletinfo for specified cloudlet or create entry if needed
@@ -103,10 +103,22 @@ func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, newA
 		for appinstkey, appinstinfo := range e.Cloudlets[cloudletKey].AppInsts {
 			if appinstkey.AppKey == newAppInstKey.AppKey {
 				for _, clientinfo := range appinstinfo.Clients {
-					// make sure carrier is correct for appinst
-					if dmecommon.SearchCarrier(newAppInstCarrier, clientinfo.carrier) {
-						// make sure client is closer to new appinst
-						if dmecommon.DistanceBetween(clientinfo.lastLoc, newAppInst.Location) < dmecommon.DistanceBetween(clientinfo.lastLoc, appinstinfo.loc) {
+					// make sure client is closer to new appinst
+					if dmecommon.DistanceBetween(clientinfo.lastLoc, newAppInst.Location) < dmecommon.DistanceBetween(clientinfo.lastLoc, appinstinfo.loc) {
+						// make sure newAppInst passes search criteria for client+app
+						carrierData := map[string]*dmecommon.DmeAppInsts{
+							newAppInstCarrier: &dmecommon.DmeAppInsts{
+								Insts: map[edgeproto.VirtualClusterInstKey]*dmecommon.DmeAppInst{
+									newAppInstKey.ClusterInstKey: newAppInst,
+								},
+							},
+						}
+						foundList := dmecommon.SearchAppInsts(ctx, newAppInstCarrier, app, &clientinfo.lastLoc, carrierData, 1)
+						if foundList == nil || len(foundList) != 1 {
+							continue
+						}
+						// check that search result is the same as newAppInst
+						if foundList[0].AppInst.Uri == newAppInst.Uri {
 							newCloudletEdgeEvent := new(dme.ServerEdgeEvent)
 							newCloudletEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_CLOUDLET_UPDATE
 							// construct FindCloudletReply from DmeAppInst struct

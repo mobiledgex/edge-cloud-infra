@@ -58,8 +58,6 @@ func (k *K8sBareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Cl
 	ipLock.Lock()
 	defer ipLock.Unlock()
 	extDevName := k.GetExternalEthernetInterface()
-	//intDevName := k.GetInternalEthernetInterface()
-
 	accessIp := k.GetControlAccessIp()
 	usedIps, err := k.GetUsedSecondaryIpAddresses(ctx, client, extDevName)
 	if err != nil {

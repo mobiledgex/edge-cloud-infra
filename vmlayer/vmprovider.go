@@ -233,8 +233,14 @@ func (v *VMPlatform) GetClusterPlatformClientInternal(ctx context.Context, clust
 func (v *VMPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNodePlatformClient", "node", node)
 
-	if node == nil || node.Name == "" {
+	if node == nil {
 		return nil, fmt.Errorf("cannot GetNodePlatformClient, as node details are empty")
+	}
+	if node.Name == "" && node.Type == "sharedrootlb" {
+		node.Name = v.VMProperties.SharedRootLBName
+	}
+	if node.Name == "" {
+		return nil, fmt.Errorf("cannot GetNodePlatformClient, must specify node name")
 	}
 	if v.VMProperties.GetCloudletExternalNetwork() == "" {
 		return nil, fmt.Errorf("GetNodePlatformClient, missing external network in platform config")

@@ -259,12 +259,12 @@ func parseContainerDiskUsage(ctx context.Context, diskStr string) (uint64, error
 }
 
 // Example format: "cluster=DevOrg-AppCluster,edge-cloud=,mexAppName=devorgsdkdemo,mexAppVersion=10,cloudlet=localtest"
-func parseContainerLabels(ctx context.Context, labelStr string) (string, string, error) {
+func getAppVerLabels(ctx context.Context, labelStr string) (string, string, error) {
 	var app, ver string
 	labels := strings.Split(labelStr, ",")
 	for _, label := range labels {
-		keyVal := strings.Split(label, "=")
-		if len(keyVal) < 2 {
+		keyVal := strings.SplitN(label, "=", 2)
+		if len(keyVal) != 2 {
 			continue
 		}
 		if keyVal[0] == cloudcommon.MexAppNameLabel {
@@ -311,12 +311,12 @@ func (c *DockerClusterStats) GetContainerDiskUsage(ctx context.Context) (map[str
 		}
 
 		diskAndLabels := ContainerDiskAndLabels{}
-		if app, ver, err := parseContainerLabels(ctx, containerDisk.Labels); err == nil {
+		if app, ver, err := getAppVerLabels(ctx, containerDisk.Labels); err == nil {
 			diskAndLabels.AppName = app
 			diskAndLabels.AppVer = ver
 		} else {
 			// no point in processing disk if we don't know what app it's for
-			log.SpanLog(ctx, log.DebugLevelInfo, "Could not extract app name and version", "labels", containerDisk.Labels, "err", err)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Could not extract app name and version", "labels", containerDisk.Labels, "err", err)
 			continue
 		}
 

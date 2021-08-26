@@ -20,18 +20,20 @@ var (
 		testSingleAppFilter + ") " +
 		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 1"
-	testSingleApp = ormapi.RegionAppInstMetrics{
-		Region: "test",
-		AppInsts: []edgeproto.AppInstKey{
-			edgeproto.AppInstKey{
-				AppKey: edgeproto.AppKey{
-					Organization: "testOrg1",
-					Name:         "testApp1",
-					Version:      "1.0",
-				},
-				ClusterInstKey: edgeproto.VirtualClusterInstKey{
-					CloudletKey: edgeproto.CloudletKey{
-						Name: "testCloudlet1",
+	testSingleApp = appInstMetrics{
+		RegionAppInstMetrics: &ormapi.RegionAppInstMetrics{
+			Region: "test",
+			AppInsts: []edgeproto.AppInstKey{
+				edgeproto.AppInstKey{
+					AppKey: edgeproto.AppKey{
+						Organization: "testOrg1",
+						Name:         "testApp1",
+						Version:      "1.0",
+					},
+					ClusterInstKey: edgeproto.VirtualClusterInstKey{
+						CloudletKey: edgeproto.CloudletKey{
+							Name: "testCloudlet1",
+						},
 					},
 				},
 			},
@@ -49,40 +51,42 @@ var (
 		testAppsFilter + ") " +
 		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 1"
-	testApps = ormapi.RegionAppInstMetrics{
-		Region: "test",
-		AppInsts: []edgeproto.AppInstKey{
-			edgeproto.AppInstKey{ // 0
-				AppKey: edgeproto.AppKey{
-					Organization: "testOrg1",
-					Name:         "testApp1",
-					Version:      "1.0",
-				},
-				ClusterInstKey: edgeproto.VirtualClusterInstKey{
-					Organization: "testOrg1",
-					CloudletKey: edgeproto.CloudletKey{
-						Name:         "testCloudlet1",
-						Organization: "testCloudletOrg1",
+	testApps = appInstMetrics{
+		RegionAppInstMetrics: &ormapi.RegionAppInstMetrics{
+			Region: "test",
+			AppInsts: []edgeproto.AppInstKey{
+				edgeproto.AppInstKey{ // 0
+					AppKey: edgeproto.AppKey{
+						Organization: "testOrg1",
+						Name:         "testApp1",
+						Version:      "1.0",
 					},
-					ClusterKey: edgeproto.ClusterKey{
-						Name: "testCluster1",
+					ClusterInstKey: edgeproto.VirtualClusterInstKey{
+						Organization: "testOrg1",
+						CloudletKey: edgeproto.CloudletKey{
+							Name:         "testCloudlet1",
+							Organization: "testCloudletOrg1",
+						},
+						ClusterKey: edgeproto.ClusterKey{
+							Name: "testCluster1",
+						},
 					},
 				},
-			},
-			edgeproto.AppInstKey{ // 1
-				AppKey: edgeproto.AppKey{
-					Organization: "testOrg1",
-					Name:         "testApp2",
-					Version:      "2.0",
-				},
-				ClusterInstKey: edgeproto.VirtualClusterInstKey{
-					Organization: "testOrg1",
-					CloudletKey: edgeproto.CloudletKey{
-						Name:         "testCloudlet2",
-						Organization: "testCloudletOrg2",
+				edgeproto.AppInstKey{ // 1
+					AppKey: edgeproto.AppKey{
+						Organization: "testOrg1",
+						Name:         "testApp2",
+						Version:      "2.0",
 					},
-					ClusterKey: edgeproto.ClusterKey{
-						Name: "testCluster2",
+					ClusterInstKey: edgeproto.VirtualClusterInstKey{
+						Organization: "testOrg1",
+						CloudletKey: edgeproto.CloudletKey{
+							Name:         "testCloudlet2",
+							Organization: "testCloudletOrg2",
+						},
+						ClusterKey: edgeproto.ClusterKey{
+							Name: "testCluster2",
+						},
 					},
 				},
 			},
@@ -101,77 +105,60 @@ func getCloudletsFromAppInsts(apps *ormapi.RegionAppInstMetrics) []string {
 func TestGetInfluxMetricsQueryCmd(t *testing.T) {
 	// Single App, default time insterval
 	testSingleApp.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
+	testSingleApp.Selector = "cpu"
 	err := validateMetricsCommon(&testSingleApp.MetricsCommon)
 	require.Nil(t, err)
-	timeDef := getTimeDefinition(&testSingleApp.MetricsCommon, 0)
-	selectorFunction := getFuncForSelector("cpu", timeDef)
-	args := influxQueryArgs{
-		Selector:    getSelectorForMeasurement("cpu", selectorFunction),
-		Measurement: getMeasurementString("cpu", APPINST),
-		QueryFilter: getAppInstQueryFilter(&testSingleApp, getCloudletsFromAppInsts(&testSingleApp)),
-	}
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, appInstGroupQueryTemplate, &testSingleApp.MetricsCommon, timeDef, 0)
-	query := getInfluxMetricsQueryCmd(&args, appInstGroupQueryTemplate)
+	timeDef := getTimeDefinition(testSingleApp.GetMetricsCommon(), 0)
+	args := getMetricsTemplateArgs(&testSingleApp, timeDef, getCloudletsFromAppInsts(testSingleApp.RegionAppInstMetrics))
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &testSingleApp.MetricsCommon, timeDef, 0)
+	query := getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
 	require.Equal(t, testSingleAppQueryDefTime, query)
 	// Single App, just one last data points
 	testSingleApp.EndTime = time.Time{}
 	testSingleApp.StartTime = time.Time{}
 	testSingleApp.NumSamples = 0
 	testSingleApp.Limit = 1
+	testSingleApp.Selector = "cpu"
 	err = validateMetricsCommon(&testSingleApp.MetricsCommon)
 	require.Nil(t, err)
-	timeDef = getTimeDefinition(&testSingleApp.MetricsCommon, 0)
-	selectorFunction = getFuncForSelector("cpu", timeDef)
-	args = influxQueryArgs{
-		Selector:    getSelectorForMeasurement("cpu", selectorFunction),
-		Measurement: getMeasurementString("cpu", APPINST),
-		QueryFilter: getAppInstQueryFilter(&testSingleApp, getCloudletsFromAppInsts(&testSingleApp)),
-	}
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, appInstGroupQueryTemplate, &testSingleApp.MetricsCommon, timeDef, 0)
-	query = getInfluxMetricsQueryCmd(&args, appInstGroupQueryTemplate)
+	timeDef = getTimeDefinition(testSingleApp.GetMetricsCommon(), 0)
+	args = getMetricsTemplateArgs(&testSingleApp, timeDef, getCloudletsFromAppInsts(testSingleApp.RegionAppInstMetrics))
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &testSingleApp.MetricsCommon, timeDef, 0)
+	query = getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
 	require.Equal(t, testSingleAppQueryLastPoint, query)
 	// Multiple Apps, default time interval
 	testApps.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
 	testApps.StartTime = time.Time{}
 	testApps.Limit = 0
 	testApps.NumSamples = 0
+	testApps.Selector = "network"
 	err = validateMetricsCommon(&testApps.MetricsCommon)
 	require.Nil(t, err)
-	timeDef = getTimeDefinition(&testApps.MetricsCommon, 0)
-	selectorFunction = getFuncForSelector("network", timeDef)
-	args = influxQueryArgs{
-		Selector:    getSelectorForMeasurement("network", selectorFunction),
-		Measurement: getMeasurementString("network", APPINST),
-		QueryFilter: getAppInstQueryFilter(&testApps, getCloudletsFromAppInsts(&testApps)),
-	}
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, appInstGroupQueryTemplate, &testApps.MetricsCommon, timeDef, 0)
-	query = getInfluxMetricsQueryCmd(&args, appInstGroupQueryTemplate)
+	timeDef = getTimeDefinition(testApps.GetMetricsCommon(), 0)
+	args = getMetricsTemplateArgs(&testApps, timeDef, getCloudletsFromAppInsts(testApps.RegionAppInstMetrics))
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &testApps.MetricsCommon, timeDef, 0)
+	query = getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
 	require.Equal(t, testAppsQueryDefTime, query)
 	// Multiple Apps, just one last data points
 	testApps.EndTime = time.Time{}
 	testApps.StartTime = time.Time{}
 	testApps.Limit = 1
 	testApps.NumSamples = 0
+	testApps.Selector = "network"
 	err = validateMetricsCommon(&testSingleApp.MetricsCommon)
 	require.Nil(t, err)
-	timeDef = getTimeDefinition(&testApps.MetricsCommon, 0)
-	selectorFunction = getFuncForSelector("network", timeDef)
-	args = influxQueryArgs{
-		Selector:    getSelectorForMeasurement("network", selectorFunction),
-		Measurement: getMeasurementString("network", APPINST),
-		QueryFilter: getAppInstQueryFilter(&testApps, getCloudletsFromAppInsts(&testApps)),
-	}
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, appInstGroupQueryTemplate, &testApps.MetricsCommon, timeDef, 0)
-	query = getInfluxMetricsQueryCmd(&args, appInstGroupQueryTemplate)
+	timeDef = getTimeDefinition(testApps.GetMetricsCommon(), 0)
+	args = getMetricsTemplateArgs(&testApps, timeDef, getCloudletsFromAppInsts(testApps.RegionAppInstMetrics))
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &testApps.MetricsCommon, timeDef, 0)
+	query = getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
 	require.Equal(t, testAppsQueryLastPoint, query)
 }
 
 func TestGetAppInstQueryFilter(t *testing.T) {
 	// Tests single app string
-	require.Equal(t, testSingleAppFilter, getAppInstQueryFilter(&testSingleApp,
-		getCloudletsFromAppInsts(&testSingleApp)))
+	require.Equal(t, testSingleAppFilter, testSingleApp.GetQueryFilter(getCloudletsFromAppInsts(testSingleApp.RegionAppInstMetrics)))
 	// Test query for multiple apps
-	require.Equal(t, testAppsFilter, getAppInstQueryFilter(&testApps, getCloudletsFromAppInsts(&testApps)))
+	require.Equal(t, testAppsFilter, testApps.GetQueryFilter(getCloudletsFromAppInsts(testApps.RegionAppInstMetrics)))
 }
 
 func TestGetFuncForSelector(t *testing.T) {

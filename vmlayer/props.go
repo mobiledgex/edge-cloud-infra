@@ -171,8 +171,8 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 		Value:       "5",
 	},
 	"MEX_METALLB_OCTET3_RANGE": {
-		Name:        "MetalLB IP IP third octet range",
-		Description: "Start and end value of MetalLB IP range third octet, (start-end)",
+		Name:        "MetalLB IP third octet range",
+		Description: "Start and end value of MetalLB IP range third octet, (start-end). Set to NONE to disable MetalLB",
 		Value:       "200-250",
 	},
 }
@@ -388,10 +388,10 @@ func (vp *VMProperties) GetDeploymentTag() string {
 
 func (vp *VMProperties) GetUsesMetalLb() bool {
 	value, _ := vp.CommonPf.Properties.GetValue("MEX_METALLB_OCTET3_RANGE")
-	return value != ""
+	return value != "" && value != "NONE"
 }
 
-func (vp *VMProperties) GetMetalLbIpRange() (uint64, uint64, error) {
+func (vp *VMProperties) GetMetalLBIp3rdOctetRange() (uint64, uint64, error) {
 	value, _ := vp.CommonPf.Properties.GetValue("MEX_METALLB_OCTET3_RANGE")
 	if value == "" {
 		// should not happen as GetUsesMetalLb should be called first
@@ -403,26 +403,26 @@ func (vp *VMProperties) GetMetalLbIpRange() (uint64, uint64, error) {
 	}
 	start, err := strconv.ParseUint(vals[0], 10, 32)
 	if err != nil {
-		return 0, 0, fmt.Errorf("Failed to parse MetalLB start - %v", err)
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start-end- %v", err)
 	}
 	end, err := strconv.ParseUint(vals[1], 10, 32)
 	if err != nil {
-		return 0, 0, fmt.Errorf("Failed to parse MetalLB start - %v", err)
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start-end %v", err)
 	}
-	if start > 255 || end > 255 || start > end {
+	if start == 0 || start > 255 || end > 255 || start > end {
 		return 0, 0, fmt.Errorf("Invalid MetalLB range in MEX_METALLB_OCTET3_RANGE")
 	}
 	return start, end, nil
 }
 
-// GetMetalLbIpRangeFromMasterIp gives an IP range on the same subnet as the master IP
-func (vp *VMProperties) GetMetalLbIpRangeFromMasterIp(ctx context.Context, masterIP string) ([]string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetMetalLbIpRangeFromMasterIp", "masterIP", masterIP)
+// GetMetalLBIp3rdOctetRangeFromMasterIp gives an IP range on the same subnet as the master IP
+func (vp *VMProperties) GetMetalLBIp3rdOctetRangeFromMasterIp(ctx context.Context, masterIP string) ([]string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetMetalLBIp3rdOctetRangeFromMasterIp", "masterIP", masterIP)
 	mip := net.ParseIP(masterIP)
 	if mip == nil {
 		return nil, fmt.Errorf("unable to parse master ip %s", masterIP)
 	}
-	start, end, err := vp.GetMetalLbIpRange()
+	start, end, err := vp.GetMetalLBIp3rdOctetRange()
 	if err != nil {
 		return nil, err
 	}

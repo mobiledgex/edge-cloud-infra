@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
@@ -14,6 +15,8 @@ import (
 
 // metalLb usually installs here but can be configured in a different NS
 var DefaultMetalLbNamespace = "metallb-system"
+
+var maxMetalLbWaitTime = 5 * time.Minute
 
 type MetalConfigmapParams struct {
 	AddressRanges []string
@@ -41,14 +44,41 @@ func InstallAndConfigMetalLbIfNotInstalled(ctx context.Context, client ssh.Clien
 	if err != nil {
 		return err
 	}
-	if installed {
-		return nil
+	if !installed {
+		if err := InstallMetalLb(ctx, client, clusterInst); err != nil {
+			return err
+		}
+		if err := ConfigureMetalLb(ctx, client, clusterInst, addressRanges); err != nil {
+			return err
+		}
 	}
-	if err := InstallMetalLb(ctx, client, clusterInst); err != nil {
+	if err := VerifyMetalLbRunning(ctx, client, clusterInst, DefaultMetalLbNamespace); err != nil {
 		return err
 	}
-	if err := ConfigureMetalLb(ctx, client, clusterInst, addressRanges); err != nil {
-		return err
+	return nil
+}
+
+func VerifyMetalLbRunning(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, metalLbNameSpace string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "VerifyMetalLbRunning", "clusterInst", clusterInst, "metalLbNameSpace", metalLbNameSpace)
+	kconfEnv := "KUBECONFIG=" + k8smgmt.GetKconfName(clusterInst)
+	start := time.Now()
+	for {
+		done, err := k8smgmt.CheckPodsStatus(ctx, client, kconfEnv, metalLbNameSpace, "app=metallb", k8smgmt.WaitRunning, start)
+		if err != nil {
+			return fmt.Errorf("MetalLB pod status error - %v", err)
+		}
+		if done {
+			log.SpanLog(ctx, log.DebugLevelInfra, "MetalLB OK")
+			break
+		}
+		elapsed := time.Since(start)
+		if elapsed >= (maxMetalLbWaitTime) {
+			// for now we will return no errors when we time out.  In future we will use some other state or status
+			// field to reflect this and employ health checks to track these appinsts
+			log.SpanLog(ctx, log.DebugLevelInfra, "MetalLB startup wait timed out")
+			return fmt.Errorf("MetalLB startup wait timed out")
+		}
+		time.Sleep(1 * time.Second)
 	}
 	return nil
 }
@@ -56,10 +86,10 @@ func InstallAndConfigMetalLbIfNotInstalled(ctx context.Context, client ssh.Clien
 func IsMetalLbInstalled(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst, metalLbNameSpace string) (bool, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "IsMetalLbInstalled", "clusterInst", clusterInst, "metalLbNameSpace", metalLbNameSpace)
 	kconf := k8smgmt.GetKconfName(clusterInst)
-	cmd := fmt.Sprintf("kubectl kubectl get deployment -n %s metallb-controller --kubeconfig=%s", metalLbNameSpace, kconf)
+	cmd := fmt.Sprintf("kubectl get deployment -n %s controller --kubeconfig=%s", metalLbNameSpace, kconf)
 	out, err := client.Output(cmd)
 	if err != nil {
-		if strings.Contains("NotFound", out) {
+		if strings.Contains(out, "NotFound") {
 			log.SpanLog(ctx, log.DebugLevelInfra, "metalLb is not installed on the cluster")
 			return false, nil
 		} else {
@@ -110,7 +140,7 @@ func ConfigureMetalLb(ctx context.Context, client ssh.Client, clusterInst *edgep
 	}
 	kconf := k8smgmt.GetKconfName(clusterInst)
 	cmd := fmt.Sprintf("kubectl apply -f %s --kubeconfig=%s", fileName, kconf)
-	log.SpanLog(ctx, log.DebugLevelInfra, "installing metallb")
+	log.SpanLog(ctx, log.DebugLevelInfra, "installing metallb config", "cmd", cmd)
 	out, err := client.Output(cmd)
 	if err != nil {
 		return fmt.Errorf("can't add configure metallb %s, %s, %v", cmd, out, err)

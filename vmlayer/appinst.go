@@ -259,7 +259,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if useMetalLb {
 			// generally MetalLB should already be installed, but if the cluster is pre-existing it is
 			// possible that the install was not yet done
-			lbIpRange, err := v.VMProperties.GetMetalLbIpRangeFromMasterIp(ctx, masterIP.ExternalAddr)
+			lbIpRange, err := v.VMProperties.GetMetalLBIp3rdOctetRangeFromMasterIp(ctx, masterIP.ExternalAddr)
 			if err != nil {
 				return err
 			}

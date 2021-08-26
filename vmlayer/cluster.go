@@ -476,7 +476,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 			return err
 		}
 		if v.VMProperties.GetUsesMetalLb() {
-			lbIpRange, err := v.VMProperties.GetMetalLbIpRangeFromMasterIp(ctx, masterIP)
+			lbIpRange, err := v.VMProperties.GetMetalLBIp3rdOctetRangeFromMasterIp(ctx, masterIP)
 			if err != nil {
 				return err
 			}

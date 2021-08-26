@@ -1562,7 +1562,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// MappedPortsTls: 9.7
 	// MappedPortsNginx: 9.8
 	// MappedPortsMaxPktSize: 9.9
-	// MappedPortsLoadBalancerServiceIp: 9.10
 	// Flavor: 12
 	// FlavorName: 12.1
 	// State: 14
@@ -1598,6 +1597,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
 	// RealClusterName: 37
+	// InternalPortToLbIp: 38
+	// InternalPortToLbIpKey: 38.1
+	// InternalPortToLbIpValue: 38.2
 	// ```
 	// Security:
 	//   Bearer:

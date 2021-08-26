@@ -30,8 +30,12 @@ type CloudletInfo struct {
 
 // Struct that holds information about appinst
 type AppInstInfo struct {
-	// gps location of the appinst
-	loc dme.Loc
+	// unique key
+	appInstKey edgeproto.AppInstKey
+	// carrier associated with appinst
+	carrier string
+	// DmeAppInst struct used to pass into SearchAppInsts function
+	dmeAppInst *dmecommon.DmeAppInst
 	// hashmap containing Clients on this appinst and information about each Client
 	Clients map[Client]*ClientInfo
 }
@@ -52,20 +56,20 @@ type ClientInfo struct {
 func (e *EdgeEventsHandlerPlugin) AddClient(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey, lastLoc dme.Loc, carrier string, sendFunc func(event *dme.ServerEdgeEvent)) {
 	e.Lock()
 	defer e.Unlock()
-	// Get cloudletinfo for specified cloudlet or create entry if needed
+	// Get cloudletinfo for specified cloudlet
 	cloudletKey := appInstKey.ClusterInstKey.CloudletKey
 	cloudletinfo, ok := e.Cloudlets[cloudletKey]
 	if !ok {
-		cloudletinfo = new(CloudletInfo)
-		cloudletinfo.AppInsts = make(map[edgeproto.AppInstKey]*AppInstInfo)
-		e.Cloudlets[cloudletKey] = cloudletinfo
+		// this should have been added by SendAvailableAppInst
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find cloudlet", "cloudlet key", cloudletKey)
+		return
 	}
-	// Get appinstinfo for specified appinst or create entry if needed
+	// Get appinstinfo for specified appinst
 	appinstinfo, ok := cloudletinfo.AppInsts[appInstKey]
 	if !ok {
-		appinstinfo = new(AppInstInfo)
-		appinstinfo.Clients = make(map[Client]*ClientInfo)
-		cloudletinfo.AppInsts[appInstKey] = appinstinfo
+		// this should have been added by SendAvailableAppInst
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to find appinst", "appinst key", appInstKey)
+		return
 	}
 	// Initialize client info for new client
 	client := Client{cookieKey: cookieKey}
@@ -93,7 +97,9 @@ func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, app 
 	if !ok {
 		appinstinfo = new(AppInstInfo)
 		appinstinfo.Clients = make(map[Client]*ClientInfo)
-		appinstinfo.loc = newAppInst.Location
+		appinstinfo.appInstKey = newAppInstKey
+		appinstinfo.carrier = newAppInstCarrier
+		appinstinfo.dmeAppInst = newAppInst
 		cloudletinfo.AppInsts[newAppInstKey] = appinstinfo
 	}
 
@@ -103,30 +109,32 @@ func (e *EdgeEventsHandlerPlugin) SendAvailableAppInst(ctx context.Context, app 
 		for appinstkey, appinstinfo := range e.Cloudlets[cloudletKey].AppInsts {
 			if appinstkey.AppKey == newAppInstKey.AppKey {
 				for _, clientinfo := range appinstinfo.Clients {
-					// make sure client is closer to new appinst
-					if dmecommon.DistanceBetween(clientinfo.lastLoc, newAppInst.Location) < dmecommon.DistanceBetween(clientinfo.lastLoc, appinstinfo.loc) {
-						// make sure newAppInst passes search criteria for client+app
-						carrierData := map[string]*dmecommon.DmeAppInsts{
-							newAppInstCarrier: &dmecommon.DmeAppInsts{
-								Insts: map[edgeproto.VirtualClusterInstKey]*dmecommon.DmeAppInst{
-									newAppInstKey.ClusterInstKey: newAppInst,
-								},
+					// construct carrierData map with the two appinsts to compare
+					carrierData := map[string]*dmecommon.DmeAppInsts{
+						newAppInstCarrier: &dmecommon.DmeAppInsts{ // newly available appinst
+							Insts: map[edgeproto.VirtualClusterInstKey]*dmecommon.DmeAppInst{
+								newAppInstKey.ClusterInstKey: newAppInst,
 							},
-						}
-						foundList := dmecommon.SearchAppInsts(ctx, newAppInstCarrier, app, &clientinfo.lastLoc, carrierData, 1)
-						if foundList == nil || len(foundList) != 1 {
-							continue
-						}
-						// check that search result is the same as newAppInst
-						if foundList[0].AppInst.Uri == newAppInst.Uri {
-							newCloudletEdgeEvent := new(dme.ServerEdgeEvent)
-							newCloudletEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_CLOUDLET_UPDATE
-							// construct FindCloudletReply from DmeAppInst struct
-							newCloudlet := new(dme.FindCloudletReply)
-							dmecommon.ConstructFindCloudletReplyFromDmeAppInst(ctx, newAppInst, &clientinfo.lastLoc, newCloudlet, e.EdgeEventsCookieExpiration)
-							newCloudletEdgeEvent.NewCloudlet = newCloudlet
-							clientinfo.sendFunc(newCloudletEdgeEvent)
-						}
+						}, appinstinfo.carrier: &dmecommon.DmeAppInsts{ // current appinst
+							Insts: map[edgeproto.VirtualClusterInstKey]*dmecommon.DmeAppInst{
+								appinstinfo.appInstKey.ClusterInstKey: appinstinfo.dmeAppInst,
+							},
+						},
+					}
+					// compare new appinst with current appinst to see which is better
+					foundList := dmecommon.SearchAppInsts(ctx, newAppInstCarrier, app, &clientinfo.lastLoc, carrierData, 1)
+					if foundList == nil || len(foundList) != 1 {
+						continue
+					}
+					// check that search result is the same as newAppInst
+					if foundList[0].AppInst.Uri == newAppInst.Uri {
+						newCloudletEdgeEvent := new(dme.ServerEdgeEvent)
+						newCloudletEdgeEvent.EventType = dme.ServerEdgeEvent_EVENT_CLOUDLET_UPDATE
+						// construct FindCloudletReply from DmeAppInst struct
+						newCloudlet := new(dme.FindCloudletReply)
+						dmecommon.ConstructFindCloudletReplyFromDmeAppInst(ctx, newAppInst, &clientinfo.lastLoc, newCloudlet, e.EdgeEventsCookieExpiration)
+						newCloudletEdgeEvent.NewCloudlet = newCloudlet
+						clientinfo.sendFunc(newCloudletEdgeEvent)
 					}
 				}
 			}

@@ -403,7 +403,7 @@ func (vp *VMProperties) GetMetalLBIp3rdOctetRange() (uint64, uint64, error) {
 	}
 	start, err := strconv.ParseUint(vals[0], 10, 32)
 	if err != nil {
-		return 0, 0, fmt.Errorf("Failed to parse MetalLB start-end- %v", err)
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start-end %v", err)
 	}
 	end, err := strconv.ParseUint(vals[1], 10, 32)
 	if err != nil {

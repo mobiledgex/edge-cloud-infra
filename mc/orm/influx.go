@@ -733,6 +733,11 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 
+		// New metrics api request
+		if len(in.ClusterInsts) > 0 {
+			return GetClusterMetrics(c, &in)
+		}
+
 		rc.region = in.Region
 		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.ClusterInst.Organization},
 			ResourceClusterAnalytics, []edgeproto.CloudletKey{in.ClusterInst.CloudletKey})
@@ -761,6 +766,11 @@ func GetMetricsCommon(c echo.Context) error {
 
 		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
+		}
+
+		// New metrics api request
+		if len(in.Cloudlets) > 0 {
+			return GetCloudletMetrics(c, &in)
 		}
 
 		rc.region = in.Region

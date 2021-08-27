@@ -92,6 +92,69 @@ var (
 			},
 		},
 	}
+
+	testSingleClusterFilter       = "(\"clusterorg\"='testOrg1' AND \"cloudlet\"='testCloudlet1') AND (cloudlet='testCloudlet1')"
+	testSingleClusterQueryDefTime = "SELECT mean(cpu) as cpu FROM \"cluster-cpu\" WHERE (" +
+		testSingleClusterFilter + ") " +
+		"AND time >= '2019-12-31T13:01:00Z' AND time <= '2020-01-01T01:01:00Z' " +
+		"group by time(7m12s),cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc " +
+		"limit 100"
+	testSingleClusterQueryLastPoint = "SELECT cpu FROM \"cluster-cpu\" WHERE (" +
+		testSingleClusterFilter + ") " +
+		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc " +
+		"limit 1"
+	testSingleCluster = clusterInstMetrics{
+		RegionClusterInstMetrics: &ormapi.RegionClusterInstMetrics{
+			Region: "test",
+			ClusterInsts: []edgeproto.ClusterInstKey{
+				edgeproto.ClusterInstKey{
+					CloudletKey: edgeproto.CloudletKey{
+						Name: "testCloudlet1",
+					},
+					Organization: "testOrg1",
+				},
+			},
+		},
+	}
+	testClustersFilter = "(\"clusterorg\"='testOrg1' AND \"cluster\"='testCluster1' AND \"cloudlet\"='testCloudlet1' AND \"cloudletorg\"='testCloudletOrg1') OR " +
+		"(\"clusterorg\"='testOrg2' AND \"cluster\"='testCluster2' AND \"cloudlet\"='testCloudlet2' AND \"cloudletorg\"='testCloudletOrg2') " +
+		"AND (cloudlet='testCloudlet1' OR cloudlet='testCloudlet2')"
+	testClustersQueryDefTime = "SELECT last(sendBytes) as sendBytes,last(recvBytes) as recvBytes FROM \"cluster-network\" WHERE (" +
+		testClustersFilter + ") " +
+		"AND time >= '2019-12-31T13:01:00Z' AND time <= '2020-01-01T01:01:00Z' " +
+		"group by time(7m12s),cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc " +
+		"limit 100"
+	testClustersQueryLastPoint = "SELECT sendBytes,recvBytes FROM \"cluster-network\" WHERE (" +
+		testClustersFilter + ") " +
+		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc " +
+		"limit 1"
+	testClusters = clusterInstMetrics{
+		RegionClusterInstMetrics: &ormapi.RegionClusterInstMetrics{
+			Region: "test",
+			ClusterInsts: []edgeproto.ClusterInstKey{
+				edgeproto.ClusterInstKey{
+					Organization: "testOrg1",
+					CloudletKey: edgeproto.CloudletKey{
+						Name:         "testCloudlet1",
+						Organization: "testCloudletOrg1",
+					},
+					ClusterKey: edgeproto.ClusterKey{
+						Name: "testCluster1",
+					},
+				},
+				edgeproto.ClusterInstKey{
+					Organization: "testOrg2",
+					CloudletKey: edgeproto.CloudletKey{
+						Name:         "testCloudlet2",
+						Organization: "testCloudletOrg2",
+					},
+					ClusterKey: edgeproto.ClusterKey{
+						Name: "testCluster2",
+					},
+				},
+			},
+		},
+	}
 )
 
 func getCloudletsFromAppInsts(apps *ormapi.RegionAppInstMetrics) []string {
@@ -102,7 +165,67 @@ func getCloudletsFromAppInsts(apps *ormapi.RegionAppInstMetrics) []string {
 	return cloudlets
 }
 
-func TestGetInfluxMetricsQueryCmd(t *testing.T) {
+func getCloudletsFromClusterInsts(apps *ormapi.RegionClusterInstMetrics) []string {
+	cloudlets := []string{}
+	for _, cluster := range apps.ClusterInsts {
+		cloudlets = append(cloudlets, cluster.CloudletKey.Name)
+	}
+	return cloudlets
+}
+
+func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
+	// Single Cluster, default time insterval
+	testSingleCluster.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
+	testSingleCluster.Selector = "cpu"
+	err := validateMetricsCommon(&testSingleCluster.MetricsCommon)
+	require.Nil(t, err)
+	timeDef := getTimeDefinition(testSingleCluster.GetMetricsCommon(), 0)
+	args := getMetricsTemplateArgs(&testSingleCluster, timeDef, getCloudletsFromClusterInsts(testSingleCluster.RegionClusterInstMetrics))
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &testSingleCluster.MetricsCommon, timeDef, 0)
+	query := getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
+	require.Equal(t, testSingleClusterQueryDefTime, query)
+	// Single Cluster, just one last data points
+	testSingleCluster.EndTime = time.Time{}
+	testSingleCluster.StartTime = time.Time{}
+	testSingleCluster.NumSamples = 0
+	testSingleCluster.Limit = 1
+	testSingleCluster.Selector = "cpu"
+	err = validateMetricsCommon(&testSingleCluster.MetricsCommon)
+	require.Nil(t, err)
+	timeDef = getTimeDefinition(testSingleCluster.GetMetricsCommon(), 0)
+	args = getMetricsTemplateArgs(&testSingleCluster, timeDef, getCloudletsFromClusterInsts(testSingleCluster.RegionClusterInstMetrics))
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &testSingleCluster.MetricsCommon, timeDef, 0)
+	query = getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
+	require.Equal(t, testSingleClusterQueryLastPoint, query)
+	// Multiple Clusters, default time interval
+	testClusters.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
+	testClusters.StartTime = time.Time{}
+	testClusters.Limit = 0
+	testClusters.NumSamples = 0
+	testClusters.Selector = "network"
+	err = validateMetricsCommon(&testClusters.MetricsCommon)
+	require.Nil(t, err)
+	timeDef = getTimeDefinition(testClusters.GetMetricsCommon(), 0)
+	args = getMetricsTemplateArgs(&testClusters, timeDef, getCloudletsFromClusterInsts(testClusters.RegionClusterInstMetrics))
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &testClusters.MetricsCommon, timeDef, 0)
+	query = getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
+	require.Equal(t, testClustersQueryDefTime, query)
+	// Multiple Clusters, just one last data points
+	testClusters.EndTime = time.Time{}
+	testClusters.StartTime = time.Time{}
+	testClusters.Limit = 1
+	testClusters.NumSamples = 0
+	testClusters.Selector = "network"
+	err = validateMetricsCommon(&testSingleCluster.MetricsCommon)
+	require.Nil(t, err)
+	timeDef = getTimeDefinition(testClusters.GetMetricsCommon(), 0)
+	args = getMetricsTemplateArgs(&testClusters, timeDef, getCloudletsFromClusterInsts(testClusters.RegionClusterInstMetrics))
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, &testClusters.MetricsCommon, timeDef, 0)
+	query = getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
+	require.Equal(t, testClustersQueryLastPoint, query)
+}
+
+func TestGetInfluxAppMetricsQueryCmd(t *testing.T) {
 	// Single App, default time insterval
 	testSingleApp.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
 	testSingleApp.Selector = "cpu"
@@ -159,6 +282,13 @@ func TestGetAppInstQueryFilter(t *testing.T) {
 	require.Equal(t, testSingleAppFilter, testSingleApp.GetQueryFilter(getCloudletsFromAppInsts(testSingleApp.RegionAppInstMetrics)))
 	// Test query for multiple apps
 	require.Equal(t, testAppsFilter, testApps.GetQueryFilter(getCloudletsFromAppInsts(testApps.RegionAppInstMetrics)))
+}
+
+func TestGetClusterInstQueryFilter(t *testing.T) {
+	// Tests single cluster string
+	require.Equal(t, testSingleClusterFilter, testSingleCluster.GetQueryFilter(getCloudletsFromClusterInsts(testSingleCluster.RegionClusterInstMetrics)))
+	// Test query for multiple clusters
+	require.Equal(t, testClustersFilter, testClusters.GetQueryFilter(getCloudletsFromClusterInsts(testClusters.RegionClusterInstMetrics)))
 }
 
 func TestGetFuncForSelector(t *testing.T) {

@@ -148,6 +148,10 @@ var ClusterMetricAliasArgs = []string{
 	"cluster=clusterinst.clusterkey.name",
 	"cloudlet-org=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
+	"clusterinsts:#.cluster=clusterinsts:#.clusterkey.name",
+	"clusterinsts:#.cluster-org=clusterinsts:#.organization",
+	"clusterinsts:#.cloudlet-org=clusterinsts:#.cloudletkey.organization",
+	"clusterinsts:#.cloudlet=clusterinsts:#.cloudletkey.name",
 }
 
 var ClusterMetricComments = map[string]string{

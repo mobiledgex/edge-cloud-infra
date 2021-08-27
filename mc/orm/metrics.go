@@ -30,7 +30,7 @@ var (
 		` fill(previous)` +
 		` order by time desc {{if ne .Limit 0}}limit {{.Limit}}{{end}}`
 
-	ClusterInstGroupFields = "cluster,clusterorg,ver,cloudlet,cloudletorg"
+	ClusterInstGroupFields = "cluster,clusterorg,cloudlet,cloudletorg"
 
 	CloudletGroupQueryT = ``
 )
@@ -246,10 +246,7 @@ func (m *clusterInstMetrics) CheckPermissionsAndGetCloudletList(ctx context.Cont
 func (m *clusterInstMetrics) GetQueryFilter(cloudletList []string) string {
 	filterStr := ``
 	for ii, cluster := range m.ClusterInsts {
-		filterStr += ` AND "clusterorg"='` + cluster.Organization + `'`
-		if cluster.Organization != "" {
-			filterStr += ` AND "clusterorg"='` + cluster.Organization + `'`
-		}
+		filterStr += `("clusterorg"='` + cluster.Organization + `'`
 		if cluster.ClusterKey.Name != "" {
 			filterStr += ` AND "cluster"='` + cluster.ClusterKey.Name + `'`
 		}
@@ -276,7 +273,6 @@ func (m *clusterInstMetrics) GetQueryFilter(cloudletList []string) string {
 }
 
 func (m *clusterInstMetrics) GetGroupQuery(cloudletList []string, settings *edgeproto.Settings) string {
-	//TODO
 	return GetDeveloperGroupQuery(m, cloudletList, settings)
 }
 
@@ -331,6 +327,12 @@ func ShowMetricsCommon(c echo.Context, in MetricsObject) error {
 }
 
 // handle cluster metrics
+func GetCloudletMetrics(c echo.Context, in *ormapi.RegionCloudletMetrics) error {
+	// TODO
+	return nil
+}
+
+// handle cluster metrics
 func GetClusterMetrics(c echo.Context, in *ormapi.RegionClusterInstMetrics) error {
 	ShowMetricsCommon(c, &clusterInstMetrics{RegionClusterInstMetrics: in})
 	return nil
@@ -381,6 +383,8 @@ func getFuncForSelector(selector, timeDefinition string) string {
 		fallthrough
 	case "connections":
 		fallthrough
+	case "tcp":
+		fallthrough
 	case "udp":
 		return "last"
 	default:
@@ -404,9 +408,8 @@ func getSelectorForMeasurement(selector, function string) string {
 		fields = ConnectionsFields
 	case "udp":
 		fields = appUdpFields
-		// TODO - for cluster fields are different, we don't really use those anymore
 	case "tcp":
-		// TODO
+		fields = TcpFields
 	default:
 		// if it's one of the unsupported selectors just return it back
 		return selector

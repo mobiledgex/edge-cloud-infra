@@ -493,7 +493,8 @@ type RegionClusterInstMetrics struct {
 
 type RegionCloudletMetrics struct {
 	Region        string
-	Cloudlet      edgeproto.CloudletKey
+	Cloudlet      edgeproto.CloudletKey   `json:",omitempty"`
+	Cloudlets     []edgeproto.CloudletKey `json:",omitempty"`
 	Selector      string
 	PlatformType  string
 	MetricsCommon `json:",inline"`

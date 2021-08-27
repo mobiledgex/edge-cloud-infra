@@ -148,6 +148,13 @@ func testAddRemoveKeysSerial(t *testing.T, ctx context.Context) {
 	e := new(EdgeEventsHandlerPlugin)
 	e.Cloudlets = make(map[edgeproto.CloudletKey]*CloudletInfo)
 	e.EdgeEventsCookieExpiration = 10 * time.Minute
+	// Add appinsts
+	e.SendAvailableAppInst(ctx, nil, appinst0, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst1, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst2, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst3, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst4, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst5, nil, "")
 	// Add clients
 	e.AddClient(ctx, appinst0, client0, emptyLoc, "", nil)
 	e.AddClient(ctx, appinst1, client1, emptyLoc, "", nil)
@@ -210,6 +217,13 @@ func testAddRemoveKeysConcurrent(t *testing.T, ctx context.Context) {
 	e := new(EdgeEventsHandlerPlugin)
 	e.Cloudlets = make(map[edgeproto.CloudletKey]*CloudletInfo)
 	e.EdgeEventsCookieExpiration = 10 * time.Minute
+	// Add appinsts
+	e.SendAvailableAppInst(ctx, nil, appinst0, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst1, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst2, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst3, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst4, nil, "")
+	e.SendAvailableAppInst(ctx, nil, appinst5, nil, "")
 
 	numClients := len(clients)
 	numAppInstsPerClient := 3

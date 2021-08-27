@@ -755,10 +755,7 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		// Operator name has to be specified
-		if in.Cloudlet.Organization == "" {
-			return fmt.Errorf("Cloudlet details must be present")
-		}
+
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
 			return err
@@ -771,6 +768,11 @@ func GetMetricsCommon(c echo.Context) error {
 		// New metrics api request
 		if len(in.Cloudlets) > 0 {
 			return GetCloudletMetrics(c, &in)
+		}
+
+		// Operator name has to bez specified
+		if in.Cloudlet.Organization == "" {
+			return fmt.Errorf("Cloudlet details must be present")
 		}
 
 		rc.region = in.Region

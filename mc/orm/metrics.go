@@ -18,11 +18,8 @@ import (
 
 // select mean(cpu) from \"appinst-cpu\" where (apporg='DevOrg') and time >=now() -20m group by time(2m), app fill(previous)"
 var (
-	developerGroupQueryTemplate *template.Template
-	cloudletGroupQueryTemplate  *template.Template
-
-	AppInstGroupFields   = "app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg"
-	DeveloperGroupQueryT = `SELECT {{.Selector}} FROM {{.Measurement}}` +
+	metricsGroupQueryTemplate *template.Template
+	MetricsGroupQueryT        = `SELECT {{.Selector}} FROM {{.Measurement}}` +
 		` WHERE ({{.QueryFilter}}{{if .CloudletList}} AND ({{.CloudletList}}){{end}})` +
 		`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 		`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
@@ -30,9 +27,9 @@ var (
 		` fill(previous)` +
 		` order by time desc {{if ne .Limit 0}}limit {{.Limit}}{{end}}`
 
+	AppInstGroupFields     = "app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg"
 	ClusterInstGroupFields = "cluster,clusterorg,cloudlet,cloudletorg"
-
-	CloudletGroupQueryT = ``
+	CloudletGroupFields    = "cloudlet,cloudletorg"
 )
 
 type MetricsObject interface {
@@ -276,11 +273,98 @@ func (m *clusterInstMetrics) GetGroupQuery(cloudletList []string, settings *edge
 	return GetDeveloperGroupQuery(m, cloudletList, settings)
 }
 
-// TODO - cloudlet metrics are a bit different, so for now just appInst and cluster metrics
+type cloudletMetrics struct {
+	*ormapi.RegionCloudletMetrics
+}
+
+func (m *cloudletMetrics) GetType() string {
+	return CLOUDLET
+}
+
+func (m *cloudletMetrics) GetSelector() string {
+	return m.Selector
+}
+
+func (m *cloudletMetrics) GetRegion() string {
+	return m.Region
+}
+
+func (m *cloudletMetrics) GetGroupFields() string {
+	return CloudletGroupFields
+}
+
+func (m *cloudletMetrics) GetObjCount() int {
+	return len(m.Cloudlets)
+}
+
+func (m *cloudletMetrics) GetDbNames() []string {
+	return []string{cloudcommon.DeveloperMetricsDbName}
+}
+
+func (m *cloudletMetrics) GetMetricsCommon() *ormapi.MetricsCommon {
+	return &m.MetricsCommon
+}
+
+func (m *cloudletMetrics) ValidateSelector() error {
+	if m.Selector == "*" {
+		return fmt.Errorf("MetricsV2 api does not allow for a wildcard selector")
+	}
+	return validateSelectorString(m.Selector, m.GetType())
+}
+
+func (m *cloudletMetrics) ValidateObjects() error {
+	for _, cloudlet := range m.Cloudlets {
+		org := cloudlet.Organization
+		// operator name has to be specified
+		if org == "" {
+			return fmt.Errorf("Cloudlet org must be present")
+		}
+		// validate input
+		if err := util.ValidateNames(cloudlet.GetTags()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// For cloudlet metrics cloudlet list is always nil
+func (m *cloudletMetrics) CheckPermissionsAndGetCloudletList(ctx context.Context, username string) ([]string, error) {
+	for _, cloudlet := range m.Cloudlets {
+		// Check the operator against who is logged in
+		if err := authorized(ctx, username, cloudlet.Organization, ResourceCloudletAnalytics, ActionView); err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
+}
+
+// Combine cloudlet definitions into a filter string in influxDB
+// Example: cloudlet1/cloudletOrg1,cloudlet2/cloudletOrg1
+// string:
+// 		("cloudletorg"='cloudletOrg1' AND "cloudlet"='cloudlet1') OR
+//		("cloudletorg"='cloudletOrg1' AND "cloudlet"='cloudlet2')
+func (m *cloudletMetrics) GetQueryFilter(cloudletList []string) string {
+	filterStr := ``
+	for ii, cloudlet := range m.Cloudlets {
+		filterStr += `("cloudletorg"='` + cloudlet.Organization + `'`
+		if cloudlet.Name != "" {
+			filterStr += ` AND "cloudlet"='` + cloudlet.Name + `'`
+		}
+		filterStr += `)`
+		// last element
+		if len(m.Cloudlets) != ii+1 {
+			filterStr += ` OR `
+		}
+	}
+	return filterStr
+}
+
+func (m *cloudletMetrics) GetGroupQuery(cloudletList []string, settings *edgeproto.Settings) string {
+	return GetDeveloperGroupQuery(m, cloudletList, settings)
+}
 
 func init() {
-	developerGroupQueryTemplate = template.Must(template.New("influxquery").Parse(DeveloperGroupQueryT))
-	cloudletGroupQueryTemplate = template.Must(template.New("influxquery").Parse(CloudletGroupQueryT))
+	metricsGroupQueryTemplate = template.Must(template.New("influxquery").Parse(MetricsGroupQueryT))
 }
 
 func ShowMetricsCommon(c echo.Context, in MetricsObject) error {
@@ -328,7 +412,7 @@ func ShowMetricsCommon(c echo.Context, in MetricsObject) error {
 
 // handle cluster metrics
 func GetCloudletMetrics(c echo.Context, in *ormapi.RegionCloudletMetrics) error {
-	// TODO
+	ShowMetricsCommon(c, &cloudletMetrics{RegionCloudletMetrics: in})
 	return nil
 }
 
@@ -347,7 +431,7 @@ func GetAppMetrics(c echo.Context, in *ormapi.RegionAppInstMetrics) error {
 func getMetricsTemplateArgs(obj MetricsObject, timeDef string, cloudletList []string) influxQueryArgs {
 	selectorFunction := getFuncForSelector(obj.GetSelector(), timeDef)
 	args := influxQueryArgs{
-		Selector:    getSelectorForMeasurement(obj.GetSelector(), selectorFunction),
+		Selector:    getSelectorForMeasurement(obj.GetSelector(), selectorFunction, obj.GetType()),
 		Measurement: getMeasurementString(obj.GetSelector(), obj.GetType()),
 		QueryFilter: obj.GetQueryFilter(cloudletList),
 		GroupFields: obj.GetGroupFields(),
@@ -363,8 +447,8 @@ func GetDeveloperGroupQuery(obj MetricsObject, cloudletList []string, settings *
 	}
 	timeDef := getTimeDefinition(obj.GetMetricsCommon(), minTimeDef)
 	args := getMetricsTemplateArgs(obj, timeDef, cloudletList)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, developerGroupQueryTemplate, obj.GetMetricsCommon(), timeDef, minTimeDef)
-	return getInfluxMetricsQueryCmd(&args, developerGroupQueryTemplate)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, obj.GetMetricsCommon(), timeDef, minTimeDef)
+	return getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 }
 
 func getFuncForSelector(selector, timeDefinition string) string {
@@ -386,13 +470,17 @@ func getFuncForSelector(selector, timeDefinition string) string {
 	case "tcp":
 		fallthrough
 	case "udp":
+		fallthrough
+	case "utilization":
+		fallthrough
+	case "ipusage":
 		return "last"
 	default:
 		return ""
 	}
 }
 
-func getSelectorForMeasurement(selector, function string) string {
+func getSelectorForMeasurement(selector, function, metricType string) string {
 	var fields []string
 
 	switch selector {
@@ -403,13 +491,25 @@ func getSelectorForMeasurement(selector, function string) string {
 	case "mem":
 		fields = MemFields
 	case "network":
-		fields = NetworkFields
+		if metricType == CLOUDLET {
+			fields = CloudletNetworkFields
+		} else {
+			fields = NetworkFields
+		}
 	case "connections":
 		fields = ConnectionsFields
 	case "udp":
-		fields = appUdpFields
+		if metricType == APPINST {
+			fields = appUdpFields
+		} else {
+			fields = UdpFields
+		}
 	case "tcp":
 		fields = TcpFields
+	case "utilization":
+		fields = UtilizationFields
+	case "ipusage":
+		fields = IpUsageFields
 	default:
 		// if it's one of the unsupported selectors just return it back
 		return selector
@@ -419,7 +519,6 @@ func getSelectorForMeasurement(selector, function string) string {
 	}
 
 	// cycle through fields and create the following: "cpu, mean" -> "mean(cpu) as cpu"
-	// ah...wouldn't it be nice to have a map functionality here....
 	var newSelectors []string
 	for _, field := range fields {
 		newSelectors = append(newSelectors, function+"("+field+") as "+field)

@@ -159,12 +159,12 @@ var ClusterMetricComments = map[string]string{
 }
 
 var CloudletMetricRequiredArgs = []string{
-	"cloudlet-org",
 	"selector",
 }
 
 var CloudletMetricOptionalArgs = []string{
 	"cloudlet",
+	"cloudlet-org",
 	"limit",
 	"starttime",
 	"endtime",
@@ -173,6 +173,8 @@ var CloudletMetricOptionalArgs = []string{
 var CloudletMetricAliasArgs = []string{
 	"cloudlet-org=cloudlet.organization",
 	"cloudlet=cloudlet.name",
+	"cloudlets:#.cloudlet-org=cloudlets:#.organization",
+	"cloudlets:#.cloudlet=cloudlets:#.name",
 }
 
 var CloudletMetricComments = map[string]string{

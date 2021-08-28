@@ -158,8 +158,6 @@ func (e *EdgeEventsHandlerPlugin) getCloudletInfo(ctx context.Context, cloudletK
 }
 
 // Helper function that removes ClientKey from appinstinfo.Clients
-// Will also remove AppInstKey if clients is empty
-// Will also remove CloudletKey if appinsts is empty
 // Must lock EdgeEventsHandlerPlugin before calling this function
 func (e *EdgeEventsHandlerPlugin) removeClientKey(ctx context.Context, appInstKey edgeproto.AppInstKey, cookieKey dmecommon.CookieKey) {
 	// Get appinstinfo for specified appinst
@@ -171,10 +169,6 @@ func (e *EdgeEventsHandlerPlugin) removeClientKey(ctx context.Context, appInstKe
 	// Remove specified client
 	client := Client{cookieKey}
 	delete(appinstinfo.Clients, client)
-	// If there are no clients on appinst, remove appinst
-	if len(appinstinfo.Clients) == 0 {
-		e.removeAppInstKey(ctx, appInstKey)
-	}
 }
 
 // Helper function that removes AppInstKey from cloudletinfo.AppInsts

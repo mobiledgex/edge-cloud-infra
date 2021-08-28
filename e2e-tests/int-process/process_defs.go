@@ -10,6 +10,7 @@ type MC struct {
 	process.Common          `yaml:",inline"`
 	process.NodeCommon      `yaml:",inline"`
 	Addr                    string
+	FederationAddr          string
 	SqlAddr                 string
 	RolesFile               string
 	LdapAddr                string

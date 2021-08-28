@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -421,6 +422,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Nil(t, err, "create federation")
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, op1Resp.FederationId)
+	op1.fedId = op1Resp.FederationId
 
 	// Add federation partner (OP2)
 	partnerOp2FedReq := &ormapi.OperatorFederation{
@@ -451,7 +453,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, http.StatusOK, status)
 
 	// Show federation info
-	fedLookup = &ormapi.OperatorFederation{FederationId: op1Resp.FederationId}
+	fedLookup = &ormapi.OperatorFederation{FederationId: op1.fedId}
 	op1FedInfo, status, err := mcClient.ShowFederation(op1.uri, op1.tokenOper, fedLookup)
 	require.Nil(t, err, "show self federation")
 	require.Equal(t, http.StatusOK, status)
@@ -464,7 +466,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, http.StatusOK, status)
 	for _, cl := range clList {
 		fedZone := &ormapi.OperatorZoneCloudletMap{
-			FederationId: op1Resp.FederationId,
+			FederationId: op1.fedId,
 			ZoneId:       fmt.Sprintf("op1-testzone%s", cl.Key.Name),
 			GeoLocation:  fmt.Sprintf("%s.111", cl.Key.Name),
 			City:         "New York",
@@ -478,62 +480,104 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	op1ZonesCnt := len(clList)
 	op2ZonesCnt := len(op2.zones)
 
-	// Show operator zones, this will include zones shared by federation partner as well
-	lookup := &ormapi.OperatorZoneCloudletMap{}
-	opZones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, lookup)
+	// Show operator zones
+	lookup := &ormapi.OperatorZoneCloudletMap{
+		FederationId: op1.fedId,
+	}
+	op1Zones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, lookup)
 	require.Nil(t, err, "show federation zones")
 	require.Equal(t, http.StatusOK, status)
-	require.Equal(t, op1ZonesCnt+op2ZonesCnt, len(opZones), "op1 + op2 zones")
+	require.Equal(t, op1ZonesCnt, len(op1Zones), "op1 zones")
+
+	// Show federated zones
+	lookup = &ormapi.OperatorZoneCloudletMap{
+		FederationId: op2.fedId,
+	}
+	op2Zones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, lookup)
+	require.Nil(t, err, "show federation zones")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, op2ZonesCnt, len(op2Zones), "op2 zones")
 
 	// Register all the partner zones to be used
-	for _, opZone := range opZones {
+	for _, opZone := range op1Zones {
+		zoneRegReq := &ormapi.OperatorZoneCloudletMap{
+			ZoneId: opZone.ZoneId,
+		}
+		_, _, err := mcClient.RegisterFederationZone(op1.uri, op1.tokenOper, zoneRegReq)
+		require.NotNil(t, err, "cannot register self federation zone")
+	}
+	for _, opZone := range op2Zones {
 		zoneRegReq := &ormapi.OperatorZoneCloudletMap{
 			ZoneId: opZone.ZoneId,
 		}
 		_, status, err := mcClient.RegisterFederationZone(op1.uri, op1.tokenOper, zoneRegReq)
-		if opZone.FederationId == op1Resp.FederationId {
-			require.NotNil(t, err, "cannot register self federation zone")
-		} else {
-			require.Nil(t, err, "register federation zone")
-			require.Equal(t, http.StatusOK, status)
+		require.Nil(t, err, "register federation zone")
+		require.Equal(t, http.StatusOK, status)
+		opZones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneRegReq)
+		require.Nil(t, err, "show federation zones")
+		require.Equal(t, http.StatusOK, status)
+		foundCnt := 0
+		for _, regOP := range opZones[0].RegisteredOPs {
+			out := strings.Split(regOP, "/")
+			if out[0] == op2.operatorId && out[1] == op2.countryCode {
+				foundCnt++
+			}
 		}
+		require.Equal(t, 1, foundCnt, "registered single OP found")
 	}
 
 	// Cleanup
 	// =======
 	// De-register all the partner zones
-	for _, opZone := range opZones {
+	for _, opZone := range op1Zones {
+		zoneDeRegReq := &ormapi.OperatorZoneCloudletMap{
+			ZoneId: opZone.ZoneId,
+		}
+		_, _, err := mcClient.DeRegisterFederationZone(op1.uri, op1.tokenOper, zoneDeRegReq)
+		require.NotNil(t, err, "cannot deregister self federation zone")
+	}
+	for _, opZone := range op2Zones {
 		zoneDeRegReq := &ormapi.OperatorZoneCloudletMap{
 			ZoneId: opZone.ZoneId,
 		}
 		_, status, err := mcClient.DeRegisterFederationZone(op1.uri, op1.tokenOper, zoneDeRegReq)
-		if opZone.FederationId == op1Resp.FederationId {
-			require.NotNil(t, err, "cannot deregister self federation zone")
-		} else {
-			require.Nil(t, err, "deregister federation zone")
-			require.Equal(t, http.StatusOK, status)
+		require.Nil(t, err, "deregister federation zone")
+		require.Equal(t, http.StatusOK, status)
+		opZones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneDeRegReq)
+		require.Nil(t, err, "show federation zones")
+		require.Equal(t, http.StatusOK, status)
+		foundCnt := 0
+		for _, regOP := range opZones[0].RegisteredOPs {
+			out := strings.Split(regOP, "/")
+			if out[0] == op2.operatorId && out[1] == op2.countryCode {
+				foundCnt++
+			}
 		}
+		require.Equal(t, 0, foundCnt, "OP is not part of registered OPs")
 	}
 
-	// Delete OP1 zones
-	for _, opZone := range opZones {
+	// Delete zones
+	for _, opZone := range op2Zones {
+		zoneReq := &ormapi.OperatorZoneCloudletMap{
+			ZoneId: opZone.ZoneId,
+		}
+		_, _, err = mcClient.DeleteFederationZone(op1.uri, op1.tokenOper, zoneReq)
+		require.NotNil(t, err, "cannot delete partner federation zone")
+	}
+	for _, opZone := range op1Zones {
 		zoneReq := &ormapi.OperatorZoneCloudletMap{
 			ZoneId: opZone.ZoneId,
 		}
 		_, status, err = mcClient.DeleteFederationZone(op1.uri, op1.tokenOper, zoneReq)
-		if opZone.FederationId != op1Resp.FederationId {
-			require.NotNil(t, err, "cannot delete partner federation zone")
-		} else {
-			require.Nil(t, err, "delete federation zone")
-			require.Equal(t, http.StatusOK, status)
-		}
+		require.Nil(t, err, "delete federation zone")
+		require.Equal(t, http.StatusOK, status)
 	}
 
 	// No OP1 zones should exist
 	zoneLookup := &ormapi.OperatorZoneCloudletMap{
-		FederationId: op1Resp.FederationId,
+		FederationId: op1.fedId,
 	}
-	opZones, status, err = mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneLookup)
+	opZones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneLookup)
 	require.Nil(t, err, "show federation zones")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(opZones), "no op1 zones")
@@ -564,7 +608,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 
 	// Delete federation (OP1)
 	op1FedReq = &ormapi.OperatorFederation{
-		FederationId: op1Resp.FederationId,
+		FederationId: op1.fedId,
 	}
 	_, status, err = mcClient.DeleteFederation(op1.uri, op1.tokenOper, op1FedReq)
 	require.Nil(t, err, "delete federation")

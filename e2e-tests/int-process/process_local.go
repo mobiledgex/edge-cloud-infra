@@ -27,6 +27,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--addr")
 		args = append(args, p.Addr)
 	}
+	if p.FederationAddr != "" {
+		args = append(args, "--federationAddr")
+		args = append(args, p.FederationAddr)
+	}
 	if p.SqlAddr != "" {
 		args = append(args, "--sqlAddr")
 		args = append(args, p.SqlAddr)

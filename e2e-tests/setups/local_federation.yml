@@ -296,6 +296,7 @@ mcs:
 - name: mc1op1
   addr: "127.0.0.1:9900"
   sqladdr: "127.0.0.1:5432"
+  federationaddr: "127.0.0.1:9800"
   vaultaddr: "http://127.0.0.1:8200"
   usevaultpki: true
   hostname: "127.0.0.1"
@@ -314,6 +315,7 @@ mcs:
 
 - name: mc2op1
   addr: "127.0.0.1:9901"
+  federationaddr: "127.0.0.1:9801"
   sqladdr: "127.0.0.1:5432"
   vaultaddr: "http://127.0.0.1:8200"
   usevaultpki: true
@@ -332,6 +334,7 @@ mcs:
 
 - name: mc1op2
   addr: "127.0.0.1:9902"
+  federationaddr: "127.0.0.1:9802"
   sqladdr: "127.0.0.1:5433"
   vaultaddr: "http://127.0.0.1:8200"
   usevaultpki: true

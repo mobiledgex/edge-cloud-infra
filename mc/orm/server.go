@@ -40,20 +40,21 @@ import (
 
 // Server struct is just to track sql/db so we can stop them later.
 type Server struct {
-	config         *ServerConfig
-	sql            *intprocess.Sql
-	database       *gorm.DB
-	echo           *echo.Echo
-	vault          *process.Vault
-	stopInitData   bool
-	initDataDone   chan error
-	initJWKDone    chan struct{}
-	notifyServer   *notify.ServerMgr
-	notifyClient   *notify.Client
-	sqlListener    *pq.Listener
-	ldapServer     *ldap.Server
-	done           chan struct{}
-	federationEcho *echo.Echo
+	config          *ServerConfig
+	sql             *intprocess.Sql
+	database        *gorm.DB
+	echo            *echo.Echo
+	vault           *process.Vault
+	stopInitData    bool
+	initDataDone    chan error
+	initJWKDone     chan struct{}
+	notifyServer    *notify.ServerMgr
+	notifyClient    *notify.Client
+	sqlListener     *pq.Listener
+	ldapServer      *ldap.Server
+	done            chan struct{}
+	alertMgrStarted bool
+	federationEcho  *echo.Echo
 }
 
 type ServerConfig struct {
@@ -964,6 +965,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	artifactorySync.Start(server.done)
 	if AlertManagerServer != nil {
 		AlertManagerServer.Start()
+		server.alertMgrStarted = true
 	}
 	sqlListener, err := initSqlListener(ctx, server.done)
 	if err != nil {
@@ -1036,7 +1038,9 @@ func (s *Server) Stop() {
 		s.notifyClient.Stop()
 	}
 	if AlertManagerServer != nil {
-		AlertManagerServer.Stop()
+		if s.alertMgrStarted {
+			AlertManagerServer.Stop()
+		}
 		AlertManagerServer = nil
 	}
 	nodeMgr.Finish()

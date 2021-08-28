@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
@@ -14,12 +15,10 @@ import (
 )
 
 const (
-	ZoneStatusNone int = iota
-	ZoneStatusRegister
-
 	// Federation Types
-	FederationTypeSelf    = "self"
-	FederationTypePartner = "partner"
+	FederationTypeSelf             = "self"
+	FederationTypePartner          = "partner"          // partner OP whose zones can be used
+	FederationTypeFederatedPartner = "federatedpartner" // zones are only shared with federated partner
 
 	// Federation APIs
 	F_API_OPERATOR_PARTNER     = "/operator/partner"
@@ -73,11 +72,13 @@ func CreateFederation(c echo.Context) error {
 	db := loggedDB(ctx)
 	fedKey := uuid.New().String()
 	opFed.FederationId = fedKey
+	opFed.FederationAddr = serverConfig.FederationAddr
 	if err := db.Create(&opFed).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			// UUID collision
 			return fmt.Errorf("Federation key collision for operator ID %s, country code %s. Please retry again", opFed.OperatorId, opFed.CountryCode)
 		}
+		return dbErr(err)
 	}
 
 	opFedOut := ormapi.OperatorFederation{
@@ -139,7 +140,7 @@ func UpdateFederation(c echo.Context) error {
 	}
 
 	partnerLookup := ormapi.OperatorFederation{
-		Type: FederationTypePartner,
+		Type: FederationTypeFederatedPartner,
 	}
 	partnerOPs := []ormapi.OperatorFederation{}
 	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
@@ -268,10 +269,11 @@ func AddFederationPartner(c echo.Context) error {
 
 	// call REST API /operator/partner
 	opRegReq := ormapi.OPRegistrationRequest{
-		OrigFederationId: selfFed.FederationId,
-		DestFederationId: opFed.FederationId,
-		OperatorId:       selfFed.OperatorId,
-		CountryCode:      selfFed.CountryCode,
+		OrigFederationId:   selfFed.FederationId,
+		DestFederationId:   opFed.FederationId,
+		OperatorId:         selfFed.OperatorId,
+		CountryCode:        selfFed.CountryCode,
+		OrigFederationAddr: selfFed.FederationAddr,
 	}
 	opRegRes := ormapi.OPRegistrationResponse{}
 	err = sendFederationRequest("POST", opFed.FederationAddr, F_API_OPERATOR_PARTNER, &opRegReq, &opRegRes)
@@ -286,6 +288,7 @@ func AddFederationPartner(c echo.Context) error {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Partner federation already exists for operator ID %s, country code %s", opFed.OperatorId, opFed.CountryCode)
 		}
+		return dbErr(err)
 	}
 
 	// Store partner zones in DB
@@ -300,6 +303,7 @@ func AddFederationPartner(c echo.Context) error {
 			if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 				return fmt.Errorf("ZoneId %s already exists", zoneObj.ZoneId)
 			}
+			return dbErr(err)
 		}
 	}
 
@@ -403,6 +407,10 @@ func ShowFederation(c echo.Context) error {
 	if err != nil {
 		return dbErr(err)
 	}
+	for ii, _ := range feds {
+		// Do not display federation ID
+		feds[ii].FederationId = ""
+	}
 	return c.JSON(http.StatusOK, feds)
 }
 
@@ -494,6 +502,7 @@ func CreateFederationZone(c echo.Context) error {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Zone already exists for operator ID %s, country code %s", selfFed.OperatorId, selfFed.CountryCode)
 		}
+		return dbErr(err)
 	}
 
 	zCloudlet := ormapi.OperatorZoneCloudlet{}
@@ -505,6 +514,7 @@ func CreateFederationZone(c echo.Context) error {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Zone cloudlet already exists for operator ID %s, country code %s", selfFed.OperatorId, selfFed.CountryCode)
 		}
+		return dbErr(err)
 	}
 
 	// Share zone details with partner OPs
@@ -517,7 +527,7 @@ func CreateFederationZone(c echo.Context) error {
 		EdgeCount:   len(opZone.Cloudlets),
 	}
 	partnerLookup := ormapi.OperatorFederation{
-		Type: FederationTypePartner,
+		Type: FederationTypeFederatedPartner,
 	}
 	partnerOPs := []ormapi.OperatorFederation{}
 	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
@@ -581,6 +591,19 @@ func DeleteFederationZone(c echo.Context) error {
 		return fmt.Errorf("Can only delete self zones")
 	}
 
+	regLookup := ormapi.OperatorRegisteredZone{
+		ZoneId:       opZone.ZoneId,
+		FederationId: existingZone.FederationId,
+	}
+	regZone := ormapi.OperatorRegisteredZone{}
+	res := db.Where(&regLookup).First(&regZone)
+	if !res.RecordNotFound() && res.Error != nil {
+		return dbErr(res.Error)
+	}
+	if regZone.ZoneId != "" {
+		return fmt.Errorf("Cannot delete zone %s as it registered by partner OP. Please deregister it before deleting it", regZone.ZoneId)
+	}
+
 	if err := db.Delete(&existingZone).Error; err != nil {
 		return dbErr(err)
 	}
@@ -593,7 +616,7 @@ func DeleteFederationZone(c echo.Context) error {
 
 	// Notify deleted zone details with partner OPs
 	partnerLookup := ormapi.OperatorFederation{
-		Type: FederationTypePartner,
+		Type: FederationTypeFederatedPartner,
 	}
 	partnerOPs := []ormapi.OperatorFederation{}
 	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
@@ -640,9 +663,17 @@ func ShowOperatorZone(ctx context.Context, opZoneReq *ormapi.OperatorZoneCloudle
 		if err != nil {
 			return nil, dbErr(err)
 		}
+		opRegZones := []ormapi.OperatorRegisteredZone{}
+		regLookup := ormapi.OperatorRegisteredZone{
+			FederationId: opZoneReq.FederationId,
+			ZoneId:       opZoneReq.ZoneId,
+		}
+		res := db.Where(&regLookup).Find(&opRegZones)
+		if !res.RecordNotFound() && res.Error != nil {
+			return nil, dbErr(res.Error)
+		}
 
 		zoneOut := ormapi.OperatorZoneCloudletMap{}
-		zoneOut.FederationId = opZone.FederationId
 		zoneOut.ZoneId = opZone.ZoneId
 		zoneOut.GeoLocation = opZone.GeoLocation
 		zoneOut.City = opZone.City
@@ -652,6 +683,11 @@ func ShowOperatorZone(ctx context.Context, opZoneReq *ormapi.OperatorZoneCloudle
 		for _, opCl := range opCloudlets {
 			zoneOut.Cloudlets = append(zoneOut.Cloudlets, opCl.CloudletName)
 		}
+		for _, opRegZone := range opRegZones {
+			regZone := fmt.Sprintf("%s/%s", opRegZone.OperatorId, opRegZone.CountryCode)
+			zoneOut.RegisteredOPs = append(zoneOut.RegisteredOPs, regZone)
+		}
+
 		fedZones = append(fedZones, zoneOut)
 	}
 
@@ -722,9 +758,6 @@ func RegisterFederationZone(c echo.Context) error {
 	if existingFed.FederationId == selfFed.FederationId {
 		return fmt.Errorf("Cannot register self zones, only federated zones are allowed to be registered")
 	}
-	if existingFed.Status == ZoneStatusRegister {
-		return fmt.Errorf("Zone %s is already registered", reg.ZoneId)
-	}
 
 	// get federation information
 	fedInfo := ormapi.OperatorFederation{}
@@ -752,9 +785,16 @@ func RegisterFederationZone(c echo.Context) error {
 	}
 
 	// Mark zone as registered in DB
-	existingFed.Status = ZoneStatusRegister
-	if err := db.Model(&existingFed).Updates(&existingFed).Error; err != nil {
-		return dbErr(err)
+	regZone := ormapi.OperatorRegisteredZone{
+		ZoneId:       existingFed.ZoneId,
+		FederationId: fedInfo.FederationId,
+		OperatorId:   fedInfo.OperatorId,
+		CountryCode:  fedInfo.CountryCode,
+	}
+	if err := db.Create(&regZone).Error; err != nil {
+		if !strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
+			return dbErr(err)
+		}
 	}
 	return setReply(c, Msg("Partner OP zone registered successfully"))
 }
@@ -786,36 +826,36 @@ func DeRegisterFederationZone(c echo.Context) error {
 	lookup := ormapi.OperatorZone{
 		ZoneId: reg.ZoneId,
 	}
-	existingFed := ormapi.OperatorZone{}
-	db.Where(&lookup).First(&existingFed)
-	if existingFed.ZoneId == "" {
+	existingZone := ormapi.OperatorZone{}
+	res := db.Where(&lookup).First(&existingZone)
+	if !res.RecordNotFound() && res.Error != nil {
+		return dbErr(res.Error)
+	}
+	if existingZone.ZoneId == "" {
 		return fmt.Errorf("Zone %s not found", reg.ZoneId)
 	}
-	if existingFed.FederationId == selfFed.FederationId {
+	if existingZone.FederationId == selfFed.FederationId {
 		return fmt.Errorf("Cannot register self zones, only federated zones are allowed to be registered")
-	}
-	if existingFed.Status == ZoneStatusNone {
-		return fmt.Errorf("Zone %s is already deregistered", reg.ZoneId)
 	}
 
 	// get federation information
 	fedInfo := ormapi.OperatorFederation{}
 	fedLookup := ormapi.OperatorFederation{
-		FederationId: existingFed.FederationId,
+		FederationId: existingZone.FederationId,
 		Type:         FederationTypePartner,
 	}
 	err = db.Where(&fedLookup).First(&fedInfo).Error
 	if err != nil {
-		return fmt.Errorf("Partner federation %s doesn't exist", existingFed.FederationId)
+		return fmt.Errorf("Partner federation %s doesn't exist", existingZone.FederationId)
 	}
 
 	// Notify federated partner about zone registration
 	opZoneReg := ormapi.OPZoneRequest{
 		Operator:         fedInfo.OperatorId,
 		Country:          fedInfo.CountryCode,
-		Zone:             existingFed.ZoneId,
+		Zone:             existingZone.ZoneId,
 		OrigFederationId: selfFed.FederationId,
-		DestFederationId: existingFed.FederationId,
+		DestFederationId: existingZone.FederationId,
 	}
 	err = sendFederationRequest("DELETE", fedInfo.FederationAddr, F_API_OPERATOR_ZONE, &opZoneReg, nil)
 	if err != nil {
@@ -823,32 +863,72 @@ func DeRegisterFederationZone(c echo.Context) error {
 	}
 
 	// Mark zone as deregistered in DB
-	existingFed.Status = ZoneStatusNone
-	if err := db.Model(&existingFed).Updates(&existingFed).Error; err != nil {
-		return dbErr(err)
+	deregZone := ormapi.OperatorRegisteredZone{
+		ZoneId:       existingZone.ZoneId,
+		FederationId: existingZone.FederationId,
+	}
+	if err := db.Delete(&deregZone).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+
+			return dbErr(err)
+		}
 	}
 	return setReply(c, Msg("Partner OP zone deregistered successfully"))
 }
 
-func VerifyFederationAccess(ctx context.Context, selfFed *ormapi.OperatorFederation, origKey, destKey, operatorId, countryCode string) error {
+func ValidateSelfAndGetFederationInfo(ctx context.Context, origKey, destKey, operatorId, countryCode string) (*ormapi.OperatorFederation, error) {
 	// sanity check
 	if origKey == "" {
-		return fmt.Errorf("Missing origin federation key")
+		return nil, fmt.Errorf("Missing origin federation key")
 	}
 	if destKey == "" {
-		return fmt.Errorf("Missing destination federation key")
+		return nil, fmt.Errorf("Missing destination federation key")
 	}
 	if operatorId == "" {
-		return fmt.Errorf("Missing self Operator ID")
+		return nil, fmt.Errorf("Missing origin Operator ID")
 	}
 	if countryCode == "" {
-		return fmt.Errorf("Missing self country code")
+		return nil, fmt.Errorf("Missing origin country code")
 	}
+	db := loggedDB(ctx)
 	// validate destination federation key
-	if selfFed.FederationId != destKey {
-		return fmt.Errorf("Invalid destination federation key")
+	selfFed := ormapi.OperatorFederation{}
+	lookup := ormapi.OperatorFederation{
+		Type: FederationTypeSelf,
 	}
-	return nil
+	err := db.Where(&lookup).First(&selfFed).Error
+	if err != nil {
+		return nil, fmt.Errorf("Self federation doesn't exist")
+	}
+	if selfFed.FederationId != destKey {
+		return nil, fmt.Errorf("Invalid destination federation key")
+	}
+	return &selfFed, nil
+}
+
+func ValidateAndGetFederationinfo(ctx context.Context, origKey, destKey, operatorId, countryCode string) (*ormapi.OperatorFederation, *ormapi.OperatorFederation, error) {
+	selfFed, err := ValidateSelfAndGetFederationInfo(ctx, origKey, destKey, operatorId, countryCode)
+	if err != nil {
+		return nil, nil, err
+	}
+	db := loggedDB(ctx)
+	// validate origin federationkey/operator/country
+	partnerFed := ormapi.OperatorFederation{}
+	fedLookup := ormapi.OperatorFederation{
+		FederationId: origKey,
+		Type:         FederationTypePartner,
+	}
+	err = db.Where(&fedLookup).First(&partnerFed).Error
+	if err != nil {
+		return nil, nil, fmt.Errorf("Origin federation %s doesn't exist", origKey)
+	}
+	if partnerFed.OperatorId != operatorId {
+		return nil, nil, fmt.Errorf("Invalid origin operator ID %s", operatorId)
+	}
+	if partnerFed.CountryCode != countryCode {
+		return nil, nil, fmt.Errorf("Invalid origin country code %s", countryCode)
+	}
+	return selfFed, &partnerFed, nil
 }
 
 // Federation APIs
@@ -864,15 +944,8 @@ func FederationOperatorPartnerCreate(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	// get self federation information
-	selfFed, err := getSelfFederationInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = VerifyFederationAccess(
+	selfFed, err := ValidateSelfAndGetFederationInfo(
 		ctx,
-		selfFed,
 		opRegReq.OrigFederationId,
 		opRegReq.DestFederationId,
 		opRegReq.OperatorId,
@@ -882,7 +955,7 @@ func FederationOperatorPartnerCreate(c echo.Context) error {
 		return err
 	}
 
-	// Get list of zones to be shared to partner OP
+	// Get list of zones to be shared with partner OP
 	opZoneReq := &ormapi.OperatorZoneCloudletMap{
 		FederationId: selfFed.FederationId,
 	}
@@ -913,17 +986,32 @@ func FederationOperatorPartnerCreate(c echo.Context) error {
 	// Store partner OP, this mean partner OP is now federated
 	db := loggedDB(ctx)
 	partnerOP := ormapi.OperatorFederation{
+		FederationId:   opRegReq.OrigFederationId,
+		OperatorId:     opRegReq.OperatorId,
+		CountryCode:    opRegReq.CountryCode,
+		Type:           FederationTypeFederatedPartner,
+		FederationAddr: opRegReq.OrigFederationAddr,
+	}
+	fedLookup := ormapi.OperatorFederation{
 		FederationId: opRegReq.OrigFederationId,
-		OperatorId:   opRegReq.OperatorId,
-		CountryCode:  opRegReq.CountryCode,
-		Type:         FederationTypePartner,
-		MCC:          selfFed.MCC,
-		MNCs:         selfFed.MNCs,
+	}
+	existingPartnerOP := ormapi.OperatorFederation{}
+	err = db.Where(&fedLookup).First(&existingPartnerOP).Error
+	if err == nil {
+		if existingPartnerOP.Type != FederationTypeFederatedPartner {
+			err = db.Save(partnerOP).Error
+			if err != nil {
+				return dbErr(err)
+			}
+		} else {
+			return fmt.Errorf("Partner OP %s is already federated", existingPartnerOP.FederationId)
+		}
 	}
 	if err := db.Create(&partnerOP).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Partner federation already exists for operator ID %s, country code %s", partnerOP.OperatorId, partnerOP.CountryCode)
 		}
+		return dbErr(err)
 	}
 
 	// Share list of zones to be shared
@@ -939,15 +1027,8 @@ func FederationOperatorPartnerUpdate(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	// get self federation information
-	selfFed, err := getSelfFederationInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = VerifyFederationAccess(
+	_, _, err := ValidateAndGetFederationinfo(
 		ctx,
-		selfFed,
 		opConf.OrigFederationId,
 		opConf.DestFederationId,
 		opConf.Operator,
@@ -1004,15 +1085,8 @@ func FederationOperatorPartnerDelete(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	// get self federation information
-	selfFed, err := getSelfFederationInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = VerifyFederationAccess(
+	_, _, err := ValidateAndGetFederationinfo(
 		ctx,
-		selfFed,
 		opFedReq.OrigFederationId,
 		opFedReq.DestFederationId,
 		opFedReq.Operator,
@@ -1049,19 +1123,12 @@ func FederationOperatorZoneRegister(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	if len(opRegReq.Zones) != 0 {
+	if len(opRegReq.Zones) == 0 {
 		return fmt.Errorf("Must specify one zone ID")
 	}
 
-	// get self federation information
-	selfFed, err := getSelfFederationInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = VerifyFederationAccess(
+	selfFed, _, err := ValidateAndGetFederationinfo(
 		ctx,
-		selfFed,
 		opRegReq.OrigFederationId,
 		opRegReq.DestFederationId,
 		opRegReq.Operator,
@@ -1088,12 +1155,17 @@ func FederationOperatorZoneRegister(c echo.Context) error {
 	if existingFed.FederationId != selfFed.FederationId {
 		return fmt.Errorf("Cannot register partner zones, only self zones are allowed to be registered")
 	}
-	if existingFed.Status != ZoneStatusRegister {
-		// Mark zone as registered in DB
-		existingFed.Status = ZoneStatusRegister
-		if err := db.Model(&existingFed).Updates(&existingFed).Error; err != nil {
-			return dbErr(err)
+	regZone := ormapi.OperatorRegisteredZone{
+		ZoneId:       zoneId,
+		FederationId: opRegReq.OrigFederationId,
+		OperatorId:   opRegReq.Operator,
+		CountryCode:  opRegReq.Country,
+	}
+	if err := db.Create(&regZone).Error; err != nil {
+		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
+			return fmt.Errorf("ZoneId %s is already registered by %s", zoneId, opRegReq.Operator)
 		}
+		return dbErr(err)
 	}
 	resp.LeadOperatorId = selfFed.FederationId
 	resp.PartnerOperatorId = opRegReq.Operator
@@ -1117,19 +1189,12 @@ func FederationOperatorZoneDeRegister(c echo.Context) error {
 		return bindErr(err)
 	}
 
-	if len(opRegReq.Zone) != 0 {
+	if len(opRegReq.Zone) == 0 {
 		return fmt.Errorf("Must specify zone ID")
 	}
 
-	// get self federation information
-	selfFed, err := getSelfFederationInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = VerifyFederationAccess(
+	selfFed, _, err := ValidateAndGetFederationinfo(
 		ctx,
-		selfFed,
 		opRegReq.OrigFederationId,
 		opRegReq.DestFederationId,
 		opRegReq.Operator,
@@ -1154,12 +1219,15 @@ func FederationOperatorZoneDeRegister(c echo.Context) error {
 	if existingFed.FederationId != selfFed.FederationId {
 		return fmt.Errorf("Cannot deregister partner zones, only self zones are allowed to be deregistered")
 	}
-	if existingFed.Status != ZoneStatusNone {
-		// Mark zone as deregistered in DB
-		existingFed.Status = ZoneStatusNone
-		if err := db.Model(&existingFed).Updates(&existingFed).Error; err != nil {
-			return dbErr(err)
+	deregZone := ormapi.OperatorRegisteredZone{
+		ZoneId:       opRegReq.Zone,
+		FederationId: opRegReq.OrigFederationId,
+	}
+	if err := db.Delete(&deregZone).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("Zone %s is already deregistered for operator %s", opRegReq.Zone, opRegReq.Operator)
 		}
+		return dbErr(err)
 	}
 	return c.JSON(http.StatusOK, "Zone deregistered successfully")
 }
@@ -1179,15 +1247,8 @@ func FederationOperatorZoneShare(c echo.Context) error {
 		return fmt.Errorf("Must specify zone ID")
 	}
 
-	// get self federation information
-	selfFed, err := getSelfFederationInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = VerifyFederationAccess(
+	_, _, err := ValidateAndGetFederationinfo(
 		ctx,
-		selfFed,
 		opZoneShare.OrigFederationId,
 		opZoneShare.DestFederationId,
 		opZoneShare.Operator,
@@ -1202,9 +1263,9 @@ func FederationOperatorZoneShare(c echo.Context) error {
 		ZoneId: opZoneShare.PartnerZone.ZoneId,
 	}
 	existingZone := ormapi.OperatorZone{}
-	err = db.Where(&lookup).First(&existingZone).Error
-	if err != nil {
-		return dbErr(err)
+	res := db.Where(&lookup).First(&existingZone)
+	if !res.RecordNotFound() && res.Error != nil {
+		return dbErr(res.Error)
 	}
 	if existingZone.ZoneId != "" {
 		return fmt.Errorf("Zone %s already exists", opZoneShare.PartnerZone.ZoneId)
@@ -1219,6 +1280,7 @@ func FederationOperatorZoneShare(c echo.Context) error {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("ZoneId %s already exists", zoneObj.ZoneId)
 		}
+		return dbErr(err)
 	}
 
 	return setReply(c, Msg("Added zone successfully"))
@@ -1239,15 +1301,8 @@ func FederationOperatorZoneUnShare(c echo.Context) error {
 		return fmt.Errorf("Must specify zone ID")
 	}
 
-	// get self federation information
-	selfFed, err := getSelfFederationInfo(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = VerifyFederationAccess(
+	_, _, err := ValidateAndGetFederationinfo(
 		ctx,
-		selfFed,
 		opZone.OrigFederationId,
 		opZone.DestFederationId,
 		opZone.Operator,

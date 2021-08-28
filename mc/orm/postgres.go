@@ -84,6 +84,7 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 			&ormapi.OperatorFederation{},
 			&ormapi.OperatorZoneCloudlet{},
 			&ormapi.OperatorZone{},
+			&ormapi.OperatorRegisteredZone{},
 		).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "automigrate", "err", err)

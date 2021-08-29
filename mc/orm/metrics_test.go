@@ -225,7 +225,7 @@ func getCloudletsFromClusterInsts(apps *ormapi.RegionClusterInstMetrics) []strin
 }
 
 func TestGetInfluxCloudletMetricsQueryCmd(t *testing.T) {
-	// Single Cloudlets, default time insterval
+	// Single Cloudlets, default time interval
 	testSingleCloudlet.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
 	testSingleCloudlet.Selector = "utilization"
 	err := validateMetricsCommon(&testSingleCloudlet.MetricsCommon)
@@ -277,7 +277,7 @@ func TestGetInfluxCloudletMetricsQueryCmd(t *testing.T) {
 }
 
 func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
-	// Single Cluster, default time insterval
+	// Single Cluster, default time interval
 	testSingleCluster.EndTime = time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)
 	testSingleCluster.Selector = "cpu"
 	err := validateMetricsCommon(&testSingleCluster.MetricsCommon)

@@ -770,7 +770,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return GetCloudletMetrics(c, &in)
 		}
 
-		// Operator name has to bez specified
+		// Operator name has to be specified
 		if in.Cloudlet.Organization == "" {
 			return fmt.Errorf("Cloudlet details must be present")
 		}

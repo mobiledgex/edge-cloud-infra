@@ -1,0 +1,6 @@
+FROM alpine:3
+RUN apk --no-cache add openssl python3 py3-requests py3-yaml
+COPY vault-cert-operator/hooks/utils /utils
+COPY vault-cert-sidecar/manage-cert.py /
+
+ENTRYPOINT [ "python3", "/manage-cert.py" ]

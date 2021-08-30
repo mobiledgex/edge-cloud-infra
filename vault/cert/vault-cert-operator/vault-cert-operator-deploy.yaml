@@ -1,0 +1,33 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-cert-operator
+  namespace: vault-cert
+  labels:
+    operator: vault-cert-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      operator: vault-cert-operator
+  template:
+    metadata:
+      name: vault-cert-operator
+      labels:
+        operator: vault-cert-operator
+    spec:
+      containers:
+      - name: vault-cert-operator
+        image: ${{ env.REGISTRY }}/mobiledgex/vault-cert-operator:latest
+        imagePullPolicy: Always
+        env:
+        - name: VAULT_ADDR
+          value: https://example.com
+        - name: VAULT_ROLE_ID
+          value: foo
+        - name: VAULT_SECRET_ID
+          value: bar
+        - name: DEBUG
+          value: "false"
+      serviceAccountName: crd-vaultcert-acc

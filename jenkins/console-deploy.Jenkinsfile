@@ -11,6 +11,7 @@ pipeline {
     }
     parameters {
         string name: 'TAG', defaultValue: 'latest', description: 'Console version (tag) to deploy'
+        booleanParam name: 'DO_DEPLOY', defaultValue: false, description: 'Flag to control if deployment is actually attempted'
     }
     stages {
         stage('Set up build tag') {
@@ -30,6 +31,11 @@ export GITHUB_USER="${GITHUB_CREDS_USR}"
 export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
 export VAULT_ROLE_ID="${ANSIBLE_ROLE_USR}"
 export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
+
+if ! $DO_DEPLOY; then
+        echo "Skipping the staging deployment"
+        exit 0
+fi
 
 CMD=( ./deploy.sh -y -s setup,mc )
 [[ "$TAG" != "latest" ]] && CMD+=( -C ${TAG} )

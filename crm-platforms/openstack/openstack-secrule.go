@@ -11,7 +11,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
-	"github.com/mobiledgex/edge-cloud/util"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
@@ -359,13 +358,13 @@ func (o *OpenstackPlatform) DeleteCloudletSecgrpStack(ctx context.Context, updat
 	return o.deleteHeatStack(ctx, grpName)
 }
 
-func getTrustPolicyExceptionStackName(TrustPolicyException *edgeproto.TrustPolicyException) string {
-	grpName := util.HeatSanitize(TrustPolicyException.Key.Name + "-" + TrustPolicyException.Key.AppKey.Name + "-" + TrustPolicyException.Key.AppKey.Organization + "-" + TrustPolicyException.Key.AppKey.Version + "-" + TrustPolicyException.Key.CloudletKey.Name + "-" + TrustPolicyException.Key.CloudletKey.Organization)
+func (o *OpenstackPlatform) getTrustPolicyExceptionStackName(TrustPolicyException *edgeproto.TrustPolicyException) string {
+	grpName := o.NameSanitize(TrustPolicyException.Key.Name + "-" + TrustPolicyException.Key.AppKey.Name + "-" + TrustPolicyException.Key.AppKey.Organization + "-" + TrustPolicyException.Key.AppKey.Version + "-" + TrustPolicyException.Key.CloudletKey.Name + "-" + TrustPolicyException.Key.CloudletKey.Organization)
 	return grpName
 }
 
 func (o *OpenstackPlatform) ConfigureTrustPolicyExceptionSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicyException *edgeproto.TrustPolicyException, rootLbClients map[string]ssh.Client, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
-	grpName := getTrustPolicyExceptionStackName(TrustPolicyException)
+	grpName := o.getTrustPolicyExceptionStackName(TrustPolicyException)
 	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureTrustPolicyExceptionSecurityRules", "TrustPolicyExceptionSecgrpName", grpName, "action", action, "egressRestricted", egressRestricted)
 
 	if action == vmlayer.ActionCreate || action == vmlayer.ActionUpdate {
@@ -375,13 +374,13 @@ func (o *OpenstackPlatform) ConfigureTrustPolicyExceptionSecurityRules(ctx conte
 }
 
 func (o *OpenstackPlatform) CreateOrUpdateTrustPolicyExceptionSecgrpStack(ctx context.Context, egressRestricted bool, TrustPolicyException *edgeproto.TrustPolicyException, updateCallback edgeproto.CacheUpdateCallback) error {
-	grpName := getTrustPolicyExceptionStackName(TrustPolicyException)
+	grpName := o.getTrustPolicyExceptionStackName(TrustPolicyException)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateTrustPolicyExceptionSecgrpStack", "grpName", grpName, "TrustPolicyException", TrustPolicyException)
 	return o.CreateOrUpdateSecgrpStack(ctx, grpName, egressRestricted, TrustPolicyException.OutboundSecurityRules, updateCallback)
 }
 
 func (o *OpenstackPlatform) DeleteTrustPolicyExceptionSecgrpStack(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, updateCallback edgeproto.CacheUpdateCallback) error {
-	grpName := getTrustPolicyExceptionStackName(TrustPolicyException)
+	grpName := o.getTrustPolicyExceptionStackName(TrustPolicyException)
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteTrustPolicyExceptionSecgrpStack", "grpName", grpName, "TrustPolicyException", TrustPolicyException)
 	return o.deleteHeatStack(ctx, grpName)
 }

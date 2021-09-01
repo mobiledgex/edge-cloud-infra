@@ -33,8 +33,6 @@ spec:
          - "{{ deployment_tag_override | default(deploy_environ) }}"
          - "--d"
          - "infra,notify,api"
-         - "--flavor"
-         - "x1.medium"
          - "--scrapeInterval"
          - "5s"
          - "--updateAll"

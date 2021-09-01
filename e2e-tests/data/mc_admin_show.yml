@@ -234,8 +234,8 @@ regiondata:
       imagetype: ImageTypeHelm
       accessports: tcp:9090
       defaultflavor:
-        name: x1.medium
-      annotations: version=7.1.1
+        name: x1.small
+      annotations: version=9.4.10
       deployment: helm
       delopt: AutoDelete
       configs:

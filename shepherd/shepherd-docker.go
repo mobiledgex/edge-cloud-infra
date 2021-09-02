@@ -103,6 +103,17 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 		log.SpanLog(ctx, log.DebugLevelMetrics, errstr, "err", err.Error())
 		return nil, err
 	}
+	// get number of cores on the docker node
+	vmCores, err := c.clusterClient.Output("nproc")
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run <nproc> on ClusterVM", "err", err.Error())
+		return nil, err
+	}
+	nCores, err := strconv.Atoi(strings.TrimSpace(vmCores))
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse <nproc> output", "output", vmCores, "err", err.Error())
+	}
+
 	dockerResp := &DockerStats{}
 	stats := strings.Split(respLB, "\n")
 	statsVM := strings.Split(respVM, "\n")
@@ -117,6 +128,7 @@ func (c *DockerClusterStats) GetContainerStats(ctx context.Context) (*DockerStat
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to marshal stats", "stats", c, "err", err.Error())
 			continue
 		}
+		containerStat.coreCount = uint64(nCores)
 		// save results in a hash based on the container name
 		containers[containerStat.Container] = &containerStat
 	}

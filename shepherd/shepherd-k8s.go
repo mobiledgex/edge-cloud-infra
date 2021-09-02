@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -15,7 +16,10 @@ type K8sClusterStats struct {
 	promAddr string
 	client   ssh.Client
 	shepherd_common.ClusterMetrics
+	kubeNames *k8smgmt.KubeNames
 }
+
+const PromAddrUndefined string = "PROMADDRUNDEFINED"
 
 func (c *K8sClusterStats) GetClusterStats(ctx context.Context, ops ...shepherd_common.StatsOp) *shepherd_common.ClusterMetrics {
 	if c.promAddr == "" {

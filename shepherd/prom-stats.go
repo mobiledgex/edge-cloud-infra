@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
+
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/promutils"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
@@ -85,7 +88,37 @@ func getAppMetricFromPrometheusData(p *K8sClusterStats, appStatsMap map[shepherd
 
 func collectAppPrometheusMetrics(ctx context.Context, p *K8sClusterStats) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
 	appStatsMap := make(map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics)
+	log.SpanLog(ctx, log.DebugLevelMetrics, "collectAppPrometheusMetrics")
 
+	// update the prometheus address if needed
+	if strings.Contains(p.promAddr, PromAddrUndefined) {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Replacing the prom svc addr")
+		ps := strings.Split(p.promAddr, ":")
+		if len(ps) != 2 {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "unexpected prometheus addr", "promAddr", p.promAddr)
+			return appStatsMap
+		}
+		promPort, err := strconv.ParseInt(ps[1], 10, 64)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "cannot parse prometheus port", "promAddr", p.promAddr)
+		}
+		portMap := make(map[string]string)
+		err = k8smgmt.UpdateLoadBalancerPortMap(ctx, p.client, p.kubeNames, portMap)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "error updating load balancer port map", "err", err)
+			return appStatsMap
+		}
+		pstr := edgeproto.ProtoPortToString("tcp", int32(promPort))
+		lbip, ok := portMap[pstr]
+		if ok {
+			p.promAddr = fmt.Sprintf("%s:%d", lbip, promPort)
+			log.SpanLog(ctx, log.DebugLevelMetrics, "replaced prometheus address", "promAddr", p.promAddr)
+		} else {
+			// this is possible if it takes a while for prometheus to get configured and get an IP
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Prometheus LB IP not found")
+			return appStatsMap
+		}
+	}
 	// Get Pod CPU usage percentage
 	resp, err := getPromMetrics(ctx, p.promAddr, promutils.PromQCpuPodUrlEncoded, p.client)
 	if err == nil && resp.Status == "success" {

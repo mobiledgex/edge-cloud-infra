@@ -102,6 +102,7 @@ func collectAppPrometheusMetrics(ctx context.Context, p *K8sClusterStats) map[sh
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "cannot parse prometheus port", "promAddr", p.promAddr)
 		}
+		// see if we can find the prometheus port as a load balancer IP
 		portMap := make(map[string]string)
 		err = k8smgmt.UpdateLoadBalancerPortMap(ctx, p.client, p.kubeNames, portMap)
 		if err != nil {

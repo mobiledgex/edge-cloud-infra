@@ -38,6 +38,7 @@ type ClusterWorker struct {
 
 func NewClusterWorker(ctx context.Context, promAddr string, scrapeInterval time.Duration, pushInterval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, clusterInst *edgeproto.ClusterInst, pf platform.Platform) (*ClusterWorker, error) {
 	var err error
+	var nCores int
 	p := ClusterWorker{}
 	p.promAddr = promAddr
 	p.deployment = clusterInst.Deployment
@@ -69,7 +70,6 @@ func NewClusterWorker(ctx context.Context, promAddr string, scrapeInterval time.
 			return nil, err
 		}
 		// cache the  number of cores on the docker node so we can use it in the future
-		nCores := 1
 		vmCores, err := clusterClient.Output("nproc")
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to run <nproc> on ClusterVM", "err", err.Error())
@@ -77,8 +77,10 @@ func NewClusterWorker(ctx context.Context, promAddr string, scrapeInterval time.
 			nCores, err = strconv.Atoi(strings.TrimSpace(vmCores))
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse <nproc> output", "output", vmCores, "err", err.Error())
-				nCores = 1
 			}
+		}
+		if nCores == 0 {
+			nCores = 1
 		}
 		p.clusterStat = &DockerClusterStats{
 			key:           p.clusterInstKey,

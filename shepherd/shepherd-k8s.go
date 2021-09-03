@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
@@ -13,13 +14,12 @@ import (
 // K8s Cluster
 type K8sClusterStats struct {
 	key      edgeproto.ClusterInstKey
-	promAddr string
+	promAddr string // ip:port
+	promPort int32  // only needed if we don't know the IP to generate promAddr
 	client   ssh.Client
 	shepherd_common.ClusterMetrics
 	kubeNames *k8smgmt.KubeNames
 }
-
-const PromAddrUndefined string = "PROMADDRUNDEFINED"
 
 func (c *K8sClusterStats) GetClusterStats(ctx context.Context, ops ...shepherd_common.StatsOp) *shepherd_common.ClusterMetrics {
 	if c.promAddr == "" {
@@ -63,4 +63,29 @@ func (c *K8sClusterStats) GetAlerts(ctx context.Context) []edgeproto.Alert {
 		return nil
 	}
 	return alerts
+}
+
+func (c *K8sClusterStats) UpdatePrometheusAddr(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelMetrics, "UpdatePrometheusAddr")
+	if c.promPort == 0 {
+		// this should not happen as the port should be here even if the IP is not
+		return fmt.Errorf("No prometheus port specified")
+	}
+	// see if we can find the prometheus port as a load balancer IP
+	portMap := make(map[string]string)
+	err := k8smgmt.UpdateLoadBalancerPortMap(ctx, c.client, c.kubeNames, portMap)
+	if err != nil {
+		log.ForceLogSpan(log.SpanFromContext(ctx))
+		return fmt.Errorf("error updating load balancer port map - %v", err)
+	}
+	pstr := edgeproto.ProtoPortToString("tcp", c.promPort)
+	lbip, ok := portMap[pstr]
+	if ok {
+		c.promAddr = fmt.Sprintf("%s:%d", lbip, c.promPort)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "replaced prometheus address", "promAddr", c.promAddr)
+	} else {
+		// this is possible if it takes a while for prometheus to get configured and get an IP
+		return fmt.Errorf("Prometheus LB IP not found")
+	}
+	return nil
 }

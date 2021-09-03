@@ -135,7 +135,6 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	} else if new.Key.AppKey.Name == MEXPrometheusAppName {
 		// check for prometheus
 		mapKey = k8smgmt.GetK8sNodeNameSuffix(new.ClusterInstKey())
-
 	} else {
 		return
 	}
@@ -162,11 +161,11 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 			port = defaultPrometheusPort
 		}
 		// set the prometheus address to undefined as the service may or may
-		// not have an IP address yet.
-		promAddress := fmt.Sprintf("%s:%d", PromAddrUndefined, port)
-		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
+		// not have an IP address yet. Although we don't have an IP, we do need the port
+		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "prom ort", port)
 		if !exists {
-			stats, err = NewClusterWorker(ctx, promAddress, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, kubeNames, myPlatform)
+			// sart the
+			stats, err = NewClusterWorker(ctx, "", 0, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, kubeNames, myPlatform)
 			if err == nil {
 				workerMap[mapKey] = stats
 				stats.Start(ctx)
@@ -218,7 +217,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 	collectInterval := settings.ShepherdMetricsCollectionInterval.TimeDuration()
 	if new.State == edgeproto.TrackedState_READY {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New Docker cluster detected", "clustername", mapKey, "clusterInst", new)
-		stats, err := NewClusterWorker(ctx, "", metricsScrapingInterval, collectInterval, MetricSender.Update, new, nil, myPlatform)
+		stats, err := NewClusterWorker(ctx, "", 0, metricsScrapingInterval, collectInterval, MetricSender.Update, new, nil, myPlatform)
 		if err == nil {
 			workerMap[mapKey] = stats
 			stats.Start(ctx)

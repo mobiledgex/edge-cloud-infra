@@ -34,7 +34,7 @@ type ClusterWorker struct {
 	autoScaler     ClusterAutoScaler
 }
 
-func NewClusterWorker(ctx context.Context, promAddr string, scrapeInterval time.Duration, pushInterval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, clusterInst *edgeproto.ClusterInst, kubeNames *k8smgmt.KubeNames, pf platform.Platform) (*ClusterWorker, error) {
+func NewClusterWorker(ctx context.Context, promAddr string, promPort int32, scrapeInterval time.Duration, pushInterval time.Duration, send func(ctx context.Context, metric *edgeproto.Metric) bool, clusterInst *edgeproto.ClusterInst, kubeNames *k8smgmt.KubeNames, pf platform.Platform) (*ClusterWorker, error) {
 	var err error
 	p := ClusterWorker{}
 	p.promAddr = promAddr
@@ -58,6 +58,7 @@ func NewClusterWorker(ctx context.Context, promAddr string, scrapeInterval time.
 			key:       p.clusterInstKey,
 			client:    p.client,
 			promAddr:  p.promAddr,
+			promPort:  promPort,
 			kubeNames: kubeNames,
 		}
 	} else if p.deployment == cloudcommon.DeploymentTypeDocker {

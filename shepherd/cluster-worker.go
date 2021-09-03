@@ -77,6 +77,7 @@ func NewClusterWorker(ctx context.Context, promAddr string, scrapeInterval time.
 			nCores, err = strconv.Atoi(strings.TrimSpace(vmCores))
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse <nproc> output", "output", vmCores, "err", err.Error())
+				nCores = 1
 			}
 		}
 		p.clusterStat = &DockerClusterStats{

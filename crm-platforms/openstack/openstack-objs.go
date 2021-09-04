@@ -14,16 +14,16 @@ type OSServer struct {
 }
 
 type OSFlavorDetail struct {
-	Name        string                `json:"name"`
-	ID          string                `json:"id"`
-	RAM         int                   `json:"ram"`
-	Ephemeral   int                   `json:"OS-FLV-EXT-DATA:ephemeral"`
-	VCPUs       int                   `json:"vcpus"`
-	Disk        int                   `json:"disk"`
-	Public      bool                  `json:"os-flavor-access:is_public"`
-	Properties  string                `json:"properties"`
-	Swap        util.CustomJsonNumber `json:"swap"`
-	RXTX_Factor util.CustomJsonNumber `json:"rxtx factor"`
+	Name        string                     `json:"name"`
+	ID          string                     `json:"id"`
+	RAM         int                        `json:"ram"`
+	Ephemeral   int                        `json:"OS-FLV-EXT-DATA:ephemeral"`
+	VCPUs       int                        `json:"vcpus"`
+	Disk        int                        `json:"disk"`
+	Public      bool                       `json:"os-flavor-access:is_public"`
+	Properties  string                     `json:"properties"`
+	Swap        util.EmptyStringJsonNumber `json:"swap"`
+	RXTX_Factor util.EmptyStringJsonNumber `json:"rxtx factor"`
 }
 
 type OSAZone struct {

@@ -162,16 +162,7 @@ func (m *appInstMetrics) GetQueryFilter(cloudletList []string) string {
 }
 
 func (m *appInstMetrics) GetGroupQuery(cloudletList []string, settings *edgeproto.Settings) string {
-	var cmd string
-	if m.Selector == "*" {
-		m.Selector = "cpu"
-		cmd = GetDeveloperGroupQuery(m, cloudletList, settings)
-		m.Selector = "mem"
-		cmd += ";" + GetDeveloperGroupQuery(m, cloudletList, settings)
-	} else {
-		cmd = GetDeveloperGroupQuery(m, cloudletList, settings)
-	}
-	return cmd
+	return GetDeveloperGroupQuery(m, cloudletList, settings)
 }
 
 type clusterInstMetrics struct {
@@ -225,9 +216,6 @@ func (m *clusterInstMetrics) ValidateObjects() error {
 }
 
 func (m *clusterInstMetrics) ValidateSelector() error {
-	if m.Selector == "*" {
-		return fmt.Errorf("MetricsV2 api does not allow for a wildcard selector")
-	}
 	return validateSelectorString(m.Selector, m.GetType())
 }
 
@@ -322,9 +310,6 @@ func (m *cloudletMetrics) GetMetricsCommon() *ormapi.MetricsCommon {
 }
 
 func (m *cloudletMetrics) ValidateSelector() error {
-	if m.Selector == "*" {
-		return fmt.Errorf("MetricsV2 api does not allow for a wildcard selector")
-	}
 	return validateSelectorString(m.Selector, m.GetType())
 }
 
@@ -414,7 +399,6 @@ func ShowMetricsCommon(c echo.Context, in MetricsObject) error {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
 	}
 	cmd := in.GetGroupQuery(cloudletList, settings)
-
 	err = influxStream(ctx, rc, in.GetDbNames(), cmd, func(res interface{}) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res

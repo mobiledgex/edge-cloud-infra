@@ -21,6 +21,25 @@ var (
 		testSingleAppFilter + ") " +
 		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 1"
+	testSingleAppWildcardSelector = "SELECT cpu FROM \"appinst-cpu\" WHERE (" +
+		testSingleAppFilter + ") " +
+		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT mem FROM \"appinst-mem\" WHERE (" +
+		testSingleAppFilter + ") " +
+		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT disk FROM \"appinst-disk\" WHERE (" +
+		testSingleAppFilter + ") " +
+		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT sendBytes,recvBytes FROM \"appinst-network\" WHERE (" +
+		testSingleAppFilter + ") " +
+		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT port,active,handled,accepts,bytesSent,bytesRecvd,P0,P25,P50,P75,P90,P95,P99,\"P99.5\",\"P99.9\",P100 FROM \"appinst-connections\" WHERE (" +
+		testSingleAppFilter + ") " +
+		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT port,bytesSent,bytesRecvd,datagramsSent,datagramsRecvd,sentErrs,recvErrs,overflow,missed FROM \"appinst-udp\" WHERE (" +
+		testSingleAppFilter + ") " +
+		"group by app,apporg,cluster,clusterorg,ver,cloudlet,cloudletorg fill(previous) order by time desc limit 1"
+
 	testSingleApp = appInstMetrics{
 		RegionAppInstMetrics: &ormapi.RegionAppInstMetrics{
 			Region: "test",
@@ -104,6 +123,25 @@ var (
 		testSingleClusterFilter + ") " +
 		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 1"
+	testSingleClusterWildcardSelector = "SELECT cpu FROM \"cluster-cpu\" WHERE (" +
+		testSingleClusterFilter + ") " +
+		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT mem FROM \"cluster-mem\" WHERE (" +
+		testSingleClusterFilter + ") " +
+		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT disk FROM \"cluster-disk\" WHERE (" +
+		testSingleClusterFilter + ") " +
+		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT sendBytes,recvBytes FROM \"cluster-network\" WHERE (" +
+		testSingleClusterFilter + ") " +
+		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT tcpConns,tcpRetrans FROM \"cluster-tcp\" WHERE (" +
+		testSingleClusterFilter + ") " +
+		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT udpSent,udpRecv,udpRecvErr FROM \"cluster-udp\" WHERE (" +
+		testSingleClusterFilter + ") " +
+		"group by cluster,clusterorg,cloudlet,cloudletorg fill(previous) order by time desc limit 1"
+
 	testSingleCluster = clusterInstMetrics{
 		RegionClusterInstMetrics: &ormapi.RegionClusterInstMetrics{
 			Region: "test",
@@ -169,6 +207,16 @@ var (
 		testSingleCloudletFilter + ") " +
 		"group by cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 1"
+	testSingleCloudletWildcardSelector = "SELECT netSend,netRecv FROM \"cloudlet-network\" WHERE (" +
+		testSingleCloudletFilter + ") " +
+		"group by cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT vCpuUsed,vCpuMax,memUsed,memMax,diskUsed,diskMax FROM \"cloudlet-utilization\" WHERE (" +
+		testSingleCloudletFilter + ") " +
+		"group by cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +
+		"SELECT floatingIpsUsed,floatingIpsMax,ipv4Used,ipv4Max FROM \"cloudlet-ipusage\" WHERE (" +
+		testSingleCloudletFilter + ") " +
+		"group by cloudlet,cloudletorg fill(previous) order by time desc limit 1"
+
 	testSingleCloudlet = cloudletMetrics{
 		RegionCloudletMetrics: &ormapi.RegionCloudletMetrics{
 			Region: "test",
@@ -275,6 +323,14 @@ func TestGetInfluxCloudletMetricsQueryCmd(t *testing.T) {
 	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testCloudlets.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testCloudletsQueryLastPoint, query)
+	// Test wildcard selector, single app
+	testSingleCloudlet.EndTime = time.Time{}
+	testSingleCloudlet.StartTime = time.Time{}
+	testSingleCloudlet.NumSamples = 0
+	testSingleCloudlet.Limit = 1
+	testSingleCloudlet.Selector = "*"
+	query = testSingleCloudlet.GetGroupQuery([]string{}, nil)
+	require.Equal(t, testSingleCloudletWildcardSelector, query)
 }
 
 func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
@@ -328,6 +384,14 @@ func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
 	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testClusters.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testClustersQueryLastPoint, query)
+	// Wildcard check
+	testSingleCluster.EndTime = time.Time{}
+	testSingleCluster.StartTime = time.Time{}
+	testSingleCluster.NumSamples = 0
+	testSingleCluster.Limit = 1
+	testSingleCluster.Selector = "*"
+	query = testSingleCluster.GetGroupQuery([]string{"testCloudlet1"}, nil)
+	require.Equal(t, testSingleClusterWildcardSelector, query)
 }
 
 func TestGetInfluxAppMetricsQueryCmd(t *testing.T) {
@@ -381,6 +445,14 @@ func TestGetInfluxAppMetricsQueryCmd(t *testing.T) {
 	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testApps.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testAppsQueryLastPoint, query)
+	// Wildcard check
+	testSingleApp.EndTime = time.Time{}
+	testSingleApp.StartTime = time.Time{}
+	testSingleApp.NumSamples = 0
+	testSingleApp.Limit = 1
+	testSingleApp.Selector = "*"
+	query = testSingleApp.GetGroupQuery([]string{"testCloudlet1"}, nil)
+	require.Equal(t, testSingleAppWildcardSelector, query)
 }
 
 func TestGetAppInstQueryFilter(t *testing.T) {

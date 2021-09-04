@@ -28,3 +28,26 @@
 - import_role:
     name: controller
     tasks_from: etcd-backup
+
+- block:
+  - name: Copy compact script to host
+    copy:
+      src: etcd-compact.sh
+      dest: /tmp/etcd-compact.sh
+    register: compact_script
+
+  - name: Copy compact script to etcd pod
+    command: "kubectl --kubeconfig {{ kubeconfig_file.path }} cp {{ compact_script.dest }} mex-etcd-0:{{ etcd_compact_script_path }}"
+    changed_when: false
+
+  - name: Compact etcd database
+    command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec mex-etcd-0 -- sh {{ etcd_compact_script_path }}"
+    register: compact_out
+
+  - debug:
+      msg: "{{ compact_out.stdout }}"
+
+  - debug:
+      msg: "STDERR: {{ compact_out.stderr }}"
+
+  when: etcd_compact_after_backup|bool

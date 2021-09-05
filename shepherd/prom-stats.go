@@ -87,16 +87,6 @@ func collectAppPrometheusMetrics(ctx context.Context, p *K8sClusterStats) map[sh
 	appStatsMap := make(map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics)
 	log.SpanLog(ctx, log.DebugLevelMetrics, "collectAppPrometheusMetrics")
 
-	// update the prometheus address if needed
-	if p.promAddr == "" {
-		err := p.UpdatePrometheusAddr(ctx)
-		if err != nil {
-			log.ForceLogSpan(log.SpanFromContext(ctx))
-			log.SpanLog(ctx, log.DebugLevelMetrics, "error updating UpdatePrometheusAddr", "err", err)
-			return appStatsMap
-		}
-	}
-
 	// Get Pod CPU usage percentage
 	resp, err := getPromMetrics(ctx, p.promAddr, promutils.PromQCpuPodUrlEncoded, p.client)
 	if err == nil && resp.Status == "success" {

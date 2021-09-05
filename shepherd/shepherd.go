@@ -162,10 +162,10 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		}
 		// set the prometheus address to undefined as the service may or may
 		// not have an IP address yet. Although we don't have an IP, we do need the port
-		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "prom ort", port)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "prom port", port)
 		if !exists {
 			// sart the
-			stats, err = NewClusterWorker(ctx, "", 0, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, kubeNames, myPlatform)
+			stats, err = NewClusterWorker(ctx, "", port, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, kubeNames, myPlatform)
 			if err == nil {
 				workerMap[mapKey] = stats
 				stats.Start(ctx)

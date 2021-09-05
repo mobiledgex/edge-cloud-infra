@@ -43,8 +43,14 @@ func (c *K8sClusterStats) GetClusterStats(ctx context.Context, ops ...shepherd_c
 // Currently we are collecting stats for all apps in the cluster in one shot
 // Implementing  EDGECLOUD-1183 would allow us to query by label and we can have each app be an individual metric
 func (c *K8sClusterStats) GetAppStats(ctx context.Context) map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics {
+	// update the prometheus address if needed
 	if c.promAddr == "" {
-		return nil
+		err := c.UpdatePrometheusAddr(ctx)
+		if err != nil {
+			log.ForceLogSpan(log.SpanFromContext(ctx))
+			log.SpanLog(ctx, log.DebugLevelMetrics, "error updating UpdatePrometheusAddr", "err", err)
+			return make(map[shepherd_common.MetricAppInstKey]*shepherd_common.AppMetrics)
+		}
 	}
 	metrics := collectAppPrometheusMetrics(ctx, c)
 	if metrics == nil {

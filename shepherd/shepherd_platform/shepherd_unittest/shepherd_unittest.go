@@ -81,6 +81,10 @@ func (s *Platform) GetMetricsCollectInterval() time.Duration {
 	return 60
 }
 
+func (s *Platform) SetUsageAccessArgs(addr string, client ssh.Client) error {
+	return nil
+}
+
 // UTClient hijacks a set of commands and returns predetermined output
 // For all other commands it just calls pc.LocalClient equivalents
 type UTClient struct {

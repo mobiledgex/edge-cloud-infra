@@ -30,4 +30,6 @@ type Platform interface {
 	GetMetricsCollectInterval() time.Duration
 	// Inform the platform that a VM App was added or deleted
 	VmAppChangedCallback(ctx context.Context)
+	// set Prometheus address and client
+	SetUsageAccessArgs(addr string, client ssh.Client) error
 }

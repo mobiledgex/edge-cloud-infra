@@ -90,3 +90,7 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 
 func (s *Platform) VmAppChangedCallback(ctx context.Context) {
 }
+
+func (s *Platform) SetUsageAccessArgs(addr string, client ssh.Client) error {
+	return nil
+}

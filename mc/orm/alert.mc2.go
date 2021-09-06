@@ -1499,9 +1499,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyAppKeyOrganization: 2.1.1
 	// KeyAppKeyName: 2.1.2
 	// KeyAppKeyVersion: 2.1.3
-	// KeyCloudletKey: 2.2
-	// KeyCloudletKeyOrganization: 2.2.1
-	// KeyCloudletKeyName: 2.2.2
+	// KeyCloudletPoolKey: 2.2
+	// KeyCloudletPoolKeyOrganization: 2.2.1
+	// KeyCloudletPoolKeyName: 2.2.2
 	// KeyName: 2.3
 	// OutboundSecurityRules: 3
 	// OutboundSecurityRulesProtocol: 3.1
@@ -1568,9 +1568,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyAppKeyOrganization: 2.1.1
 	// KeyAppKeyName: 2.1.2
 	// KeyAppKeyVersion: 2.1.3
-	// KeyCloudletKey: 2.2
-	// KeyCloudletKeyOrganization: 2.2.1
-	// KeyCloudletKeyName: 2.2.2
+	// KeyCloudletPoolKey: 2.2
+	// KeyCloudletPoolKeyOrganization: 2.2.1
+	// KeyCloudletPoolKeyName: 2.2.2
 	// KeyName: 2.3
 	// State: 3
 	// ```

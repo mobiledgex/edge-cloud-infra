@@ -359,7 +359,7 @@ func (o *OpenstackPlatform) DeleteCloudletSecgrpStack(ctx context.Context, updat
 }
 
 func (o *OpenstackPlatform) getTrustPolicyExceptionStackName(TrustPolicyException *edgeproto.TrustPolicyException) string {
-	grpName := o.NameSanitize(TrustPolicyException.Key.Name + "-" + TrustPolicyException.Key.AppKey.Name + "-" + TrustPolicyException.Key.AppKey.Organization + "-" + TrustPolicyException.Key.AppKey.Version + "-" + TrustPolicyException.Key.CloudletKey.Name + "-" + TrustPolicyException.Key.CloudletKey.Organization)
+	grpName := o.NameSanitize(TrustPolicyException.Key.Name + "-" + TrustPolicyException.Key.AppKey.Name + "-" + TrustPolicyException.Key.AppKey.Organization + "-" + TrustPolicyException.Key.AppKey.Version + "-" + TrustPolicyException.Key.CloudletPoolKey.Name + "-" + TrustPolicyException.Key.CloudletPoolKey.Organization)
 	return grpName
 }
 

@@ -195,6 +195,17 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			if err != nil {
 				reqBody = []byte{}
 			}
+		} else if strings.Contains(req.RequestURI, "/auth/federation/partner/add") ||
+			strings.Contains(req.RequestURI, "/auth/federation/partner/remove") {
+			opFed := ormapi.OperatorFederation{}
+			err := json.Unmarshal(reqBody, &opFed)
+			if err == nil {
+				opFed.FederationId = ""
+				reqBody, err = json.Marshal(opFed)
+			}
+			if err != nil {
+				reqBody = []byte{}
+			}
 		}
 		span.SetTag("request", string(reqBody))
 		eventErr := nexterr

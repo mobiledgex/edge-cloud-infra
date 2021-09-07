@@ -32,14 +32,11 @@ type OperatorZoneCloudlet struct {
 }
 
 type OperatorRegisteredZone struct {
-	// ID used as an identifier
-	// read only: true
-	// Id string `gorm:"primary_key;auto_increment:true"`
 	// Globally unique string used to authenticate operations over federation interface
 	// required: true
-	ZoneId string
+	ZoneId string `gorm:"primary_key"`
 	// Owner ID of the zone
-	FederationId string
+	FederationId string `gorm:"primary_key"`
 	// Globally unique string to identify an operator gMEC
 	// required: true
 	OperatorId string

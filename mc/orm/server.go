@@ -939,12 +939,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		server.federationEcho = federationEcho
 
 		go func() {
-			/*
-				TODO: mTLS
-				if config.ApiTlsCertFile != "" {
-					err = federationEcho.StartTLS(config.ServAddr, config.ApiTlsCertFile, config.ApiTlsKeyFile)
-				}
-			*/
+			// TODO mTLS
 			err := federationEcho.Start(config.FederationAddr)
 			if err != nil && err != http.ErrServerClosed {
 				server.Stop()

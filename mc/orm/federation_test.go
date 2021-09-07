@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 
@@ -713,19 +712,20 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 		opZones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneRegReq)
 		require.Nil(t, err, "show federation zones")
 		require.Equal(t, http.StatusOK, status)
-		foundCnt := 0
-		for _, regOP := range opZones[0].RegisteredOPs {
-			out := strings.Split(regOP, "/")
-			if out[0] == op2.operatorId && out[1] == op2.countryCode {
-				foundCnt++
-			}
-		}
-		require.Equal(t, 1, foundCnt, "registered single OP found")
+		require.Contains(t, opZones[0].RegisteredOPs, op2.operatorId+"/"+op2.countryCode, "registered OP found")
 	}
 
 	testOPFederationAPIs(t, ctx, mcClient, op1, op2)
 
 	// Cleanup
+
+	// Remove federation partner (OP2) should fail as zones are registered
+	// ====================================================================
+	partnerOp2FedReq = &ormapi.OperatorFederation{
+		FederationId: op2.fedId,
+	}
+	_, status, err = mcClient.RemoveFederationPartner(op1.uri, op1.tokenOper, partnerOp2FedReq)
+	require.NotNil(t, err, "remove partner federation")
 
 	// De-register all the partner zones
 	// =================================
@@ -746,14 +746,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 		opZones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneDeRegReq)
 		require.Nil(t, err, "show federation zones")
 		require.Equal(t, http.StatusOK, status)
-		foundCnt := 0
-		for _, regOP := range opZones[0].RegisteredOPs {
-			out := strings.Split(regOP, "/")
-			if out[0] == op2.operatorId && out[1] == op2.countryCode {
-				foundCnt++
-			}
-		}
-		require.Equal(t, 0, foundCnt, "OP is not part of registered OPs")
+		require.NotContains(t, opZones[0].RegisteredOPs, op2.operatorId+"/"+op2.countryCode, "OP is not part of registered OPs")
 	}
 
 	// Delete zones
@@ -782,6 +775,14 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Nil(t, err, "show federation zones")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(opZones), "no op1 zones")
+
+	// Delete federation (OP1) should fail as there are partner OPs
+	// ============================================================
+	op1FedReq = &ormapi.OperatorFederation{
+		FederationId: op1.fedId,
+	}
+	_, status, err = mcClient.DeleteFederation(op1.uri, op1.tokenOper, op1FedReq)
+	require.NotNil(t, err, "delete federation")
 
 	// Remove federation partner (OP2)
 	// ===============================

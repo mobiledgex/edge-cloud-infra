@@ -230,12 +230,23 @@ func DeleteFederation(c echo.Context) error {
 		ResourceCloudlets, ActionManage); err != nil {
 		return err
 	}
-	opFed.Type = FederationTypeSelf
-
-	// TODO: verify that all zones are de-registered
-	// TODO: notify federation partner of your deletion
 
 	db := loggedDB(ctx)
+
+	// ensure that no partner OP exists
+	partnerLookup := ormapi.OperatorFederation{
+		Type: FederationTypePartner,
+	}
+	partnerOPs := []ormapi.OperatorFederation{}
+	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
+	if err != nil {
+		return dbErr(err)
+	}
+	if len(partnerOPs) > 0 {
+		return fmt.Errorf("Cannot delete federation as there are multiple partner OPs associated with it. Please remove all partner federations before deleting the federation")
+	}
+
+	opFed.Type = FederationTypeSelf
 	if err := db.Delete(&opFed).Error; err != nil {
 		return dbErr(err)
 	}
@@ -392,6 +403,30 @@ func RemoveFederationPartner(c echo.Context) error {
 		return dbErr(err)
 	}
 
+	// Check if all the zones are deregistered
+	lookup := ormapi.OperatorZone{
+		FederationId: opFed.FederationId,
+	}
+	partnerZones := []ormapi.OperatorZone{}
+	err = db.Where(&lookup).Find(&partnerZones).Error
+	if err != nil {
+		return dbErr(err)
+	}
+	for _, pZone := range partnerZones {
+		regLookup := ormapi.OperatorRegisteredZone{
+			ZoneId:       pZone.ZoneId,
+			FederationId: opFed.FederationId,
+		}
+		regZone := ormapi.OperatorRegisteredZone{}
+		res := db.Where(&regLookup).First(&regZone)
+		if !res.RecordNotFound() && res.Error != nil {
+			return dbErr(res.Error)
+		}
+		if regZone.ZoneId != "" {
+			return fmt.Errorf("Cannot remove federation partner as partner zone %s is registered locally. Please deregister it before removing the federation partner", regZone.ZoneId)
+		}
+	}
+
 	// call REST API /operator/partner
 	opFedReq := ormapi.OPFederationRequest{
 		OrigFederationId: selfFed.FederationId,
@@ -405,15 +440,6 @@ func RemoveFederationPartner(c echo.Context) error {
 	}
 
 	// Delete all the local copy of partner gMEC zones
-	// TODO: Check if all the zones are deregistered
-	lookup := ormapi.OperatorZone{
-		FederationId: opFed.FederationId,
-	}
-	partnerZones := []ormapi.OperatorZone{}
-	err = db.Where(&lookup).Find(&partnerZones).Error
-	if err != nil {
-		return dbErr(err)
-	}
 	for _, pZone := range partnerZones {
 		if err := db.Delete(pZone).Error; err != nil {
 			// ignore err

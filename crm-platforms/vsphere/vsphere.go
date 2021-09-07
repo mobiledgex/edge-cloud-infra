@@ -27,6 +27,7 @@ func (o *VSpherePlatform) GetFeatures() *platform.Features {
 	return &platform.Features{
 		SupportsMultiTenantCluster: true,
 		SupportsSharedVolume:       true,
+		SupportsNativeFlavors:      false,
 	}
 }
 

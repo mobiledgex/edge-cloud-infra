@@ -12,9 +12,7 @@ const (
 	DefaultAppInstTimeWindow     = 15 * time.Second
 	DefaultClientApiTimeWindow   = 30 * time.Second
 	DefaultClientUsageTimeWindow = 60 * time.Minute
-	// Max 100 data points on the graph
-	MaxNumSamples     = 100
-	FallbackTimeRange = 12 * time.Hour
+	FallbackTimeRange            = 12 * time.Hour
 )
 
 func getTimeDefinition(obj *ormapi.MetricsCommon, minTimeWindow time.Duration) string {
@@ -54,15 +52,17 @@ func validateMetricsCommon(obj *ormapi.MetricsCommon) error {
 	if obj.Limit == 0 && obj.NumSamples == 0 {
 		if obj.StartTime.IsZero() && obj.EndTime.IsZero() {
 			// fallback to Limit if nothing is in MetricsCommon is set
-			obj.Limit = MaxNumSamples
+			obj.Limit = maxEntriesFromInfluxDb
 		} else {
 			// fallback to NumSamples/Time Definition if start and end times are set
-			obj.NumSamples = MaxNumSamples
+			obj.NumSamples = maxEntriesFromInfluxDb
 		}
 	}
 
-	// If the limit is set, and no start/end time, don't add it
-	if obj.Limit != 0 && obj.StartTime.IsZero() && obj.EndTime.IsZero() {
+	// If the limit is set, and no start/end time/age, don't add it
+	if obj.Limit != 0 &&
+		obj.StartTime.IsZero() && obj.EndTime.IsZero() &&
+		obj.StartAge == 0 && obj.EndAge == 0 {
 		return nil
 	}
 	// resolve and fill in time fields

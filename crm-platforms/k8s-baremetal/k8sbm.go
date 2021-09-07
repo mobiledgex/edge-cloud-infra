@@ -24,7 +24,6 @@ type K8sBareMetalPlatform struct {
 	sharedLBName       string
 	cloudletKubeConfig string
 	externalIps        []string
-	internalIps        []string
 }
 
 func (k *K8sBareMetalPlatform) GetCloudletKubeConfig(cloudletKey *edgeproto.CloudletKey) string {
@@ -54,15 +53,6 @@ func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platfor
 		return err
 	}
 	k.externalIps = externalIps
-	internalIps, err := infracommon.ParseIpRanges(k.GetInternalIpRanges())
-	if err != nil {
-		return err
-	}
-	if len(externalIps) > len(internalIps) {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Not enough internal IPs", "numexternal", len(externalIps), "numinternal", len(internalIps))
-		return fmt.Errorf("Number of internal IPs defined in K8S_INTERNAL_IP_RANGES must be at least as many as K8S_EXTERNAL_IP_RANGES")
-	}
-	k.internalIps = internalIps
 	k.sharedLBName = k.GetSharedLBName(ctx, platformConfig.CloudletKey)
 	k.cloudletKubeConfig = k.GetCloudletKubeConfig(platformConfig.CloudletKey)
 
@@ -129,8 +119,15 @@ func (k *K8sBareMetalPlatform) GetClusterPlatformClient(ctx context.Context, clu
 
 func (k *K8sBareMetalPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNodePlatformClient", "node", node)
-	if node == nil || node.Name == "" {
-		return nil, fmt.Errorf("cannot GetNodePlatformClient, node details are empty")
+	if node == nil {
+		return nil, fmt.Errorf("cannot GetNodePlatformClient, as node details are empty")
+	}
+	nodeName := node.Name
+	if nodeName == "" && node.Type == cloudcommon.CloudletNodeSharedRootLB {
+		nodeName = k.GetSharedLBName(ctx, k.commonPf.PlatformConfig.CloudletKey)
+	}
+	if nodeName == "" {
+		return nil, fmt.Errorf("cannot GetNodePlatformClient, must specify node name")
 	}
 	controlIp := k.GetControlAccessIp()
 	return k.commonPf.GetSSHClientFromIPAddr(ctx, controlIp, ops...)

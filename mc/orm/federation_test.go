@@ -408,10 +408,182 @@ func TestFederation(t *testing.T) {
 	}
 }
 
+func testOPFederationAPIs(t *testing.T, ctx context.Context, mcClient *mctestclient.Client, op1, op2 *OPAttr) {
+	// op2 sends federation creation request
+	// =====================================
+	opRegReq := ormapi.OPRegistrationRequest{
+		OrigFederationId:   op2.fedId,
+		DestFederationId:   op1.fedId,
+		OperatorId:         op2.operatorId,
+		CountryCode:        op2.countryCode,
+		OrigFederationAddr: op2.fedAddr,
+	}
+	opRegRes := ormapi.OPRegistrationResponse{}
+	err := sendFederationRequest("POST", op1.fedAddr, F_API_OPERATOR_PARTNER, &opRegReq, &opRegRes)
+	require.Nil(t, err, "op2 adds op1 as partner OP")
+	// verify federation response
+	require.Equal(t, opRegRes.OrigOperatorId, op1.operatorId)
+	require.Equal(t, opRegRes.PartnerOperatorId, op2.operatorId)
+	require.Equal(t, opRegRes.OrigFederationId, op1.fedId)
+	require.Equal(t, opRegRes.DestFederationId, op2.fedId)
+	require.Equal(t, len(opRegRes.PartnerZone), len(op1.zones), "op1 zones are shared")
+
+	// verify that op1 has successfully added op2 as partner
+	fedLookup := &ormapi.OperatorFederation{
+		FederationId: op2.fedId,
+	}
+	fedInfo, status, err := mcClient.ShowFederation(op1.uri, op1.tokenOper, fedLookup)
+	require.Nil(t, err, "show federation")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(fedInfo), "all federation OPs")
+	require.Equal(t, fedInfo[0].Type, FederationTypePartner)
+	require.Contains(t, fedInfo[0].Role, FederationRoleAccessZones)
+	require.Contains(t, fedInfo[0].Role, FederationRoleShareZones)
+
+	// op2 updates its MCC value and notifies op1 about it
+	// ===================================================
+	updateReq := ormapi.OPUpdateMECNetConf{
+		OrigFederationId: op2.fedId,
+		DestFederationId: op1.fedId,
+		Operator:         op2.operatorId,
+		Country:          op2.countryCode,
+		MCC:              "999",
+	}
+	err = sendFederationRequest("PUT", op1.fedAddr, F_API_OPERATOR_PARTNER, &updateReq, nil)
+	require.Nil(t, err, "op2 updates its attributes and notifies op1 about it")
+
+	// verify that op1 has successfully updated op2's new MCC value
+	fedLookup.FederationId = op2.fedId
+	fedInfo, status, err = mcClient.ShowFederation(op1.uri, op1.tokenOper, fedLookup)
+	require.Nil(t, err, "show federation")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(fedInfo), "all federation OPs")
+	require.Equal(t, fedInfo[0].MCC, updateReq.MCC, "MCC values match")
+
+	// op2 sends registration request for op1 zone
+	// ===========================================
+	regZoneId := opRegRes.PartnerZone[0].ZoneId
+	op2ZoneRegId := op2.operatorId + "/" + op2.countryCode
+
+	// verify that op1 has not marked the op2 requested zone as registered
+	zoneLookup := &ormapi.OperatorZoneCloudletMap{
+		ZoneId: regZoneId,
+	}
+	opZones, status, err := mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneLookup)
+	require.Nil(t, err, "show federation zones")
+	require.Equal(t, http.StatusOK, status)
+	require.NotContains(t, opZones[0].RegisteredOPs, op2ZoneRegId, "op1 zone not registered by op2")
+
+	// op2 sends registration request for op1 zone
+	zoneRegReq := ormapi.OPZoneRegister{
+		OrigFederationId: op2.fedId,
+		DestFederationId: op1.fedId,
+		Operator:         op2.operatorId,
+		Country:          op2.countryCode,
+		Zones:            []string{regZoneId},
+	}
+	opZoneRes := ormapi.OPZoneRegisterResponse{}
+	err = sendFederationRequest("POST", op1.fedAddr, F_API_OPERATOR_ZONE, &zoneRegReq, &opZoneRes)
+	require.Nil(t, err, "op2 sends registration request for op1 zone")
+
+	// verify that op1 has marked the op2 requested zone as registered
+	zoneLookup.ZoneId = regZoneId
+	opZones, status, err = mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneLookup)
+	require.Nil(t, err, "show federation zones")
+	require.Equal(t, http.StatusOK, status)
+	require.Contains(t, opZones[0].RegisteredOPs, op2ZoneRegId, "op1 zone is registered by op2")
+
+	// op2 notifies op1 about a new zone
+	// =================================
+	newZone := ormapi.OPZoneInfo{
+		ZoneId:      fmt.Sprintf("%s-testzoneX", op2.operatorId),
+		GeoLocation: "9.9",
+		City:        "Newark",
+		State:       "Newark",
+		EdgeCount:   2,
+	}
+	zoneNotifyReq := ormapi.OPZoneNotify{
+		OrigFederationId: op2.fedId,
+		DestFederationId: op1.fedId,
+		Operator:         op2.operatorId,
+		Country:          op2.countryCode,
+		PartnerZone:      newZone,
+	}
+	err = sendFederationRequest("POST", op1.fedAddr, F_API_OPERATOR_NOTIFY_ZONE, &zoneNotifyReq, nil)
+	require.Nil(t, err, "op2 notifies op1 about a new zone")
+
+	// verify that op1 added this new zone in its db
+	zoneLookup.ZoneId = newZone.ZoneId
+	opZones, status, err = mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneLookup)
+	require.Nil(t, err, "show federation zones")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(opZones), "op1 zone added newly shared op2 zone")
+
+	// op2 notifies op1 about a deleted zone
+	// =====================================
+	zoneUnshareReq := ormapi.OPZoneRequest{
+		OrigFederationId: op2.fedId,
+		DestFederationId: op1.fedId,
+		Operator:         op2.operatorId,
+		Country:          op2.countryCode,
+		Zone:             newZone.ZoneId,
+	}
+	err = sendFederationRequest("DELETE", op1.fedAddr, F_API_OPERATOR_NOTIFY_ZONE, &zoneUnshareReq, nil)
+	require.Nil(t, err, "op2 notifies op1 about a deleted zone")
+
+	// verify that op1 deleted this zone from its db
+	zoneLookup.ZoneId = newZone.ZoneId
+	opZones, status, err = mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneLookup)
+	require.Nil(t, err, "show federation zones")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 0, len(opZones), "op1 zone deleted unshared op2 zone")
+
+	// op2 sends deregistration request for op1 zone
+	// ===========================================
+	zoneDeRegReq := ormapi.OPZoneRequest{
+		OrigFederationId: op2.fedId,
+		DestFederationId: op1.fedId,
+		Operator:         op2.operatorId,
+		Country:          op2.countryCode,
+		Zone:             regZoneId,
+	}
+	err = sendFederationRequest("DELETE", op1.fedAddr, F_API_OPERATOR_ZONE, &zoneDeRegReq, nil)
+	require.Nil(t, err, "op2 sends deregistration request for op1 zone")
+
+	// verify that op1 has unmarked the op2 requested zone as registered
+	zoneLookup.ZoneId = regZoneId
+	opZones, status, err = mcClient.ShowFederationZone(op1.uri, op1.tokenOper, zoneLookup)
+	require.Nil(t, err, "show federation zones")
+	require.Equal(t, http.StatusOK, status)
+	require.NotContains(t, opZones[0].RegisteredOPs, op2ZoneRegId, "op1 zone not registered by op2")
+
+	// op2 removes op1 as federation partner
+	// =====================================
+	opFedReq := ormapi.OPFederationRequest{
+		OrigFederationId: op2.fedId,
+		DestFederationId: op1.fedId,
+		Operator:         op2.operatorId,
+		Country:          op2.countryCode,
+	}
+	err = sendFederationRequest("DELETE", op1.fedAddr, F_API_OPERATOR_PARTNER, &opFedReq, nil)
+	require.Nil(t, err, "op2 removes op1 as partner OP")
+
+	// verify that op1 has successfully removed op2 as partner to share zones with
+	fedLookup.FederationId = op2.fedId
+	fedInfo, status, err = mcClient.ShowFederation(op1.uri, op1.tokenOper, fedLookup)
+	require.Nil(t, err, "show federation")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(fedInfo), "all federation OPs")
+	require.Equal(t, fedInfo[0].Type, FederationTypePartner)
+	require.Contains(t, fedInfo[0].Role, FederationRoleAccessZones)
+	require.NotContains(t, fedInfo[0].Role, FederationRoleShareZones)
+}
+
 func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, op1, op2 *OPAttr) {
 	mcClient := mctestclient.NewClient(clientRun)
 
 	// Create federation (OP1)
+	// =======================
 	op1FedReq := &ormapi.OperatorFederation{
 		OperatorId:  op1.operatorId,
 		CountryCode: op1.countryCode,
@@ -425,6 +597,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	op1.fedId = op1Resp.FederationId
 
 	// Add federation partner (OP2)
+	// ============================
 	partnerOp2FedReq := &ormapi.OperatorFederation{
 		OperatorId:     op2.operatorId,
 		CountryCode:    op2.countryCode,
@@ -442,7 +615,18 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 2, len(fedInfo), "all federation OPs")
 
+	// Validate partner federation info
+	fedLookup.FederationId = op2.fedId
+	fedInfo, status, err = mcClient.ShowFederation(op1.uri, op1.tokenOper, fedLookup)
+	require.Nil(t, err, "show federation")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(fedInfo), "all federation OPs")
+	require.Equal(t, fedInfo[0].Type, FederationTypePartner)
+	require.Contains(t, fedInfo[0].Role, FederationRoleAccessZones)
+	require.NotContains(t, fedInfo[0].Role, FederationRoleShareZones)
+
 	// Update federation MCC value
+	// ===========================
 	updateFed := &cli.MapData{
 		Namespace: cli.ArgsNamespace,
 		Data:      make(map[string]interface{}),
@@ -461,9 +645,11 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, "344", op1FedInfo[0].MCC, "matches updated field")
 
 	// Create OP1 Operator Zones
+	// =========================
 	clList, status, err := ormtestutil.TestPermShowCloudlet(mcClient, op1.uri, op1.tokenOper, op1.countryCode, op1.operatorId)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
+	op1.zones = []ormapi.OPZoneInfo{}
 	for _, cl := range clList {
 		fedZone := &ormapi.OperatorZoneCloudletMap{
 			FederationId: op1.fedId,
@@ -476,10 +662,20 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 		_, status, err = mcClient.CreateFederationZone(op1.uri, op1.tokenOper, fedZone)
 		require.Nil(t, err, "create federation zone")
 		require.Equal(t, http.StatusOK, status)
+		opZoneInfo := ormapi.OPZoneInfo{
+			ZoneId:      fedZone.ZoneId,
+			GeoLocation: fedZone.GeoLocation,
+			City:        fedZone.City,
+			State:       fedZone.State,
+			EdgeCount:   len(fedZone.Cloudlets),
+		}
+		op1.zones = append(op1.zones, opZoneInfo)
 	}
-	op1ZonesCnt := len(clList)
+	op1ZonesCnt := len(op1.zones)
 	op2ZonesCnt := len(op2.zones)
 
+	// Verify that all zones are created
+	// =================================
 	// Show operator zones
 	lookup := &ormapi.OperatorZoneCloudletMap{
 		FederationId: op1.fedId,
@@ -499,6 +695,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, op2ZonesCnt, len(op2Zones), "op2 zones")
 
 	// Register all the partner zones to be used
+	// =========================================
 	for _, opZone := range op1Zones {
 		zoneRegReq := &ormapi.OperatorZoneCloudletMap{
 			ZoneId: opZone.ZoneId,
@@ -526,9 +723,12 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 		require.Equal(t, 1, foundCnt, "registered single OP found")
 	}
 
+	testOPFederationAPIs(t, ctx, mcClient, op1, op2)
+
 	// Cleanup
-	// =======
+
 	// De-register all the partner zones
+	// =================================
 	for _, opZone := range op1Zones {
 		zoneDeRegReq := &ormapi.OperatorZoneCloudletMap{
 			ZoneId: opZone.ZoneId,
@@ -557,6 +757,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	}
 
 	// Delete zones
+	// ============
 	for _, opZone := range op2Zones {
 		zoneReq := &ormapi.OperatorZoneCloudletMap{
 			ZoneId: opZone.ZoneId,
@@ -583,6 +784,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, 0, len(opZones), "no op1 zones")
 
 	// Remove federation partner (OP2)
+	// ===============================
 	partnerOp2FedReq = &ormapi.OperatorFederation{
 		FederationId: op2.fedId,
 	}
@@ -607,6 +809,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, 0, len(fedInfo), "all federation OPs")
 
 	// Delete federation (OP1)
+	// =======================
 	op1FedReq = &ormapi.OperatorFederation{
 		FederationId: op1.fedId,
 	}

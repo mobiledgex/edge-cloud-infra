@@ -7,8 +7,10 @@ type OperatorFederation struct {
 	FederationId string `gorm:"primary_key"`
 	// Federation access point address
 	FederationAddr string `json:",omitempty"`
-	// Owner of this object, self or partner
+	// Type of the federation
 	Type string `json:",omitempty"`
+	// Role of the federation
+	Role string `json:",omitempty"`
 	// Globally unique string to identify an operator gMEC
 	// required: true
 	OperatorId string

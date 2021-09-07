@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -150,12 +151,13 @@ func TestDockerStats(t *testing.T) {
 		DockerContainerPid:   "0",
 		CatContainerNetData:  testNetData,
 		DockerPsSizeData:     testMultiContainerDiskData,
+		Ncpus:                fmt.Sprintf("%d\n", testFlavor1.Vcpus),
 	}
 	edgeproto.InitAppInstCache(&AppInstCache)
 	edgeproto.InitFlavorCache(&FlavorCache)
 	FlavorCache.Update(ctx, &testFlavor1, 0)
 	AppInstCache.Update(ctx, &testAppInstDocker2, 0)
-	testDockerStats, err := NewClusterWorker(ctx, "", time.Second*1, time.Second*1, nil, &testClusterInst, &platform)
+	testDockerStats, err := NewClusterWorker(ctx, "", 0, time.Second*1, time.Second*1, nil, &testClusterInst, nil, &platform)
 	assert.Nil(t, err, "Get a patform client for unit test cloudlet")
 	clusterMetrics := testDockerStats.clusterStat.GetClusterStats(ctx)
 	appsMetrics := testDockerStats.clusterStat.GetAppStats(ctx)
@@ -168,7 +170,8 @@ func TestDockerStats(t *testing.T) {
 	// Check PodStats
 	assert.True(t, found, "Container DockerApp1 is not found")
 	if found {
-		assert.Equal(t, float64(1.11), stat.Cpu)
+		//divide these cpu numbers by 2 since the flavor has 2 cpus
+		assert.Equal(t, float64(1.11/2), stat.Cpu)
 		assert.Equal(t, uint64(11649679), stat.Mem)
 		assert.Equal(t, uint64(1*1024), stat.Disk)
 		// this comes from testNetData

@@ -43,13 +43,13 @@ directory '/root/crm_cache' do
   action :create
 end
 
-# :create - Creates the container but does not start it. Useful for Volume containers.
-# :start - Starts the container. Useful for containers that run jobs.. command that exit.
-# :run - The default action. Both :create and :start the container in one action. Redeploys the container on resource change.
-# :stop - Stops the container.
-# :restart - Stops and then starts the container.
-# :delete - Deletes the container.
-# :redeploy - Deletes and runs the container.
+# create    - Creates the container but does not start it. Useful for Volume containers.
+# start     - Starts the container. Useful for containers that run jobs.. command that exit.
+# run       - The default action. Both :create and :start the container in one action. Redeploys the container on resource change.
+# stop      - Stops the container.
+# restart   - Stops and then starts the container.
+# delete    - Deletes the container.
+# redeploy  - Deletes and runs the container.
 dockerContainerActions = ['create', 'start', 'run', 'stop', 'restart', 'delete', 'redeploy']
 defaultContainerAction = 'run'
 edgeCloudContainerAction = defaultContainerAction

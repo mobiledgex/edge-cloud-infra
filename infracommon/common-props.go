@@ -49,7 +49,7 @@ var InfraCommonProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "Platform Stats Max Cache Time",
 		Description: "Maximum time to used cached platform stats if nothing changed, in seconds",
 		Internal:    true,
-		Value:       "3600",
+		Value:       "60",
 	},
 }
 

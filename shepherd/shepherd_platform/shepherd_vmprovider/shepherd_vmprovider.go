@@ -226,7 +226,7 @@ func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context) {
 	s.VMPlatform.VMProvider.VmAppChangedCallback(ctx)
 }
 
-func (s *ShepherdPlatform) SetUsageAccessArgs(addr string, client ssh.Client) error {
+func (s *ShepherdPlatform) SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error {
 	// Nothing to do for vmprovider
 	return nil
 }

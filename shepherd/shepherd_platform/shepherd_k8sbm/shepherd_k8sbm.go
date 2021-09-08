@@ -7,6 +7,7 @@ import (
 	"time"
 
 	k8sbm "github.com/mobiledgex/edge-cloud-infra/crm-platforms/k8s-baremetal"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/promutils"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
@@ -81,11 +82,17 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 		resp, err = promutils.GetPromMetrics(ctx, s.promAddr, promutils.PromQCpuClustUrlEncoded, s.client)
 		if err == nil && resp.Status == "success" {
 			for _, metric := range resp.Data.Result {
-				cloudletMetrics.CollectTime = promutils.ParseTime(metric.Values[0].(float64))
+				if cloudletMetrics.CollectTime == nil {
+					cloudletMetrics.CollectTime = promutils.ParseTime(metric.Values[0].(float64))
+				}
 				// copy only if we can parse the value
 				if val, err := strconv.ParseFloat(metric.Values[1].(string), 64); err == nil {
 					// from the percentage, figure out number of vcpus used
 					cloudletMetrics.VCpuUsed = uint64(float64(cloudletMetrics.VCpuMax) * val / 100)
+					// Should be at least one cpu used
+					if cloudletMetrics.VCpuUsed == 0 {
+						cloudletMetrics.VCpuUsed = 1
+					}
 					// We should have only one value here
 					break
 				}
@@ -109,7 +116,9 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 	resp, err = promutils.GetPromMetrics(ctx, s.promAddr, promutils.PromQCloudletMemUseEncoded, s.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			cloudletMetrics.CollectTime = promutils.ParseTime(metric.Values[0].(float64))
+			if cloudletMetrics.CollectTime == nil {
+				cloudletMetrics.CollectTime = promutils.ParseTime(metric.Values[0].(float64))
+			}
 			// copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				cloudletMetrics.MemUsed = uint64(val / (1024 * 1024))
@@ -122,7 +131,9 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 	resp, err = promutils.GetPromMetrics(ctx, s.promAddr, promutils.PromQCloudletDiskUseEncoded, s.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			cloudletMetrics.CollectTime = promutils.ParseTime(metric.Values[0].(float64))
+			if cloudletMetrics.CollectTime == nil {
+				cloudletMetrics.CollectTime = promutils.ParseTime(metric.Values[0].(float64))
+			}
 			// copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				cloudletMetrics.DiskUsed = uint64(val / (1024 * 1024 * 1024))
@@ -135,7 +146,9 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 	resp, err = promutils.GetPromMetrics(ctx, s.promAddr, promutils.PromQCloudletDiskTotalEncoded, s.client)
 	if err == nil && resp.Status == "success" {
 		for _, metric := range resp.Data.Result {
-			cloudletMetrics.CollectTime = promutils.ParseTime(metric.Values[0].(float64))
+			if cloudletMetrics.CollectTime == nil {
+				cloudletMetrics.CollectTime = promutils.ParseTime(metric.Values[0].(float64))
+			}
 			// copy only if we can parse the value
 			if val, err := strconv.ParseUint(metric.Values[1].(string), 10, 64); err == nil {
 				cloudletMetrics.DiskMax = uint64(val / (1024 * 1024 * 1024))
@@ -144,8 +157,15 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 			}
 		}
 	}
-	// Get Floating IPs - TODO
-
+	// Get IPs range usage
+	externalIps, err := infracommon.ParseIpRanges(s.Pf.GetExternalIpRanges())
+	if err == nil {
+		cloudletMetrics.Ipv4Max = uint64(len(externalIps))
+	}
+	usedIps, err := s.Pf.GetUsedSecondaryIpAddresses(ctx, s.client, s.Pf.GetExternalEthernetInterface())
+	if err == nil {
+		cloudletMetrics.Ipv4Used = uint64(len(usedIps))
+	}
 	return cloudletMetrics, nil
 }
 
@@ -158,7 +178,7 @@ func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context) {
 	log.SpanLog(ctx, log.DebugLevelInfo, "VMs are unsupported for bare metal k8s")
 }
 
-func (s *ShepherdPlatform) SetUsageAccessArgs(addr string, client ssh.Client) error {
+func (s *ShepherdPlatform) SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error {
 	if addr == "" {
 		return fmt.Errorf("Address cannot be empty")
 	}

@@ -31,5 +31,5 @@ type Platform interface {
 	// Inform the platform that a VM App was added or deleted
 	VmAppChangedCallback(ctx context.Context)
 	// set Prometheus address and client
-	SetUsageAccessArgs(addr string, client ssh.Client) error
+	SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error
 }

@@ -439,7 +439,7 @@ func RemoveFederationPartner(c echo.Context) error {
 		return err
 	}
 
-	// Delete all the local copy of partner gMEC zones
+	// Delete all the local copy of partner OP zones
 	for _, pZone := range partnerZones {
 		if err := db.Delete(pZone).Error; err != nil {
 			// ignore err
@@ -447,7 +447,7 @@ func RemoveFederationPartner(c echo.Context) error {
 		}
 	}
 
-	// Delete partner gMEC
+	// Delete partner OP
 	if err := db.Delete(&opFed).Error; err != nil {
 		return dbErr(err)
 	}
@@ -1024,9 +1024,9 @@ func ValidateAndGetFederationinfo(ctx context.Context, origKey, destKey, operato
 // Federation APIs
 // ===============
 
-// Create directed federation with partner gMEC. By Federation create request,
-// the API initiator gMEC say ‘A’ request gMEC 'B' to allow its developers/subscribers
-// to run their application on edge sites of gMEC 'B'
+// Create directed federation with partner OP. By Federation create request,
+// the API initiator OP say ‘A’ request OP 'B' to allow its developers/subscribers
+// to run their application on edge sites of OP 'B'
 func FederationOperatorPartnerCreate(c echo.Context) error {
 	ctx := GetContext(c)
 	opRegReq := ormapi.OPRegistrationRequest{}
@@ -1117,7 +1117,7 @@ func FederationOperatorPartnerCreate(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
-// Federation Agent sends this request to partner gMEC federation
+// Federation Agent sends this request to partner OP federation
 // Agent to update its MNC, MCC or locator URL
 func FederationOperatorPartnerUpdate(c echo.Context) error {
 	ctx := GetContext(c)
@@ -1165,9 +1165,9 @@ func FederationOperatorPartnerUpdate(c echo.Context) error {
 	return c.JSON(http.StatusOK, "Federation attributes of partner OP updated successfully")
 }
 
-// Remove existing federation with a partner gMEC. By Federation delete
-// request, the API initiator gMEC say A is requesting to the partner
-// gMEC B to disallow A applications access to gMEC B edges
+// Remove existing federation with a partner OP. By Federation delete
+// request, the API initiator OP say A is requesting to the partner
+// OP B to disallow A applications access to OP B edges
 func FederationOperatorPartnerDelete(c echo.Context) error {
 	ctx := GetContext(c)
 	opFedReq := ormapi.OPFederationRequest{}
@@ -1208,9 +1208,9 @@ func FederationOperatorPartnerDelete(c echo.Context) error {
 	return setReply(c, Msg("Deleted partner OP successfully"))
 }
 
-// gMEC platform sends this request to partner gMEC, to register a
-// partner gMEC zone. It is only after successful registration that
-// partner gMEC allow access to its zones. This api shall be triggered
+// Operator platform sends this request to partner OP, to register a
+// partner OP zone. It is only after successful registration that
+// partner OP allow access to its zones. This api shall be triggered
 // for each partner zone
 func FederationOperatorZoneRegister(c echo.Context) error {
 	ctx := GetContext(c)
@@ -1279,9 +1279,9 @@ func FederationOperatorZoneRegister(c echo.Context) error {
 	return c.JSON(http.StatusOK, resp)
 }
 
-// Deregister a partner gMEC zone. By zone deregistration request,
-// the API initiator gMEC say A is indicating to the partner gMEC
-// say B, that it will no longer access partner gMEC zone
+// Deregister a partner OP zone. By zone deregistration request,
+// the API initiator OP say A is indicating to the partner OP
+// say B, that it will no longer access partner OP zone
 func FederationOperatorZoneDeRegister(c echo.Context) error {
 	ctx := GetContext(c)
 	opRegReq := ormapi.OPZoneRequest{}
@@ -1336,9 +1336,9 @@ func FederationOperatorZoneDeRegister(c echo.Context) error {
 	return c.JSON(http.StatusOK, "Zone deregistered successfully")
 }
 
-// gMEC notifies its partner MEcs whenever it has a new zone.
-// This api is triggered when gMEC has a new zone available and
-// it wishes to share the zone with its partner gMEC. This request
+// OP notifies its partner MEcs whenever it has a new zone.
+// This api is triggered when OP has a new zone available and
+// it wishes to share the zone with its partner OP. This request
 // is triggered only when federation already exists
 func FederationOperatorZoneShare(c echo.Context) error {
 	ctx := GetContext(c)
@@ -1394,8 +1394,8 @@ func FederationOperatorZoneShare(c echo.Context) error {
 	return setReply(c, Msg("Added zone successfully"))
 }
 
-// gMEC notifies its partner MECs whenever it unshares a zone.
-// This api is triggered when a gMEC decides to unshare one of its
+// OP notifies its partner MECs whenever it unshares a zone.
+// This api is triggered when a OP decides to unshare one of its
 // zone with one of the federated partners. This is used when
 // federation already exists
 func FederationOperatorZoneUnShare(c echo.Context) error {

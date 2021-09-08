@@ -141,11 +141,11 @@ var FederationArgs = []string{
 var FederationComments = map[string]string{
 	"federationid":    "Globally unique string used to authenticate operations over federation interface",
 	"federationaddr":  "Federation access point address",
-	"operatorid":      "Globally unique string to identify an operator gMEC",
-	"countrycode":     "ISO 3166-1 Alpha-2 code for the country where operator gMEC is located",
+	"operatorid":      "Globally unique string to identify an operator platform",
+	"countrycode":     "ISO 3166-1 Alpha-2 code for the country where operator platform is located",
 	"mcc":             "Mobile country code of operator sending the request",
 	"mncs":            "Comma separated list of mobile network codes of operator sending the request",
-	"locatorendpoint": "IP and Port of discovery service URL of gMEC",
+	"locatorendpoint": "IP and Port of discovery service URL of operator platform",
 }
 
 var FederationZoneRequiredArgs = []string{

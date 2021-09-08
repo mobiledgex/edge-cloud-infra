@@ -11,17 +11,17 @@ type OperatorFederation struct {
 	Type string `json:",omitempty"`
 	// Role of the federation
 	Role string `json:",omitempty"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	// required: true
 	OperatorId string
-	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	// required: true
 	CountryCode string
 	// Mobile country code of operator sending the request
 	MCC string `json:"MCC"`
 	// Comma separated list of mobile network codes of operator sending the request
 	MNCs string `json:"MNCs"`
-	// IP and Port of discovery service URL of gMEC
+	// IP and Port of discovery service URL of OP
 	LocatorEndPoint string `json:"locatorEndPoint"`
 }
 
@@ -37,10 +37,10 @@ type OperatorRegisteredZone struct {
 	ZoneId string `gorm:"primary_key"`
 	// Owner ID of the zone
 	FederationId string `gorm:"primary_key"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	// required: true
 	OperatorId string
-	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	// required: true
 	CountryCode string
 }
@@ -90,28 +90,28 @@ type OperatorZoneCloudletMap struct {
 type OPRegistrationRequest struct {
 	// Request ID for tracking federation request
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	// required: true
 	OperatorId string `json:"operator"`
-	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	// required: true
 	CountryCode string `json:"country"`
 	// Origin OP federation ID
 	OrigFederationId string `json:"origFederationId"`
 	// Destination OP federation ID
 	DestFederationId string `json:"destFederationId"`
-	// If partner gMEC shall endorse lead gMEC applications
+	// If partner OP shall endorse lead OP applications
 	ApplicationAnchormentReq bool `json:"applicationAnchormentReq"`
-	// NOTE: 'origFederationAddr' field is not part of gMEC Specification
+	// NOTE: 'origFederationAddr' field is not part of OP Specification
 	OrigFederationAddr string `json:"origFederationAddr"`
 }
 
 type OPFederationRequest struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	Operator string `json:"operator"`
-	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	Country string `json:"country"`
 	// Origin OP federation ID
 	OrigFederationId string `json:"origFederationId"`
@@ -122,9 +122,9 @@ type OPFederationRequest struct {
 type OPRegistrationResponse struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	OrigOperatorId string `json:"origOperatorId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	PartnerOperatorId string `json:"partnerOperatorId"`
 	// Origin OP federation ID
 	OrigFederationId string `json:"origFederationId"`
@@ -134,18 +134,18 @@ type OPRegistrationResponse struct {
 	MCC string `json:"MCC"`
 	// Mobile network codes of operator sending the request
 	MNC []string `json:"MNC"`
-	// IP and Port of discovery service URL of gMEC
+	// IP and Port of discovery service URL of OP
 	LocatorEndPoint string `json:"locatorEndPoint"`
-	// List of zones partner gMEC is willing to share
+	// List of zones partner OP is willing to share
 	PartnerZone []OPZoneInfo `json:"partnerZone"`
 }
 
 type OPUpdateMECNetConf struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	Operator string `json:"operator"`
-	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	Country string `json:"country"`
 	// Origin OP federation ID
 	OrigFederationId string `json:"origFederationId"`
@@ -155,7 +155,7 @@ type OPUpdateMECNetConf struct {
 	MCC string `json:"MCC"`
 	// Mobile network codes of operator sending the request
 	MNC []string `json:"MNC"`
-	// IP and Port of discovery service URL of gMEC
+	// IP and Port of discovery service URL of OP
 	LocatorEndPoint string `json:"locatorEndPoint"`
 }
 
@@ -177,9 +177,9 @@ type OPZoneInfo struct {
 type OPZoneRegister struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	Operator string `json:"operator"`
-	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	Country string `json:"country"`
 	// Unique identifier for zone in the country of partner operator
 	Zones []string `json:"zones"`
@@ -215,22 +215,22 @@ type OPZoneRegisterDetails struct {
 type OPZoneRegisterResponse struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	LeadOperatorId string `json:"leadOperatorId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	PartnerOperatorId string `json:"partnerOperatorId"`
 	// Federation ID
 	FederationId string `json:"federationId"`
-	// Partner gMEC zone details
+	// Partner OP zone details
 	Zone OPZoneRegisterDetails `json:"zone"`
 }
 
 type OPZoneRequest struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	Operator string `json:"operator"`
-	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	Country string `json:"country"`
 	// Zone identifier of partner operator
 	Zone string `json:"zone"`
@@ -243,9 +243,9 @@ type OPZoneRequest struct {
 type OPZoneNotify struct {
 	// Request id as sent in federation request
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	Operator string `json:"operator"`
-	// ISO 3166-1 Alpha-2 code for the country where operator gMEC is located
+	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	Country string `json:"country"`
 	// Origin OP federation ID
 	OrigFederationId string `json:"origFederationId"`
@@ -281,21 +281,21 @@ type OPAppArtifact struct {
 	// pattern: ^[\w][\w_-]*[\w]$
 	// minLength: 8, maxLength: 128
 	// required: true
-	// Federation key of gMEC initiating the request
+	// Federation key of OP initiating the request
 	LeadFederationId string `json:"leadfederationId"`
 	// pattern: ^[\w][\w_-]*[\w]$
 	// minLength: 8, maxLength: 128
 	// required: true
-	// Federation key of partner gMEC
+	// Federation key of partner OP
 	PartnerFederationId string `json:"partnerfederationId"`
 	// pattern: ^[\w][\w_-]*[\w]$
 	// minLength: 8, maxLength: 32
 	// required: true
-	// Identifier of operator assosited with the gMEC initiating the request
+	// Identifier of operator assosited with the OP initiating the request
 	Operator string `json:"operator"`
 	// required: true
 	// pattern: ^[A-Z]{2}$
-	// ISO 3166-1 Alpha-2 code for the country of gMEC initiating the request
+	// ISO 3166-1 Alpha-2 code for the country of OP initiating the request
 	Country string `json:"country"`
 	// Name of terraform file (zip format). This zip contains all terraform scripts (Kubernetes v1.13 native)
 	TerraformFileId string `json:"terraformFileId"`
@@ -377,7 +377,7 @@ type OPArtifactMetadata struct {
 	RequestId string `json:"requestId"`
 	// pattern: "^[a-z0-9]([a-z0-9]*[a-z0-9])?$"
 	// minLength: 1, maxLength: 16
-	// Identifier of artifact as received from partner gMEC
+	// Identifier of artifact as received from partner OP
 	ArtifactId string `json:"artifactId"`
 }
 
@@ -432,7 +432,7 @@ type OPRegion struct {
 
 // Details of path/docker repository to get component image
 type OPApplicationComponentSource struct {
-	// Defines the source of component container image. If "docker" then component image will be picked from the user provided docker repository. If "file" then component archive will be uploaded from portal or partner gMEC.
+	// Defines the source of component container image. If "docker" then component image will be picked from the user provided docker repository. If "file" then component archive will be uploaded from portal or partner OP.
 	// enum: ["docker", "file"]
 	Repo string `json:"repo"`
 	// enum: ["true", "false"]
@@ -575,7 +575,7 @@ type OPApplicationSpec struct {
 type OPApplicationData struct {
 	// Identifier to track this request over federation interface
 	RequestId string `json:"requestId"`
-	// Globally unique string to identify an operator gMEC
+	// Globally unique string to identify an operator platform
 	LeadOperatorId string `json:"leadOperatorId"`
 	// Globally unique string used to authenticate operations over federation interface
 	LeadFederationId string `json:"leadfederationId"`

@@ -910,8 +910,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 	}()
 
-	// Global gMEC Federation
-	// ======================
+	// Global Operator Platform Federation
+	// ===================================
 	// E/WBoundInterface APIs for Federation between multiple Operator Platforms (OPs)
 	// These are the standard interfaces which are called by other OPs for unified edge platform experience
 	if config.FederationAddr != "" {
@@ -921,19 +921,19 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 
 		federationEcho.Use(logger)
 
-		// Create directed federation with partner gMEC
+		// Create directed federation with partner OP
 		federationEcho.POST(F_API_OPERATOR_PARTNER, FederationOperatorPartnerCreate)
-		// Update attributes of an existing federation with a partner gMEC
+		// Update attributes of an existing federation with a partner OP
 		federationEcho.PUT(F_API_OPERATOR_PARTNER, FederationOperatorPartnerUpdate)
-		// Remove existing federation with a partner gMEC
+		// Remove existing federation with a partner OP
 		federationEcho.DELETE(F_API_OPERATOR_PARTNER, FederationOperatorPartnerDelete)
-		// Register a zone of partner gMEC
+		// Register a partner OP zone
 		federationEcho.POST(F_API_OPERATOR_ZONE, FederationOperatorZoneRegister)
-		// Deregister a partner gMEC zone
+		// Deregister a partner OP zone
 		federationEcho.DELETE(F_API_OPERATOR_ZONE, FederationOperatorZoneDeRegister)
-		// Notify partner gMEC about a new zone being added
+		// Notify partner OP about a new zone being added
 		federationEcho.POST(F_API_OPERATOR_NOTIFY_ZONE, FederationOperatorZoneShare)
-		// Notify partner gMEC about a zone being unshared
+		// Notify partner OP about a zone being unshared
 		federationEcho.DELETE(F_API_OPERATOR_NOTIFY_ZONE, FederationOperatorZoneUnShare)
 
 		server.federationEcho = federationEcho

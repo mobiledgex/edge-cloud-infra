@@ -48,8 +48,6 @@ type OPAttr struct {
 }
 
 func (o *OPAttr) CleanupOperatorPlatform(ctx context.Context) {
-	// nodeMgr is a global object, hence copy the OP specific
-	// nodeMgr for cleanup
 	o.ds.SetDummyObjs(ctx, testutil.Delete, o.operatorId, o.dcnt)
 	o.ds.SetDummyOrgObjs(ctx, testutil.Delete, o.operatorId, o.dcnt)
 	o.server.Stop()

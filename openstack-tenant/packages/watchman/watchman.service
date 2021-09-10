@@ -1,0 +1,16 @@
+[Unit]
+Description=Watchman server
+After=remote-fs.target
+Conflicts=shutdown.target
+
+[Service]
+ExecStart=/usr/local/bin/watchman --foreground
+ExecStop=/usr/bin/pkill -u ubuntu -x watchman
+Restart=on-failure
+User=ubuntu
+Group=ubuntu
+StandardOutput=syslog
+SyslogIdentifier=watchman
+
+[Install]
+WantedBy=multi-user.target

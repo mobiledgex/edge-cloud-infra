@@ -1,0 +1,9 @@
+#!/bin/bash
+set -e
+chown root:root \
+	/usr/local/bin/watchman \
+	/usr/local/bin/watchmanctl \
+	/usr/local/lib/libgflags.so.* \
+	/usr/local/lib/libglog.so.*
+mkdir -p /usr/local/var/run/watchman
+chmod 2777 /usr/local/var/run/watchman

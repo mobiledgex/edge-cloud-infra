@@ -891,7 +891,6 @@ func GetMetricsCommon(c echo.Context) error {
 		var db string
 		cmd, db = ClientAppUsageMetricsQuery(&in, cloudletList, settings)
 		dbNames = append(dbNames, db)
-
 	} else if strings.HasSuffix(c.Path(), "metrics/clientcloudletusage") {
 		in := ormapi.RegionClientCloudletUsageMetrics{}
 		_, err := ReadConn(c, &in)

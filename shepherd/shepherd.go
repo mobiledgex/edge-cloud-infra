@@ -20,6 +20,7 @@ import (
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_edgebox"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_kind"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
 	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
@@ -160,12 +161,24 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		} else {
 			port = defaultPrometheusPort
 		}
+		promAddress := ""
+		// If this is a local environment prometheus is locally reachable
+		if myPlatform.IsPlatformLocal(ctx) {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Setting prometheus address to \"localhost\"")
+			log.ForceLogSpan(log.SpanFromContext(ctx))
+			clustIP, err := myPlatform.GetClusterIP(ctx, &clusterInst)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
+			} else {
+				promAddress = fmt.Sprintf("%s:%d", clustIP, port)
+			}
+		}
+
 		// set the prometheus address to undefined as the service may or may
 		// not have an IP address yet. Although we don't have an IP, we do need the port
 		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "prom port", port)
 		if !exists {
-			// sart the
-			stats, err = NewClusterWorker(ctx, "", port, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, kubeNames, myPlatform)
+			stats, err = NewClusterWorker(ctx, promAddress, port, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, kubeNames, myPlatform)
 			if err == nil {
 				workerMap[mapKey] = stats
 				stats.Start(ctx)
@@ -383,7 +396,7 @@ func getPlatform() (platform.Platform, error) {
 	case "PLATFORM_TYPE_FAKEINFRA":
 		plat = &shepherd_fake.Platform{}
 	case "PLATFORM_TYPE_KINDINFRA":
-		plat = &shepherd_fake.Platform{}
+		plat = &shepherd_kind.Platform{}
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)
 	}

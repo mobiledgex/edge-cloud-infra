@@ -90,3 +90,7 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 
 func (s *Platform) VmAppChangedCallback(ctx context.Context) {
 }
+
+func (s *Platform) IsPlatformLocal(ctx context.Context) bool {
+	return true
+}

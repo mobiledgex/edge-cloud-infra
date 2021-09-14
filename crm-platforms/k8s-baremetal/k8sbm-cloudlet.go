@@ -183,6 +183,10 @@ func (k *K8sBareMetalPlatform) UpdateTrustPolicyException(ctx context.Context, T
 	return fmt.Errorf("UpdateTrustPolicyException TODO")
 }
 
+func (k *K8sBareMetalPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException) error {
+	return fmt.Errorf("DeleteTrustPolicyException TODO")
+}
+
 func (k *K8sBareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet")
 	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")

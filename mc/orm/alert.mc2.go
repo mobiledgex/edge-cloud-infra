@@ -1518,16 +1518,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/UpdateTrustPolicyException", UpdateTrustPolicyException)
-	// swagger:route POST /auth/ctrl/RequestTrustPolicyException TrustPolicyException RequestTrustPolicyException
-	// Request a Trust Policy Exception, request made by App Developer Organization.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/RequestTrustPolicyException", RequestTrustPolicyException)
 	// swagger:route POST /auth/ctrl/DeleteTrustPolicyException TrustPolicyException DeleteTrustPolicyException
 	// Delete a Trust Policy Exception, by App Developer Organization.
 	// Security:

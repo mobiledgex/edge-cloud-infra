@@ -3234,22 +3234,6 @@ func (s *Client) UpdateTrustPolicyException(uri string, token string, in *ormapi
 	return out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) RequestTrustPolicyException(uri string, token string, in *ormapi.RegionTrustPolicyException) ([]edgeproto.Result, int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	rundata.In = in
-	var out []edgeproto.Result
-	rundata.Out = &out
-
-	apiCmd := ormctl.MustGetCommand("RequestTrustPolicyException")
-	s.ClientRun.Run(apiCmd, &rundata)
-	if rundata.RetError != nil {
-		return nil, rundata.RetStatus, rundata.RetError
-	}
-	return out, rundata.RetStatus, rundata.RetError
-}
-
 func (s *Client) DeleteTrustPolicyException(uri string, token string, in *ormapi.RegionTrustPolicyException) ([]edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri

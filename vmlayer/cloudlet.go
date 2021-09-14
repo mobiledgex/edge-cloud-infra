@@ -373,14 +373,26 @@ func (v *VMPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgepro
 }
 
 func (v *VMPlatform) UpdateTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException) error {
-	log.DebugLog(log.DebugLevelInfra, "update VMPlatform TrustPolicy", "policy", TrustPolicyException)
+	log.DebugLog(log.DebugLevelInfra, "update VMPlatform TrustPolicyException", "policy", TrustPolicyException)
 
 	egressRestricted := false
 	rootlbClients, err := v.GetAllRootLBClients(ctx)
 	if err != nil {
 		return fmt.Errorf("Unable to get rootlb clients - %v", err)
 	}
-	return v.VMProvider.ConfigureTrustPolicyExceptionSecurityRules(ctx, egressRestricted, TrustPolicyException, rootlbClients, ActionUpdate, edgeproto.DummyUpdateCallback)
+	// Only create supported, update not allowed.
+	return v.VMProvider.ConfigureTrustPolicyExceptionSecurityRules(ctx, egressRestricted, TrustPolicyException, rootlbClients, ActionCreate, edgeproto.DummyUpdateCallback)
+}
+
+func (v *VMPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException) error {
+	log.DebugLog(log.DebugLevelInfra, "Delete VMPlatform TrustPolicyException", "policy", TrustPolicyException)
+
+	egressRestricted := false
+	rootlbClients, err := v.GetAllRootLBClients(ctx)
+	if err != nil {
+		return fmt.Errorf("Unable to get rootlb clients - %v", err)
+	}
+	return v.VMProvider.ConfigureTrustPolicyExceptionSecurityRules(ctx, egressRestricted, TrustPolicyException, rootlbClients, ActionDelete, edgeproto.DummyUpdateCallback)
 }
 
 func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {

@@ -43,6 +43,11 @@ func (e *EdgeboxPlatform) UpdateTrustPolicyException(ctx context.Context, TrustP
 	return nil
 }
 
+func (e *EdgeboxPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException) error {
+	log.DebugLog(log.DebugLevelInfra, "delete edgebox TrustPolicyException", "policy", TrustPolicyException)
+	return nil
+}
+
 func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "delete cloudlet for edgebox")
 	err := e.generic.DeleteCloudlet(ctx, cloudlet, pfConfig, caches, accessApi, updateCallback)

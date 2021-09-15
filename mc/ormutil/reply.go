@@ -50,12 +50,12 @@ func BindErr(err error) error {
 	return err
 }
 
-// setReply sets the reply data on a successful API call
+// SetReply sets the reply data on a successful API call
 func SetReply(c echo.Context, data interface{}) error {
 	return c.JSON(http.StatusOK, data)
 }
 
-// streamReply funcs used by alldata always send back just a status
+// StreamReply funcs used by alldata always send back just a status
 // message, never an error - even if an error was generated. So they
 // never use payload.Result, which is used to convey an error.
 func StreamReply(c echo.Context, desc string, err error, hadErr *bool) {

@@ -359,8 +359,8 @@ sqls:
   username: mcuser
   dbname: mcdb
   hostname: "127.0.0.1"
-- name: sqla1
-  datadir: /var/tmp/edge-cloud-local-sql/sqla1
+- name: sql1op2
+  datadir: /var/tmp/edge-cloud-local-sql/sql1op2
   httpaddr: "127.0.0.1:5433"
   username: mcuser
   dbname: mcdb

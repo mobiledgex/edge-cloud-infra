@@ -20,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/billing/chargify"
 	"github.com/mobiledgex/edge-cloud-infra/billing/fakebilling"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/mc/federation"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
@@ -911,33 +912,19 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 	}()
 
-	// Global Operator Platform Federation
-	// ===================================
-	// E/WBoundInterface APIs for Federation between multiple Operator Platforms (OPs)
-	// These are the standard interfaces which are called by other OPs for unified edge platform experience
 	if config.FederationAddr != "" {
+		// Global Operator Platform Federation
 		federationEcho := echo.New()
 		federationEcho.HideBanner = true
 		federationEcho.Binder = &CustomBinder{}
-
 		federationEcho.Use(logger)
-
-		// Create directed federation with partner OP
-		federationEcho.POST(F_API_OPERATOR_PARTNER, FederationOperatorPartnerCreate)
-		// Update attributes of an existing federation with a partner OP
-		federationEcho.PUT(F_API_OPERATOR_PARTNER, FederationOperatorPartnerUpdate)
-		// Remove existing federation with a partner OP
-		federationEcho.DELETE(F_API_OPERATOR_PARTNER, FederationOperatorPartnerDelete)
-		// Register a partner OP zone
-		federationEcho.POST(F_API_OPERATOR_ZONE, FederationOperatorZoneRegister)
-		// Deregister a partner OP zone
-		federationEcho.DELETE(F_API_OPERATOR_ZONE, FederationOperatorZoneDeRegister)
-		// Notify partner OP about a new zone being added
-		federationEcho.POST(F_API_OPERATOR_NOTIFY_ZONE, FederationOperatorZoneShare)
-		// Notify partner OP about a zone being unshared
-		federationEcho.DELETE(F_API_OPERATOR_NOTIFY_ZONE, FederationOperatorZoneUnShare)
-
 		server.federationEcho = federationEcho
+
+		fObj := federation.FederationObj{
+			Database: database,
+			Echo:     federationEcho,
+		}
+		fObj.InitFederationAPIs()
 
 		go func() {
 			// TODO mTLS

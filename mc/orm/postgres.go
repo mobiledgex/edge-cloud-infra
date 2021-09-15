@@ -165,9 +165,6 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 	initDone <- nil
 }
 
-// Unfortunately the logger interface used by gorm does not
-// allow any context to be passed in, so each function that
-// calls into the DB must first convert it to a loggedDB.
 func loggedDB(ctx context.Context) *gorm.DB {
 	return gormlog.LoggedDB(ctx, database)
 }

@@ -106,7 +106,7 @@ unit-test:
 
 test:
 	e2e-tests -testfile ./e2e-tests/testfiles/regression_run.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml
-	e2e-tests -testfile ./e2e-tests/testfiles/federation_regression_run.yml -setupfile ./e2e-tests/setups/local_federation.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
+	e2e-tests -testfile ./e2e-tests/testfiles/federation_regression_run.yml -setupfile ./e2e-tests/setups/local_federation.yml -varsfile ./e2e-tests/vars.yml
 	make -C ../edge-cloud test
 
 test-debug:

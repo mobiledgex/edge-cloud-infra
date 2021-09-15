@@ -22,6 +22,7 @@ import (
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/cli"
@@ -1046,7 +1047,7 @@ func ShowVersion(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionView); err != nil {
 		return err
@@ -1100,7 +1101,7 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		// Set ws on echo context
-		SetWs(c, ws)
+		ormutil.SetWs(c, ws)
 
 		// call next handler
 		err = next(c)
@@ -1116,7 +1117,7 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			writeErr := writeWS(c, ws, &wsPayload)
 			if writeErr != nil {
-				ctx := GetContext(c)
+				ctx := ormutil.GetContext(c)
 				log.SpanLog(ctx, log.DebugLevelApi, "Failed to write error to websocket stream", "err", err, "writeErr", writeErr)
 			}
 		}
@@ -1136,10 +1137,10 @@ func ReadConn(c echo.Context, in interface{}) ([]byte, error) {
 	// Mark stream API
 	c.Set(StreamAPITag, true)
 
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		_, dat, err = ws.ReadMessage()
 		if err == nil {
-			LogWsRequest(c, dat)
+			ormutil.LogWsRequest(c, dat)
 		}
 	} else {
 		// This plus json.Umarshal is the equivalent of c.Bind()
@@ -1219,7 +1220,7 @@ func BindJson(js []byte, i interface{}) error {
 }
 
 func WaitForConnClose(c echo.Context, serverClosed chan bool) {
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		clientClosed := make(chan error)
 		go func() {
 			// Handling close events from client is different here
@@ -1248,13 +1249,13 @@ func WaitForConnClose(c echo.Context, serverClosed chan bool) {
 func writeWS(c echo.Context, ws *websocket.Conn, wsPayload *ormapi.WSStreamPayload) error {
 	out, err := json.Marshal(wsPayload)
 	if err == nil {
-		LogWsResponse(c, string(out))
+		ormutil.LogWsResponse(c, string(out))
 	}
 	return ws.WriteJSON(wsPayload)
 }
 
 func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		wsPayload := ormapi.WSStreamPayload{
 			Code: http.StatusOK,
 			Data: (*payload).Data,

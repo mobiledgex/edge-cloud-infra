@@ -164,7 +164,6 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		// If this is a local environment prometheus is locally reachable
 		if myPlatform.IsPlatformLocal(ctx) {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Setting prometheus address to \"localhost\"")
-			log.ForceLogSpan(log.SpanFromContext(ctx))
 			clustIP, err := myPlatform.GetClusterIP(ctx, &clusterInst)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())

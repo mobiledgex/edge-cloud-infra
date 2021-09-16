@@ -15,6 +15,7 @@ import (
 
 	influxdb "github.com/influxdata/influxdb/client/v2"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -23,6 +24,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/gcs"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
+	"google.golang.org/grpc"
 )
 
 var (
@@ -725,10 +727,10 @@ func GenerateReportObj(c echo.Context, dataOnly bool) error {
 	return c.HTMLBlob(http.StatusOK, output.Bytes())
 }
 
-func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi.GenerateReport) ([][]string, error) {
-	rc := &RegionContext{
-		region:   report.Region,
-		username: username,
+func GetCloudletSummaryData(ctx context.Context, conn *grpc.ClientConn, username string, report *ormapi.GenerateReport) ([][]string, error) {
+	rc := &ormutil.RegionContext{
+		Region:   report.Region,
+		Username: username,
 	}
 	obj := edgeproto.Cloudlet{
 		Key: edgeproto.CloudletKey{
@@ -737,7 +739,7 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 	}
 	cloudlets := [][]string{}
 	cloudletsPresent := make(map[string]struct{})
-	err := ShowCloudletStream(ctx, rc, &obj, func(res *edgeproto.Cloudlet) error {
+	err := ctrlapi.ShowCloudletStream(ctx, rc, &obj, conn, nil, nil, func(res *edgeproto.Cloudlet) error {
 		platformTypeStr := edgeproto.PlatformType_CamelName[int32(res.PlatformType)]
 		platformTypeStr = strings.TrimPrefix(platformTypeStr, "PlatformType")
 		stateStr := edgeproto.TrackedState_CamelName[int32(res.State)]
@@ -756,7 +758,7 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 	return cloudlets, nil
 }
 
-func GetCloudletPoolSummaryData(ctx context.Context, username string, report *ormapi.GenerateReport) ([][]string, error) {
+func GetCloudletPoolSummaryData(ctx context.Context, conn *grpc.ClientConn, username string, report *ormapi.GenerateReport) ([][]string, error) {
 	// get pools associated with orgs
 	filter := map[string]interface{}{
 		"region":            report.Region,
@@ -788,13 +790,13 @@ func GetCloudletPoolSummaryData(ctx context.Context, username string, report *or
 			poolPendingDevelopers[op.CloudletPool] = []string{op.Org}
 		}
 	}
-	rc := RegionContext{
-		region:   report.Region,
-		username: username,
+	rc := ormutil.RegionContext{
+		Region:   report.Region,
+		Username: username,
 	}
 	poolKey := edgeproto.CloudletPoolKey{Organization: report.Org}
 	poolCloudlets := make(map[string][]string)
-	err = ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{Key: poolKey}, func(pool *edgeproto.CloudletPool) error {
+	err = ctrlapi.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{Key: poolKey}, conn, nil, func(pool *edgeproto.CloudletPool) error {
 		for _, name := range pool.Cloudlets {
 			if cloudlets, ok := poolCloudlets[pool.Key.Name]; ok {
 				cloudlets = append(cloudlets, name)
@@ -1090,11 +1092,11 @@ func inTimeSpan(start, end, check time.Time) bool {
 	return !startUTC.After(checkUTC) || !endUTC.Before(checkUTC)
 }
 
-func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string][][]string, error) {
+func GetCloudletAlerts(ctx context.Context, conn *grpc.ClientConn, username string, report *ormapi.GenerateReport) (map[string][][]string, error) {
 	alertsData := make(map[string][][]string)
-	rc := &RegionContext{
-		region:   report.Region,
-		username: username,
+	rc := &ormutil.RegionContext{
+		Region:   report.Region,
+		Username: username,
 	}
 	obj := &edgeproto.Alert{
 		Labels: map[string]string{
@@ -1102,14 +1104,10 @@ func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.Gene
 			cloudcommon.AlertScopeTypeTag:        cloudcommon.AlertScopeCloudlet,
 		},
 	}
-	alerts, err := ShowAlertObj(ctx, rc, obj)
-	if err != nil {
-		return nil, err
-	}
-	for _, alert := range alerts {
+	err := ctrlapi.ShowAlertStream(ctx, rc, obj, conn, nil, nil, func(alert *edgeproto.Alert) error {
 		alertTime := cloudcommon.TimestampToTime(alert.ActiveAt).In(report.StartTime.Location())
 		if !inTimeSpan(report.StartTime, report.EndTime, alertTime) {
-			continue
+			return nil
 		}
 		cloudlet, ok := alert.Labels[edgeproto.CloudletKeyTagName]
 		if !ok {
@@ -1125,14 +1123,18 @@ func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.Gene
 			alertsData[cloudlet] = [][]string{}
 		}
 		alertsData[cloudlet] = append(alertsData[cloudlet], entry)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return alertsData, nil
 }
 
-func GetCloudletAppUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]PieChartDataMap, error) {
-	rc := &RegionContext{
-		region:   report.Region,
-		username: username,
+func GetCloudletAppUsageData(ctx context.Context, conn *grpc.ClientConn, username string, report *ormapi.GenerateReport) (map[string]PieChartDataMap, error) {
+	rc := &ormutil.RegionContext{
+		Region:   report.Region,
+		Username: username,
 	}
 	obj := &edgeproto.AppInst{
 		Key: edgeproto.AppInstKey{
@@ -1145,12 +1147,8 @@ func GetCloudletAppUsageData(ctx context.Context, username string, report *ormap
 		State:    edgeproto.TrackedState_READY,
 		Liveness: edgeproto.Liveness_LIVENESS_STATIC,
 	}
-	appInsts, err := ShowAppInstObj(ctx, rc, obj)
-	if err != nil {
-		return nil, err
-	}
 	appsCount := make(map[string]PieChartDataMap)
-	for _, appInst := range appInsts {
+	err := ctrlapi.ShowAppInstStream(ctx, rc, obj, conn, nil, nil, func(appInst *edgeproto.AppInst) error {
 		cloudletName := appInst.Key.ClusterInstKey.CloudletKey.Name
 		appOrg := appInst.Key.AppKey.Organization
 		if _, ok := appsCount[cloudletName]; !ok {
@@ -1161,6 +1159,10 @@ func GetCloudletAppUsageData(ctx context.Context, username string, report *ormap
 		} else {
 			appsCount[cloudletName][appOrg] = 1
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return appsCount, nil
 }
@@ -1417,8 +1419,12 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 	reportData := make(map[string]map[string]interface{})
 	for _, region := range regions {
 		report.Region = region
+		conn, err := connCache.GetRegionConn(ctx, region)
+		if err != nil {
+			return nil, err
+		}
 		// Get cloudlet summary
-		cloudlets_summary, err := GetCloudletSummaryData(ctx, username, report)
+		cloudlets_summary, err := GetCloudletSummaryData(ctx, conn, username, report)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cloudlet summary: %v", err)
 		}
@@ -1443,7 +1449,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		// Step-1: Gather all data
 		// -------------------------
 		// Get list of cloudletpools
-		cloudletpools, err := GetCloudletPoolSummaryData(ctx, username, report)
+		cloudletpools, err := GetCloudletPoolSummaryData(ctx, conn, username, report)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cloudlet pool summary: %v", err)
 		}
@@ -1481,7 +1487,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		reportData[region]["cloudletevents"] = eventsData
 
 		// Get cloudlet alerts
-		alertsData, err := GetCloudletAlerts(ctx, username, report)
+		alertsData, err := GetCloudletAlerts(ctx, conn, username, report)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get cloudlet alerts: %v", err)
 		}
@@ -1491,7 +1497,7 @@ func GenerateCloudletReport(ctx context.Context, username string, regions []stri
 		reportData[region]["cloudletalerts"] = alertsData
 
 		// Get app count by developer on cloudlet
-		appCountData, err := GetCloudletAppUsageData(ctx, username, report)
+		appCountData, err := GetCloudletAppUsageData(ctx, conn, username, report)
 		if err != nil {
 			if strings.Contains(err.Error(), "Forbidden") {
 				// ignore as user is not authorized to perform this action

@@ -17,6 +17,7 @@ type GenMC2 struct {
 	*generator.Generator
 	support            gensupport.PluginSupport
 	tmpl               *template.Template
+	tmplCtrlApi        *template.Template
 	tmplApi            *template.Template
 	tmplMethodTest     *template.Template
 	tmplMethodTestutil *template.Template
@@ -25,6 +26,7 @@ type GenMC2 struct {
 	regionStructs      map[string]struct{}
 	inputMessages      map[string]*generator.Descriptor
 	firstFile          bool
+	genctrlapi         bool
 	genapi             bool
 	gentest            bool
 	gentestutil        bool
@@ -41,10 +43,12 @@ type GenMC2 struct {
 	importOrmapi       bool
 	importOrmtestutil  bool
 	importGrpcStatus   bool
+	importGrpc         bool
 	importStrings      bool
 	importLog          bool
 	importCli          bool
 	importOrmutil      bool
+	importCtrlApi      bool
 }
 
 func (g *GenMC2) Name() string {
@@ -54,6 +58,7 @@ func (g *GenMC2) Name() string {
 func (g *GenMC2) Init(gen *generator.Generator) {
 	g.Generator = gen
 	g.tmpl = template.Must(template.New("mc2").Parse(tmpl))
+	g.tmplCtrlApi = template.Must(template.New("mc2ctrlapi").Parse(tmplCtrlApi))
 	g.tmplApi = template.Must(template.New("mc2api").Parse(tmplApi))
 	g.tmplMethodTest = template.Must(template.New("methodtest").Parse(tmplMethodTest))
 	g.tmplMethodTestutil = template.Must(template.New("methodtest").Parse(tmplMethodTestutil))
@@ -110,8 +115,14 @@ func (g *GenMC2) GenerateImports(file *generator.FileDescriptor) {
 	if g.importGrpcStatus {
 		g.PrintImport("", "google.golang.org/grpc/status")
 	}
+	if g.importGrpc {
+		g.PrintImport("", "google.golang.org/grpc")
+	}
 	if g.importOrmutil {
 		g.PrintImport("", "github.com/mobiledgex/edge-cloud-infra/mc/ormutil")
+	}
+	if g.importCtrlApi {
+		g.PrintImport("", "github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi")
 	}
 }
 
@@ -141,14 +152,17 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	g.importOrmapi = false
 	g.importOrmtestutil = false
 	g.importGrpcStatus = false
+	g.importGrpc = false
 	g.importLog = false
 	g.importCli = false
 	g.importOrmutil = false
+	g.importCtrlApi = false
 
 	g.support.InitFile()
 	if !g.support.GenFile(*file.FileDescriptorProto.Name) {
 		return
 	}
+	g.genctrlapi = g.hasParam("genctrlapi")
 	g.genapi = g.hasParam("genapi")
 	g.gentest = g.hasParam("gentest")
 	g.gentestutil = g.hasParam("gentestutil")
@@ -190,7 +204,7 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 		}
 	}
 
-	if g.genapi || g.genctl || g.gentestutil {
+	if g.genctrlapi || g.genapi || g.genctl || g.gentestutil {
 		return
 	}
 
@@ -446,15 +460,23 @@ func (g *GenMC2) generateMethod(file *generator.FileDescriptor, service string, 
 		args.NoConfig = gensupport.GetNoConfig(in.DescriptorProto, method)
 		g.importOrmapi = true
 		g.importStrings = true
+	} else if g.genctrlapi {
+		tmpl = g.tmplCtrlApi
+		g.importContext = true
+		g.importLog = true
+		g.importOrmutil = true
+		g.importGrpc = true
+		if args.Outstream {
+			g.importIO = true
+		}
 	} else {
 		tmpl = g.tmpl
 		g.importEcho = true
-		g.importContext = true
 		g.importOrmapi = true
 		g.importLog = true
 		g.importOrmutil = true
+		g.importCtrlApi = true
 		if args.Outstream {
-			g.importIO = true
 		} else {
 			g.importGrpcStatus = true
 		}
@@ -546,14 +568,21 @@ func (s *Region{{.InName}}) SetObjFields(fields []string) {
 `
 
 var tmpl = `
+{{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
+type {{.MethodName}}Authz interface {
+	Ok(obj *edgeproto.{{.OutName}}) (bool, bool)
+	Filter(obj *edgeproto.{{.OutName}})
+}
+{{- end}}
+
 func {{.MethodName}}(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
-	rc := &RegionContext{}
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.Region{{.InName}}{}
 {{- if .SetFields}}
@@ -564,7 +593,7 @@ func {{.MethodName}}(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 {{- if .HasKey}}
@@ -579,19 +608,83 @@ func {{.MethodName}}(c echo.Context) error {
 		return err
 	}
 {{- end}}
-{{- if .Outstream}}
 
-	err = {{.MethodName}}Stream(ctx, rc, &in.{{.InName}}, func(res *edgeproto.{{.OutName}}) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
+	obj := &in.{{.InName}}
+{{- if (not .Show)}}
+	{{- /* don't set tags for show because create/etc may call shows, which end up adding unnecessary blank tags */}}
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+{{- end}}
+{{- if (ne .Action "ActionView")}}
+	if err := obj.IsValidArgsFor{{.MethodName}}(); err != nil {
+		return err
+	}
+{{- end}}
+{{- if (not .SkipEnforce)}}
+{{- if and .Show .CustomAuthz}}
+	var authz {{.MethodName}}Authz
+	if !rc.SkipAuthz {
+		authz, err = new{{.MethodName}}Authz(ctx, rc.Region, rc.Username, {{.Resource}}, {{.Action}})
+		if err != nil {
+			return err
+		}
+	}
+{{- else if and .Show (not .CustomAuthz)}}
+	var authz *AuthzShow
+	if !rc.SkipAuthz {
+		authz, err = newShowAuthz(ctx, rc.Region, rc.Username, {{.Resource}}, {{.Action}})
+		if err != nil {
+			return err
+		}
+	}
+{{- else if .CustomAuthz}}
+	if !rc.SkipAuthz {
+		if err := authz{{.MethodName}}(ctx, rc.Region, rc.Username, obj,
+			{{.Resource}}, {{.Action}}); err != nil {
+			return err
+		}
+	}
+{{- else}}
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, {{.Org}},
+			{{.Resource}}, {{.Action}}{{.AuthOps}}); err != nil {
+			return err
+		}
+	}
+{{- end}}
+{{- end}}
+{{- if .NotifyRoot}}
+	conn, err := connCache.GetNotifyRootConn(ctx)
+{{- else}}
+	conn, err := connCache.GetRegionConn(ctx, rc.Region)
+{{- end}}
+	if err != nil {
+		return err
+	}
+{{if .Outstream}}
+	cb := func(res *edgeproto.{{.OutName}}) error {
+                payload := ormapi.StreamPayload{}
+                payload.Data = res
+                return WriteStream(c, &payload)
+        }
+{{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
+	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+{{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
+	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, conn, authz.Ok, cb)
+{{- else}}
+	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, conn, cb)
+{{- end}}
 	if err != nil {
 		return err
 	}
 	return nil
 {{- else}}
-	resp, err := {{.MethodName}}Obj(ctx, rc, &in.{{.InName}})
+{{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
+	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc , obj, conn, authz.Ok, authz.Filter)
+{{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
+	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc , obj, conn, authz.Ok)
+{{- else}}
+	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc, obj, conn)
+{{- end}}
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -602,77 +695,39 @@ func {{.MethodName}}(c echo.Context) error {
 {{- end}}
 }
 
-{{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
-type {{.MethodName}}Authz interface {
-	Ok(obj *edgeproto.{{.OutName}}) (bool, bool)
-	Filter(obj *edgeproto.{{.OutName}})
-}
-{{- end}}
+`
 
+var tmplCtrlApi = `
 {{if .Outstream}}
-func {{.MethodName}}Stream(ctx context.Context, rc *RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error {
+{{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, authzOk func(obj *edgeproto.{{.OutName}}) (bool, bool), authzFilter func(obj *edgeproto.{{.OutName}}), cb func(res *edgeproto.{{.OutName}}) error) error {
+{{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.{{.OutName}}) error) error {
 {{- else}}
-func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{{.InName}}) (*edgeproto.{{.OutName}}, error) {
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, cb func(res *edgeproto.{{.OutName}}) error) error {
+{{- end}}
+{{- else}}
+{{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, authzOk func(obj *edgeproto.{{.OutName}}) (bool, bool), authzFilter func(obj *edgeproto.{{.OutName}})) (*edgeproto.{{.OutName}}, error) {
+{{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, authzOk func(org string) bool) (*edgeproto.{{.OutName}}, error) {
+{{- else}}
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn) (*edgeproto.{{.OutName}}, error) {
+{{- end}}
+{{- end}}
+        span := log.SpanFromContext(ctx)
+        span.SetTag("region", rc.Region)
+{{- if .HasKey}}
+        log.SetTags(span, obj.GetKey().GetTags())
+{{- end}}
+{{- if .OrgValid}}
+        span.SetTag("org", obj.{{.OrgField}})
 {{- end}}
 {{- if (not .Show)}}
 	{{- /* don't set tags for show because create/etc may call shows, which end up adding unnecessary blank tags */}}
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 {{- end}}
-{{- if (ne .Action "ActionView")}}
-	if err := obj.IsValidArgsFor{{.MethodName}}(); err != nil {
-		return {{.ReturnErrArg}}err
-	}
-{{- end}}
-{{- if (not .SkipEnforce)}}
-{{- if and .Show .CustomAuthz}}
-	var authz {{.MethodName}}Authz
-	var err error
-	if !rc.skipAuthz {
-		authz, err = new{{.MethodName}}Authz(ctx, rc.region, rc.username, {{.Resource}}, {{.Action}})
-		if err != nil {
-			return {{.ReturnErrArg}}err
-		}
-	}
-{{- else if and .Show (not .CustomAuthz)}}
-	var authz *AuthzShow
-	var err error
-	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, {{.Resource}}, {{.Action}})
-		if err != nil {
-			return {{.ReturnErrArg}}err
-		}
-	}
-{{- else if .CustomAuthz}}
-	if !rc.skipAuthz {
-		if err := authz{{.MethodName}}(ctx, rc.region, rc.username, obj,
-			{{.Resource}}, {{.Action}}); err != nil {
-			return {{.ReturnErrArg}}err
-		}
-	}
-{{- else}}
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, {{.Org}},
-			{{.Resource}}, {{.Action}}{{.AuthOps}}); err != nil {
-			return {{.ReturnErrArg}}err
-		}
-	}
-{{- end}}
-{{- end}}
-	if rc.conn == nil {
-{{- if .NotifyRoot}}
-		conn, err := connCache.GetNotifyRootConn(ctx)
-{{- else}}
-		conn, err := connCache.GetRegionConn(ctx, rc.region)
-{{- end}}
-		if err != nil {
-			return {{.ReturnErrArg}}err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn = nil
-		}()
-	}
-	api := edgeproto.New{{.Service}}Client(rc.conn)
+	api := edgeproto.New{{.Service}}Client(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 {{- if .Outstream}}
@@ -690,26 +745,28 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 			return {{.ReturnErrArg}}err
 		}
 {{- if and .Show (not .SkipEnforce)}}
-		if !rc.skipAuthz {
+		if !rc.SkipAuthz {
+			if authzOk != nil {
 {{- if .CustomAuthz}}
 {{- if .Show }}
-			authzOk, filterOutput := authz.Ok(res)
-			if !authzOk {
+				isAuthzOk, filterOutput := authzOk(res)
+				if !isAuthzOk {
 {{- else }}
-			if !authz.Ok(res) {
+				if !authzOk(res) {
 {{- end}}
-				continue
-			}
+					continue
+				}
 {{- if .Show }}
-			if filterOutput {
-				authz.Filter(res)
-			}
+				if filterOutput && authzFilter != nil {
+					authzFilter(res)
+				}
 {{- end}}
 {{- else}}
-			if !authz.Ok({{.ShowOrg}}) {
-				continue
-			}
+				if !authzOk({{.ShowOrg}}) {
+					continue
+				}
 {{- end}}
+			}
 		}
 {{- end}}
 		err = cb(res)
@@ -722,17 +779,6 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 	return api.{{.MethodName}}(ctx, obj)
 {{- end}}
 }
-
-{{ if .Outstream}}
-func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{{.InName}}) ([]edgeproto.{{.OutName}}, error) {
-	arr := []edgeproto.{{.OutName}}{}
-	err := {{.MethodName}}Stream(ctx, rc, obj, func(res *edgeproto.{{.OutName}}) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
-}
-{{- end}}
 
 `
 

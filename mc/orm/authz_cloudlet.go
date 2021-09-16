@@ -5,7 +5,9 @@ import (
 	fmt "fmt"
 
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
@@ -120,14 +122,18 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	}
 
 	// get pools membership
-	rc := RegionContext{
-		region:    region,
-		username:  username,
-		skipAuthz: true,
+	rc := ormutil.RegionContext{
+		Region:    region,
+		Username:  username,
+		SkipAuthz: true,
 	}
 	// build map of cloudlets associated with all cloudlet pools
 	s.cloudletPoolSide = make(map[edgeproto.CloudletKey]int)
-	err = ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, func(pool *edgeproto.CloudletPool) error {
+	conn, err := connCache.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
+	err = ctrlapi.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, conn, nil, func(pool *edgeproto.CloudletPool) error {
 		for _, name := range pool.Cloudlets {
 			cloudletKey := edgeproto.CloudletKey{
 				Name:         name,

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -364,13 +365,17 @@ func ShowOrgCloudlet(c echo.Context) error {
 		return err
 	}
 
-	rc := RegionContext{
-		region:    oc.Region,
-		username:  claims.Username,
-		skipAuthz: true,
+	rc := ormutil.RegionContext{
+		Region:    oc.Region,
+		Username:  claims.Username,
+		SkipAuthz: true,
 	}
 	show := make([]*edgeproto.Cloudlet, 0)
-	err = ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, func(cloudlet *edgeproto.Cloudlet) error {
+	conn, err := connCache.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
+	err = ctrlapi.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, conn, nil, nil, func(cloudlet *edgeproto.Cloudlet) error {
 		authzOk, filterOutput := authzCloudlet.Ok(cloudlet)
 		if authzOk {
 			if filterOutput {
@@ -422,13 +427,17 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 		return err
 	}
 
-	rc := RegionContext{
-		region:    oc.Region,
-		username:  claims.Username,
-		skipAuthz: true,
+	rc := ormutil.RegionContext{
+		Region:    oc.Region,
+		Username:  claims.Username,
+		SkipAuthz: true,
+	}
+	conn, err := connCache.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
 	}
 	show := make([]*edgeproto.CloudletInfo, 0)
-	err = ShowCloudletInfoStream(ctx, &rc, &edgeproto.CloudletInfo{}, func(CloudletInfo *edgeproto.CloudletInfo) error {
+	err = ctrlapi.ShowCloudletInfoStream(ctx, &rc, &edgeproto.CloudletInfo{}, conn, nil, func(CloudletInfo *edgeproto.CloudletInfo) error {
 		cloudlet := edgeproto.Cloudlet{
 			Key: CloudletInfo.Key,
 		}

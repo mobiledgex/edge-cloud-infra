@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
 
@@ -46,10 +48,10 @@ func getOperatorPermToViewDeveloperStuff() (string, string) {
 }
 
 func (s *AuthzShow) setCloudletKeysFromPool(ctx context.Context, region, username string) error {
-	rc := RegionContext{
-		region:    region,
-		username:  username,
-		skipAuthz: true,
+	rc := ormutil.RegionContext{
+		Region:    region,
+		Username:  username,
+		SkipAuthz: true,
 	}
 	operRes, operAction := getOperatorPermToViewDeveloperStuff()
 	allowedOperOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, operRes, operAction)
@@ -57,7 +59,11 @@ func (s *AuthzShow) setCloudletKeysFromPool(ctx context.Context, region, usernam
 		return err
 	}
 	s.allowedCloudlets = make(map[edgeproto.CloudletKey]struct{})
-	err = ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, func(pool *edgeproto.CloudletPool) error {
+	conn, err := connCache.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
+	err = ctrlapi.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, conn, nil, func(pool *edgeproto.CloudletPool) error {
 		if _, found := allowedOperOrgs[pool.Key.Organization]; !found {
 			// skip pools which operator is not allowed to access
 			return nil
@@ -242,12 +248,16 @@ func newShowGPUDriverAuthz(ctx context.Context, region, username string, resourc
 		return nil, err
 	}
 	allowedGPUDrivers := make(map[edgeproto.GPUDriverKey]struct{})
-	rc := RegionContext{
-		region:    region,
-		username:  username,
-		skipAuthz: false,
+	rc := ormutil.RegionContext{
+		Region:    region,
+		Username:  username,
+		SkipAuthz: false,
 	}
-	err = ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, func(cl *edgeproto.Cloudlet) error {
+	conn, err := connCache.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
+	err = ctrlapi.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, conn, nil, nil, func(cl *edgeproto.Cloudlet) error {
 		// ignore non-GPU cloudlets
 		if _, ok := cl.ResTagMap["gpu"]; !ok {
 			return nil

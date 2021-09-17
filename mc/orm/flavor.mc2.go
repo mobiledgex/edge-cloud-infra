@@ -56,12 +56,8 @@ func CreateFlavor(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateFlavorObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateFlavorObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -101,12 +97,8 @@ func DeleteFlavor(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteFlavorObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteFlavorObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -150,12 +142,8 @@ func UpdateFlavor(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.UpdateFlavorObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.UpdateFlavorObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -185,17 +173,13 @@ func ShowFlavor(c echo.Context) error {
 	log.SetTags(span, in.Flavor.GetKey().GetTags())
 
 	obj := &in.Flavor
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Flavor) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowFlavorStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.ShowFlavorStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -232,12 +216,8 @@ func AddFlavorRes(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.AddFlavorResObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.AddFlavorResObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -277,12 +257,8 @@ func RemoveFlavorRes(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RemoveFlavorResObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RemoveFlavorResObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

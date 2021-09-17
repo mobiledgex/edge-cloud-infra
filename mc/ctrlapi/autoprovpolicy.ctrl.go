@@ -15,7 +15,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -27,47 +26,44 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAutoProvPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateAutoProvPolicy(ctx, obj)
 }
 
-func DeleteAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAutoProvPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteAutoProvPolicy(ctx, obj)
 }
 
-func UpdateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAutoProvPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateAutoProvPolicy(ctx, obj)
 }
 
-func ShowAutoProvPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.AutoProvPolicy) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
+func ShowAutoProvPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj RegionConn, authz authzShow, cb func(res *edgeproto.AutoProvPolicy) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAutoProvPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -85,8 +81,8 @@ func ShowAutoProvPolicyStream(ctx context.Context, rc *ormutil.RegionContext, ob
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk(res.Key.Organization) {
+			if authz != nil {
+				if !authz.Ok(res.Key.Organization) {
 					continue
 				}
 			}
@@ -99,24 +95,22 @@ func ShowAutoProvPolicyStream(ctx context.Context, rc *ormutil.RegionContext, ob
 	return nil
 }
 
-func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicyCloudlet, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicyCloudlet, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAutoProvPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddAutoProvPolicyCloudlet(ctx, obj)
 }
 
-func RemoveAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicyCloudlet, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RemoveAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicyCloudlet, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAutoProvPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

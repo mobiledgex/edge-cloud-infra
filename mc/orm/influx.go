@@ -305,11 +305,7 @@ func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings
 		Region:    idc.region,
 		SkipAuthz: true, // this is internal call, so no auth needed
 	}
-	conn, err := connCache.GetRegionConn(ctx, idc.region)
-	if err != nil {
-		return nil, err
-	}
-	return ctrlapi.ShowSettingsObj(ctx, rc, in, conn)
+	return ctrlapi.ShowSettingsObj(ctx, rc, in, connCache)
 }
 
 // Fill in MetricsCommonQueryArgs: Depending on if the user specified "Limit", "NumSamples", "StartTime", and "EndTime", adjust the query
@@ -637,11 +633,7 @@ func getCloudletPlatformTypes(ctx context.Context, username, region string, key 
 	obj := edgeproto.Cloudlet{
 		Key: *key,
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return nil, err
-	}
-	err = ctrlapi.ShowCloudletStream(ctx, rc, &obj, conn, nil, nil, func(res *edgeproto.Cloudlet) error {
+	err := ctrlapi.ShowCloudletStream(ctx, rc, &obj, connCache, nil, func(res *edgeproto.Cloudlet) error {
 		pfType := pf.GetType(res.PlatformType.String())
 		platformTypes[pfType] = struct{}{}
 		return nil
@@ -1107,16 +1099,11 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 		}
 	}
 
-	conn, err := connCache.GetRegionConn(ctx, region)
-	if err != nil {
-		return []string{}, err
-	}
-
 	// only grab the cloudletpools if no specific cloudlet was mentioned
 	if operOrgPermOk && len(uniqueCloudlets) == 0 {
 		for cloudletOrg := range cloudletOrgs {
 			cloudletpoolQuery := edgeproto.CloudletPool{Key: edgeproto.CloudletPoolKey{Organization: cloudletOrg}}
-			err = ctrlapi.ShowCloudletPoolStream(ctx, regionRc, &cloudletpoolQuery, conn, nil, func(pool *edgeproto.CloudletPool) error {
+			err = ctrlapi.ShowCloudletPoolStream(ctx, regionRc, &cloudletpoolQuery, connCache, nil, func(pool *edgeproto.CloudletPool) error {
 				for _, cloudlet := range pool.Cloudlets {
 					uniqueCloudlets[cloudlet] = struct{}{}
 				}

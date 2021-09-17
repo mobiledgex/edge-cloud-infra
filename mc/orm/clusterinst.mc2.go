@@ -58,17 +58,13 @@ func CreateClusterInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.CreateClusterInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.CreateClusterInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -106,17 +102,13 @@ func DeleteClusterInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.DeleteClusterInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.DeleteClusterInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -158,26 +150,17 @@ func UpdateClusterInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.UpdateClusterInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.UpdateClusterInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-type ShowClusterInstAuthz interface {
-	Ok(obj *edgeproto.ClusterInst) (bool, bool)
-	Filter(obj *edgeproto.ClusterInst)
 }
 
 func ShowClusterInst(c echo.Context) error {
@@ -201,16 +184,12 @@ func ShowClusterInst(c echo.Context) error {
 	span.SetTag("org", in.ClusterInst.Key.Organization)
 
 	obj := &in.ClusterInst
-	var authz ShowClusterInstAuthz
+	var authz ctrlapi.ShowClusterInstAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowClusterInstAuthz(ctx, rc.Region, rc.Username, ResourceClusterInsts, ActionView)
 		if err != nil {
 			return err
 		}
-	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
 	}
 
 	cb := func(res *edgeproto.ClusterInst) error {
@@ -218,7 +197,7 @@ func ShowClusterInst(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowClusterInstStream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.ShowClusterInstStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -254,12 +233,8 @@ func DeleteIdleReservableClusterInsts(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteIdleReservableClusterInstsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteIdleReservableClusterInstsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

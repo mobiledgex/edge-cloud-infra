@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -25,43 +24,44 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewFlavorApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateFlavor(ctx, obj)
 }
 
-func DeleteFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewFlavorApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteFlavor(ctx, obj)
 }
 
-func UpdateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewFlavorApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateFlavor(ctx, obj)
 }
 
-func ShowFlavorStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, conn *grpc.ClientConn, cb func(res *edgeproto.Flavor) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
+func ShowFlavorStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj RegionConn, cb func(res *edgeproto.Flavor) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewFlavorApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -86,22 +86,22 @@ func ShowFlavorStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgep
 	return nil
 }
 
-func AddFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func AddFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewFlavorApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddFlavorRes(ctx, obj)
 }
 
-func RemoveFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RemoveFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewFlavorApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

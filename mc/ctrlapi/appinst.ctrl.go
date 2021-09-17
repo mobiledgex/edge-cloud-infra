@@ -14,7 +14,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -26,12 +25,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppInstApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -56,12 +54,11 @@ func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 	return nil
 }
 
-func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppInstApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -86,12 +83,11 @@ func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 	return nil
 }
 
-func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppInstApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -116,12 +112,11 @@ func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return nil
 }
 
-func UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppInstApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -146,11 +141,16 @@ func UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 	return nil
 }
 
-func ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, conn *grpc.ClientConn, authzOk func(obj *edgeproto.AppInst) (bool, bool), authzFilter func(obj *edgeproto.AppInst), cb func(res *edgeproto.AppInst) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.AppKey.Organization)
+type ShowAppInstAuthz interface {
+	Ok(obj *edgeproto.AppInst) (bool, bool)
+	Filter(obj *edgeproto.AppInst)
+}
+
+func ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, authz ShowAppInstAuthz, cb func(res *edgeproto.AppInst) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppInstApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -168,13 +168,13 @@ func ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edge
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				isAuthzOk, filterOutput := authzOk(res)
-				if !isAuthzOk {
+			if authz != nil {
+				authzOk, filterOutput := authz.Ok(res)
+				if !authzOk {
 					continue
 				}
-				if filterOutput && authzFilter != nil {
-					authzFilter(res)
+				if filterOutput {
+					authz.Filter(res)
 				}
 			}
 		}
@@ -186,12 +186,11 @@ func ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edge
 	return nil
 }
 
-func RequestAppInstLatencyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstLatency, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RequestAppInstLatencyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstLatency, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAppInstLatencyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

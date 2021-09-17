@@ -129,11 +129,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	}
 	// build map of cloudlets associated with all cloudlet pools
 	s.cloudletPoolSide = make(map[edgeproto.CloudletKey]int)
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
-	err = ctrlapi.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, conn, nil, func(pool *edgeproto.CloudletPool) error {
+	err = ctrlapi.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
 		for _, name := range pool.Cloudlets {
 			cloudletKey := edgeproto.CloudletKey{
 				Name:         name,
@@ -342,7 +338,7 @@ func authzAddAutoProvPolicyCloudlet(ctx context.Context, region, username string
 	return nil
 }
 
-func newShowCloudletAuthz(ctx context.Context, region, username, resource, action string) (ShowCloudletAuthz, error) {
+func newShowCloudletAuthz(ctx context.Context, region, username, resource, action string) (ctrlapi.ShowCloudletAuthz, error) {
 	authzCloudlet := AuthzCloudlet{}
 	err := authzCloudlet.populate(ctx, region, username, "", resource, action)
 	if err != nil {
@@ -350,7 +346,7 @@ func newShowCloudletAuthz(ctx context.Context, region, username, resource, actio
 	}
 	return &authzCloudlet, nil
 }
-func newShowCloudletsForAppDeploymentAuthz(ctx context.Context, region, username string, resource, action string) (ShowCloudletsForAppDeploymentAuthz, error) {
+func newShowCloudletsForAppDeploymentAuthz(ctx context.Context, region, username string, resource, action string) (ctrlapi.ShowCloudletsForAppDeploymentAuthz, error) {
 	authzCloudletKey := AuthzCloudletKey{}
 	err := authzCloudletKey.populate(ctx, region, username, "", resource, action)
 	if err != nil {

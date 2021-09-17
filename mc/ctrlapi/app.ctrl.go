@@ -14,7 +14,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -26,47 +25,49 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateAppObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.App, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateAppObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.App, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateApp(ctx, obj)
 }
 
-func DeleteAppObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.App, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteAppObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.App, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteApp(ctx, obj)
 }
 
-func UpdateAppObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.App, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateAppObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.App, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateApp(ctx, obj)
 }
 
-func ShowAppStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.App, conn *grpc.ClientConn, authzOk func(obj *edgeproto.App) (bool, bool), authzFilter func(obj *edgeproto.App), cb func(res *edgeproto.App) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
+type ShowAppAuthz interface {
+	Ok(obj *edgeproto.App) (bool, bool)
+	Filter(obj *edgeproto.App)
+}
+
+func ShowAppStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.App, connObj RegionConn, authz ShowAppAuthz, cb func(res *edgeproto.App) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -84,13 +85,13 @@ func ShowAppStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeprot
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				isAuthzOk, filterOutput := authzOk(res)
-				if !isAuthzOk {
+			if authz != nil {
+				authzOk, filterOutput := authz.Ok(res)
+				if !authzOk {
 					continue
 				}
-				if filterOutput && authzFilter != nil {
-					authzFilter(res)
+				if filterOutput {
+					authz.Filter(res)
 				}
 			}
 		}
@@ -102,53 +103,60 @@ func ShowAppStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeprot
 	return nil
 }
 
-func AddAppAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppAutoProvPolicy, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func AddAppAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppAutoProvPolicy, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddAppAutoProvPolicy(ctx, obj)
 }
 
-func RemoveAppAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppAutoProvPolicy, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RemoveAppAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppAutoProvPolicy, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.RemoveAppAutoProvPolicy(ctx, obj)
 }
 
-func AddAppAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppAlertPolicy, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func AddAppAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppAlertPolicy, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddAppAlertPolicy(ctx, obj)
 }
 
-func RemoveAppAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppAlertPolicy, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RemoveAppAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppAlertPolicy, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.RemoveAppAlertPolicy(ctx, obj)
 }
 
-func ShowCloudletsForAppDeploymentStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DeploymentCloudletRequest, conn *grpc.ClientConn, authzOk func(obj *edgeproto.CloudletKey) (bool, bool), authzFilter func(obj *edgeproto.CloudletKey), cb func(res *edgeproto.CloudletKey) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
+type ShowCloudletsForAppDeploymentAuthz interface {
+	Ok(obj *edgeproto.CloudletKey) (bool, bool)
+	Filter(obj *edgeproto.CloudletKey)
+}
+
+func ShowCloudletsForAppDeploymentStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DeploymentCloudletRequest, connObj RegionConn, authz ShowCloudletsForAppDeploymentAuthz, cb func(res *edgeproto.CloudletKey) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -166,13 +174,13 @@ func ShowCloudletsForAppDeploymentStream(ctx context.Context, rc *ormutil.Region
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				isAuthzOk, filterOutput := authzOk(res)
-				if !isAuthzOk {
+			if authz != nil {
+				authzOk, filterOutput := authz.Ok(res)
+				if !authzOk {
 					continue
 				}
-				if filterOutput && authzFilter != nil {
-					authzFilter(res)
+				if filterOutput {
+					authz.Filter(res)
 				}
 			}
 		}

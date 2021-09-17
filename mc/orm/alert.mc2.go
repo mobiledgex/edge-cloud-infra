@@ -26,11 +26,6 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-type ShowAlertAuthz interface {
-	Ok(obj *edgeproto.Alert) (bool, bool)
-	Filter(obj *edgeproto.Alert)
-}
-
 func ShowAlert(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	rc := &ormutil.RegionContext{}
@@ -50,16 +45,12 @@ func ShowAlert(c echo.Context) error {
 	span.SetTag("region", in.Region)
 
 	obj := &in.Alert
-	var authz ShowAlertAuthz
+	var authz ctrlapi.ShowAlertAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowAlertAuthz(ctx, rc.Region, rc.Username, ResourceAlert, ActionView)
 		if err != nil {
 			return err
 		}
-	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
 	}
 
 	cb := func(res *edgeproto.Alert) error {
@@ -67,7 +58,7 @@ func ShowAlert(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowAlertStream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.ShowAlertStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

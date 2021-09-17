@@ -14,7 +14,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -26,12 +25,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func ShowAppInstClientStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstClientKey, conn *grpc.ClientConn, cb func(res *edgeproto.AppInstClient) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.AppInstKey.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func ShowAppInstClientStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstClientKey, connObj RegionConn, cb func(res *edgeproto.AppInstClient) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppInstClientApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

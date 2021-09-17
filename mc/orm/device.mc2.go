@@ -57,12 +57,8 @@ func InjectDevice(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.InjectDeviceObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.InjectDeviceObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -99,17 +95,13 @@ func ShowDevice(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Device) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowDeviceStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowDeviceStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -146,12 +138,8 @@ func EvictDevice(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.EvictDeviceObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.EvictDeviceObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -188,17 +176,13 @@ func ShowDeviceReport(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Device) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowDeviceReportStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowDeviceReportStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

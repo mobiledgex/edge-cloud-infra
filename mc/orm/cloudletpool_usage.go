@@ -113,12 +113,8 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 		cloudletpoolQuery := edgeproto.CloudletPool{Key: in.CloudletPool}
 		// Auth check is already performed above
 		regionRc.SkipAuthz = true
-		conn, err := connCache.GetRegionConn(ctx, regionRc.Region)
-		if err != nil {
-			return err
-		}
 		cloudletList := []string{}
-		err = ctrlapi.ShowCloudletPoolStream(ctx, regionRc, &cloudletpoolQuery, conn, nil, func(pool *edgeproto.CloudletPool) error {
+		err = ctrlapi.ShowCloudletPoolStream(ctx, regionRc, &cloudletpoolQuery, connCache, nil, func(pool *edgeproto.CloudletPool) error {
 			for _, cloudlet := range pool.Cloudlets {
 				cloudletList = append(cloudletList, cloudlet)
 			}

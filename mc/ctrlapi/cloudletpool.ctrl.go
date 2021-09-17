@@ -14,7 +14,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -26,47 +25,44 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewCloudletPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateCloudletPool(ctx, obj)
 }
 
-func DeleteCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewCloudletPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteCloudletPool(ctx, obj)
 }
 
-func UpdateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewCloudletPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateCloudletPool(ctx, obj)
 }
 
-func ShowCloudletPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.CloudletPool) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
+func ShowCloudletPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj RegionConn, authz authzShow, cb func(res *edgeproto.CloudletPool) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewCloudletPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -84,8 +80,8 @@ func ShowCloudletPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj 
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk(res.Key.Organization) {
+			if authz != nil {
+				if !authz.Ok(res.Key.Organization) {
 					continue
 				}
 			}
@@ -98,24 +94,22 @@ func ShowCloudletPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj 
 	return nil
 }
 
-func AddCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPoolMember, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func AddCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPoolMember, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewCloudletPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddCloudletPoolMember(ctx, obj)
 }
 
-func RemoveCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPoolMember, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RemoveCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPoolMember, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewCloudletPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

@@ -15,7 +15,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -27,47 +26,44 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewVMPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateVMPool(ctx, obj)
 }
 
-func DeleteVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewVMPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteVMPool(ctx, obj)
 }
 
-func UpdateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewVMPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateVMPool(ctx, obj)
 }
 
-func ShowVMPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.VMPool) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
+func ShowVMPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj RegionConn, authz authzShow, cb func(res *edgeproto.VMPool) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewVMPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -85,8 +81,8 @@ func ShowVMPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgep
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk(res.Key.Organization) {
+			if authz != nil {
+				if !authz.Ok(res.Key.Organization) {
 					continue
 				}
 			}
@@ -99,24 +95,22 @@ func ShowVMPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgep
 	return nil
 }
 
-func AddVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPoolMember, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func AddVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPoolMember, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewVMPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddVMPoolMember(ctx, obj)
 }
 
-func RemoveVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPoolMember, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RemoveVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPoolMember, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewVMPoolApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

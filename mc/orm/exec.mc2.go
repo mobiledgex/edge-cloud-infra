@@ -55,12 +55,8 @@ func RunCommand(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RunCommandObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RunCommandObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -100,12 +96,8 @@ func RunConsole(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RunConsoleObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RunConsoleObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -142,12 +134,8 @@ func ShowLogs(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.ShowLogsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.ShowLogsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -186,12 +174,8 @@ func AccessCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.AccessCloudletObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.AccessCloudletObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

@@ -59,12 +59,8 @@ func CreateVMPool(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateVMPoolObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateVMPoolObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -105,12 +101,8 @@ func DeleteVMPool(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteVMPoolObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteVMPoolObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -155,12 +147,8 @@ func UpdateVMPool(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.UpdateVMPoolObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.UpdateVMPoolObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -198,17 +186,13 @@ func ShowVMPool(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.VMPool) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowVMPoolStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowVMPoolStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -246,12 +230,8 @@ func AddVMPoolMember(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.AddVMPoolMemberObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.AddVMPoolMemberObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -292,12 +272,8 @@ func RemoveVMPoolMember(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RemoveVMPoolMemberObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RemoveVMPoolMemberObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

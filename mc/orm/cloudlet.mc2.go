@@ -58,17 +58,13 @@ func CreateGPUDriver(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.CreateGPUDriverStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.CreateGPUDriverStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -106,17 +102,13 @@ func DeleteGPUDriver(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.DeleteGPUDriverStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.DeleteGPUDriverStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -158,26 +150,17 @@ func UpdateGPUDriver(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.UpdateGPUDriverStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.UpdateGPUDriverStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-type ShowGPUDriverAuthz interface {
-	Ok(obj *edgeproto.GPUDriver) (bool, bool)
-	Filter(obj *edgeproto.GPUDriver)
 }
 
 func ShowGPUDriver(c echo.Context) error {
@@ -201,16 +184,12 @@ func ShowGPUDriver(c echo.Context) error {
 	span.SetTag("org", in.GPUDriver.Key.Organization)
 
 	obj := &in.GPUDriver
-	var authz ShowGPUDriverAuthz
+	var authz ctrlapi.ShowGPUDriverAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowGPUDriverAuthz(ctx, rc.Region, rc.Username, ResourceCloudlets, ActionView)
 		if err != nil {
 			return err
 		}
-	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
 	}
 
 	cb := func(res *edgeproto.GPUDriver) error {
@@ -218,7 +197,7 @@ func ShowGPUDriver(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowGPUDriverStream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.ShowGPUDriverStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -256,17 +235,13 @@ func AddGPUDriverBuild(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.AddGPUDriverBuildStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.AddGPUDriverBuildStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -304,17 +279,13 @@ func RemoveGPUDriverBuild(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.RemoveGPUDriverBuildStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.RemoveGPUDriverBuildStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -349,12 +320,8 @@ func GetGPUDriverBuildURL(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.GetGPUDriverBuildURLObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.GetGPUDriverBuildURLObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -395,17 +362,13 @@ func CreateCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.CreateCloudletStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.CreateCloudletStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -443,17 +406,13 @@ func DeleteCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.DeleteCloudletStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.DeleteCloudletStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -495,26 +454,17 @@ func UpdateCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.UpdateCloudletStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.UpdateCloudletStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-type ShowCloudletAuthz interface {
-	Ok(obj *edgeproto.Cloudlet) (bool, bool)
-	Filter(obj *edgeproto.Cloudlet)
 }
 
 func ShowCloudlet(c echo.Context) error {
@@ -537,16 +487,12 @@ func ShowCloudlet(c echo.Context) error {
 	log.SetTags(span, in.Cloudlet.GetKey().GetTags())
 
 	obj := &in.Cloudlet
-	var authz ShowCloudletAuthz
+	var authz ctrlapi.ShowCloudletAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowCloudletAuthz(ctx, rc.Region, rc.Username, ResourceCloudlets, ActionView)
 		if err != nil {
 			return err
 		}
-	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
 	}
 
 	cb := func(res *edgeproto.Cloudlet) error {
@@ -554,7 +500,7 @@ func ShowCloudlet(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowCloudletStream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.ShowCloudletStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -591,12 +537,8 @@ func GetCloudletManifest(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.GetCloudletManifestObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.GetCloudletManifestObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -633,12 +575,8 @@ func GetCloudletProps(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.GetCloudletPropsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.GetCloudletPropsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -675,12 +613,8 @@ func GetCloudletResourceQuotaProps(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.GetCloudletResourceQuotaPropsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.GetCloudletResourceQuotaPropsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -718,12 +652,8 @@ func GetCloudletResourceUsage(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.GetCloudletResourceUsageObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.GetCloudletResourceUsageObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -764,12 +694,8 @@ func AddCloudletResMapping(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.AddCloudletResMappingObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.AddCloudletResMappingObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -810,12 +736,8 @@ func RemoveCloudletResMapping(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RemoveCloudletResMappingObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RemoveCloudletResMappingObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -853,12 +775,8 @@ func FindFlavorMatch(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.FindFlavorMatchObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.FindFlavorMatchObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -894,17 +812,13 @@ func ShowFlavorsForCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.FlavorKey) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowFlavorsForCloudletStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.ShowFlavorsForCloudletStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -938,17 +852,13 @@ func GetOrganizationsOnCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Organization) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.GetOrganizationsOnCloudletStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.GetOrganizationsOnCloudletStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -985,12 +895,8 @@ func RevokeAccessKey(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RevokeAccessKeyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RevokeAccessKeyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -1030,12 +936,8 @@ func GenerateAccessKey(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.GenerateAccessKeyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.GenerateAccessKeyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -1073,17 +975,13 @@ func ShowCloudletInfo(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.CloudletInfo) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowCloudletInfoStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowCloudletInfoStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -1121,12 +1019,8 @@ func InjectCloudletInfo(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.InjectCloudletInfoObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.InjectCloudletInfoObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -1167,12 +1061,8 @@ func EvictCloudletInfo(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.EvictCloudletInfoObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.EvictCloudletInfoObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

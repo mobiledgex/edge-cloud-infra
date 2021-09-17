@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -25,12 +24,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewTrustPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -55,12 +53,11 @@ func CreateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func DeleteTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewTrustPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -85,12 +82,11 @@ func DeleteTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func UpdateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewTrustPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -115,11 +111,16 @@ func UpdateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func ShowTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, conn *grpc.ClientConn, authzOk func(obj *edgeproto.TrustPolicy) (bool, bool), authzFilter func(obj *edgeproto.TrustPolicy), cb func(res *edgeproto.TrustPolicy) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
+type ShowTrustPolicyAuthz interface {
+	Ok(obj *edgeproto.TrustPolicy) (bool, bool)
+	Filter(obj *edgeproto.TrustPolicy)
+}
+
+func ShowTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj RegionConn, authz ShowTrustPolicyAuthz, cb func(res *edgeproto.TrustPolicy) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewTrustPolicyApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -137,13 +138,13 @@ func ShowTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				isAuthzOk, filterOutput := authzOk(res)
-				if !isAuthzOk {
+			if authz != nil {
+				authzOk, filterOutput := authz.Ok(res)
+				if !authzOk {
 					continue
 				}
-				if filterOutput && authzFilter != nil {
-					authzFilter(res)
+				if filterOutput {
+					authz.Filter(res)
 				}
 			}
 		}

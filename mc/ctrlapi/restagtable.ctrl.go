@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -25,47 +24,44 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewResTagTableApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateResTagTable(ctx, obj)
 }
 
-func DeleteResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewResTagTableApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteResTagTable(ctx, obj)
 }
 
-func UpdateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewResTagTableApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateResTagTable(ctx, obj)
 }
 
-func ShowResTagTableStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.ResTagTable) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
+func ShowResTagTableStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj RegionConn, authz authzShow, cb func(res *edgeproto.ResTagTable) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewResTagTableApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -83,8 +79,8 @@ func ShowResTagTableStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk(res.Key.Organization) {
+			if authz != nil {
+				if !authz.Ok(res.Key.Organization) {
 					continue
 				}
 			}
@@ -97,34 +93,33 @@ func ShowResTagTableStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return nil
 }
 
-func AddResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func AddResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewResTagTableApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.AddResTag(ctx, obj)
 }
 
-func RemoveResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RemoveResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewResTagTableApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.RemoveResTag(ctx, obj)
 }
 
-func GetResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTableKey, conn *grpc.ClientConn) (*edgeproto.ResTagTable, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func GetResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTableKey, connObj RegionConn) (*edgeproto.ResTagTable, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewResTagTableApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

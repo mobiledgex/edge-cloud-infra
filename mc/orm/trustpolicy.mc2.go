@@ -56,17 +56,13 @@ func CreateTrustPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.CreateTrustPolicyStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.CreateTrustPolicyStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -104,17 +100,13 @@ func DeleteTrustPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.DeleteTrustPolicyStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.DeleteTrustPolicyStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -156,26 +148,17 @@ func UpdateTrustPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.UpdateTrustPolicyStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.UpdateTrustPolicyStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-type ShowTrustPolicyAuthz interface {
-	Ok(obj *edgeproto.TrustPolicy) (bool, bool)
-	Filter(obj *edgeproto.TrustPolicy)
 }
 
 func ShowTrustPolicy(c echo.Context) error {
@@ -199,16 +182,12 @@ func ShowTrustPolicy(c echo.Context) error {
 	span.SetTag("org", in.TrustPolicy.Key.Organization)
 
 	obj := &in.TrustPolicy
-	var authz ShowTrustPolicyAuthz
+	var authz ctrlapi.ShowTrustPolicyAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowTrustPolicyAuthz(ctx, rc.Region, rc.Username, ResourceCloudlets, ActionView)
 		if err != nil {
 			return err
 		}
-	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
 	}
 
 	cb := func(res *edgeproto.TrustPolicy) error {
@@ -216,7 +195,7 @@ func ShowTrustPolicy(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowTrustPolicyStream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.ShowTrustPolicyStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

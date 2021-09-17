@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -25,10 +24,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func ShowNodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Node, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.Node) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
+func ShowNodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Node, connObj RegionConn, authz authzShow, cb func(res *edgeproto.Node) error) error {
+	conn, err := connObj.GetNotifyRootConn(ctx)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewNodeApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -46,8 +46,8 @@ func ShowNodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgepro
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk("") {
+			if authz != nil {
+				if !authz.Ok("") {
 					continue
 				}
 			}

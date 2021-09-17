@@ -52,17 +52,13 @@ func ShowCloudletRefs(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.CloudletRefs) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowCloudletRefsStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowCloudletRefsStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -96,17 +92,13 @@ func ShowClusterRefs(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.ClusterRefs) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowClusterRefsStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowClusterRefsStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -141,17 +133,13 @@ func ShowAppInstRefs(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.AppInstRefs) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowAppInstRefsStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowAppInstRefsStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

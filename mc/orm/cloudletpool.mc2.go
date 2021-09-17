@@ -58,12 +58,8 @@ func CreateCloudletPool(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateCloudletPoolObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateCloudletPoolObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -104,12 +100,8 @@ func DeleteCloudletPool(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteCloudletPoolObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteCloudletPoolObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -154,12 +146,8 @@ func UpdateCloudletPool(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.UpdateCloudletPoolObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.UpdateCloudletPoolObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -197,17 +185,13 @@ func ShowCloudletPool(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.CloudletPool) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowCloudletPoolStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowCloudletPoolStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -245,12 +229,8 @@ func AddCloudletPoolMember(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.AddCloudletPoolMemberObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.AddCloudletPoolMemberObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -291,12 +271,8 @@ func RemoveCloudletPoolMember(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RemoveCloudletPoolMemberObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RemoveCloudletPoolMemberObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

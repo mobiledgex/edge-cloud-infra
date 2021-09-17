@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -25,10 +24,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func EnableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, conn *grpc.ClientConn, cb func(res *edgeproto.DebugReply) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func EnableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj RegionConn, cb func(res *edgeproto.DebugReply) error) error {
+	conn, err := connObj.GetNotifyRootConn(ctx)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewDebugApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -53,10 +53,11 @@ func EnableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func DisableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, conn *grpc.ClientConn, cb func(res *edgeproto.DebugReply) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DisableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj RegionConn, cb func(res *edgeproto.DebugReply) error) error {
+	conn, err := connObj.GetNotifyRootConn(ctx)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewDebugApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -81,10 +82,11 @@ func DisableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, ob
 	return nil
 }
 
-func ShowDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, conn *grpc.ClientConn, cb func(res *edgeproto.DebugReply) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func ShowDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj RegionConn, cb func(res *edgeproto.DebugReply) error) error {
+	conn, err := connObj.GetNotifyRootConn(ctx)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewDebugApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -109,10 +111,11 @@ func ShowDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return nil
 }
 
-func RunDebugStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, conn *grpc.ClientConn, cb func(res *edgeproto.DebugReply) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RunDebugStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj RegionConn, cb func(res *edgeproto.DebugReply) error) error {
+	conn, err := connObj.GetNotifyRootConn(ctx)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewDebugApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

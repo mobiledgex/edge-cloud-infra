@@ -59,12 +59,8 @@ func CreateAutoProvPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateAutoProvPolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateAutoProvPolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -105,12 +101,8 @@ func DeleteAutoProvPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteAutoProvPolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteAutoProvPolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -155,12 +147,8 @@ func UpdateAutoProvPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.UpdateAutoProvPolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.UpdateAutoProvPolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -198,17 +186,13 @@ func ShowAutoProvPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.AutoProvPolicy) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowAutoProvPolicyStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowAutoProvPolicyStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -246,12 +230,8 @@ func AddAutoProvPolicyCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.AddAutoProvPolicyCloudletObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.AddAutoProvPolicyCloudletObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -292,12 +272,8 @@ func RemoveAutoProvPolicyCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RemoveAutoProvPolicyCloudletObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RemoveAutoProvPolicyCloudletObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -25,32 +24,33 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewOperatorCodeApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateOperatorCode(ctx, obj)
 }
 
-func DeleteOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewOperatorCodeApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteOperatorCode(ctx, obj)
 }
 
-func ShowOperatorCodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.OperatorCode) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.Organization)
+func ShowOperatorCodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj RegionConn, authz authzShow, cb func(res *edgeproto.OperatorCode) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewOperatorCodeApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -68,8 +68,8 @@ func ShowOperatorCodeStream(ctx context.Context, rc *ormutil.RegionContext, obj 
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk(res.Organization) {
+			if authz != nil {
+				if !authz.Ok(res.Organization) {
 					continue
 				}
 			}

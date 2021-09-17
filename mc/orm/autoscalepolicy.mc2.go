@@ -57,12 +57,8 @@ func CreateAutoScalePolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateAutoScalePolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateAutoScalePolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -103,12 +99,8 @@ func DeleteAutoScalePolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteAutoScalePolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteAutoScalePolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -153,12 +145,8 @@ func UpdateAutoScalePolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.UpdateAutoScalePolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.UpdateAutoScalePolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -196,17 +184,13 @@ func ShowAutoScalePolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.AutoScalePolicy) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowAutoScalePolicyStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowAutoScalePolicyStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

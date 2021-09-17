@@ -54,17 +54,13 @@ func EnableDebugLevels(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetNotifyRootConn(ctx)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.DebugReply) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.EnableDebugLevelsStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.EnableDebugLevelsStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -100,17 +96,13 @@ func DisableDebugLevels(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetNotifyRootConn(ctx)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.DebugReply) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.DisableDebugLevelsStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.DisableDebugLevelsStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -143,17 +135,13 @@ func ShowDebugLevels(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetNotifyRootConn(ctx)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.DebugReply) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowDebugLevelsStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.ShowDebugLevelsStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -189,17 +177,13 @@ func RunDebug(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetNotifyRootConn(ctx)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.DebugReply) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.RunDebugStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.RunDebugStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}

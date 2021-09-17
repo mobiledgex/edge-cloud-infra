@@ -371,11 +371,7 @@ func ShowOrgCloudlet(c echo.Context) error {
 		SkipAuthz: true,
 	}
 	show := make([]*edgeproto.Cloudlet, 0)
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
-	err = ctrlapi.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, conn, nil, nil, func(cloudlet *edgeproto.Cloudlet) error {
+	err = ctrlapi.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, connCache, nil, func(cloudlet *edgeproto.Cloudlet) error {
 		authzOk, filterOutput := authzCloudlet.Ok(cloudlet)
 		if authzOk {
 			if filterOutput {
@@ -432,12 +428,8 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 		Username:  claims.Username,
 		SkipAuthz: true,
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 	show := make([]*edgeproto.CloudletInfo, 0)
-	err = ctrlapi.ShowCloudletInfoStream(ctx, &rc, &edgeproto.CloudletInfo{}, conn, nil, func(CloudletInfo *edgeproto.CloudletInfo) error {
+	err = ctrlapi.ShowCloudletInfoStream(ctx, &rc, &edgeproto.CloudletInfo{}, connCache, nil, func(CloudletInfo *edgeproto.CloudletInfo) error {
 		cloudlet := edgeproto.Cloudlet{
 			Key: CloudletInfo.Key,
 		}

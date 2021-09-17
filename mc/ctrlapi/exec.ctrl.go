@@ -12,7 +12,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	math "math"
 )
 
@@ -23,43 +22,44 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func RunCommandObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ExecRequest, conn *grpc.ClientConn) (*edgeproto.ExecRequest, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.AppInstKey.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RunCommandObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ExecRequest, connObj RegionConn) (*edgeproto.ExecRequest, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewExecApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.RunCommand(ctx, obj)
 }
 
-func RunConsoleObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ExecRequest, conn *grpc.ClientConn) (*edgeproto.ExecRequest, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.AppInstKey.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func RunConsoleObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ExecRequest, connObj RegionConn) (*edgeproto.ExecRequest, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewExecApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.RunConsole(ctx, obj)
 }
 
-func ShowLogsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ExecRequest, conn *grpc.ClientConn) (*edgeproto.ExecRequest, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.AppInstKey.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func ShowLogsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ExecRequest, connObj RegionConn) (*edgeproto.ExecRequest, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewExecApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.ShowLogs(ctx, obj)
 }
 
-func AccessCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ExecRequest, conn *grpc.ClientConn) (*edgeproto.ExecRequest, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func AccessCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ExecRequest, connObj RegionConn) (*edgeproto.ExecRequest, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewExecApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

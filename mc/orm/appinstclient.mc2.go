@@ -54,17 +54,13 @@ func ShowAppInstClient(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.AppInstClient) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowAppInstClientStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.ShowAppInstClientStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}

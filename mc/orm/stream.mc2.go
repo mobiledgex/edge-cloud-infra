@@ -52,17 +52,13 @@ func StreamAppInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.StreamAppInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.StreamAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -96,17 +92,13 @@ func StreamClusterInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.StreamClusterInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.StreamClusterInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -140,17 +132,13 @@ func StreamCloudlet(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.StreamCloudletStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.StreamCloudletStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -184,17 +172,13 @@ func StreamGPUDriver(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.StreamGPUDriverStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.StreamGPUDriverStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}

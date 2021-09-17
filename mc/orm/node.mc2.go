@@ -52,17 +52,13 @@ func ShowNode(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetNotifyRootConn(ctx)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Node) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowNodeStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowNodeStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

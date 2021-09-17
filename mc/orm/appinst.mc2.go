@@ -58,17 +58,13 @@ func CreateAppInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.CreateAppInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.CreateAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -106,17 +102,13 @@ func DeleteAppInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.DeleteAppInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.DeleteAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -154,17 +146,13 @@ func RefreshAppInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.RefreshAppInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.RefreshAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -206,26 +194,17 @@ func UpdateAppInst(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.UpdateAppInstStream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.UpdateAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-type ShowAppInstAuthz interface {
-	Ok(obj *edgeproto.AppInst) (bool, bool)
-	Filter(obj *edgeproto.AppInst)
 }
 
 func ShowAppInst(c echo.Context) error {
@@ -249,16 +228,12 @@ func ShowAppInst(c echo.Context) error {
 	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
 
 	obj := &in.AppInst
-	var authz ShowAppInstAuthz
+	var authz ctrlapi.ShowAppInstAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowAppInstAuthz(ctx, rc.Region, rc.Username, ResourceAppInsts, ActionView)
 		if err != nil {
 			return err
 		}
-	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
 	}
 
 	cb := func(res *edgeproto.AppInst) error {
@@ -266,7 +241,7 @@ func ShowAppInst(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowAppInstStream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.ShowAppInstStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -304,12 +279,8 @@ func RequestAppInstLatency(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RequestAppInstLatencyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RequestAppInstLatencyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

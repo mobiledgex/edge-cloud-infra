@@ -12,7 +12,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -24,11 +23,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func ShowCloudletRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletRefs, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.CloudletRefs) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
+func ShowCloudletRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletRefs, connObj RegionConn, authz authzShow, cb func(res *edgeproto.CloudletRefs) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewCloudletRefsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -46,8 +45,8 @@ func ShowCloudletRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj 
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk(res.Key.Organization) {
+			if authz != nil {
+				if !authz.Ok(res.Key.Organization) {
 					continue
 				}
 			}
@@ -60,10 +59,11 @@ func ShowCloudletRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj 
 	return nil
 }
 
-func ShowClusterRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterRefs, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.ClusterRefs) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
+func ShowClusterRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterRefs, connObj RegionConn, authz authzShow, cb func(res *edgeproto.ClusterRefs) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewClusterRefsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -81,8 +81,8 @@ func ShowClusterRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk("") {
+			if authz != nil {
+				if !authz.Ok("") {
 					continue
 				}
 			}
@@ -95,11 +95,11 @@ func ShowClusterRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return nil
 }
 
-func ShowAppInstRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstRefs, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.AppInstRefs) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	span.SetTag("org", obj.Key.Organization)
+func ShowAppInstRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstRefs, connObj RegionConn, authz authzShow, cb func(res *edgeproto.AppInstRefs) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAppInstRefsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -117,8 +117,8 @@ func ShowAppInstRefsStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk(res.Key.Organization) {
+			if authz != nil {
+				if !authz.Ok(res.Key.Organization) {
 					continue
 				}
 			}

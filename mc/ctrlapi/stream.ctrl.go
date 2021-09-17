@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -25,11 +24,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func StreamAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstKey, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.AppKey.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func StreamAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstKey, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewStreamObjApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -54,11 +53,11 @@ func StreamAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 	return nil
 }
 
-func StreamClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInstKey, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func StreamClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInstKey, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewStreamObjApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -83,11 +82,11 @@ func StreamClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func StreamCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletKey, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func StreamCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletKey, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewStreamObjApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -112,11 +111,11 @@ func StreamCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return nil
 }
 
-func StreamGPUDriverStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.GPUDriverKey, conn *grpc.ClientConn, cb func(res *edgeproto.Result) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	span.SetTag("org", obj.Organization)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func StreamGPUDriverStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.GPUDriverKey, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewStreamObjApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

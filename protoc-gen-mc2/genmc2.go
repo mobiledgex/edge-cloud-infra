@@ -43,7 +43,6 @@ type GenMC2 struct {
 	importOrmapi       bool
 	importOrmtestutil  bool
 	importGrpcStatus   bool
-	importGrpc         bool
 	importStrings      bool
 	importLog          bool
 	importCli          bool
@@ -115,9 +114,6 @@ func (g *GenMC2) GenerateImports(file *generator.FileDescriptor) {
 	if g.importGrpcStatus {
 		g.PrintImport("", "google.golang.org/grpc/status")
 	}
-	if g.importGrpc {
-		g.PrintImport("", "google.golang.org/grpc")
-	}
 	if g.importOrmutil {
 		g.PrintImport("", "github.com/mobiledgex/edge-cloud-infra/mc/ormutil")
 	}
@@ -152,7 +148,6 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	g.importOrmapi = false
 	g.importOrmtestutil = false
 	g.importGrpcStatus = false
-	g.importGrpc = false
 	g.importLog = false
 	g.importCli = false
 	g.importOrmutil = false
@@ -465,7 +460,6 @@ func (g *GenMC2) generateMethod(file *generator.FileDescriptor, service string, 
 		g.importContext = true
 		g.importLog = true
 		g.importOrmutil = true
-		g.importGrpc = true
 		if args.Outstream {
 			g.importIO = true
 		}
@@ -568,13 +562,6 @@ func (s *Region{{.InName}}) SetObjFields(fields []string) {
 `
 
 var tmpl = `
-{{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
-type {{.MethodName}}Authz interface {
-	Ok(obj *edgeproto.{{.OutName}}) (bool, bool)
-	Filter(obj *edgeproto.{{.OutName}})
-}
-{{- end}}
-
 func {{.MethodName}}(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	rc := &ormutil.RegionContext{}
@@ -621,7 +608,7 @@ func {{.MethodName}}(c echo.Context) error {
 {{- end}}
 {{- if (not .SkipEnforce)}}
 {{- if and .Show .CustomAuthz}}
-	var authz {{.MethodName}}Authz
+	var authz ctrlapi.{{.MethodName}}Authz
 	if !rc.SkipAuthz {
 		authz, err = new{{.MethodName}}Authz(ctx, rc.Region, rc.Username, {{.Resource}}, {{.Action}})
 		if err != nil {
@@ -652,14 +639,6 @@ func {{.MethodName}}(c echo.Context) error {
 	}
 {{- end}}
 {{- end}}
-{{- if .NotifyRoot}}
-	conn, err := connCache.GetNotifyRootConn(ctx)
-{{- else}}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-{{- end}}
-	if err != nil {
-		return err
-	}
 {{if .Outstream}}
 	cb := func(res *edgeproto.{{.OutName}}) error {
                 payload := ormapi.StreamPayload{}
@@ -667,11 +646,11 @@ func {{.MethodName}}(c echo.Context) error {
                 return WriteStream(c, &payload)
         }
 {{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
-	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, connCache, authz, cb)
 {{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
-	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, connCache, authz, cb)
 {{- else}}
-	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, conn, cb)
+	err = ctrlapi.{{.MethodName}}Stream(ctx, rc, obj, connCache, cb)
 {{- end}}
 	if err != nil {
 		return err
@@ -679,11 +658,11 @@ func {{.MethodName}}(c echo.Context) error {
 	return nil
 {{- else}}
 {{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
-	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc , obj, conn, authz.Ok, authz.Filter)
+	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc , obj, connCache, authz)
 {{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
-	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc , obj, conn, authz.Ok)
+	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc , obj, connCache, authz)
 {{- else}}
-	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.{{.MethodName}}Obj(ctx, rc, obj, connCache)
 {{- end}}
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
@@ -698,35 +677,38 @@ func {{.MethodName}}(c echo.Context) error {
 `
 
 var tmplCtrlApi = `
+{{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
+type {{.MethodName}}Authz interface {
+	Ok(obj *edgeproto.{{.OutName}}) (bool, bool)
+	Filter(obj *edgeproto.{{.OutName}})
+}
+{{- end}}
+
 {{if .Outstream}}
 {{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
-func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, authzOk func(obj *edgeproto.{{.OutName}}) (bool, bool), authzFilter func(obj *edgeproto.{{.OutName}}), cb func(res *edgeproto.{{.OutName}}) error) error {
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj RegionConn, authz {{.MethodName}}Authz, cb func(res *edgeproto.{{.OutName}}) error) error {
 {{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
-func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.{{.OutName}}) error) error {
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj RegionConn, authz authzShow, cb func(res *edgeproto.{{.OutName}}) error) error {
 {{- else}}
-func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, cb func(res *edgeproto.{{.OutName}}) error) error {
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj RegionConn, cb func(res *edgeproto.{{.OutName}}) error) error {
 {{- end}}
 {{- else}}
 {{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
-func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, authzOk func(obj *edgeproto.{{.OutName}}) (bool, bool), authzFilter func(obj *edgeproto.{{.OutName}})) (*edgeproto.{{.OutName}}, error) {
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj RegionConn, authz {{.MethodName}}Authz) (*edgeproto.{{.OutName}}, error) {
 {{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
-func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn, authzOk func(org string) bool) (*edgeproto.{{.OutName}}, error) {
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj RegionConn, authz authzShow) (*edgeproto.{{.OutName}}, error) {
 {{- else}}
-func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, conn *grpc.ClientConn) (*edgeproto.{{.OutName}}, error) {
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj RegionConn) (*edgeproto.{{.OutName}}, error) {
 {{- end}}
 {{- end}}
-        span := log.SpanFromContext(ctx)
-        span.SetTag("region", rc.Region)
-{{- if .HasKey}}
-        log.SetTags(span, obj.GetKey().GetTags())
+{{- if .NotifyRoot}}
+	conn, err := connObj.GetNotifyRootConn(ctx)
+{{- else}}
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 {{- end}}
-{{- if .OrgValid}}
-        span.SetTag("org", obj.{{.OrgField}})
-{{- end}}
-{{- if (not .Show)}}
-	{{- /* don't set tags for show because create/etc may call shows, which end up adding unnecessary blank tags */}}
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
-{{- end}}
+	if err != nil {
+		return {{.ReturnErrArg}}err
+	}
 	api := edgeproto.New{{.Service}}Client(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -746,23 +728,23 @@ func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edg
 		}
 {{- if and .Show (not .SkipEnforce)}}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
+			if authz != nil {
 {{- if .CustomAuthz}}
 {{- if .Show }}
-				isAuthzOk, filterOutput := authzOk(res)
-				if !isAuthzOk {
+				authzOk, filterOutput := authz.Ok(res)
+				if !authzOk {
 {{- else }}
-				if !authzOk(res) {
+				if !authz.Ok(res) {
 {{- end}}
 					continue
 				}
 {{- if .Show }}
-				if filterOutput && authzFilter != nil {
-					authzFilter(res)
+				if filterOutput {
+					authz.Filter(res)
 				}
 {{- end}}
 {{- else}}
-				if !authzOk({{.ShowOrg}}) {
+				if !authz.Ok({{.ShowOrg}}) {
 					continue
 				}
 {{- end}}

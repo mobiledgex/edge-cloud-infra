@@ -69,13 +69,8 @@ func CollectBillingUsage(collectInterval time.Duration) {
 }
 
 func recordRegionUsage(ctx context.Context, region string, start, end time.Time) {
-	conn, err := connCache.GetRegionConn(ctx, region)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to connect to controller", "region", region, "err", err)
-		return
-	}
 	poolMap := make(map[string]string)
-	err = ctrlapi.ShowCloudletPoolStream(ctx, &ormutil.RegionContext{SkipAuthz: true, Region: region}, &edgeproto.CloudletPool{}, conn, nil, func(pool *edgeproto.CloudletPool) error {
+	err := ctrlapi.ShowCloudletPoolStream(ctx, &ormutil.RegionContext{SkipAuthz: true, Region: region}, &edgeproto.CloudletPool{}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
 		for _, cloudName := range pool.Cloudlets {
 			poolMap[cloudName] = pool.Key.Organization
 		}

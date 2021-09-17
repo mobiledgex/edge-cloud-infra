@@ -53,17 +53,13 @@ func ShowRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.RateLimitSettings) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowRateLimitSettingsStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowRateLimitSettingsStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -100,12 +96,8 @@ func CreateFlowRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateFlowRateLimitSettingsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateFlowRateLimitSettingsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -149,12 +141,8 @@ func UpdateFlowRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.UpdateFlowRateLimitSettingsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.UpdateFlowRateLimitSettingsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -194,12 +182,8 @@ func DeleteFlowRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteFlowRateLimitSettingsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteFlowRateLimitSettingsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -236,17 +220,13 @@ func ShowFlowRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.FlowRateLimitSettings) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowFlowRateLimitSettingsStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowFlowRateLimitSettingsStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -283,12 +263,8 @@ func CreateMaxReqsRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateMaxReqsRateLimitSettingsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateMaxReqsRateLimitSettingsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -332,12 +308,8 @@ func UpdateMaxReqsRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.UpdateMaxReqsRateLimitSettingsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.UpdateMaxReqsRateLimitSettingsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -377,12 +349,8 @@ func DeleteMaxReqsRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteMaxReqsRateLimitSettingsObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteMaxReqsRateLimitSettingsObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -419,17 +387,13 @@ func ShowMaxReqsRateLimitSettings(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.MaxReqsRateLimitSettings) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowMaxReqsRateLimitSettingsStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowMaxReqsRateLimitSettingsStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

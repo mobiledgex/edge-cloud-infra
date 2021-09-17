@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -25,10 +24,11 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func ShowRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.RateLimitSettings, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.RateLimitSettings) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
+func ShowRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.RateLimitSettings, connObj RegionConn, authz authzShow, cb func(res *edgeproto.RateLimitSettings) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -46,8 +46,8 @@ func ShowRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionContext,
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk("") {
+			if authz != nil {
+				if !authz.Ok("") {
 					continue
 				}
 			}
@@ -60,43 +60,44 @@ func ShowRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionContext,
 	return nil
 }
 
-func CreateFlowRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.FlowRateLimitSettings, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateFlowRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.FlowRateLimitSettings, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateFlowRateLimitSettings(ctx, obj)
 }
 
-func UpdateFlowRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.FlowRateLimitSettings, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateFlowRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.FlowRateLimitSettings, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateFlowRateLimitSettings(ctx, obj)
 }
 
-func DeleteFlowRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.FlowRateLimitSettings, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteFlowRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.FlowRateLimitSettings, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteFlowRateLimitSettings(ctx, obj)
 }
 
-func ShowFlowRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.FlowRateLimitSettings, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.FlowRateLimitSettings) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
+func ShowFlowRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.FlowRateLimitSettings, connObj RegionConn, authz authzShow, cb func(res *edgeproto.FlowRateLimitSettings) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -114,8 +115,8 @@ func ShowFlowRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionCont
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk("") {
+			if authz != nil {
+				if !authz.Ok("") {
 					continue
 				}
 			}
@@ -128,43 +129,44 @@ func ShowFlowRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionCont
 	return nil
 }
 
-func CreateMaxReqsRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.MaxReqsRateLimitSettings, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func CreateMaxReqsRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.MaxReqsRateLimitSettings, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.CreateMaxReqsRateLimitSettings(ctx, obj)
 }
 
-func UpdateMaxReqsRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.MaxReqsRateLimitSettings, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateMaxReqsRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.MaxReqsRateLimitSettings, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateMaxReqsRateLimitSettings(ctx, obj)
 }
 
-func DeleteMaxReqsRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.MaxReqsRateLimitSettings, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func DeleteMaxReqsRateLimitSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.MaxReqsRateLimitSettings, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteMaxReqsRateLimitSettings(ctx, obj)
 }
 
-func ShowMaxReqsRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.MaxReqsRateLimitSettings, conn *grpc.ClientConn, authzOk func(org string) bool, cb func(res *edgeproto.MaxReqsRateLimitSettings) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetTags(span, obj.GetKey().GetTags())
+func ShowMaxReqsRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.MaxReqsRateLimitSettings, connObj RegionConn, authz authzShow, cb func(res *edgeproto.MaxReqsRateLimitSettings) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewRateLimitSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -182,8 +184,8 @@ func ShowMaxReqsRateLimitSettingsStream(ctx context.Context, rc *ormutil.RegionC
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				if !authzOk("") {
+			if authz != nil {
+				if !authz.Ok("") {
 					continue
 				}
 			}

@@ -56,12 +56,8 @@ func CreateOperatorCode(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateOperatorCodeObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateOperatorCodeObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -101,12 +97,8 @@ func DeleteOperatorCode(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteOperatorCodeObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteOperatorCodeObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -143,17 +135,13 @@ func ShowOperatorCode(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
 	cb := func(res *edgeproto.OperatorCode) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowOperatorCodeStream(ctx, rc, obj, conn, authz.Ok, cb)
+	err = ctrlapi.ShowOperatorCodeStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

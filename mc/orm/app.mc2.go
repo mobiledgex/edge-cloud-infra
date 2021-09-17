@@ -58,12 +58,8 @@ func CreateApp(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.CreateAppObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.CreateAppObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -104,12 +100,8 @@ func DeleteApp(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.DeleteAppObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.DeleteAppObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -154,12 +146,8 @@ func UpdateApp(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.UpdateAppObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.UpdateAppObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -167,11 +155,6 @@ func UpdateApp(c echo.Context) error {
 		return err
 	}
 	return ormutil.SetReply(c, resp)
-}
-
-type ShowAppAuthz interface {
-	Ok(obj *edgeproto.App) (bool, bool)
-	Filter(obj *edgeproto.App)
 }
 
 func ShowApp(c echo.Context) error {
@@ -195,16 +178,12 @@ func ShowApp(c echo.Context) error {
 	span.SetTag("org", in.App.Key.Organization)
 
 	obj := &in.App
-	var authz ShowAppAuthz
+	var authz ctrlapi.ShowAppAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowAppAuthz(ctx, rc.Region, rc.Username, ResourceApps, ActionView)
 		if err != nil {
 			return err
 		}
-	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
 	}
 
 	cb := func(res *edgeproto.App) error {
@@ -212,7 +191,7 @@ func ShowApp(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowAppStream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.ShowAppStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -249,12 +228,8 @@ func AddAppAutoProvPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.AddAppAutoProvPolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.AddAppAutoProvPolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -294,12 +269,8 @@ func RemoveAppAutoProvPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RemoveAppAutoProvPolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RemoveAppAutoProvPolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -339,12 +310,8 @@ func AddAppAlertPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.AddAppAlertPolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.AddAppAlertPolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -384,12 +351,8 @@ func RemoveAppAlertPolicy(c echo.Context) error {
 			return err
 		}
 	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
 
-	resp, err := ctrlapi.RemoveAppAlertPolicyObj(ctx, rc, obj, conn)
+	resp, err := ctrlapi.RemoveAppAlertPolicyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())
@@ -397,11 +360,6 @@ func RemoveAppAlertPolicy(c echo.Context) error {
 		return err
 	}
 	return ormutil.SetReply(c, resp)
-}
-
-type ShowCloudletsForAppDeploymentAuthz interface {
-	Ok(obj *edgeproto.CloudletKey) (bool, bool)
-	Filter(obj *edgeproto.CloudletKey)
 }
 
 func ShowCloudletsForAppDeployment(c echo.Context) error {
@@ -423,16 +381,12 @@ func ShowCloudletsForAppDeployment(c echo.Context) error {
 	span.SetTag("region", in.Region)
 
 	obj := &in.DeploymentCloudletRequest
-	var authz ShowCloudletsForAppDeploymentAuthz
+	var authz ctrlapi.ShowCloudletsForAppDeploymentAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowCloudletsForAppDeploymentAuthz(ctx, rc.Region, rc.Username, ResourceCloudlets, ActionView)
 		if err != nil {
 			return err
 		}
-	}
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
 	}
 
 	cb := func(res *edgeproto.CloudletKey) error {
@@ -440,7 +394,7 @@ func ShowCloudletsForAppDeployment(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowCloudletsForAppDeploymentStream(ctx, rc, obj, conn, authz.Ok, authz.Filter, cb)
+	err = ctrlapi.ShowCloudletsForAppDeploymentStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}

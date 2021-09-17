@@ -98,10 +98,6 @@ func authzCloudletPoolMembers(ctx context.Context, region, username string, pool
 	rc.Username = username
 	rc.Region = region
 	rc.SkipAuthz = true
-	conn, err := connCache.GetRegionConn(ctx, region)
-	if err != nil {
-		return err
-	}
 	for _, cloudletName := range pool.Cloudlets {
 		if !util.ValidName(cloudletName) {
 			return fmt.Errorf("Invalid Cloudlet name %q", cloudletName)
@@ -111,7 +107,7 @@ func authzCloudletPoolMembers(ctx context.Context, region, username string, pool
 			Organization: pool.Key.Organization,
 		}
 		invalidOrgs := []string{}
-		err = ctrlapi.GetOrganizationsOnCloudletStream(ctx, &rc, &key, conn, func(org *edgeproto.Organization) error {
+		err := ctrlapi.GetOrganizationsOnCloudletStream(ctx, &rc, &key, connCache, func(org *edgeproto.Organization) error {
 			if org.Name == cloudcommon.OrganizationMobiledgeX {
 				return nil
 			}
@@ -122,6 +118,9 @@ func authzCloudletPoolMembers(ctx context.Context, region, username string, pool
 			invalidOrgs = append(invalidOrgs, org.Name)
 			return nil
 		})
+		if err != nil {
+			return err
+		}
 		if len(invalidOrgs) > 0 {
 			sort.Strings(invalidOrgs)
 			return fmt.Errorf("Cannot add cloudlet %s to CloudletPool because it has AppInsts/ClusterInsts from developer %s, which are not authorized to deploy to the CloudletPool", key.Name, strings.Join(invalidOrgs, ", "))

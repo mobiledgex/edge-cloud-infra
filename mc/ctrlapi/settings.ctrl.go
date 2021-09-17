@@ -13,7 +13,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	math "math"
 )
 
@@ -24,30 +23,33 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func UpdateSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func UpdateSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.UpdateSettings(ctx, obj)
 }
 
-func ResetSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, conn *grpc.ClientConn) (*edgeproto.Result, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func ResetSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj RegionConn) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.ResetSettings(ctx, obj)
 }
 
-func ShowSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, conn *grpc.ClientConn) (*edgeproto.Settings, error) {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
-	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+func ShowSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj RegionConn) (*edgeproto.Settings, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
 	api := edgeproto.NewSettingsApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")

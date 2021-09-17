@@ -43,11 +43,7 @@ func (s *AuthzTrustPolicy) populate(ctx context.Context, region, username string
 		SkipAuthz: true, // skip since we already have the cloudlet authz
 	}
 	// allow policies associated with cloudlets that the user can see
-	conn, err := connCache.GetRegionConn(ctx, rc.Region)
-	if err != nil {
-		return err
-	}
-	err = ctrlapi.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, conn, nil, nil, func(cloudlet *edgeproto.Cloudlet) error {
+	err := ctrlapi.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, connCache, nil, func(cloudlet *edgeproto.Cloudlet) error {
 		if authzOk, _ := s.authzCloudlet.Ok(cloudlet); !authzOk || cloudlet.TrustPolicy == "" {
 			return nil
 		}
@@ -64,7 +60,7 @@ func (s *AuthzTrustPolicy) populate(ctx context.Context, region, username string
 	return nil
 }
 
-func newShowTrustPolicyAuthz(ctx context.Context, region, username, resource, action string) (ShowTrustPolicyAuthz, error) {
+func newShowTrustPolicyAuthz(ctx context.Context, region, username, resource, action string) (ctrlapi.ShowTrustPolicyAuthz, error) {
 	authzCloudlet := AuthzCloudlet{}
 	err := authzCloudlet.populate(ctx, region, username, "", resource, action)
 	if err != nil {

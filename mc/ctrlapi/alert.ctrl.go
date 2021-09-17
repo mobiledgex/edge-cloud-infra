@@ -14,7 +14,6 @@ import (
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"google.golang.org/grpc"
 	"io"
 	math "math"
 )
@@ -26,9 +25,16 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func ShowAlertStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Alert, conn *grpc.ClientConn, authzOk func(obj *edgeproto.Alert) (bool, bool), authzFilter func(obj *edgeproto.Alert), cb func(res *edgeproto.Alert) error) error {
-	span := log.SpanFromContext(ctx)
-	span.SetTag("region", rc.Region)
+type ShowAlertAuthz interface {
+	Ok(obj *edgeproto.Alert) (bool, bool)
+	Filter(obj *edgeproto.Alert)
+}
+
+func ShowAlertStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Alert, connObj RegionConn, authz ShowAlertAuthz, cb func(res *edgeproto.Alert) error) error {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return err
+	}
 	api := edgeproto.NewAlertApiClient(conn)
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
@@ -46,13 +52,13 @@ func ShowAlertStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 			return err
 		}
 		if !rc.SkipAuthz {
-			if authzOk != nil {
-				isAuthzOk, filterOutput := authzOk(res)
-				if !isAuthzOk {
+			if authz != nil {
+				authzOk, filterOutput := authz.Ok(res)
+				if !authzOk {
 					continue
 				}
-				if filterOutput && authzFilter != nil {
-					authzFilter(res)
+				if filterOutput {
+					authz.Filter(res)
 				}
 			}
 		}

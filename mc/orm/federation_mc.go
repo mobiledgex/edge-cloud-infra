@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/federation"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
@@ -480,10 +481,10 @@ func CreateFederationZone(c echo.Context) error {
 		return fmt.Errorf("Zone %s already exists", opZone.ZoneId)
 	}
 
-	rc := RegionContext{
-		region:    selfFed.CountryCode,
-		username:  claims.Username,
-		skipAuthz: true,
+	rc := ormutil.RegionContext{
+		Region:    selfFed.CountryCode,
+		Username:  claims.Username,
+		SkipAuthz: true,
 	}
 	cloudletMap := make(map[string]edgeproto.Cloudlet)
 	cloudletLookup := edgeproto.Cloudlet{
@@ -491,19 +492,8 @@ func CreateFederationZone(c echo.Context) error {
 			Organization: selfFed.OperatorId,
 		},
 	}
-	authzCloudlet := AuthzCloudlet{}
-	err = authzCloudlet.populate(ctx, rc.region, rc.username, selfFed.OperatorId, ResourceCloudlets, ActionView)
-	if err != nil {
-		return err
-	}
-	err = ShowCloudletStream(ctx, &rc, &cloudletLookup, func(cloudlet *edgeproto.Cloudlet) error {
-		authzOk, filterOutput := authzCloudlet.Ok(cloudlet)
-		if authzOk {
-			if filterOutput {
-				authzCloudlet.Filter(cloudlet)
-			}
-			cloudletMap[cloudlet.Key.Name] = *cloudlet
-		}
+	err = ctrlapi.ShowCloudletStream(ctx, &rc, &cloudletLookup, connCache, nil, func(cloudlet *edgeproto.Cloudlet) error {
+		cloudletMap[cloudlet.Key.Name] = *cloudlet
 		return nil
 	})
 	if err != nil {

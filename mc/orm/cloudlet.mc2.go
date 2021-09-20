@@ -362,6 +362,8 @@ func CreateCloudlet(c echo.Context) error {
 			return err
 		}
 	}
+	// Need access to database for federation handling
+	rc.Database = database
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
@@ -406,6 +408,8 @@ func DeleteCloudlet(c echo.Context) error {
 			return err
 		}
 	}
+	// Need access to database for federation handling
+	rc.Database = database
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
@@ -454,6 +458,8 @@ func UpdateCloudlet(c echo.Context) error {
 			return err
 		}
 	}
+	// Need access to database for federation handling
+	rc.Database = database
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}

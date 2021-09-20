@@ -227,6 +227,26 @@ func GetGPUDriverBuildURLObj(ctx context.Context, rc *ormutil.RegionContext, obj
 }
 
 func CreateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			CreateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("CreateCloudlet is not implemented for federation partner")
+		}
+		return ctrlObj.CreateCloudletStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -256,6 +276,26 @@ func CreateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 }
 
 func DeleteCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			DeleteCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("DeleteCloudlet is not implemented for federation partner")
+		}
+		return ctrlObj.DeleteCloudletStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -285,6 +325,26 @@ func DeleteCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 }
 
 func UpdateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			UpdateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("UpdateCloudlet is not implemented for federation partner")
+		}
+		return ctrlObj.UpdateCloudletStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -319,6 +379,30 @@ type ShowCloudletAuthz interface {
 }
 
 func ShowCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, connObj RegionConn, authz ShowCloudletAuthz, cb func(res *edgeproto.Cloudlet) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObjs, err := fedCtrl.GetRegionFederationObjs(ctx, rc.Region, obj.Key.Organization)
+	if err != nil {
+		return err
+	}
+	var fedCtrlIntf interface{}
+	for _, fedObj := range fedObjs {
+		fedCtrl.OperatorFederation = fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			ShowCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, cb func(res *edgeproto.Cloudlet) error) error
+		})
+		if !ok {
+			// method doesn't exist, ignore
+			continue
+		}
+
+		err = ctrlObj.ShowCloudletStream(ctx, rc, obj, cb)
+		if err != nil {
+			return err
+		}
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

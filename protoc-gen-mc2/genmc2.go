@@ -456,6 +456,7 @@ func (g *GenMC2) generateMethod(file *generator.FileDescriptor, service string, 
 		g.importOrmapi = true
 		g.importStrings = true
 	} else if g.genctrlapi {
+		args.TargetCloudlet = GetMc2TargetCloudlet(in.DescriptorProto)
 		tmpl = g.tmplCtrlApi
 		g.importContext = true
 		g.importLog = true
@@ -639,6 +640,10 @@ func {{.MethodName}}(c echo.Context) error {
 	}
 {{- end}}
 {{- end}}
+{{- if .TargetCloudlet}}
+       // Need access to database for federation handling
+       rc.Database = database
+{{- end}}
 {{if .Outstream}}
 	cb := func(res *edgeproto.{{.OutName}}) error {
                 payload := ormapi.StreamPayload{}
@@ -679,8 +684,8 @@ func {{.MethodName}}(c echo.Context) error {
 var tmplCtrlApi = `
 {{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
 type {{.MethodName}}Authz interface {
-	Ok(obj *edgeproto.{{.OutName}}) (bool, bool)
-	Filter(obj *edgeproto.{{.OutName}})
+        Ok(obj *edgeproto.{{.OutName}}) (bool, bool)
+        Filter(obj *edgeproto.{{.OutName}})
 }
 {{- end}}
 
@@ -701,64 +706,108 @@ func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edg
 func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj RegionConn) (*edgeproto.{{.OutName}}, error) {
 {{- end}}
 {{- end}}
-{{- if .NotifyRoot}}
-	conn, err := connObj.GetNotifyRootConn(ctx)
-{{- else}}
-	conn, err := connObj.GetRegionConn(ctx, rc.Region)
-{{- end}}
-	if err != nil {
-		return {{.ReturnErrArg}}err
-	}
-	api := edgeproto.New{{.Service}}Client(conn)
-	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
-	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
+{{- if .TargetCloudlet}}
 {{- if .Outstream}}
-	stream, err := api.{{.MethodName}}(ctx, obj)
-	if err != nil {
-		return {{.ReturnErrArg}}err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return {{.ReturnErrArg}}err
-		}
+        fedCtrl := FederationController{
+                Database: rc.Database,
+        }
+{{- if .Show }}
+        fedObjs, err := fedCtrl.GetRegionFederationObjs(ctx, rc.Region, obj.{{.TargetCloudlet}}.Organization)
+        if err != nil {
+                return err
+        }
+        var fedCtrlIntf interface{}
+        for _, fedObj := range fedObjs {
+                fedCtrl.OperatorFederation = fedObj
+                fedCtrlIntf = &fedCtrl
+                ctrlObj, ok := fedCtrlIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
+                if !ok {
+                        // method doesn't exist, ignore
+                        continue
+                }
+
+                err = ctrlObj.{{.MethodName}}Stream(ctx, rc, obj, cb)
+                if err != nil {
+                        return err
+                }
+       }
+{{- else}}
+        fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.{{.TargetCloudlet}}.Organization)
+        if err != nil {
+                return err
+        }
+        if found {
+                var fedCtrlIntf interface{}
+                fedCtrl.OperatorFederation = *fedObj
+                fedCtrlIntf = &fedCtrl
+                ctrlObj, ok := fedCtrlIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
+                if !ok {
+                        // method doesn't exist
+                        return fmt.Errorf("{{.MethodName}} is not implemented for federation partner")
+                }
+                return ctrlObj.{{.MethodName}}Stream(ctx, rc, obj, cb)
+        }
+{{- end}}
+{{- end}}
+{{- end}}
+{{- if .NotifyRoot}}
+        conn, err := connObj.GetNotifyRootConn(ctx)
+{{- else}}
+        conn, err := connObj.GetRegionConn(ctx, rc.Region)
+{{- end}}
+        if err != nil {
+                return {{.ReturnErrArg}}err
+        }
+        api := edgeproto.New{{.Service}}Client(conn)
+        log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+        defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
+{{- if .Outstream}}
+        stream, err := api.{{.MethodName}}(ctx, obj)
+        if err != nil {
+                return {{.ReturnErrArg}}err
+        }
+        for {
+                res, err := stream.Recv()
+                if err == io.EOF {
+                        err = nil
+                        break
+                }
+                if err != nil {
+                        return {{.ReturnErrArg}}err
+                }
 {{- if and .Show (not .SkipEnforce)}}
-		if !rc.SkipAuthz {
-			if authz != nil {
+                if !rc.SkipAuthz {
+                        if authz != nil {
 {{- if .CustomAuthz}}
 {{- if .Show }}
-				authzOk, filterOutput := authz.Ok(res)
-				if !authzOk {
+                                authzOk, filterOutput := authz.Ok(res)
+                                if !authzOk {
 {{- else }}
-				if !authz.Ok(res) {
+                                if !authz.Ok(res) {
 {{- end}}
-					continue
-				}
+                                        continue
+                                }
 {{- if .Show }}
-				if filterOutput {
-					authz.Filter(res)
-				}
+                                if filterOutput {
+                                        authz.Filter(res)
+                                }
 {{- end}}
 {{- else}}
-				if !authz.Ok({{.ShowOrg}}) {
-					continue
-				}
+                                if !authz.Ok({{.ShowOrg}}) {
+                                        continue
+                                }
 {{- end}}
-			}
-		}
+                        }
+                }
 {{- end}}
-		err = cb(res)
-		if err != nil {
-			return {{.ReturnErrArg}}err
-		}
-	}
-	return {{.ReturnErrArg}}nil
+                err = cb(res)
+                if err != nil {
+                        return {{.ReturnErrArg}}err
+                }
+        }
+        return {{.ReturnErrArg}}nil
 {{- else}}
-	return api.{{.MethodName}}(ctx, obj)
+        return api.{{.MethodName}}(ctx, obj)
 {{- end}}
 }
 

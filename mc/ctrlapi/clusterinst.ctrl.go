@@ -26,6 +26,26 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func CreateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			CreateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("CreateClusterInst is not implemented for federation partner")
+		}
+		return ctrlObj.CreateClusterInstStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -55,6 +75,26 @@ func CreateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj
 }
 
 func DeleteClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			DeleteClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("DeleteClusterInst is not implemented for federation partner")
+		}
+		return ctrlObj.DeleteClusterInstStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -84,6 +124,26 @@ func DeleteClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj
 }
 
 func UpdateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			UpdateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("UpdateClusterInst is not implemented for federation partner")
+		}
+		return ctrlObj.UpdateClusterInstStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -118,6 +178,30 @@ type ShowClusterInstAuthz interface {
 }
 
 func ShowClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj RegionConn, authz ShowClusterInstAuthz, cb func(res *edgeproto.ClusterInst) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObjs, err := fedCtrl.GetRegionFederationObjs(ctx, rc.Region, obj.Key.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	var fedCtrlIntf interface{}
+	for _, fedObj := range fedObjs {
+		fedCtrl.OperatorFederation = fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			ShowClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, cb func(res *edgeproto.ClusterInst) error) error
+		})
+		if !ok {
+			// method doesn't exist, ignore
+			continue
+		}
+
+		err = ctrlObj.ShowClusterInstStream(ctx, rc, obj, cb)
+		if err != nil {
+			return err
+		}
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

@@ -923,6 +923,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		fObj := federation.FederationObj{
 			Database: database,
 			Echo:     federationEcho,
+			ConnObj:  connCache,
 		}
 		fObj.InitFederationAPIs()
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/gormlog"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
@@ -31,6 +32,7 @@ const (
 type FederationObj struct {
 	Database *gorm.DB
 	Echo     *echo.Echo
+	ConnObj  ctrlapi.RegionConn
 }
 
 func (f *FederationObj) loggedDB(ctx context.Context) *gorm.DB {

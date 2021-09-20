@@ -26,6 +26,26 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("CreateAppInst is not implemented for federation partner")
+		}
+		return ctrlObj.CreateAppInstStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -55,6 +75,26 @@ func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 }
 
 func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("DeleteAppInst is not implemented for federation partner")
+		}
+		return ctrlObj.DeleteAppInstStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -84,6 +124,26 @@ func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 }
 
 func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("RefreshAppInst is not implemented for federation partner")
+		}
+		return ctrlObj.RefreshAppInstStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -113,6 +173,26 @@ func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 }
 
 func UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	if found {
+		var fedCtrlIntf interface{}
+		fedCtrl.OperatorFederation = *fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
+		})
+		if !ok {
+			// method doesn't exist
+			return fmt.Errorf("UpdateAppInst is not implemented for federation partner")
+		}
+		return ctrlObj.UpdateAppInstStream(ctx, rc, obj, cb)
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -147,6 +227,30 @@ type ShowAppInstAuthz interface {
 }
 
 func ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, authz ShowAppInstAuthz, cb func(res *edgeproto.AppInst) error) error {
+	fedCtrl := FederationController{
+		Database: rc.Database,
+	}
+	fedObjs, err := fedCtrl.GetRegionFederationObjs(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	if err != nil {
+		return err
+	}
+	var fedCtrlIntf interface{}
+	for _, fedObj := range fedObjs {
+		fedCtrl.OperatorFederation = fedObj
+		fedCtrlIntf = &fedCtrl
+		ctrlObj, ok := fedCtrlIntf.(interface {
+			ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.AppInst) error) error
+		})
+		if !ok {
+			// method doesn't exist, ignore
+			continue
+		}
+
+		err = ctrlObj.ShowAppInstStream(ctx, rc, obj, cb)
+		if err != nil {
+			return err
+		}
+	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

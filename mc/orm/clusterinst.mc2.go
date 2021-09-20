@@ -58,6 +58,8 @@ func CreateClusterInst(c echo.Context) error {
 			return err
 		}
 	}
+	// Need access to database for federation handling
+	rc.Database = database
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
@@ -102,6 +104,8 @@ func DeleteClusterInst(c echo.Context) error {
 			return err
 		}
 	}
+	// Need access to database for federation handling
+	rc.Database = database
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}
@@ -150,6 +154,8 @@ func UpdateClusterInst(c echo.Context) error {
 			return err
 		}
 	}
+	// Need access to database for federation handling
+	rc.Database = database
 
 	cb := func(res *edgeproto.Result) error {
 		payload := ormapi.StreamPayload{}

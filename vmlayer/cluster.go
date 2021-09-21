@@ -10,6 +10,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/crmutil"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	proxycerts "github.com/mobiledgex/edge-cloud/cloud-resource-manager/proxy/certs"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -724,6 +725,24 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 	var newSubnetName string
 	var newSecgrpName string
 
+	networks, err := crmutil.GetNetworksForClusterInst(ctx, clusterInst, v.Caches.NetworkCache)
+	if err != nil {
+		return nil, err
+	}
+	lbNets := make(map[string]NetworkType)
+	nodeNets := make(map[string]NetworkType)
+	for _, n := range networks {
+		switch n.ConnectionType {
+		case edgeproto.NetworkConnectionType_CONNECT_TO_LOAD_BALANCER:
+			lbNets[n.Key.Name] = NetworkTypeExternalAdditionalRootLb
+		case edgeproto.NetworkConnectionType_CONNECT_TO_CLUSTER_NODES:
+			nodeNets[n.Key.Name] = NetworkTypeExternalAdditionalClusterNode
+		case edgeproto.NetworkConnectionType_CONNECT_TO_ALL:
+			lbNets[n.Key.Name] = NetworkTypeExternalAdditionalRootLb
+			nodeNets[n.Key.Name] = NetworkTypeExternalAdditionalClusterNode
+		}
+	}
+
 	if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
 		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, action, updateCallback)
 		if err != nil {
@@ -801,6 +820,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 				WithSubnetConnection(newSubnetName),
 				WithChefParams(chefParams),
 				WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
+				WithAdditionalNetworks(nodeNets),
 			)
 			if err != nil {
 				return nil, err

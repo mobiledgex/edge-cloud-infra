@@ -297,10 +297,28 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 	gwsToRemove := []string{}
 	// currrently only internal and additional networks on the LB need be removed, but this may
 	// be explanded in the future
-	if vmparams.Role == vmlayer.RoleAgent {
+	switch vmparams.Role {
+	case vmlayer.RoleAgent:
 		for netname, netinfo := range netMap {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
 			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb {
+				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
+			}
+		}
+	case vmlayer.RoleK8sNode:
+		fallthrough
+	case vmlayer.RoleDockerNode:
+		for netname, netinfo := range netMap {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
+			if netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalClusterNode {
+				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
+			}
+		}
+	}
+	if vmparams.Role == vmlayer.RoleAgent {
+		for netname, netinfo := range netMap {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
+			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalClusterNode {
 				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
 			}
 		}
@@ -373,6 +391,8 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 		case vmlayer.NetworkTypeExternalAdditionalPlatform:
 			fallthrough
 		case vmlayer.NetworkTypeExternalAdditionalRootLb:
+			fallthrough
+		case vmlayer.NetworkTypeExternalAdditionalClusterNode:
 			if netName == extNet {
 				ncs.PrimaryNetworkConnectionIndex = netConIdx
 			}

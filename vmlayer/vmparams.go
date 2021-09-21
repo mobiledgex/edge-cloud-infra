@@ -55,6 +55,7 @@ type NetworkType string
 
 const NetworkTypeExternalPrimary NetworkType = "external-primary"
 const NetworkTypeExternalAdditionalRootLb NetworkType = "rootlb"
+const NetworkTypeExternalAdditionalClusterNode NetworkType = "cluster-node"
 const NetworkTypeExternalAdditionalPlatform NetworkType = "platform"
 const NetworkTypeInternalPrivate NetworkType = "internal-private"    // internal network for only one cluster
 const NetworkTypeInternalSharedLb NetworkType = "internal-shared-lb" // internal network connected to shared rootlb

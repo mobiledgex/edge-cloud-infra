@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: dme
-        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        image: "{{ edge_cloud_image }}-dme:{{ edge_cloud_version }}"
         imagePullPolicy: Always
         resources:
           requests:
@@ -26,23 +26,32 @@ spec:
             cpu: "300m"
             memory: "200Mi"
         command:
-         - "/bin/bash"
-         - "-ecx"
-         - |
-           exec dme-server \
-             --commonName "{{ dme_dns }}.{{ cloudflare_zone }}" \
-             --region "{{ region }}" \
-             --apiAddr 0.0.0.0:50051 \
-             --httpAddr 0.0.0.0:38001 \
-             --notifyAddrs {{ controller_hostname }}:{{ controller_notify_port }} \
-             --vaultAddr "{{ vault_address }}" \
-             --useVaultPki \
-             --deploymentTag "{{ deployment_tag_override | default(deploy_environ) }}" \
-             --locverurl "{{ locver_url }}" \
-             --carrier "{{ dme_carrier }}" \
-             --cloudletKey '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}' \
-             --toksrvurl "{{ toksrv_url }}" \
-             -d locapi,dmedb,dmereq,notify
+         - "dme-server"
+         - "--commonName"
+         - "{{ dme_dns }}.{{ cloudflare_zone }}"
+         - "--region"
+         - "{{ region }}"
+         - "--apiAddr"
+         - "0.0.0.0:50051"
+         - "--httpAddr"
+         - "0.0.0.0:38001"
+         - "--notifyAddrs"
+         - "{{ controller_hostname }}:{{ controller_notify_port }}"
+         - "--vaultAddr"
+         - "{{ vault_address }}"
+         - "--useVaultPki"
+         - "--deploymentTag"
+         - "{{ deployment_tag_override | default(deploy_environ) }}"
+         - "--locverurl"
+         - "{{ locver_url }}"
+         - "--carrier"
+         - "{{ dme_carrier }}"
+         - "--cloudletKey"
+         - '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}'
+         - "--toksrvurl"
+         - "{{ toksrv_url }}"
+         - "-d"
+         - "locapi,dmedb,dmereq,notify"
         env:
          - name: LOCAPI_USER
            value: "{{ locapi_user }}"

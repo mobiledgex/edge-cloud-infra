@@ -134,9 +134,9 @@
 			"name": "AlertReceiver",
 			"description": "Manage receiver for alerts from edge services."
 		},
-                {
-                        "name": "Network",
-                        "description": "Manage additional networks which can be added to Cluster Instances."
-                }
+		{
+			"name": "Network",
+			"description": "Manage additional networks which can be added to Cluster Instances."
+		}
 	]
 }

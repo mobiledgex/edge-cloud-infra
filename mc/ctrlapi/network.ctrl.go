@@ -134,7 +134,7 @@ func ShowNetworkStream(ctx context.Context, rc *ormutil.RegionContext, obj *edge
 		}
 		if !rc.SkipAuthz {
 			if authz != nil {
-				if !authz.Ok(res.Key.Organization) {
+				if !authz.Ok(res.Key.CloudletKey.Organization) {
 					continue
 				}
 			}

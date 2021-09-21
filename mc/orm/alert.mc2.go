@@ -1460,7 +1460,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// The following values should be added to `Network.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
-	// KeyOrganization: 2.1
+	// KeyCloudletKey: 2.1
+	// KeyCloudletKeyOrganization: 2.1.1
+	// KeyCloudletKeyName: 2.1.2
 	// KeyName: 2.2
 	// Routes: 3
 	// RoutesDestinationCidr: 3.1

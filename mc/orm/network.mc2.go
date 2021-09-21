@@ -43,7 +43,7 @@ func CreateNetwork(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Network.GetKey().GetTags())
-	span.SetTag("org", in.Network.Key.Organization)
+	span.SetTag("org", in.Network.Key.CloudletKey.Organization)
 
 	obj := &in.Network
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
@@ -51,8 +51,8 @@ func CreateNetwork(c echo.Context) error {
 		return err
 	}
 	if !rc.SkipAuthz {
-		if err := authorized(ctx, rc.Username, obj.Key.Organization,
-			ResourceCloudlets, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
+		if err := authorized(ctx, rc.Username, obj.Key.CloudletKey.Organization,
+			ResourceCloudlets, ActionManage, withRequiresOrg(obj.Key.CloudletKey.Organization)); err != nil {
 			return err
 		}
 	}
@@ -87,7 +87,7 @@ func DeleteNetwork(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Network.GetKey().GetTags())
-	span.SetTag("org", in.Network.Key.Organization)
+	span.SetTag("org", in.Network.Key.CloudletKey.Organization)
 
 	obj := &in.Network
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
@@ -95,7 +95,7 @@ func DeleteNetwork(c echo.Context) error {
 		return err
 	}
 	if !rc.SkipAuthz {
-		if err := authorized(ctx, rc.Username, obj.Key.Organization,
+		if err := authorized(ctx, rc.Username, obj.Key.CloudletKey.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
 			return err
 		}
@@ -131,7 +131,7 @@ func UpdateNetwork(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Network.GetKey().GetTags())
-	span.SetTag("org", in.Network.Key.Organization)
+	span.SetTag("org", in.Network.Key.CloudletKey.Organization)
 	err = ormutil.SetRegionObjFields(dat, &in)
 	if err != nil {
 		return err
@@ -143,7 +143,7 @@ func UpdateNetwork(c echo.Context) error {
 		return err
 	}
 	if !rc.SkipAuthz {
-		if err := authorized(ctx, rc.Username, obj.Key.Organization,
+		if err := authorized(ctx, rc.Username, obj.Key.CloudletKey.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
 			return err
 		}
@@ -179,7 +179,7 @@ func ShowNetwork(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Network.GetKey().GetTags())
-	span.SetTag("org", in.Network.Key.Organization)
+	span.SetTag("org", in.Network.Key.CloudletKey.Organization)
 
 	obj := &in.Network
 	var authz *AuthzShow

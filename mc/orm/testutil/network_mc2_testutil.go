@@ -34,7 +34,7 @@ func TestCreateNetwork(mcClient *mctestclient.Client, uri, token, region string,
 }
 func TestPermCreateNetwork(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Network)) ([]edgeproto.Result, int, error) {
 	in := &edgeproto.Network{}
-	in.Key.Organization = org
+	in.Key.CloudletKey.Organization = org
 	return TestCreateNetwork(mcClient, uri, token, region, in, modFuncs...)
 }
 
@@ -49,7 +49,7 @@ func TestDeleteNetwork(mcClient *mctestclient.Client, uri, token, region string,
 }
 func TestPermDeleteNetwork(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Network)) ([]edgeproto.Result, int, error) {
 	in := &edgeproto.Network{}
-	in.Key.Organization = org
+	in.Key.CloudletKey.Organization = org
 	return TestDeleteNetwork(mcClient, uri, token, region, in, modFuncs...)
 }
 
@@ -64,8 +64,8 @@ func TestUpdateNetwork(mcClient *mctestclient.Client, uri, token, region string,
 }
 func TestPermUpdateNetwork(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Network)) ([]edgeproto.Result, int, error) {
 	in := &edgeproto.Network{}
-	in.Key.Organization = org
-	in.Fields = append(in.Fields, edgeproto.NetworkFieldKeyOrganization)
+	in.Key.CloudletKey.Organization = org
+	in.Fields = append(in.Fields, edgeproto.NetworkFieldKeyCloudletKeyOrganization)
 	return TestUpdateNetwork(mcClient, uri, token, region, in, modFuncs...)
 }
 
@@ -80,7 +80,7 @@ func TestShowNetwork(mcClient *mctestclient.Client, uri, token, region string, i
 }
 func TestPermShowNetwork(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.Network)) ([]edgeproto.Network, int, error) {
 	in := &edgeproto.Network{}
-	in.Key.Organization = org
+	in.Key.CloudletKey.Organization = org
 	return TestShowNetwork(mcClient, uri, token, region, in, modFuncs...)
 }
 

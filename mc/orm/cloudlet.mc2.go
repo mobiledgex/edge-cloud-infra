@@ -818,7 +818,7 @@ func UpdateCloudletStream(ctx context.Context, rc *RegionContext, obj *edgeproto
 		return err
 	}
 	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
+		if err := authzUpdateCloudlet(ctx, rc.region, rc.username, obj,
 			ResourceCloudlets, ActionManage); err != nil {
 			return err
 		}
@@ -1284,6 +1284,118 @@ func RemoveCloudletResMappingObj(ctx context.Context, rc *RegionContext, obj *ed
 	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.RemoveCloudletResMapping(ctx, obj)
+}
+
+func AddCloudletAllianceOrg(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionCloudletAllianceOrg{}
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.CloudletAllianceOrg.GetKey().GetTags())
+	span.SetTag("org", in.CloudletAllianceOrg.Key.Organization)
+	resp, err := AddCloudletAllianceOrgObj(ctx, rc, &in.CloudletAllianceOrg)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func AddCloudletAllianceOrgObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletAllianceOrg) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForAddCloudletAllianceOrg(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authzAddCloudletAllianceOrg(ctx, rc.region, rc.username, obj,
+			ResourceCloudlets, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewCloudletApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
+	return api.AddCloudletAllianceOrg(ctx, obj)
+}
+
+func RemoveCloudletAllianceOrg(c echo.Context) error {
+	ctx := GetContext(c)
+	rc := &RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.username = claims.Username
+
+	in := ormapi.RegionCloudletAllianceOrg{}
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
+	}
+	rc.region = in.Region
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.CloudletAllianceOrg.GetKey().GetTags())
+	span.SetTag("org", in.CloudletAllianceOrg.Key.Organization)
+	resp, err := RemoveCloudletAllianceOrgObj(ctx, rc, &in.CloudletAllianceOrg)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return setReply(c, resp)
+}
+
+func RemoveCloudletAllianceOrgObj(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletAllianceOrg) (*edgeproto.Result, error) {
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRemoveCloudletAllianceOrg(); err != nil {
+		return nil, err
+	}
+	if !rc.skipAuthz {
+		if err := authorized(ctx, rc.username, obj.Key.Organization,
+			ResourceCloudlets, ActionManage); err != nil {
+			return nil, err
+		}
+	}
+	if rc.conn == nil {
+		conn, err := connCache.GetRegionConn(ctx, rc.region)
+		if err != nil {
+			return nil, err
+		}
+		rc.conn = conn
+		defer func() {
+			rc.conn = nil
+		}()
+	}
+	api := edgeproto.NewCloudletApiClient(rc.conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
+	return api.RemoveCloudletAllianceOrg(ctx, obj)
 }
 
 func FindFlavorMatch(c echo.Context) error {

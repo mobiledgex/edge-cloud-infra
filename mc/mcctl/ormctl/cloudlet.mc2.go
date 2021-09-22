@@ -354,7 +354,7 @@ var AddCloudletResMappingCmd = &ApiCommand{
 var RemoveCloudletResMappingCmd = &ApiCommand{
 	Name:         "RemoveCloudletResMapping",
 	Use:          "removeresmapping",
-	Short:        "Add Optional Resource tag table",
+	Short:        "Remove Optional Resource tag table",
 	RequiredArgs: "region " + strings.Join(CloudletResMapRequiredArgs, " "),
 	OptionalArgs: strings.Join(CloudletResMapOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletResMapAliasArgs, " "),
@@ -363,6 +363,36 @@ var RemoveCloudletResMappingCmd = &ApiCommand{
 	ReqData:      &ormapi.RegionCloudletResMap{},
 	ReplyData:    &edgeproto.Result{},
 	Path:         "/auth/ctrl/RemoveCloudletResMapping",
+	ProtobufApi:  true,
+}
+
+var AddCloudletAllianceOrgCmd = &ApiCommand{
+	Name:         "AddCloudletAllianceOrg",
+	Use:          "addallianceorg",
+	Short:        "Add alliance organization to the cloudlet",
+	RequiredArgs: "region " + strings.Join(CloudletAllianceOrgRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletAllianceOrgOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAllianceOrgAliasArgs, " "),
+	SpecialArgs:  &CloudletAllianceOrgSpecialArgs,
+	Comments:     addRegionComment(CloudletAllianceOrgComments),
+	ReqData:      &ormapi.RegionCloudletAllianceOrg{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/AddCloudletAllianceOrg",
+	ProtobufApi:  true,
+}
+
+var RemoveCloudletAllianceOrgCmd = &ApiCommand{
+	Name:         "RemoveCloudletAllianceOrg",
+	Use:          "removeallianceorg",
+	Short:        "Remove alliance organization from the cloudlet",
+	RequiredArgs: "region " + strings.Join(CloudletAllianceOrgRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletAllianceOrgOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAllianceOrgAliasArgs, " "),
+	SpecialArgs:  &CloudletAllianceOrgSpecialArgs,
+	Comments:     addRegionComment(CloudletAllianceOrgComments),
+	ReqData:      &ormapi.RegionCloudletAllianceOrg{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/RemoveCloudletAllianceOrg",
 	ProtobufApi:  true,
 }
 
@@ -438,6 +468,8 @@ var CloudletApiCmds = []*ApiCommand{
 	GetCloudletResourceUsageCmd,
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
+	AddCloudletAllianceOrgCmd,
+	RemoveCloudletAllianceOrgCmd,
 	FindFlavorMatchCmd,
 	ShowFlavorsForCloudletCmd,
 	RevokeAccessKeyCmd,
@@ -496,6 +528,7 @@ var CreateCloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var DeleteCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -543,6 +576,7 @@ var DeleteCloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var UpdateCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -579,6 +613,7 @@ var UpdateCloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var ShowCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -626,6 +661,7 @@ var ShowCloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var GetCloudletPropsRequiredArgs = []string{
 	"platformtype",
@@ -887,6 +923,7 @@ var CloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -982,6 +1019,7 @@ var CloudletAliasArgs = []string{
 	"gpuconfig.driver.organization=cloudlet.gpuconfig.driver.organization",
 	"gpuconfig.properties=cloudlet.gpuconfig.properties",
 	"enabledefaultserverlesscluster=cloudlet.enabledefaultserverlesscluster",
+	"allianceorgs=cloudlet.allianceorgs",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
@@ -1064,9 +1102,11 @@ var CloudletComments = map[string]string{
 	"gpuconfig.driver.organization":       "Organization to which the driver belongs to",
 	"gpuconfig.properties":                "Properties to identify specifics of GPU, specify gpuconfig.properties:empty=true to clear",
 	"enabledefaultserverlesscluster":      "Enable experimental default multitenant (serverless) cluster",
+	"allianceorgs":                        "This cloudlet will be treated as directly connected to these additional operator organizations for the purposes of FindCloudlet., specify allianceorgs:empty=true to clear",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":           "StringToString",
+	"cloudlet.allianceorgs":         "StringArray",
 	"cloudlet.chefclientkey":        "StringToString",
 	"cloudlet.config.envvar":        "StringToString",
 	"cloudlet.envvar":               "StringToString",
@@ -1204,6 +1244,23 @@ var CloudletResourceUsageComments = map[string]string{
 	"info:#.alertthreshold": "Generate alert when more than threshold percentage of resource is used",
 }
 var CloudletResourceUsageSpecialArgs = map[string]string{}
+var CloudletAllianceOrgRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+	"organization",
+}
+var CloudletAllianceOrgOptionalArgs = []string{}
+var CloudletAllianceOrgAliasArgs = []string{
+	"cloudlet-org=cloudletallianceorg.key.organization",
+	"cloudlet=cloudletallianceorg.key.name",
+	"organization=cloudletallianceorg.organization",
+}
+var CloudletAllianceOrgComments = map[string]string{
+	"cloudlet-org": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
+	"organization": "Alliance organization",
+}
+var CloudletAllianceOrgSpecialArgs = map[string]string{}
 var CloudletInfoRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",

@@ -15,6 +15,7 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/federation"
+	fedcommon "github.com/mobiledgex/edge-cloud-infra/mc/federation/common"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
 	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -434,9 +435,9 @@ func testOPFederationAPIs(t *testing.T, ctx context.Context, mcClient *mctestcli
 	require.Nil(t, err, "show federation")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(fedInfo), "all federation OPs")
-	require.Equal(t, fedInfo[0].Type, federation.TypePartner)
-	require.Contains(t, fedInfo[0].Role, federation.RoleAccessZones)
-	require.Contains(t, fedInfo[0].Role, federation.RoleShareZones)
+	require.Equal(t, fedInfo[0].Type, fedcommon.TypePartner)
+	require.Contains(t, fedInfo[0].Role, fedcommon.RoleAccessZones)
+	require.Contains(t, fedInfo[0].Role, fedcommon.RoleShareZones)
 
 	// op2 updates its MCC value and notifies op1 about it
 	// ===================================================
@@ -572,9 +573,9 @@ func testOPFederationAPIs(t *testing.T, ctx context.Context, mcClient *mctestcli
 	require.Nil(t, err, "show federation")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(fedInfo), "all federation OPs")
-	require.Equal(t, fedInfo[0].Type, federation.TypePartner)
-	require.Contains(t, fedInfo[0].Role, federation.RoleAccessZones)
-	require.NotContains(t, fedInfo[0].Role, federation.RoleShareZones)
+	require.Equal(t, fedInfo[0].Type, fedcommon.TypePartner)
+	require.Contains(t, fedInfo[0].Role, fedcommon.RoleAccessZones)
+	require.NotContains(t, fedInfo[0].Role, fedcommon.RoleShareZones)
 }
 
 func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, op1, op2 *OPAttr) {
@@ -619,9 +620,9 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Nil(t, err, "show federation")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(fedInfo), "all federation OPs")
-	require.Equal(t, fedInfo[0].Type, federation.TypePartner)
-	require.Contains(t, fedInfo[0].Role, federation.RoleAccessZones)
-	require.NotContains(t, fedInfo[0].Role, federation.RoleShareZones)
+	require.Equal(t, fedInfo[0].Type, fedcommon.TypePartner)
+	require.Contains(t, fedInfo[0].Role, fedcommon.RoleAccessZones)
+	require.NotContains(t, fedInfo[0].Role, fedcommon.RoleShareZones)
 
 	// Update federation MCC value
 	// ===========================

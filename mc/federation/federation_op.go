@@ -9,56 +9,48 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
+	fedcommon "github.com/mobiledgex/edge-cloud-infra/mc/federation/common"
 	"github.com/mobiledgex/edge-cloud-infra/mc/gormlog"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 )
 
 const (
-	// Federation Types
-	TypeSelf    = "self"
-	TypePartner = "partner"
-
-	// Federation Partner Roles
-	RoleAccessZones = "access" // Can access partner OP zones, but cannot share zones with partner OP
-	RoleShareZones  = "share"  // Can only share zones with partner OP, but cannot access partner OP's zones
-
 	// Federation APIs
 	OperatorPartnerAPI    = "/operator/partner"
 	OperatorZoneAPI       = "/operator/zone"
 	OperatorNotifyZoneAPI = "/operator/notify/zone"
 )
 
-type FederationObj struct {
-	Database *gorm.DB
-	Echo     *echo.Echo
-	ConnObj  ctrlapi.RegionConn
+type PartnerApi struct {
+	Database  *gorm.DB
+	ConnCache ctrlapi.RegionConn
 }
 
-func (f *FederationObj) loggedDB(ctx context.Context) *gorm.DB {
-	return gormlog.LoggedDB(ctx, f.Database)
+func (p *PartnerApi) loggedDB(ctx context.Context) *gorm.DB {
+	return gormlog.LoggedDB(ctx, p.Database)
 }
 
 // E/W-BoundInterface APIs for Federation between multiple Operator Platforms (OPs)
 // These are the standard interfaces which are called by other OPs for unified edge platform experience
-func (f *FederationObj) InitFederationAPIs() {
+func (p *PartnerApi) InitAPIs(e *echo.Echo) {
 	// Create directed federation with partner OP
-	f.Echo.POST(OperatorPartnerAPI, f.FederationOperatorPartnerCreate)
+	e.POST(OperatorPartnerAPI, p.FederationOperatorPartnerCreate)
 	// Update attributes of an existing federation with a partner OP
-	f.Echo.PUT(OperatorPartnerAPI, f.FederationOperatorPartnerUpdate)
+	e.PUT(OperatorPartnerAPI, p.FederationOperatorPartnerUpdate)
 	// Remove existing federation with a partner OP
-	f.Echo.DELETE(OperatorPartnerAPI, f.FederationOperatorPartnerDelete)
+	e.DELETE(OperatorPartnerAPI, p.FederationOperatorPartnerDelete)
 	// Register a partner OP zone
-	f.Echo.POST(OperatorZoneAPI, f.FederationOperatorZoneRegister)
+	e.POST(OperatorZoneAPI, p.FederationOperatorZoneRegister)
 	// Deregister a partner OP zone
-	f.Echo.DELETE(OperatorZoneAPI, f.FederationOperatorZoneDeRegister)
+	e.DELETE(OperatorZoneAPI, p.FederationOperatorZoneDeRegister)
 	// Notify partner OP about a new zone being added
-	f.Echo.POST(OperatorNotifyZoneAPI, f.FederationOperatorZoneShare)
+	e.POST(OperatorNotifyZoneAPI, p.FederationOperatorZoneShare)
 	// Notify partner OP about a zone being unshared
-	f.Echo.DELETE(OperatorNotifyZoneAPI, f.FederationOperatorZoneUnShare)
+	e.DELETE(OperatorNotifyZoneAPI, p.FederationOperatorZoneUnShare)
 }
 
-func (f *FederationObj) ValidateSelfAndGetFederationInfo(ctx context.Context, origKey, destKey, operatorId, countryCode string) (*ormapi.OperatorFederation, error) {
+func (p *PartnerApi) ValidateSelfAndGetFederationInfo(ctx context.Context, origKey, destKey, operatorId, countryCode string) (*ormapi.OperatorFederation, error) {
 	// sanity check
 	if origKey == "" {
 		return nil, fmt.Errorf("Missing origin federation key")
@@ -72,11 +64,11 @@ func (f *FederationObj) ValidateSelfAndGetFederationInfo(ctx context.Context, or
 	if countryCode == "" {
 		return nil, fmt.Errorf("Missing origin country code")
 	}
-	db := f.loggedDB(ctx)
+	db := p.loggedDB(ctx)
 	// validate destination federation key
 	selfFed := &ormapi.OperatorFederation{}
 	lookup := ormapi.OperatorFederation{
-		Type: TypeSelf,
+		Type: fedcommon.TypeSelf,
 	}
 	res := db.Where(&lookup).First(selfFed)
 	if res.RecordNotFound() {
@@ -91,17 +83,17 @@ func (f *FederationObj) ValidateSelfAndGetFederationInfo(ctx context.Context, or
 	return selfFed, nil
 }
 
-func (f *FederationObj) ValidateAndGetFederationinfo(ctx context.Context, origKey, destKey, operatorId, countryCode string) (*ormapi.OperatorFederation, *ormapi.OperatorFederation, error) {
-	selfFed, err := f.ValidateSelfAndGetFederationInfo(ctx, origKey, destKey, operatorId, countryCode)
+func (p *PartnerApi) ValidateAndGetFederationinfo(ctx context.Context, origKey, destKey, operatorId, countryCode string) (*ormapi.OperatorFederation, *ormapi.OperatorFederation, error) {
+	selfFed, err := p.ValidateSelfAndGetFederationInfo(ctx, origKey, destKey, operatorId, countryCode)
 	if err != nil {
 		return nil, nil, err
 	}
-	db := f.loggedDB(ctx)
+	db := p.loggedDB(ctx)
 	// validate origin federationkey/operator/country
 	partnerFed := &ormapi.OperatorFederation{}
 	fedLookup := ormapi.OperatorFederation{
 		FederationId: origKey,
-		Type:         TypePartner,
+		Type:         fedcommon.TypePartner,
 	}
 	res := db.Where(&fedLookup).First(partnerFed)
 	if res.RecordNotFound() {
@@ -119,8 +111,8 @@ func (f *FederationObj) ValidateAndGetFederationinfo(ctx context.Context, origKe
 	return selfFed, partnerFed, nil
 }
 
-func (f *FederationObj) ShowOperatorZone(ctx context.Context, opZoneReq *ormapi.OperatorZoneCloudletMap) ([]ormapi.OperatorZoneCloudletMap, error) {
-	db := f.loggedDB(ctx)
+func (p *PartnerApi) ShowOperatorZone(ctx context.Context, opZoneReq *ormapi.OperatorZoneCloudletMap) ([]ormapi.OperatorZoneCloudletMap, error) {
+	db := p.loggedDB(ctx)
 	opZones := []ormapi.OperatorZone{}
 	lookup := ormapi.OperatorZone{
 		FederationId: opZoneReq.FederationId,
@@ -172,17 +164,17 @@ func (f *FederationObj) ShowOperatorZone(ctx context.Context, opZoneReq *ormapi.
 	return fedZones, nil
 }
 
-// Create directed federation with partner OP. By Federation create request,
-// the API initiator OP say ‘A’ request OP 'B' to allow its developers/subscribers
-// to run their application on edge sites of OP 'B'
-func (f *FederationObj) FederationOperatorPartnerCreate(c echo.Context) error {
+// Remote partner OP requests to create the federation, which
+// allows its developers and subscribers to run their applications
+// on our cloudlets
+func (p *PartnerApi) FederationOperatorPartnerCreate(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	opRegReq := OperatorRegistrationRequest{}
 	if err := c.Bind(&opRegReq); err != nil {
 		return err
 	}
 
-	selfFed, err := f.ValidateSelfAndGetFederationInfo(
+	selfFed, err := p.ValidateSelfAndGetFederationInfo(
 		ctx,
 		opRegReq.OrigFederationId,
 		opRegReq.DestFederationId,
@@ -197,7 +189,7 @@ func (f *FederationObj) FederationOperatorPartnerCreate(c echo.Context) error {
 	opZoneReq := &ormapi.OperatorZoneCloudletMap{
 		FederationId: selfFed.FederationId,
 	}
-	opZones, err := f.ShowOperatorZone(ctx, opZoneReq)
+	opZones, err := p.ShowOperatorZone(ctx, opZoneReq)
 	if err != nil {
 		return err
 	}
@@ -222,12 +214,12 @@ func (f *FederationObj) FederationOperatorPartnerCreate(c echo.Context) error {
 	}
 
 	// Store partner OP, this mean partner OP is now federated
-	db := f.loggedDB(ctx)
+	db := p.loggedDB(ctx)
 	partnerOP := ormapi.OperatorFederation{
 		FederationId:   opRegReq.OrigFederationId,
 		OperatorId:     opRegReq.OperatorId,
 		CountryCode:    opRegReq.CountryCode,
-		Type:           TypePartner,
+		Type:           fedcommon.TypePartner,
 		FederationAddr: opRegReq.OrigFederationAddr,
 	}
 	fedLookup := ormapi.OperatorFederation{
@@ -236,10 +228,10 @@ func (f *FederationObj) FederationOperatorPartnerCreate(c echo.Context) error {
 	existingPartnerOP := ormapi.OperatorFederation{}
 	err = db.Where(&fedLookup).First(&existingPartnerOP).Error
 	if err == nil {
-		if FederationRoleExists(&existingPartnerOP, RoleShareZones) {
+		if fedcommon.FederationRoleExists(&existingPartnerOP, fedcommon.RoleShareZones) {
 			return fmt.Errorf("Partner OP is already federated")
 		} else {
-			err = AddFederationRole(&existingPartnerOP, RoleShareZones)
+			err = fedcommon.AddFederationRole(&existingPartnerOP, fedcommon.RoleShareZones)
 			if err != nil {
 				return err
 			}
@@ -249,7 +241,7 @@ func (f *FederationObj) FederationOperatorPartnerCreate(c echo.Context) error {
 			}
 		}
 	} else {
-		err = AddFederationRole(&partnerOP, RoleShareZones)
+		err = fedcommon.AddFederationRole(&partnerOP, fedcommon.RoleShareZones)
 		if err != nil {
 			return err
 		}
@@ -265,16 +257,16 @@ func (f *FederationObj) FederationOperatorPartnerCreate(c echo.Context) error {
 	return c.JSON(http.StatusOK, out)
 }
 
-// Federation Agent sends this request to partner OP federation
-// Agent to update its MNC, MCC or locator URL
-func (f *FederationObj) FederationOperatorPartnerUpdate(c echo.Context) error {
+// Remote partner OP sends this request to us to notify about
+// the change in its MNC, MCC or locator URL
+func (p *PartnerApi) FederationOperatorPartnerUpdate(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	opConf := UpdateMECNetConf{}
 	if err := c.Bind(&opConf); err != nil {
 		return err
 	}
 
-	_, partnerFed, err := f.ValidateAndGetFederationinfo(
+	_, partnerFed, err := p.ValidateAndGetFederationinfo(
 		ctx,
 		opConf.OrigFederationId,
 		opConf.DestFederationId,
@@ -285,7 +277,7 @@ func (f *FederationObj) FederationOperatorPartnerUpdate(c echo.Context) error {
 		return err
 	}
 
-	db := f.loggedDB(ctx)
+	db := p.loggedDB(ctx)
 	save := false
 	if opConf.MCC != "" {
 		partnerFed.MCC = opConf.MCC
@@ -309,21 +301,20 @@ func (f *FederationObj) FederationOperatorPartnerUpdate(c echo.Context) error {
 		return ormutil.DbErr(err)
 	}
 
-	// Share list of zones to be shared
 	return c.JSON(http.StatusOK, "Federation attributes of partner OP updated successfully")
 }
 
-// Remove existing federation with a partner OP. By Federation delete
-// request, the API initiator OP say A is requesting to the partner
-// OP B to disallow A applications access to OP B edges
-func (f *FederationObj) FederationOperatorPartnerDelete(c echo.Context) error {
+// Remote partner OP requests to delete the federation, which
+// disallows its developers and subscribers to run their applications
+// on our cloudlets
+func (p *PartnerApi) FederationOperatorPartnerDelete(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	opFedReq := FederationRequest{}
 	if err := c.Bind(&opFedReq); err != nil {
 		return err
 	}
 
-	_, partnerFed, err := f.ValidateAndGetFederationinfo(
+	_, partnerFed, err := p.ValidateAndGetFederationinfo(
 		ctx,
 		opFedReq.OrigFederationId,
 		opFedReq.DestFederationId,
@@ -334,11 +325,11 @@ func (f *FederationObj) FederationOperatorPartnerDelete(c echo.Context) error {
 		return err
 	}
 
-	db := f.loggedDB(ctx)
-	if !FederationRoleExists(partnerFed, RoleShareZones) {
+	db := p.loggedDB(ctx)
+	if !fedcommon.FederationRoleExists(partnerFed, fedcommon.RoleShareZones) {
 		return fmt.Errorf("No zones are shared with this OP")
 	}
-	err = RemoveFederationRole(partnerFed, RoleShareZones)
+	err = fedcommon.RemoveFederationRole(partnerFed, fedcommon.RoleShareZones)
 	if err != nil {
 		return err
 	}
@@ -356,11 +347,11 @@ func (f *FederationObj) FederationOperatorPartnerDelete(c echo.Context) error {
 	return ormutil.SetReply(c, ormutil.Msg("Deleted partner OP successfully"))
 }
 
-// Operator platform sends this request to partner OP, to register a
-// partner OP zone. It is only after successful registration that
-// partner OP allow access to its zones. This api shall be triggered
-// for each partner zone
-func (f *FederationObj) FederationOperatorZoneRegister(c echo.Context) error {
+// Remote partner OP sends this request to us to register
+// our zone i.e cloudlet. Once our cloudlet is registered,
+// remote partner OP can then make it accessible to its
+// developers or subscribers
+func (p *PartnerApi) FederationOperatorZoneRegister(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	opRegReq := OperatorZoneRegister{}
 	if err := c.Bind(&opRegReq); err != nil {
@@ -371,7 +362,7 @@ func (f *FederationObj) FederationOperatorZoneRegister(c echo.Context) error {
 		return fmt.Errorf("Must specify one zone ID")
 	}
 
-	selfFed, partnerFed, err := f.ValidateAndGetFederationinfo(
+	selfFed, partnerFed, err := p.ValidateAndGetFederationinfo(
 		ctx,
 		opRegReq.OrigFederationId,
 		opRegReq.DestFederationId,
@@ -382,13 +373,13 @@ func (f *FederationObj) FederationOperatorZoneRegister(c echo.Context) error {
 		return err
 	}
 
-	if !FederationRoleExists(partnerFed, RoleShareZones) {
+	if !fedcommon.FederationRoleExists(partnerFed, fedcommon.RoleShareZones) {
 		return fmt.Errorf("No zones are shared with partner OP")
 	}
 
 	resp := OperatorZoneRegisterResponse{}
 	zoneId := opRegReq.Zones[0]
-	db := f.loggedDB(ctx)
+	db := p.loggedDB(ctx)
 	lookup := ormapi.OperatorZone{
 		ZoneId: zoneId,
 	}
@@ -423,14 +414,14 @@ func (f *FederationObj) FederationOperatorZoneRegister(c echo.Context) error {
 		RegistrationToken: selfFed.FederationId,
 	}
 
-	// Share zone registration details
+	// Share zone details
 	return c.JSON(http.StatusOK, resp)
 }
 
-// Deregister a partner OP zone. By zone deregistration request,
-// the API initiator OP say A is indicating to the partner OP
-// say B, that it will no longer access partner OP zone
-func (f *FederationObj) FederationOperatorZoneDeRegister(c echo.Context) error {
+// Remote partner OP deregisters our zone i.e. cloudlet.
+// This will ensure that our cloudlet is no longer accessible
+// to remote partner OP's developers or subscribers
+func (p *PartnerApi) FederationOperatorZoneDeRegister(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	opRegReq := ZoneRequest{}
 	if err := c.Bind(&opRegReq); err != nil {
@@ -441,7 +432,7 @@ func (f *FederationObj) FederationOperatorZoneDeRegister(c echo.Context) error {
 		return fmt.Errorf("Must specify zone ID")
 	}
 
-	selfFed, partnerFed, err := f.ValidateAndGetFederationinfo(
+	selfFed, partnerFed, err := p.ValidateAndGetFederationinfo(
 		ctx,
 		opRegReq.OrigFederationId,
 		opRegReq.DestFederationId,
@@ -452,11 +443,11 @@ func (f *FederationObj) FederationOperatorZoneDeRegister(c echo.Context) error {
 		return err
 	}
 
-	if !FederationRoleExists(partnerFed, RoleShareZones) {
+	if !fedcommon.FederationRoleExists(partnerFed, fedcommon.RoleShareZones) {
 		return fmt.Errorf("No zones are shared with partner OP")
 	}
 
-	db := f.loggedDB(ctx)
+	db := p.loggedDB(ctx)
 	lookup := ormapi.OperatorZone{
 		ZoneId: opRegReq.Zone,
 	}
@@ -484,11 +475,10 @@ func (f *FederationObj) FederationOperatorZoneDeRegister(c echo.Context) error {
 	return c.JSON(http.StatusOK, "Zone deregistered successfully")
 }
 
-// OP notifies its partner MEcs whenever it has a new zone.
-// This api is triggered when OP has a new zone available and
-// it wishes to share the zone with its partner OP. This request
-// is triggered only when federation already exists
-func (f *FederationObj) FederationOperatorZoneShare(c echo.Context) error {
+// Remote partner OP sends this request to us to share its zone.
+// It is triggered by partner OP when it has a new zone available
+// and it wishes to share the zone with us
+func (p *PartnerApi) FederationOperatorZoneShare(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	opZoneShare := NotifyPartnerOperatorZone{}
 	if err := c.Bind(&opZoneShare); err != nil {
@@ -499,7 +489,7 @@ func (f *FederationObj) FederationOperatorZoneShare(c echo.Context) error {
 		return fmt.Errorf("Must specify zone ID")
 	}
 
-	_, partnerFed, err := f.ValidateAndGetFederationinfo(
+	_, partnerFed, err := p.ValidateAndGetFederationinfo(
 		ctx,
 		opZoneShare.OrigFederationId,
 		opZoneShare.DestFederationId,
@@ -510,11 +500,11 @@ func (f *FederationObj) FederationOperatorZoneShare(c echo.Context) error {
 		return err
 	}
 
-	if !FederationRoleExists(partnerFed, RoleAccessZones) {
+	if !fedcommon.FederationRoleExists(partnerFed, fedcommon.RoleAccessZones) {
 		return fmt.Errorf("OP does not have access to partner OP zones")
 	}
 
-	db := f.loggedDB(ctx)
+	db := p.loggedDB(ctx)
 	lookup := ormapi.OperatorZone{
 		ZoneId: opZoneShare.PartnerZone.ZoneId,
 	}
@@ -542,11 +532,10 @@ func (f *FederationObj) FederationOperatorZoneShare(c echo.Context) error {
 	return ormutil.SetReply(c, ormutil.Msg("Added zone successfully"))
 }
 
-// OP notifies its partner MECs whenever it unshares a zone.
-// This api is triggered when a OP decides to unshare one of its
-// zone with one of the federated partners. This is used when
-// federation already exists
-func (f *FederationObj) FederationOperatorZoneUnShare(c echo.Context) error {
+// Remote partner OP sends this request to us to unshare its zone.
+// This api is triggered when the remote partner OP decides to unshare
+// one of its zone with us
+func (p *PartnerApi) FederationOperatorZoneUnShare(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	opZone := ZoneRequest{}
 	if err := c.Bind(&opZone); err != nil {
@@ -557,7 +546,7 @@ func (f *FederationObj) FederationOperatorZoneUnShare(c echo.Context) error {
 		return fmt.Errorf("Must specify zone ID")
 	}
 
-	_, partnerFed, err := f.ValidateAndGetFederationinfo(
+	_, partnerFed, err := p.ValidateAndGetFederationinfo(
 		ctx,
 		opZone.OrigFederationId,
 		opZone.DestFederationId,
@@ -568,11 +557,11 @@ func (f *FederationObj) FederationOperatorZoneUnShare(c echo.Context) error {
 		return err
 	}
 
-	if !FederationRoleExists(partnerFed, RoleAccessZones) {
+	if !fedcommon.FederationRoleExists(partnerFed, fedcommon.RoleAccessZones) {
 		return fmt.Errorf("OP does not have access to partner OP zones")
 	}
 
-	db := f.loggedDB(ctx)
+	db := p.loggedDB(ctx)
 	lookup := ormapi.OperatorZone{
 		ZoneId: opZone.Zone,
 	}

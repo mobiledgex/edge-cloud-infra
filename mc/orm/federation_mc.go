@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/federation"
+	fedcommon "github.com/mobiledgex/edge-cloud-infra/mc/federation/common"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
@@ -58,7 +59,7 @@ func CreateFederation(c echo.Context) error {
 		ResourceCloudlets, ActionManage); err != nil {
 		return err
 	}
-	opFed.Type = federation.TypeSelf
+	opFed.Type = fedcommon.TypeSelf
 
 	db := loggedDB(ctx)
 	fedKey := uuid.New().String()
@@ -123,7 +124,7 @@ func UpdateFederation(c echo.Context) error {
 	}
 
 	partnerLookup := ormapi.OperatorFederation{
-		Type: federation.TypePartner,
+		Type: fedcommon.TypePartner,
 	}
 	partnerOPs := []ormapi.OperatorFederation{}
 	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
@@ -132,7 +133,7 @@ func UpdateFederation(c echo.Context) error {
 	}
 	for _, partnerOP := range partnerOPs {
 		// Only notify those partners with whom the zones are shared
-		if !federation.FederationRoleExists(&partnerOP, federation.RoleShareZones) {
+		if !fedcommon.FederationRoleExists(&partnerOP, fedcommon.RoleShareZones) {
 			continue
 		}
 		// Notify partner OP about the update
@@ -183,7 +184,7 @@ func DeleteFederation(c echo.Context) error {
 
 	// ensure that no partner OP exists
 	partnerLookup := ormapi.OperatorFederation{
-		Type: federation.TypePartner,
+		Type: fedcommon.TypePartner,
 	}
 	partnerOPs := []ormapi.OperatorFederation{}
 	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
@@ -194,7 +195,7 @@ func DeleteFederation(c echo.Context) error {
 		return fmt.Errorf("Cannot delete federation as there are multiple partner OPs associated with it. Please remove all partner federations before deleting the federation")
 	}
 
-	opFed.Type = federation.TypeSelf
+	opFed.Type = fedcommon.TypeSelf
 	if err := db.Delete(&opFed).Error; err != nil {
 		return ormutil.DbErr(err)
 	}
@@ -207,7 +208,7 @@ func getSelfFederationInfo(ctx context.Context) (*ormapi.OperatorFederation, err
 	db := loggedDB(ctx)
 	selfFed := ormapi.OperatorFederation{}
 	lookup := ormapi.OperatorFederation{
-		Type: federation.TypeSelf,
+		Type: fedcommon.TypeSelf,
 	}
 	res := db.Where(&lookup).First(&selfFed)
 	if res.RecordNotFound() {
@@ -283,8 +284,8 @@ func AddFederationPartner(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	opFed.Type = federation.TypePartner
-	err = federation.AddFederationRole(&opFed, federation.RoleAccessZones)
+	opFed.Type = fedcommon.TypePartner
+	err = fedcommon.AddFederationRole(&opFed, fedcommon.RoleAccessZones)
 	if err != nil {
 		return err
 	}
@@ -332,7 +333,7 @@ func RemoveFederationPartner(c echo.Context) error {
 	if opFed.FederationId == "" {
 		return fmt.Errorf("Missing partner federation key")
 	}
-	opFed.Type = federation.TypePartner
+	opFed.Type = fedcommon.TypePartner
 
 	// get self federation information
 	selfFed, err := getSelfFederationInfo(ctx)
@@ -455,6 +456,9 @@ func CreateFederationZone(c echo.Context) error {
 	if len(opZone.Cloudlets) == 0 {
 		return fmt.Errorf("Missing cloudlets")
 	}
+	if len(opZone.Cloudlets) > 1 {
+		return fmt.Errorf("Only one cloudlet supported for now")
+	}
 	if opZone.GeoLocation == "" {
 		return fmt.Errorf("Missing geo location")
 	}
@@ -513,7 +517,7 @@ func CreateFederationZone(c echo.Context) error {
 	az.Locality = opZone.Locality
 	if err := db.Create(&az).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
-			return fmt.Errorf("Zone already exists for operator ID %s, country code %s", selfFed.OperatorId, selfFed.CountryCode)
+			return fmt.Errorf("Zone with same zone ID %q already exists for operator ID %s, country code %s", az.ZoneId, selfFed.OperatorId, selfFed.CountryCode)
 		}
 		return ormutil.DbErr(err)
 	}
@@ -540,7 +544,7 @@ func CreateFederationZone(c echo.Context) error {
 		EdgeCount:   len(opZone.Cloudlets),
 	}
 	partnerLookup := ormapi.OperatorFederation{
-		Type: federation.TypePartner,
+		Type: fedcommon.TypePartner,
 	}
 	partnerOPs := []ormapi.OperatorFederation{}
 	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
@@ -549,7 +553,7 @@ func CreateFederationZone(c echo.Context) error {
 	}
 	for _, partnerOP := range partnerOPs {
 		// Only notify those partners with whom the zones are shared
-		if !federation.FederationRoleExists(&partnerOP, federation.RoleShareZones) {
+		if !fedcommon.FederationRoleExists(&partnerOP, fedcommon.RoleShareZones) {
 			continue
 		}
 		// Notify federated partner about new zone
@@ -633,7 +637,7 @@ func DeleteFederationZone(c echo.Context) error {
 
 	// Notify deleted zone details with partner OPs
 	partnerLookup := ormapi.OperatorFederation{
-		Type: federation.TypePartner,
+		Type: fedcommon.TypePartner,
 	}
 	partnerOPs := []ormapi.OperatorFederation{}
 	err = db.Where(&partnerLookup).Find(&partnerOPs).Error
@@ -642,7 +646,7 @@ func DeleteFederationZone(c echo.Context) error {
 	}
 	for _, partnerOP := range partnerOPs {
 		// Only notify those partners with whom the zones were shared
-		if !federation.FederationRoleExists(&partnerOP, federation.RoleShareZones) {
+		if !fedcommon.FederationRoleExists(&partnerOP, fedcommon.RoleShareZones) {
 			continue
 		}
 		// Notify federated partner about deleted zone
@@ -784,7 +788,7 @@ func RegisterFederationZone(c echo.Context) error {
 	fedInfo := ormapi.OperatorFederation{}
 	fedLookup := ormapi.OperatorFederation{
 		FederationId: existingZone.FederationId,
-		Type:         federation.TypePartner,
+		Type:         fedcommon.TypePartner,
 	}
 	err = db.Where(&fedLookup).First(&fedInfo).Error
 	if err != nil {
@@ -863,7 +867,7 @@ func DeRegisterFederationZone(c echo.Context) error {
 	fedInfo := ormapi.OperatorFederation{}
 	fedLookup := ormapi.OperatorFederation{
 		FederationId: existingZone.FederationId,
-		Type:         federation.TypePartner,
+		Type:         fedcommon.TypePartner,
 	}
 	err = db.Where(&fedLookup).First(&fedInfo).Error
 	if err != nil {

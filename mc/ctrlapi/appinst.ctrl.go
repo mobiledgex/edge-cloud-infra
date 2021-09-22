@@ -26,25 +26,21 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
-	fedCtrl := FederationController{
-		Database: rc.Database,
-	}
-	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
-		var fedCtrlIntf interface{}
-		fedCtrl.OperatorFederation = *fedObj
-		fedCtrlIntf = &fedCtrl
-		ctrlObj, ok := fedCtrlIntf.(interface {
+		var clientIntf interface{}
+		clientIntf = fedClient
+		clientApi, ok := clientIntf.(interface {
 			CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
 		})
 		if !ok {
 			// method doesn't exist
 			return fmt.Errorf("CreateAppInst is not implemented for federation partner")
 		}
-		return ctrlObj.CreateAppInstStream(ctx, rc, obj, cb)
+		return clientApi.CreateAppInstStream(ctx, rc, obj, cb)
 	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
@@ -75,25 +71,21 @@ func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 }
 
 func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
-	fedCtrl := FederationController{
-		Database: rc.Database,
-	}
-	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
-		var fedCtrlIntf interface{}
-		fedCtrl.OperatorFederation = *fedObj
-		fedCtrlIntf = &fedCtrl
-		ctrlObj, ok := fedCtrlIntf.(interface {
+		var clientIntf interface{}
+		clientIntf = fedClient
+		clientApi, ok := clientIntf.(interface {
 			DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
 		})
 		if !ok {
 			// method doesn't exist
 			return fmt.Errorf("DeleteAppInst is not implemented for federation partner")
 		}
-		return ctrlObj.DeleteAppInstStream(ctx, rc, obj, cb)
+		return clientApi.DeleteAppInstStream(ctx, rc, obj, cb)
 	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
@@ -124,25 +116,21 @@ func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 }
 
 func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
-	fedCtrl := FederationController{
-		Database: rc.Database,
-	}
-	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
-		var fedCtrlIntf interface{}
-		fedCtrl.OperatorFederation = *fedObj
-		fedCtrlIntf = &fedCtrl
-		ctrlObj, ok := fedCtrlIntf.(interface {
+		var clientIntf interface{}
+		clientIntf = fedClient
+		clientApi, ok := clientIntf.(interface {
 			RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
 		})
 		if !ok {
 			// method doesn't exist
 			return fmt.Errorf("RefreshAppInst is not implemented for federation partner")
 		}
-		return ctrlObj.RefreshAppInstStream(ctx, rc, obj, cb)
+		return clientApi.RefreshAppInstStream(ctx, rc, obj, cb)
 	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
@@ -173,25 +161,21 @@ func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 }
 
 func UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, cb func(res *edgeproto.Result) error) error {
-	fedCtrl := FederationController{
-		Database: rc.Database,
-	}
-	fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
-		var fedCtrlIntf interface{}
-		fedCtrl.OperatorFederation = *fedObj
-		fedCtrlIntf = &fedCtrl
-		ctrlObj, ok := fedCtrlIntf.(interface {
+		var clientIntf interface{}
+		clientIntf = fedClient
+		clientApi, ok := clientIntf.(interface {
 			UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
 		})
 		if !ok {
 			// method doesn't exist
 			return fmt.Errorf("UpdateAppInst is not implemented for federation partner")
 		}
-		return ctrlObj.UpdateAppInstStream(ctx, rc, obj, cb)
+		return clientApi.UpdateAppInstStream(ctx, rc, obj, cb)
 	}
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
@@ -227,18 +211,14 @@ type ShowAppInstAuthz interface {
 }
 
 func ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj RegionConn, authz ShowAppInstAuthz, cb func(res *edgeproto.AppInst) error) error {
-	fedCtrl := FederationController{
-		Database: rc.Database,
-	}
-	fedObjs, err := fedCtrl.GetRegionFederationObjs(ctx, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClients, err := GetFederationClients(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
-	var fedCtrlIntf interface{}
-	for _, fedObj := range fedObjs {
-		fedCtrl.OperatorFederation = fedObj
-		fedCtrlIntf = &fedCtrl
-		ctrlObj, ok := fedCtrlIntf.(interface {
+	var clientIntf interface{}
+	for _, fedClient := range fedClients {
+		clientIntf = &fedClient
+		clientApi, ok := clientIntf.(interface {
 			ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.AppInst) error) error
 		})
 		if !ok {
@@ -246,7 +226,7 @@ func ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edge
 			continue
 		}
 
-		err = ctrlObj.ShowAppInstStream(ctx, rc, obj, cb)
+		err = clientApi.ShowAppInstStream(ctx, rc, obj, cb)
 		if err != nil {
 			return err
 		}

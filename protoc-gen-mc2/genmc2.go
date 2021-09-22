@@ -708,44 +708,39 @@ func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edg
 {{- end}}
 {{- if .TargetCloudlet}}
 {{- if .Outstream}}
-        fedCtrl := FederationController{
-                Database: rc.Database,
-        }
 {{- if .Show }}
-        fedObjs, err := fedCtrl.GetRegionFederationObjs(ctx, rc.Region, obj.{{.TargetCloudlet}}.Organization)
+	fedClients, err := GetFederationClients(ctx, rc.Database, rc.Region, obj.{{.TargetCloudlet}}.Organization)
         if err != nil {
                 return err
         }
-        var fedCtrlIntf interface{}
-        for _, fedObj := range fedObjs {
-                fedCtrl.OperatorFederation = fedObj
-                fedCtrlIntf = &fedCtrl
-                ctrlObj, ok := fedCtrlIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
+        var clientIntf interface{}
+        for _, fedClient := range fedClients {
+                clientIntf = &fedClient
+                clientApi, ok := clientIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
                 if !ok {
                         // method doesn't exist, ignore
                         continue
                 }
 
-                err = ctrlObj.{{.MethodName}}Stream(ctx, rc, obj, cb)
+                err = clientApi.{{.MethodName}}Stream(ctx, rc, obj, cb)
                 if err != nil {
                         return err
                 }
        }
 {{- else}}
-        fedObj, found, err := fedCtrl.GetOperatorFederationObj(ctx, rc.Region, obj.{{.TargetCloudlet}}.Organization)
+        fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.{{.TargetCloudlet}}.Organization)
         if err != nil {
                 return err
         }
         if found {
-                var fedCtrlIntf interface{}
-                fedCtrl.OperatorFederation = *fedObj
-                fedCtrlIntf = &fedCtrl
-                ctrlObj, ok := fedCtrlIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
+                var clientIntf interface{}
+                clientIntf = fedClient
+                clientApi, ok := clientIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
                 if !ok {
                         // method doesn't exist
                         return fmt.Errorf("{{.MethodName}} is not implemented for federation partner")
                 }
-                return ctrlObj.{{.MethodName}}Stream(ctx, rc, obj, cb)
+                return clientApi.{{.MethodName}}Stream(ctx, rc, obj, cb)
         }
 {{- end}}
 {{- end}}

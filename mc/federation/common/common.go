@@ -1,9 +1,19 @@
-package federation
+package common
 
 import (
 	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+)
+
+const (
+	// Federation Types
+	TypeSelf    = "self"
+	TypePartner = "partner"
+
+	// Federation Partner Roles
+	RoleAccessZones = "access" // Can access partner OP zones, but cannot share zones with partner OP
+	RoleShareZones  = "share"  // Can only share zones with partner OP, but cannot access partner OP's zones
 )
 
 func AddFederationRole(fedObj *ormapi.OperatorFederation, inRole string) error {

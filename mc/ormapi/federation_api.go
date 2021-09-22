@@ -72,6 +72,7 @@ type OperatorZoneCloudletMap struct {
 	// required: true
 	ZoneId string
 	// GPS co-ordinates associated with the zone (in decimal format)
+	// Latitude and Longitude is separated by comma. For example: 44.4308975,-89.6884637
 	GeoLocation string
 	// Comma seperated list of cities under this zone
 	City string

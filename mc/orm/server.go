@@ -920,12 +920,11 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		federationEcho.Use(logger)
 		server.federationEcho = federationEcho
 
-		fObj := federation.FederationObj{
-			Database: database,
-			Echo:     federationEcho,
-			ConnObj:  connCache,
+		partnerApi := federation.PartnerApi{
+			Database:  database,
+			ConnCache: connCache,
 		}
-		fObj.InitFederationAPIs()
+		partnerApi.InitAPIs(federationEcho)
 
 		go func() {
 			// TODO mTLS

@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoScalePolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func CreateAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoScalePolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func CreateAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, ob
 	return api.CreateAutoScalePolicy(ctx, obj)
 }
 
-func DeleteAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoScalePolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoScalePolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func DeleteAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, ob
 	return api.DeleteAutoScalePolicy(ctx, obj)
 }
 
-func UpdateAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoScalePolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func UpdateAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoScalePolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func UpdateAutoScalePolicyObj(ctx context.Context, rc *ormutil.RegionContext, ob
 	return api.UpdateAutoScalePolicy(ctx, obj)
 }
 
-func ShowAutoScalePolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoScalePolicy, connObj ClientConn, authz authzShow, cb func(res *edgeproto.AutoScalePolicy) error) error {
+func ShowAutoScalePolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoScalePolicy, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.AutoScalePolicy) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

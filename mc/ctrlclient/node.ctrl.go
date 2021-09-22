@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func ShowNodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Node, connObj ClientConn, authz authzShow, cb func(res *edgeproto.Node) error) error {
+func ShowNodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Node, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.Node) error) error {
 	conn, err := connObj.GetNotifyRootConn(ctx)
 	if err != nil {
 		return err

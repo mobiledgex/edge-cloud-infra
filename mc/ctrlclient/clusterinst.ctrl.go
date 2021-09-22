@@ -25,7 +25,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj ClientConn, cb func(res *edgeproto.Result) error) error {
+func CreateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -54,7 +54,7 @@ func CreateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func DeleteClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj ClientConn, cb func(res *edgeproto.Result) error) error {
+func DeleteClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -83,7 +83,7 @@ func DeleteClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func UpdateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj ClientConn, cb func(res *edgeproto.Result) error) error {
+func UpdateClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -117,7 +117,7 @@ type ShowClusterInstAuthz interface {
 	Filter(obj *edgeproto.ClusterInst)
 }
 
-func ShowClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj ClientConn, authz ShowClusterInstAuthz, cb func(res *edgeproto.ClusterInst) error) error {
+func ShowClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInst, connObj ClientConnMgr, authz ShowClusterInstAuthz, cb func(res *edgeproto.ClusterInst) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -157,7 +157,7 @@ func ShowClusterInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return nil
 }
 
-func DeleteIdleReservableClusterInstsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.IdleReservableClusterInsts, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteIdleReservableClusterInstsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.IdleReservableClusterInsts, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err

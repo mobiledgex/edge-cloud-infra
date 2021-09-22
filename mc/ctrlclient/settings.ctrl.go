@@ -23,7 +23,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func UpdateSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj ClientConn) (*edgeproto.Result, error) {
+func UpdateSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func UpdateSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edge
 	return api.UpdateSettings(ctx, obj)
 }
 
-func ResetSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj ClientConn) (*edgeproto.Result, error) {
+func ResetSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -45,7 +45,7 @@ func ResetSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgep
 	return api.ResetSettings(ctx, obj)
 }
 
-func ShowSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj ClientConn) (*edgeproto.Settings, error) {
+func ShowSettingsObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Settings, connObj ClientConnMgr) (*edgeproto.Settings, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err

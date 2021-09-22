@@ -25,7 +25,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func InjectDeviceObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Device, connObj ClientConn) (*edgeproto.Result, error) {
+func InjectDeviceObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Device, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func InjectDeviceObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.InjectDevice(ctx, obj)
 }
 
-func ShowDeviceStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Device, connObj ClientConn, authz authzShow, cb func(res *edgeproto.Device) error) error {
+func ShowDeviceStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Device, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.Device) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -72,7 +72,7 @@ func ShowDeviceStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgep
 	return nil
 }
 
-func EvictDeviceObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Device, connObj ClientConn) (*edgeproto.Result, error) {
+func EvictDeviceObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Device, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -83,7 +83,7 @@ func EvictDeviceObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepro
 	return api.EvictDevice(ctx, obj)
 }
 
-func ShowDeviceReportStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DeviceReport, connObj ClientConn, authz authzShow, cb func(res *edgeproto.Device) error) error {
+func ShowDeviceReportStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DeviceReport, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.Device) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

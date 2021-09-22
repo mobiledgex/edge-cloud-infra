@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AlertPolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func CreateAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AlertPolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func CreateAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return api.CreateAlertPolicy(ctx, obj)
 }
 
-func DeleteAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AlertPolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AlertPolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func DeleteAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return api.DeleteAlertPolicy(ctx, obj)
 }
 
-func UpdateAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AlertPolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func UpdateAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AlertPolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func UpdateAlertPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return api.UpdateAlertPolicy(ctx, obj)
 }
 
-func ShowAlertPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AlertPolicy, connObj ClientConn, authz authzShow, cb func(res *edgeproto.AlertPolicy) error) error {
+func ShowAlertPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AlertPolicy, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.AlertPolicy) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

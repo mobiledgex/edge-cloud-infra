@@ -25,7 +25,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func ShowAppInstClientStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstClientKey, connObj ClientConn, cb func(res *edgeproto.AppInstClient) error) error {
+func ShowAppInstClientStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInstClientKey, connObj ClientConnMgr, cb func(res *edgeproto.AppInstClient) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

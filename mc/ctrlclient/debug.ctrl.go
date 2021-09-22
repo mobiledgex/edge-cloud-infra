@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func EnableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj ClientConn, cb func(res *edgeproto.DebugReply) error) error {
+func EnableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj ClientConnMgr, cb func(res *edgeproto.DebugReply) error) error {
 	conn, err := connObj.GetNotifyRootConn(ctx)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func EnableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func DisableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj ClientConn, cb func(res *edgeproto.DebugReply) error) error {
+func DisableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj ClientConnMgr, cb func(res *edgeproto.DebugReply) error) error {
 	conn, err := connObj.GetNotifyRootConn(ctx)
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func DisableDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, ob
 	return nil
 }
 
-func ShowDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj ClientConn, cb func(res *edgeproto.DebugReply) error) error {
+func ShowDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj ClientConnMgr, cb func(res *edgeproto.DebugReply) error) error {
 	conn, err := connObj.GetNotifyRootConn(ctx)
 	if err != nil {
 		return err
@@ -111,7 +111,7 @@ func ShowDebugLevelsStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return nil
 }
 
-func RunDebugStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj ClientConn, cb func(res *edgeproto.DebugReply) error) error {
+func RunDebugStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.DebugRequest, connObj ClientConnMgr, cb func(res *edgeproto.DebugReply) error) error {
 	conn, err := connObj.GetNotifyRootConn(ctx)
 	if err != nil {
 		return err

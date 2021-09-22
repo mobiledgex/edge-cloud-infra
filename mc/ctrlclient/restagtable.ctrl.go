@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConn) (*edgeproto.Result, error) {
+func CreateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func CreateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return api.CreateResTagTable(ctx, obj)
 }
 
-func DeleteResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func DeleteResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return api.DeleteResTagTable(ctx, obj)
 }
 
-func UpdateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConn) (*edgeproto.Result, error) {
+func UpdateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func UpdateResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return api.UpdateResTagTable(ctx, obj)
 }
 
-func ShowResTagTableStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConn, authz authzShow, cb func(res *edgeproto.ResTagTable) error) error {
+func ShowResTagTableStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.ResTagTable) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -93,7 +93,7 @@ func ShowResTagTableStream(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return nil
 }
 
-func AddResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConn) (*edgeproto.Result, error) {
+func AddResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -104,7 +104,7 @@ func AddResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto
 	return api.AddResTag(ctx, obj)
 }
 
-func RemoveResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConn) (*edgeproto.Result, error) {
+func RemoveResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTable, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func RemoveResTagObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.RemoveResTag(ctx, obj)
 }
 
-func GetResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTableKey, connObj ClientConn) (*edgeproto.ResTagTable, error) {
+func GetResTagTableObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ResTagTableKey, connObj ClientConnMgr) (*edgeproto.ResTagTable, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err

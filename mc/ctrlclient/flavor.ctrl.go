@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConn) (*edgeproto.Result, error) {
+func CreateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func CreateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.CreateFlavor(ctx, obj)
 }
 
-func DeleteFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func DeleteFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.DeleteFlavor(ctx, obj)
 }
 
-func UpdateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConn) (*edgeproto.Result, error) {
+func UpdateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func UpdateFlavorObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.UpdateFlavor(ctx, obj)
 }
 
-func ShowFlavorStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConn, cb func(res *edgeproto.Flavor) error) error {
+func ShowFlavorStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConnMgr, cb func(res *edgeproto.Flavor) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -86,7 +86,7 @@ func ShowFlavorStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgep
 	return nil
 }
 
-func AddFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConn) (*edgeproto.Result, error) {
+func AddFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -97,7 +97,7 @@ func AddFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.AddFlavorRes(ctx, obj)
 }
 
-func RemoveFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConn) (*edgeproto.Result, error) {
+func RemoveFlavorResObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Flavor, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err

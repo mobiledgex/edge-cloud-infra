@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj ClientConn, cb func(res *edgeproto.Result) error) error {
+func CreateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -53,7 +53,7 @@ func CreateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func DeleteTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj ClientConn, cb func(res *edgeproto.Result) error) error {
+func DeleteTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func DeleteTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj
 	return nil
 }
 
-func UpdateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj ClientConn, cb func(res *edgeproto.Result) error) error {
+func UpdateTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -116,7 +116,7 @@ type ShowTrustPolicyAuthz interface {
 	Filter(obj *edgeproto.TrustPolicy)
 }
 
-func ShowTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj ClientConn, authz ShowTrustPolicyAuthz, cb func(res *edgeproto.TrustPolicy) error) error {
+func ShowTrustPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.TrustPolicy, connObj ClientConnMgr, authz ShowTrustPolicyAuthz, cb func(res *edgeproto.TrustPolicy) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

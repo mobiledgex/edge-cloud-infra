@@ -24,7 +24,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj ClientConn) (*edgeproto.Result, error) {
+func CreateOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func CreateOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return api.CreateOperatorCode(ctx, obj)
 }
 
-func DeleteOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -46,7 +46,7 @@ func DeleteOperatorCodeObj(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return api.DeleteOperatorCode(ctx, obj)
 }
 
-func ShowOperatorCodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj ClientConn, authz authzShow, cb func(res *edgeproto.OperatorCode) error) error {
+func ShowOperatorCodeStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.OperatorCode, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.OperatorCode) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

@@ -26,7 +26,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj ClientConn) (*edgeproto.Result, error) {
+func CreateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func CreateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.CreateVMPool(ctx, obj)
 }
 
-func DeleteVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func DeleteVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.DeleteVMPool(ctx, obj)
 }
 
-func UpdateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj ClientConn) (*edgeproto.Result, error) {
+func UpdateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func UpdateVMPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgepr
 	return api.UpdateVMPool(ctx, obj)
 }
 
-func ShowVMPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj ClientConn, authz authzShow, cb func(res *edgeproto.VMPool) error) error {
+func ShowVMPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPool, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.VMPool) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func ShowVMPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgep
 	return nil
 }
 
-func AddVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPoolMember, connObj ClientConn) (*edgeproto.Result, error) {
+func AddVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPoolMember, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func AddVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edg
 	return api.AddVMPoolMember(ctx, obj)
 }
 
-func RemoveVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPoolMember, connObj ClientConn) (*edgeproto.Result, error) {
+func RemoveVMPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.VMPoolMember, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err

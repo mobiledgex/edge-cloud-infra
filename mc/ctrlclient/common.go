@@ -6,7 +6,7 @@ import (
 	"google.golang.org/grpc"
 )
 
-type ClientConn interface {
+type ClientConnMgr interface {
 	GetRegionConn(ctx context.Context, region string) (*grpc.ClientConn, error)
 	GetNotifyRootConn(ctx context.Context) (*grpc.ClientConn, error)
 }

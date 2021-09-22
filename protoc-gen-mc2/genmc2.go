@@ -686,19 +686,19 @@ type {{.MethodName}}Authz interface {
 
 {{if .Outstream}}
 {{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
-func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConn, authz {{.MethodName}}Authz, cb func(res *edgeproto.{{.OutName}}) error) error {
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConnMgr, authz {{.MethodName}}Authz, cb func(res *edgeproto.{{.OutName}}) error) error {
 {{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
-func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConn, authz authzShow, cb func(res *edgeproto.{{.OutName}}) error) error {
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.{{.OutName}}) error) error {
 {{- else}}
-func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConn, cb func(res *edgeproto.{{.OutName}}) error) error {
+func {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConnMgr, cb func(res *edgeproto.{{.OutName}}) error) error {
 {{- end}}
 {{- else}}
 {{- if and (not .SkipEnforce) (and .Show .CustomAuthz)}}
-func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConn, authz {{.MethodName}}Authz) (*edgeproto.{{.OutName}}, error) {
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConnMgr, authz {{.MethodName}}Authz) (*edgeproto.{{.OutName}}, error) {
 {{- else if and (and (not .SkipEnforce) .Show) (not .CustomAuthz)}}
-func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConn, authz authzShow) (*edgeproto.{{.OutName}}, error) {
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConnMgr, authz authzShow) (*edgeproto.{{.OutName}}, error) {
 {{- else}}
-func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConn) (*edgeproto.{{.OutName}}, error) {
+func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConnMgr) (*edgeproto.{{.OutName}}, error) {
 {{- end}}
 {{- end}}
 {{- if .NotifyRoot}}

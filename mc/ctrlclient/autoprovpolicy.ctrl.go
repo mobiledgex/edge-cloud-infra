@@ -26,7 +26,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func CreateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func CreateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj
 	return api.CreateAutoProvPolicy(ctx, obj)
 }
 
-func DeleteAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -48,7 +48,7 @@ func DeleteAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj
 	return api.DeleteAutoProvPolicy(ctx, obj)
 }
 
-func UpdateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj ClientConn) (*edgeproto.Result, error) {
+func UpdateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -59,7 +59,7 @@ func UpdateAutoProvPolicyObj(ctx context.Context, rc *ormutil.RegionContext, obj
 	return api.UpdateAutoProvPolicy(ctx, obj)
 }
 
-func ShowAutoProvPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj ClientConn, authz authzShow, cb func(res *edgeproto.AutoProvPolicy) error) error {
+func ShowAutoProvPolicyStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicy, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.AutoProvPolicy) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func ShowAutoProvPolicyStream(ctx context.Context, rc *ormutil.RegionContext, ob
 	return nil
 }
 
-func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicyCloudlet, connObj ClientConn) (*edgeproto.Result, error) {
+func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicyCloudlet, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -106,7 +106,7 @@ func AddAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext
 	return api.AddAutoProvPolicyCloudlet(ctx, obj)
 }
 
-func RemoveAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicyCloudlet, connObj ClientConn) (*edgeproto.Result, error) {
+func RemoveAutoProvPolicyCloudletObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AutoProvPolicyCloudlet, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err

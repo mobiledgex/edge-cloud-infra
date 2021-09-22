@@ -25,7 +25,7 @@ var _ = math.Inf
 
 // Auto-generated code: DO NOT EDIT
 
-func CreateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj ClientConn) (*edgeproto.Result, error) {
+func CreateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -36,7 +36,7 @@ func CreateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return api.CreateCloudletPool(ctx, obj)
 }
 
-func DeleteCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj ClientConn) (*edgeproto.Result, error) {
+func DeleteCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -47,7 +47,7 @@ func DeleteCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return api.DeleteCloudletPool(ctx, obj)
 }
 
-func UpdateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj ClientConn) (*edgeproto.Result, error) {
+func UpdateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -58,7 +58,7 @@ func UpdateCloudletPoolObj(ctx context.Context, rc *ormutil.RegionContext, obj *
 	return api.UpdateCloudletPool(ctx, obj)
 }
 
-func ShowCloudletPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj ClientConn, authz authzShow, cb func(res *edgeproto.CloudletPool) error) error {
+func ShowCloudletPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPool, connObj ClientConnMgr, authz authzShow, cb func(res *edgeproto.CloudletPool) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func ShowCloudletPoolStream(ctx context.Context, rc *ormutil.RegionContext, obj 
 	return nil
 }
 
-func AddCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPoolMember, connObj ClientConn) (*edgeproto.Result, error) {
+func AddCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPoolMember, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func AddCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, ob
 	return api.AddCloudletPoolMember(ctx, obj)
 }
 
-func RemoveCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPoolMember, connObj ClientConn) (*edgeproto.Result, error) {
+func RemoveCloudletPoolMemberObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletPoolMember, connObj ClientConnMgr) (*edgeproto.Result, error) {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return nil, err

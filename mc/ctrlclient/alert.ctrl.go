@@ -30,7 +30,7 @@ type ShowAlertAuthz interface {
 	Filter(obj *edgeproto.Alert)
 }
 
-func ShowAlertStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Alert, connObj ClientConn, authz ShowAlertAuthz, cb func(res *edgeproto.Alert) error) error {
+func ShowAlertStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Alert, connObj ClientConnMgr, authz ShowAlertAuthz, cb func(res *edgeproto.Alert) error) error {
 	conn, err := connObj.GetRegionConn(ctx, rc.Region)
 	if err != nil {
 		return err

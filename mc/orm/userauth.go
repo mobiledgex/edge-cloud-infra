@@ -268,10 +268,14 @@ func authorized(ctx context.Context, sub, org, obj, act string, ops ...authOp) e
 	if !allow {
 		return echo.ErrForbidden
 	}
-
-	if opts.requiresOrg != "" && !opts.showAudit {
-		if err := checkRequiresOrg(ctx, opts.requiresOrg, obj, admin, opts.noEdgeboxOnly); err != nil {
-			return err
+	if !opts.showAudit {
+		for _, requiresOrg := range opts.requiresOrgs {
+			if requiresOrg == "" {
+				continue
+			}
+			if err := checkRequiresOrg(ctx, requiresOrg, obj, admin, opts.noEdgeboxOnly); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -292,7 +296,7 @@ func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgebo
 		return fmt.Errorf("Org %s lookup failed: %v", org, err)
 	}
 	if lookup.DeleteInProgress {
-		return fmt.Errorf("Operation not allowed for org with delete in progress")
+		return fmt.Errorf("Operation not allowed for org %s with delete in progress", org)
 	}
 	// see if resource is only for a specific type of org
 	orgType := ""
@@ -313,7 +317,7 @@ func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgebo
 
 type authOptions struct {
 	showAudit          bool
-	requiresOrg        string
+	requiresOrgs       []string
 	noEdgeboxOnly      bool
 	requiresBillingOrg string
 	targetCloudlet     *edgeproto.Cloudlet
@@ -326,7 +330,7 @@ func withShowAudit() authOp {
 }
 
 func withRequiresOrg(org string) authOp {
-	return func(opts *authOptions) { opts.requiresOrg = org }
+	return func(opts *authOptions) { opts.requiresOrgs = append(opts.requiresOrgs, org) }
 }
 
 func withNoEdgeboxOnly() authOp {

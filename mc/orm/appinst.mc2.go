@@ -9,7 +9,7 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
@@ -66,7 +66,7 @@ func CreateAppInst(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.CreateAppInstStream(ctx, rc, obj, connCache, cb)
+	err = ctrlclient.CreateAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -112,7 +112,7 @@ func DeleteAppInst(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.DeleteAppInstStream(ctx, rc, obj, connCache, cb)
+	err = ctrlclient.DeleteAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func RefreshAppInst(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.RefreshAppInstStream(ctx, rc, obj, connCache, cb)
+	err = ctrlclient.RefreshAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -208,7 +208,7 @@ func UpdateAppInst(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.UpdateAppInstStream(ctx, rc, obj, connCache, cb)
+	err = ctrlclient.UpdateAppInstStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
@@ -236,7 +236,7 @@ func ShowAppInst(c echo.Context) error {
 	span.SetTag("org", in.AppInst.Key.AppKey.Organization)
 
 	obj := &in.AppInst
-	var authz ctrlapi.ShowAppInstAuthz
+	var authz ctrlclient.ShowAppInstAuthz
 	if !rc.SkipAuthz {
 		authz, err = newShowAppInstAuthz(ctx, rc.Region, rc.Username, ResourceAppInsts, ActionView)
 		if err != nil {
@@ -249,7 +249,7 @@ func ShowAppInst(c echo.Context) error {
 		payload.Data = res
 		return WriteStream(c, &payload)
 	}
-	err = ctrlapi.ShowAppInstStream(ctx, rc, obj, connCache, authz, cb)
+	err = ctrlclient.ShowAppInstStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
@@ -288,7 +288,7 @@ func RequestAppInstLatency(c echo.Context) error {
 		}
 	}
 
-	resp, err := ctrlapi.RequestAppInstLatencyObj(ctx, rc, obj, connCache)
+	resp, err := ctrlclient.RequestAppInstLatencyObj(ctx, rc, obj, connCache)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			err = fmt.Errorf("%s", st.Message())

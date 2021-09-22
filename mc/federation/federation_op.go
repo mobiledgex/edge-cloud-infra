@@ -8,7 +8,7 @@ import (
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	fedcommon "github.com/mobiledgex/edge-cloud-infra/mc/federation/common"
 	"github.com/mobiledgex/edge-cloud-infra/mc/gormlog"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -24,7 +24,7 @@ const (
 
 type PartnerApi struct {
 	Database  *gorm.DB
-	ConnCache ctrlapi.RegionConn
+	ConnCache ctrlclient.ClientConnMgr
 }
 
 func (p *PartnerApi) loggedDB(ctx context.Context) *gorm.DB {

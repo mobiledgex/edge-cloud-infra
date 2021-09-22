@@ -1,4 +1,4 @@
-package ctrlapi
+package ctrlclient
 
 import (
 	"context"

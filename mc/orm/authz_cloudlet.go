@@ -5,7 +5,7 @@ import (
 	fmt "fmt"
 
 	"github.com/labstack/echo"
-	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
@@ -74,10 +74,10 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 		return echo.ErrForbidden
 	}
 
-	if opts.requiresOrg != "" {
+	for _, requiresOrg := range opts.requiresOrgs {
 		// edgeboxOnly check is not required for Show command
 		noEdgeboxOnly := false
-		if err := checkRequiresOrg(ctx, opts.requiresOrg, resource, s.admin, noEdgeboxOnly); err != nil {
+		if err := checkRequiresOrg(ctx, requiresOrg, resource, s.admin, noEdgeboxOnly); err != nil {
 			return err
 		}
 	}
@@ -129,7 +129,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	}
 	// build map of cloudlets associated with all cloudlet pools
 	s.cloudletPoolSide = make(map[edgeproto.CloudletKey]int)
-	err = ctrlapi.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
+	err = ctrlclient.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
 		for _, name := range pool.Cloudlets {
 			cloudletKey := edgeproto.CloudletKey{
 				Name:         name,
@@ -253,10 +253,26 @@ func (s *AuthzCloudletKey) populate(ctx context.Context, region, username, orgfi
 
 func authzCreateCloudlet(ctx context.Context, region, username string, obj *edgeproto.Cloudlet, resource, action string) error {
 	ops := []authOp{withRequiresOrg(obj.Key.Organization)}
+	for _, org := range obj.AllianceOrgs {
+		ops = append(ops, withRequiresOrg(org))
+	}
 	if obj.PlatformType != edgeproto.PlatformType_PLATFORM_TYPE_EDGEBOX {
 		ops = append(ops, withNoEdgeboxOnly())
 	}
-	return authorized(ctx, username, obj.Key.Organization, ResourceCloudlets, ActionManage, ops...)
+	return authorized(ctx, username, obj.Key.Organization, resource, action, ops...)
+}
+
+func authzUpdateCloudlet(ctx context.Context, region, username string, obj *edgeproto.Cloudlet, resource, action string) error {
+	ops := []authOp{}
+	for _, org := range obj.AllianceOrgs {
+		ops = append(ops, withRequiresOrg(org))
+	}
+	return authorized(ctx, username, obj.Key.Organization, resource, action, ops...)
+}
+
+func authzAddCloudletAllianceOrg(ctx context.Context, region, username string, obj *edgeproto.CloudletAllianceOrg, resource, action string) error {
+	ops := []authOp{withRequiresOrg(obj.Organization)}
+	return authorized(ctx, username, obj.Key.Organization, resource, action, ops...)
 }
 
 func authzCreateClusterInst(ctx context.Context, region, username string, obj *edgeproto.ClusterInst, resource, action string) error {
@@ -338,7 +354,7 @@ func authzAddAutoProvPolicyCloudlet(ctx context.Context, region, username string
 	return nil
 }
 
-func newShowCloudletAuthz(ctx context.Context, region, username, resource, action string) (ctrlapi.ShowCloudletAuthz, error) {
+func newShowCloudletAuthz(ctx context.Context, region, username, resource, action string) (ctrlclient.ShowCloudletAuthz, error) {
 	authzCloudlet := AuthzCloudlet{}
 	err := authzCloudlet.populate(ctx, region, username, "", resource, action)
 	if err != nil {
@@ -346,7 +362,7 @@ func newShowCloudletAuthz(ctx context.Context, region, username, resource, actio
 	}
 	return &authzCloudlet, nil
 }
-func newShowCloudletsForAppDeploymentAuthz(ctx context.Context, region, username string, resource, action string) (ctrlapi.ShowCloudletsForAppDeploymentAuthz, error) {
+func newShowCloudletsForAppDeploymentAuthz(ctx context.Context, region, username string, resource, action string) (ctrlclient.ShowCloudletsForAppDeploymentAuthz, error) {
 	authzCloudletKey := AuthzCloudletKey{}
 	err := authzCloudletKey.populate(ctx, region, username, "", resource, action)
 	if err != nil {

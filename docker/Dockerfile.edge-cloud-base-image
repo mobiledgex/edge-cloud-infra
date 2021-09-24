@@ -39,7 +39,8 @@ RUN apt-get update && apt-get install -y \
 	tzdata \
 	unzip \
 	vim-tiny \
-	wget
+	wget \
+	jq
 
 # Turn off auto-upgrades
 RUN sed -i 's/"1"/"0"/' /etc/apt/apt.conf.d/20auto-upgrades

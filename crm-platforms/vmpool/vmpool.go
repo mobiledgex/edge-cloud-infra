@@ -33,6 +33,7 @@ func (o *VMPoolPlatform) GetFeatures() *platform.Features {
 	return &platform.Features{
 		SupportsMultiTenantCluster: true,
 		IsVMPool:                   true,
+		SupportsNativeFlavors:      false,
 	}
 }
 

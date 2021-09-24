@@ -180,6 +180,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// DisableRateLimit: 37
 	// MaxNumPerIpRateLimiters: 39
 	// ResourceSnapshotThreadInterval: 41
+	// FlavorRefreshThreadInterval: 42
 	// ```
 	// Security:
 	//   Bearer:
@@ -1087,6 +1088,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// VmsFlavorPropMap: 3.7.5
 	// VmsFlavorPropMapKey: 3.7.5.1
 	// VmsFlavorPropMapValue: 3.7.5.2
+	// VmsFlavorDeprecated: 3.7.6
 	// State: 4
 	// Errors: 5
 	// Status: 6

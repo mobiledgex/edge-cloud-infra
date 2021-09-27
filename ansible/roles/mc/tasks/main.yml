@@ -73,7 +73,7 @@
 - name: Deploy the MC
   docker_container:
     name: "{{ mc_name }}"
-    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    image: "{{ edge_cloud_image }}-mc:{{ edge_cloud_version }}"
     restart_policy: unless-stopped
     command: "{{ mc_args }}"
     ports:

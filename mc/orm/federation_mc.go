@@ -755,6 +755,7 @@ func CreateSelfFederatorZone(c echo.Context) error {
 		Region:    opZone.CountryCode,
 		Username:  claims.Username,
 		SkipAuthz: true,
+		Database:  database,
 	}
 	cloudletMap := make(map[string]edgeproto.Cloudlet)
 	cloudletLookup := edgeproto.Cloudlet{

@@ -23,7 +23,8 @@ func (f *FederationClient) loggedDB(ctx context.Context) *gorm.DB {
 
 func GetFederationClient(ctx context.Context, database *gorm.DB, region, operator string) (*FederationClient, bool, error) {
 	if operator == "" {
-		return nil, false, fmt.Errorf("no operator specified")
+		// No operator specified
+		return &FederationClient{}, false, nil
 	}
 	clients, err := GetFederationClients(ctx, database, region, operator)
 	if err != nil {

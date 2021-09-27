@@ -42,6 +42,7 @@ func CreateGPUDriver(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriver.GetKey().GetTags())
@@ -86,6 +87,7 @@ func DeleteGPUDriver(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriver.GetKey().GetTags())
@@ -130,6 +132,7 @@ func UpdateGPUDriver(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriver.GetKey().GetTags())
@@ -178,6 +181,7 @@ func ShowGPUDriver(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriver.GetKey().GetTags())
@@ -219,6 +223,7 @@ func AddGPUDriverBuild(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriverBuildMember.GetKey().GetTags())
@@ -263,6 +268,7 @@ func RemoveGPUDriverBuild(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriverBuildMember.GetKey().GetTags())
@@ -307,6 +313,7 @@ func GetGPUDriverBuildURL(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.GPUDriverBuildMember.GetKey().GetTags())
@@ -346,6 +353,7 @@ func CreateCloudlet(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Cloudlet.GetKey().GetTags())
@@ -392,6 +400,7 @@ func DeleteCloudlet(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Cloudlet.GetKey().GetTags())
@@ -438,6 +447,7 @@ func UpdateCloudlet(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Cloudlet.GetKey().GetTags())
@@ -453,7 +463,7 @@ func UpdateCloudlet(c echo.Context) error {
 		return err
 	}
 	if !rc.SkipAuthz {
-		if err := authorized(ctx, rc.Username, obj.Key.Organization,
+		if err := authzUpdateCloudlet(ctx, rc.Region, rc.Username, obj,
 			ResourceCloudlets, ActionManage); err != nil {
 			return err
 		}
@@ -488,6 +498,7 @@ func ShowCloudlet(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Cloudlet.GetKey().GetTags())
@@ -528,6 +539,7 @@ func GetCloudletManifest(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	span.SetTag("org", in.CloudletKey.Organization)
@@ -569,6 +581,7 @@ func GetCloudletProps(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	span.SetTag("org", in.CloudletProps.Organization)
@@ -607,6 +620,7 @@ func GetCloudletResourceQuotaProps(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	span.SetTag("org", in.CloudletResourceQuotaProps.Organization)
@@ -645,6 +659,7 @@ func GetCloudletResourceUsage(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.CloudletResourceUsage.GetKey().GetTags())
@@ -684,6 +699,7 @@ func AddCloudletResMapping(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.CloudletResMap.GetKey().GetTags())
@@ -726,6 +742,7 @@ func RemoveCloudletResMapping(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.CloudletResMap.GetKey().GetTags())
@@ -753,6 +770,92 @@ func RemoveCloudletResMapping(c echo.Context) error {
 	return ormutil.SetReply(c, resp)
 }
 
+func AddCloudletAllianceOrg(c echo.Context) error {
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.Username = claims.Username
+
+	in := ormapi.RegionCloudletAllianceOrg{}
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
+	}
+	rc.Region = in.Region
+	rc.Database = database
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.CloudletAllianceOrg.GetKey().GetTags())
+	span.SetTag("org", in.CloudletAllianceOrg.Key.Organization)
+
+	obj := &in.CloudletAllianceOrg
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForAddCloudletAllianceOrg(); err != nil {
+		return err
+	}
+	if !rc.SkipAuthz {
+		if err := authzAddCloudletAllianceOrg(ctx, rc.Region, rc.Username, obj,
+			ResourceCloudlets, ActionManage); err != nil {
+			return err
+		}
+	}
+
+	resp, err := ctrlclient.AddCloudletAllianceOrgObj(ctx, rc, obj, connCache)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return ormutil.SetReply(c, resp)
+}
+
+func RemoveCloudletAllianceOrg(c echo.Context) error {
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.Username = claims.Username
+
+	in := ormapi.RegionCloudletAllianceOrg{}
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
+	}
+	rc.Region = in.Region
+	rc.Database = database
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.CloudletAllianceOrg.GetKey().GetTags())
+	span.SetTag("org", in.CloudletAllianceOrg.Key.Organization)
+
+	obj := &in.CloudletAllianceOrg
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRemoveCloudletAllianceOrg(); err != nil {
+		return err
+	}
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, obj.Key.Organization,
+			ResourceCloudlets, ActionManage); err != nil {
+			return err
+		}
+	}
+
+	resp, err := ctrlclient.RemoveCloudletAllianceOrgObj(ctx, rc, obj, connCache)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return ormutil.SetReply(c, resp)
+}
+
 func FindFlavorMatch(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	rc := &ormutil.RegionContext{}
@@ -768,6 +871,7 @@ func FindFlavorMatch(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.FlavorMatch.GetKey().GetTags())
@@ -807,6 +911,7 @@ func ShowFlavorsForCloudlet(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
@@ -846,6 +951,7 @@ func GetOrganizationsOnCloudlet(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	span.SetTag("org", in.CloudletKey.Organization)
@@ -886,6 +992,7 @@ func RevokeAccessKey(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	span.SetTag("org", in.CloudletKey.Organization)
@@ -927,6 +1034,7 @@ func GenerateAccessKey(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	span.SetTag("org", in.CloudletKey.Organization)
@@ -968,6 +1076,7 @@ func ShowCloudletInfo(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.CloudletInfo.GetKey().GetTags())
@@ -1009,6 +1118,7 @@ func InjectCloudletInfo(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.CloudletInfo.GetKey().GetTags())
@@ -1051,6 +1161,7 @@ func EvictCloudletInfo(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.CloudletInfo.GetKey().GetTags())

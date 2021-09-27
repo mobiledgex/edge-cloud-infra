@@ -81,10 +81,11 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 			&ormapi.McRateLimitFlowSettings{},
 			&ormapi.McRateLimitMaxReqsSettings{},
 			// Federation GORM Objects
-			&ormapi.OperatorFederation{},
-			&ormapi.OperatorZoneCloudlet{},
-			&ormapi.OperatorZone{},
-			&ormapi.OperatorRegisteredZone{},
+			&ormapi.Federator{},
+			&ormapi.FederatorRole{},
+			&ormapi.FederatorZone{},
+			&ormapi.FederatorSharedZone{},
+			&ormapi.FederatorRegisteredZone{},
 		).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "automigrate", "err", err)

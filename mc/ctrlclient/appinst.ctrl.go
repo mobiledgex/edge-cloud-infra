@@ -9,6 +9,7 @@ import (
 	_ "github.com/gogo/googleapis/google/api"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
+	fedclient "github.com/mobiledgex/edge-cloud-infra/mc/federation/client"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -26,13 +27,13 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
-	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
 		var clientIntf interface{}
-		clientIntf = fedClient
+		clientIntf = fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
 		})
@@ -71,13 +72,13 @@ func CreateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 }
 
 func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
-	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
 		var clientIntf interface{}
-		clientIntf = fedClient
+		clientIntf = fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
 		})
@@ -116,13 +117,13 @@ func DeleteAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *ed
 }
 
 func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
-	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
 		var clientIntf interface{}
-		clientIntf = fedClient
+		clientIntf = fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
 		})
@@ -161,13 +162,13 @@ func RefreshAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 }
 
 func UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
-	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
 		var clientIntf interface{}
-		clientIntf = fedClient
+		clientIntf = fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			UpdateAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.Result) error) error
 		})
@@ -211,13 +212,13 @@ type ShowAppInstAuthz interface {
 }
 
 func ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, connObj ClientConnMgr, authz ShowAppInstAuthz, cb func(res *edgeproto.AppInst) error) error {
-	fedClients, err := GetFederationClients(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
+	fedClients, err := fedclient.GetFederationClients(ctx, rc.Database, rc.Region, obj.Key.ClusterInstKey.CloudletKey.Organization)
 	if err != nil {
 		return err
 	}
 	var clientIntf interface{}
-	for _, fedClient := range fedClients {
-		clientIntf = &fedClient
+	for _, fedClientObj := range fedClients {
+		clientIntf = &fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			ShowAppInstStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.AppInst, cb func(res *edgeproto.AppInst) error) error
 		})

@@ -1,9 +1,12 @@
 package common
 
 import (
+	"fmt"
 	"strings"
 
+	"github.com/jinzhu/gorm"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 )
 
 const (
@@ -11,46 +14,120 @@ const (
 	TypeSelf    = "self"
 	TypePartner = "partner"
 
-	// Federation Partner Roles
-	RoleAccessZones = "access" // Can access partner OP zones, but cannot share zones with partner OP
-	RoleShareZones  = "share"  // Can only share zones with partner OP, but cannot access partner OP's zones
+	// Partner federation member roles
+	RoleAccessPartnerZones    = "access" // Self member can access partner member's zones
+	RoleShareZonesWithPartner = "share"  // Self member will share its zones with partner member
+
+	// Delimiter
+	Delimiter = "|"
 )
 
-func AddFederationRole(fedObj *ormapi.OperatorFederation, inRole string) error {
-	if fedObj.Role == "" {
-		fedObj.Role = inRole
+func IsValidFederationType(fedType string) error {
+	if fedType != TypeSelf && fedType != TypePartner {
+		return fmt.Errorf("Invalid federation type. Valid types are %s, %s", TypeSelf, TypePartner)
+	}
+	return nil
+}
+
+func AddToDelimitedList(delimitedList *string, addVal string) error {
+	if delimitedList == nil {
+		return fmt.Errorf("Invalid input delimited list")
+	}
+	if *delimitedList == "" {
+		*delimitedList = addVal
 		return nil
 	}
-	roles := strings.Split(fedObj.Role, ",")
-	for _, role := range roles {
-		if role == inRole {
-			// role already present
+	vals := strings.Split(*delimitedList, Delimiter)
+	for _, val := range vals {
+		if val == addVal {
+			// value already present
 			return nil
 		}
 	}
-	roles = append(roles, inRole)
-	fedObj.Role = strings.Join(roles, ",")
+	vals = append(vals, addVal)
+	*delimitedList = strings.Join(vals, Delimiter)
 	return nil
 }
 
-func RemoveFederationRole(fedObj *ormapi.OperatorFederation, inRole string) error {
-	roles := strings.Split(fedObj.Role, ",")
-	for ii, role := range roles {
-		if role == inRole {
-			roles = append(roles[:ii], roles[ii+1:]...)
+func RemoveFromDelimitedList(delimitedList *string, rmVal string) error {
+	if delimitedList == nil {
+		return fmt.Errorf("Invalid input delimited list")
+	}
+	vals := strings.Split(*delimitedList, Delimiter)
+	for ii, val := range vals {
+		if val == rmVal {
+			vals = append(vals[:ii], vals[ii+1:]...)
 			break
 		}
 	}
-	fedObj.Role = strings.Join(roles, ",")
+	*delimitedList = strings.Join(vals, Delimiter)
 	return nil
 }
 
-func FederationRoleExists(fedObj *ormapi.OperatorFederation, inRole string) bool {
-	roles := strings.Split(fedObj.Role, ",")
-	roleMap := make(map[string]struct{})
-	for _, role := range roles {
-		roleMap[role] = struct{}{}
+func GetValuesFromDelimitedList(delimitedList string) map[string]struct{} {
+	vals := strings.Split(delimitedList, Delimiter)
+	valMap := make(map[string]struct{})
+	for _, v := range vals {
+		valMap[v] = struct{}{}
 	}
-	_, matchRes := roleMap[inRole]
+	return valMap
+}
+
+func ValueExistsInDelimitedList(delimitedList, val string) bool {
+	valMap := GetValuesFromDelimitedList(delimitedList)
+	_, matchRes := valMap[val]
 	return matchRes
+}
+
+func AddOrUpdatePartnerFederatorRole(loggedDb *gorm.DB, selfFed, partnerFed *ormapi.Federator, role string) error {
+	// Store partner federation role
+	partnerRoleLookup := ormapi.FederatorRole{
+		SelfFederationId:    selfFed.FederationId,
+		PartnerFederationId: partnerFed.FederationId,
+	}
+	partnerRole := ormapi.FederatorRole{}
+	res := loggedDb.Where(&partnerRoleLookup).First(&partnerRole)
+	if !res.RecordNotFound() && res.Error != nil {
+		return ormutil.DbErr(res.Error)
+	}
+	if res.RecordNotFound() {
+		partnerRole = ormapi.FederatorRole{
+			SelfFederationId:    selfFed.FederationId,
+			PartnerFederationId: partnerFed.FederationId,
+			Role:                role,
+		}
+		if err := loggedDb.Create(&partnerRole).Error; err != nil {
+			if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
+				return fmt.Errorf("Partner federation already exists for operator ID %s, country code %s",
+					partnerFed.OperatorId, partnerFed.CountryCode)
+			}
+			return ormutil.DbErr(err)
+		}
+	} else {
+		err := AddToDelimitedList(&partnerRole.Role, role)
+		if err != nil {
+			return err
+		}
+		err = loggedDb.Save(&partnerRole).Error
+		if err != nil {
+			return ormutil.DbErr(err)
+		}
+	}
+	return nil
+}
+
+func FederationRoleExists(loggedDb *gorm.DB, selfFed, partnerFed *ormapi.Federator, role string) (bool, error) {
+	partnerRoleLookup := ormapi.FederatorRole{
+		SelfFederationId:    selfFed.FederationId,
+		PartnerFederationId: partnerFed.FederationId,
+	}
+	partnerRole := ormapi.FederatorRole{}
+	res := loggedDb.Where(&partnerRoleLookup).First(&partnerRole)
+	if !res.RecordNotFound() && res.Error != nil {
+		return false, ormutil.DbErr(res.Error)
+	}
+	if res.RecordNotFound() || !ValueExistsInDelimitedList(partnerRole.Role, role) {
+		return false, nil
+	}
+	return true, nil
 }

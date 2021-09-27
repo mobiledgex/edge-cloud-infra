@@ -9,6 +9,7 @@ import (
 	_ "github.com/gogo/googleapis/google/api"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
+	fedclient "github.com/mobiledgex/edge-cloud-infra/mc/federation/client"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
@@ -227,13 +228,13 @@ func GetGPUDriverBuildURLObj(ctx context.Context, rc *ormutil.RegionContext, obj
 }
 
 func CreateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
-	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.Organization)
+	fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
 		var clientIntf interface{}
-		clientIntf = fedClient
+		clientIntf = fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			CreateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, cb func(res *edgeproto.Result) error) error
 		})
@@ -272,13 +273,13 @@ func CreateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 }
 
 func DeleteCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
-	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.Organization)
+	fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
 		var clientIntf interface{}
-		clientIntf = fedClient
+		clientIntf = fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			DeleteCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, cb func(res *edgeproto.Result) error) error
 		})
@@ -317,13 +318,13 @@ func DeleteCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *e
 }
 
 func UpdateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, connObj ClientConnMgr, cb func(res *edgeproto.Result) error) error {
-	fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.Organization)
+	fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, rc.Region, obj.Key.Organization)
 	if err != nil {
 		return err
 	}
 	if found {
 		var clientIntf interface{}
-		clientIntf = fedClient
+		clientIntf = fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			UpdateCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, cb func(res *edgeproto.Result) error) error
 		})
@@ -367,13 +368,13 @@ type ShowCloudletAuthz interface {
 }
 
 func ShowCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, connObj ClientConnMgr, authz ShowCloudletAuthz, cb func(res *edgeproto.Cloudlet) error) error {
-	fedClients, err := GetFederationClients(ctx, rc.Database, rc.Region, obj.Key.Organization)
+	fedClients, err := fedclient.GetFederationClients(ctx, rc.Database, rc.Region, obj.Key.Organization)
 	if err != nil {
 		return err
 	}
 	var clientIntf interface{}
-	for _, fedClient := range fedClients {
-		clientIntf = &fedClient
+	for _, fedClientObj := range fedClients {
+		clientIntf = &fedClientObj
 		clientApi, ok := clientIntf.(interface {
 			ShowCloudletStream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.Cloudlet, cb func(res *edgeproto.Cloudlet) error) error
 		})

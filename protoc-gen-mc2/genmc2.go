@@ -15,39 +15,40 @@ import (
 
 type GenMC2 struct {
 	*generator.Generator
-	support            gensupport.PluginSupport
-	tmpl               *template.Template
-	tmplCtrlClient     *template.Template
-	tmplApi            *template.Template
-	tmplMethodTest     *template.Template
-	tmplMethodTestutil *template.Template
-	tmplMethodCtl      *template.Template
-	tmplMessageTest    *template.Template
-	regionStructs      map[string]struct{}
-	inputMessages      map[string]*generator.Descriptor
-	firstFile          bool
-	genctrlclient      bool
-	genapi             bool
-	gentest            bool
-	gentestutil        bool
-	genctl             bool
-	importEcho         bool
-	importHttp         bool
-	importContext      bool
-	importIO           bool
-	importOS           bool
-	importJson         bool
-	importTesting      bool
-	importRequire      bool
-	importMctestclient bool
-	importOrmapi       bool
-	importOrmtestutil  bool
-	importGrpcStatus   bool
-	importStrings      bool
-	importLog          bool
-	importCli          bool
-	importOrmutil      bool
-	importCtrlClient   bool
+	support                gensupport.PluginSupport
+	tmpl                   *template.Template
+	tmplCtrlClient         *template.Template
+	tmplApi                *template.Template
+	tmplMethodTest         *template.Template
+	tmplMethodTestutil     *template.Template
+	tmplMethodCtl          *template.Template
+	tmplMessageTest        *template.Template
+	regionStructs          map[string]struct{}
+	inputMessages          map[string]*generator.Descriptor
+	firstFile              bool
+	genctrlclient          bool
+	genapi                 bool
+	gentest                bool
+	gentestutil            bool
+	genctl                 bool
+	importEcho             bool
+	importHttp             bool
+	importContext          bool
+	importIO               bool
+	importOS               bool
+	importJson             bool
+	importTesting          bool
+	importRequire          bool
+	importMctestclient     bool
+	importOrmapi           bool
+	importOrmtestutil      bool
+	importGrpcStatus       bool
+	importStrings          bool
+	importLog              bool
+	importCli              bool
+	importOrmutil          bool
+	importCtrlClient       bool
+	importFederationClient bool
 }
 
 func (g *GenMC2) Name() string {
@@ -120,6 +121,9 @@ func (g *GenMC2) GenerateImports(file *generator.FileDescriptor) {
 	if g.importCtrlClient {
 		g.PrintImport("", "github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient")
 	}
+	if g.importFederationClient {
+		g.PrintImport("fedclient", "github.com/mobiledgex/edge-cloud-infra/mc/federation/client")
+	}
 }
 
 type ServiceProps struct {
@@ -152,6 +156,7 @@ func (g *GenMC2) Generate(file *generator.FileDescriptor) {
 	g.importCli = false
 	g.importOrmutil = false
 	g.importCtrlClient = false
+	g.importFederationClient = false
 
 	g.support.InitFile()
 	if !g.support.GenFile(*file.FileDescriptorProto.Name) {
@@ -464,6 +469,9 @@ func (g *GenMC2) generateMethod(file *generator.FileDescriptor, service string, 
 		if args.Outstream {
 			g.importIO = true
 		}
+		if args.TargetCloudlet != "" {
+			g.importFederationClient = true
+		}
 	} else {
 		tmpl = g.tmpl
 		g.importEcho = true
@@ -709,13 +717,13 @@ func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edg
 {{- if .TargetCloudlet}}
 {{- if .Outstream}}
 {{- if .Show }}
-	fedClients, err := GetFederationClients(ctx, rc.Database, rc.Region, obj.{{.TargetCloudlet}}.Organization)
+	fedClients, err := fedclient.GetFederationClients(ctx, rc.Database, rc.Region, obj.{{.TargetCloudlet}}.Organization)
         if err != nil {
                 return err
         }
         var clientIntf interface{}
-        for _, fedClient := range fedClients {
-                clientIntf = &fedClient
+        for _, fedClientObj := range fedClients {
+                clientIntf = &fedClientObj
                 clientApi, ok := clientIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
                 if !ok {
                         // method doesn't exist, ignore
@@ -728,13 +736,13 @@ func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edg
                 }
        }
 {{- else}}
-        fedClient, found, err := GetFederationClient(ctx, rc.Database, rc.Region, obj.{{.TargetCloudlet}}.Organization)
+        fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, rc.Region, obj.{{.TargetCloudlet}}.Organization)
         if err != nil {
                 return err
         }
         if found {
                 var clientIntf interface{}
-                clientIntf = fedClient
+                clientIntf = fedClientObj
                 clientApi, ok := clientIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
                 if !ok {
                         // method doesn't exist

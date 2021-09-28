@@ -191,7 +191,7 @@ func Login(c echo.Context) error {
 		}
 	}
 
-	if login.Password != "" && user.TOTPSharedKey != "" {
+	if login.Password != "" && user.EnableTOTP && user.TOTPSharedKey != "" {
 		opts := totp.ValidateOpts{
 			Period:    OTPExpirationTime,
 			Skew:      1,

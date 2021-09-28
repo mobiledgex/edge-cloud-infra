@@ -48,9 +48,14 @@ func validateMetricsCommon(obj *ormapi.MetricsCommon) error {
 		return fmt.Errorf("Only one of Limit or NumSamples can be specified")
 	}
 
-	// return error if the limit is a negative value
+	// return error if Limit is a negative value
 	if obj.Limit < 0 {
 		return fmt.Errorf("Limit must be a positive value")
+	}
+
+	// return error if NumSamples is a negative value
+	if obj.NumSamples < 0 {
+		return fmt.Errorf("NumSamples must be a positive value")
 	}
 
 	// populate one of Last or NumSamples if neither are set

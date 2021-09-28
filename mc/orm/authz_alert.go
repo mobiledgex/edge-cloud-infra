@@ -28,9 +28,9 @@ func newShowAlertAuthz(ctx context.Context, region, username, resource, action s
 }
 
 func (s *AuthzAlert) Ok(obj *edgeproto.Alert) (bool, bool) {
-	filterOutput := false
+	filterOutput := true
 	if s.allowAll {
-		return true, filterOutput
+		return true, false
 	}
 
 	// if not an admin, we filter internal alerts
@@ -52,4 +52,11 @@ func (s *AuthzAlert) Ok(obj *edgeproto.Alert) (bool, bool) {
 }
 
 func (s *AuthzAlert) Filter(obj *edgeproto.Alert) {
+	filterLabels := make(map[string]string)
+	for k, v := range obj.Labels {
+		if !cloudcommon.IsLabelInternal(k) {
+			filterLabels[k] = v
+		}
+	}
+	obj.Labels = filterLabels
 }

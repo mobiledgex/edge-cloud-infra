@@ -73,7 +73,15 @@
     with_nested:
      - "{{ ssh_keys.stdout }}"
      - "{{groups['all']}}"
-  
+
+  - name: apt update
+    command: apt-get update
+
+  ## TODO: firstboot.json and configure interval
+  - name: chef install
+    apt:
+       name: chef
+ 
   - name: get chef-client installer
     get_url:
       url: https://omnitruck.chef.io/install.sh 
@@ -105,8 +113,11 @@
       - curl
       - software-properties-common
       - docker-ce
+      - iptables-persistent
 
   handlers:
   - name: restart_sshd
     service: 
       name: sshd
+ 
+

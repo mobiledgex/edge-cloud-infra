@@ -50,3 +50,10 @@
        name: kubectl
        state: present
     become: true
+
+  - name: create accesskey dir 
+    file:
+      path: "/root/accesskey"
+      state: directory
+      owner: root
+    become: true

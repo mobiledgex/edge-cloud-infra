@@ -52,11 +52,9 @@ func (s *AuthzAlert) Ok(obj *edgeproto.Alert) (bool, bool) {
 }
 
 func (s *AuthzAlert) Filter(obj *edgeproto.Alert) {
-	filterLabels := make(map[string]string)
-	for k, v := range obj.Labels {
-		if !cloudcommon.IsLabelInternal(k) {
-			filterLabels[k] = v
+	for k, _ := range obj.Labels {
+		if cloudcommon.IsLabelInternal(k) {
+			delete(obj.Labels, k)
 		}
 	}
-	obj.Labels = filterLabels
 }

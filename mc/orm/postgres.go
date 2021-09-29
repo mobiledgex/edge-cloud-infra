@@ -81,8 +81,8 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 			&ormapi.McRateLimitFlowSettings{},
 			&ormapi.McRateLimitMaxReqsSettings{},
 			// Federation GORM Objects
-			&ormapi.Federator{},
-			&ormapi.FederatorRole{},
+			&ormapi.SelfFederator{},
+			&ormapi.PartnerFederator{},
 			&ormapi.FederatorZone{},
 			&ormapi.FederatorSharedZone{},
 			&ormapi.FederatorRegisteredZone{},

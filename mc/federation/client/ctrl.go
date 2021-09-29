@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/jinzhu/gorm"
-	fedcommon "github.com/mobiledgex/edge-cloud-infra/mc/federation/common"
 	"github.com/mobiledgex/edge-cloud-infra/mc/gormlog"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
@@ -13,7 +12,7 @@ import (
 )
 
 type FederationClient struct {
-	ormapi.Federator
+	ormapi.PartnerFederator
 	Database *gorm.DB
 }
 
@@ -38,20 +37,19 @@ func GetFederationClient(ctx context.Context, database *gorm.DB, region, operato
 }
 
 // Get Federation Clients using region as CountryCode and optionally operator as OperatorId
-// NOTE: This client will abstract actions on partner federator's edge infra. Hence,
-//       consider region as CountryCode
 func GetFederationClients(ctx context.Context, database *gorm.DB, region, operator string) ([]FederationClient, error) {
 	if region == "" {
 		return nil, fmt.Errorf("no region specified")
 	}
-	fedObj := ormapi.Federator{
-		CountryCode: region,
-		OperatorId:  operator,
-		Type:        fedcommon.TypePartner,
+	// NOTE: This client will abstract actions on partner federator's edge infra.
+	//       Hence, consider region as CountryCode
+	partnerFed := ormapi.PartnerFederator{
+		PartnerCountryCode: region,
+		PartnerOperatorId:  operator,
 	}
 	db := gormlog.LoggedDB(ctx, database)
-	fedObjs := []ormapi.Federator{}
-	res := db.Where(&fedObj).Find(&fedObjs)
+	partnerFeds := []ormapi.PartnerFederator{}
+	res := db.Where(&partnerFed).Find(&partnerFeds)
 	if res.Error != nil {
 		if res.RecordNotFound() {
 			// return empty object if not found
@@ -60,22 +58,14 @@ func GetFederationClients(ctx context.Context, database *gorm.DB, region, operat
 		return nil, res.Error
 	}
 	fedClients := []FederationClient{}
-	for _, fedObj := range fedObjs {
+	for _, partnerFed := range partnerFeds {
 		// Only access those partner federators whose zones can be accessed by self federators
-		roleLookup := ormapi.FederatorRole{
-			PartnerFederationId: fedObj.FederationId,
-		}
-		partnerFederatorRole := ormapi.FederatorRole{}
-		res := db.Where(&roleLookup).Find(&partnerFederatorRole)
-		if !res.RecordNotFound() && res.Error != nil {
-			return nil, ormutil.DbErr(res.Error)
-		}
-		if !fedcommon.ValueExistsInDelimitedList(partnerFederatorRole.Role, fedcommon.RoleAccessPartnerZones) {
+		if !partnerFed.RoleShareZonesWithSelf {
 			continue
 		}
 		fedClient := FederationClient{
-			Database:  database,
-			Federator: fedObj,
+			Database:         database,
+			PartnerFederator: partnerFed,
 		}
 		fedClients = append(fedClients, fedClient)
 	}

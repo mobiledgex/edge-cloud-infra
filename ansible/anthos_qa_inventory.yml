@@ -1,0 +1,31 @@
+## Example inventory file for standalone deployment
+
+anthos_servers:
+   children:
+     masters:
+       hosts:
+         qa-anthos1:
+           ansible_host: 145.40.103.121
+           external_ip_if: bond0
+           internal_ip_if: bond0
+           internal_ip_vlan: 1001
+           internal_ip_addr: 10.200.30.10
+     workers:
+        hosts:
+          qa-anthos2:
+            ansible_host: 145.40.77.43
+            external_ip_if: bond0
+            internal_ip_if: bond0
+            internal_ip_vlan: 1001
+            internal_ip_addr: 10.200.30.101
+   vars:
+      gcp_project_id: still-entity-201400
+      baremetal_dir: /home/ubuntu/baremetal
+      anthos_baremetal_version: 1.8.4
+      anthos_cluster: qa-anthos
+      gcp_region: us-central1
+      control_plane_vip: 10.200.30.9
+      ingress_vip: 10.200.30.150
+      lb_address_pool: 10.200.30.150-10.200.30.250
+      cluster_nodes:
+      - 10.200.30.101

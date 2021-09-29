@@ -1,0 +1,35 @@
+- name: install and run bmctl
+  hosts: masters
+  remote_user: ubuntu
+
+  tasks:
+  - name: create baremetal dir 
+    file:
+      path: "{{baremetal_dir}}"
+      state: directory
+      owner: ubuntu
+
+  - name: install bmctl
+    command: "gsutil cp gs://anthos-baremetal-release/bmctl/1.8.4/linux-amd64/bmctl {{baremetal_dir}}/bmctl"
+      
+  - name: update bmctl file ownership and permissions
+    file:
+      path: "{{baremetal_dir}}/bmctl"
+      state: file
+      owner: ubuntu
+      mode: '0744'
+
+  - name: create cluster config
+    command: "{{baremetal_dir}}/bmctl create config -c {{anthos_cluster}} --enable-apis --create-service-accounts --project-id={{gcp_project_id}} --workspace-dir {{baremetal_dir}}/bmctl-workspace --force"
+        
+  - name: update cluster config file
+    template:
+      src: "anthos-config.j2"
+      dest: "{{baremetal_dir}}/bmctl-workspace/{{anthos_cluster}}/{{anthos_cluster}}.yaml" 
+ 
+  - name: create anthos cluster
+    become: true
+    command:  "{{baremetal_dir}}/bmctl create cluster -c {{anthos_cluster}} --workspace-dir {{baremetal_dir}}/bmctl-workspace"        
+
+  - name: copy cluster kubeconfig
+    shell: "cat {{baremetal_dir}}/bmctl-workspace/{{anthos_cluster}}/{{anthos_cluster}}-kubeconfig > /home/ubuntu/{{anthos_cluster}}-cloudlet-kubeconfig"

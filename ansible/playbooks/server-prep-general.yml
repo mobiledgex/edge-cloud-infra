@@ -1,0 +1,112 @@
+- name: server prep general 
+  hosts: all
+  remote_user: root
+  become: true
+
+  tasks:
+  - name: create ubuntu user
+    user:
+      name: ubuntu
+      shell: /bin/bash
+      groups: sudo,docker
+
+  - name: create ubuntu user keys 
+    user:
+       name: ubuntu
+       generate_ssh_key: yes
+       ssh_key_type: rsa
+       ssh_key_bits: 4096
+       force: no
+
+  - name: create authorized keys for ubuntu user
+    file:
+       name:  /home/ubuntu/.ssh/authorized_keys
+       owner: ubuntu
+
+  - name: add root auth keys to ubuntu user for ansible login
+    shell: "cat /root/.ssh/authorized_keys >>  /home/ubuntu/.ssh/authorized_keys"
+
+  - name: create root user keys for inter-host ssh
+    user:
+       name: root
+       generate_ssh_key: yes
+       ssh_key_type: rsa
+       ssh_key_bits: 4096
+       force: no
+
+  ##TODO:this should come from vault
+  - name: update ssh trusted-user-ca-keys
+    copy:
+       src: files/trusted-user-ca-keys.pem
+       dest: /etc/ssh/trusted-user-ca-keys.pem     
+       owner: root
+       mode: 0644
+
+  - name: update sshd_config for vault ssh
+    lineinfile: 
+       path: /etc/ssh/sshd_config
+       regexp: 'TrustedUserCAKeys'
+       line: TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem
+    notify: restart_sshd
+
+  - name: update sudoers
+    lineinfile:
+       path: /etc/sudoers
+       regexp: '^%sudo\s+ALL'
+       line: '%sudo   ALL=(ALL) NOPASSWD:ALL'
+
+    
+  - name: fetch keys
+    shell: cat ~/.ssh/id_rsa.pub
+    register: ssh_keys
+
+  - name: update root authorized keys for inter-node ssh
+    authorized_key: user=root key="{{ item[0] }}"
+    delegate_to: "{{ item[1] }}"
+    with_nested:
+     - "{{ ssh_keys.stdout }}"
+     - "{{groups['all']}}"
+    
+  - name: update ubuntu authorized keys for inter-node ssh
+    authorized_key: user=ubuntu key="{{ item[0] }}"
+    delegate_to: "{{ item[1] }}"
+    with_nested:
+     - "{{ ssh_keys.stdout }}"
+     - "{{groups['all']}}"
+  
+  - name: get chef-client installer
+    get_url:
+      url: https://omnitruck.chef.io/install.sh 
+      dest: /tmp/chef_install.sh
+      mode: '744'
+   
+  - name: run chef-client installer
+    shell: /tmp/chef_install.sh
+
+  - name: check chef client
+    shell: chef-client --chef-license accept --version
+
+  - name: Add Docker GPG key 
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+
+  - name: Add Docker apt repository 
+    apt_repository:
+      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+
+  - name: Install docker packages 
+    package:
+      name: "{{ item }}"
+      state: present
+      update_cache: yes
+    with_items:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+      - docker-ce
+
+  handlers:
+  - name: restart_sshd
+    service: 
+      name: sshd

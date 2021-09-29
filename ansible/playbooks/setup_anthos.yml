@@ -1,0 +1,5 @@
+  - import_playbook: server-prep-ip.yml
+  - import_playbook: server-prep-general.yml
+  - import_playbook: server-prep-master.yml  
+  - import_playbook: bmctl.yml
+

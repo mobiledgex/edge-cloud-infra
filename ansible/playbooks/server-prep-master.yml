@@ -1,0 +1,52 @@
+- name: server prep for master
+  hosts: masters
+  remote_user: ubuntu
+
+  tasks:
+  - name: install gcp apt key
+    apt_key:
+      url: https://packages.cloud.google.com/apt/doc/apt-key.gpg 
+    become: true
+
+  - name: Add gcloud repo 
+    apt_repository:
+      repo: deb https://packages.cloud.google.com/apt cloud-sdk main
+    become: true
+
+  - name: install gcloud
+    apt: 
+      name: google-cloud-sdk
+      state: present
+    become: true
+   
+  # TODO: this should come from vault not a local file
+  - name: upload gcp key
+    copy:
+       src: files/gcp_auth_key.json
+       dest: /home/ubuntu/.config/gcloud/application_default_credentials.json
+       owner: ubuntu
+       mode: 0600
+
+  - name: active gcp service account
+    shell: gcloud auth activate-service-account --key-file /home/ubuntu/.config/gcloud/application_default_credentials.json 
+
+  - name: set gcloud project
+    shell: "gcloud config set project {{gcp_project_id}}"
+
+  - name:  update grub legacy ec2
+    shell:  /usr/sbin/update-grub-legacy-ec2 -y
+    become: true
+
+  - name: fix grub2
+    shell: apt-get install --reinstall grub2-common
+    become: true
+
+  - name: apt autoremove
+    shell: apt-get autoremove
+    become: true
+
+  - name: install kubectl 
+    apt:
+       name: kubectl
+       state: present
+    become: true

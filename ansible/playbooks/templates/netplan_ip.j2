@@ -1,0 +1,12 @@
+network:
+    version: 2
+    ethernets:
+       {{external_ip_if}}:
+         dhcp4: true
+    vlans:
+        {{internal_ip_if}}.{{internal_ip_vlan}}:
+            id: {{internal_ip_vlan}}
+            link: {{internal_ip_if}}
+            addresses: 
+              - {{internal_ip_addr}}/24
+

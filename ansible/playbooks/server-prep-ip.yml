@@ -1,0 +1,14 @@
+- name: server prep ip addressing
+  hosts: all
+  remote_user: root
+
+  tasks:
+  - name: configure internal ips
+    template:
+       src: netplan_ip.j2
+       dest: /etc/netplan/ipconfig_ansible.yaml
+
+  - name: netplan apply 
+    command: netplan apply
+
+

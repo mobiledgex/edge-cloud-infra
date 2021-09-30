@@ -17,8 +17,6 @@ type OperatorRegistrationRequest struct {
 	DestFederationId string `json:"destFederationId"`
 	// If partner OP shall endorse lead OP applications
 	ApplicationAnchormentReq bool `json:"applicationAnchormentReq"`
-	// NOTE: 'origFederationAddr' field is not part of OP Specification
-	OrigFederationAddr string `json:"origFederationAddr"`
 }
 
 type OperatorRegistrationResponse struct {

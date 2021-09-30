@@ -1214,11 +1214,10 @@ func CreateFederation(c echo.Context) error {
 
 	// Call federation API
 	opRegReq := federation.OperatorRegistrationRequest{
-		OrigFederationId:   selfFed.FederationKey,
-		DestFederationId:   partnerFed.FederationKey,
-		OperatorId:         selfFed.OperatorId,
-		CountryCode:        selfFed.CountryCode,
-		OrigFederationAddr: selfFed.FederationAddr,
+		OrigFederationId: selfFed.FederationKey,
+		DestFederationId: partnerFed.FederationKey,
+		OperatorId:       selfFed.OperatorId,
+		CountryCode:      selfFed.CountryCode,
 	}
 	opRegRes := federation.OperatorRegistrationResponse{}
 	err = sendFederationRequest("POST", partnerFed.FederationAddr, federation.OperatorPartnerAPI, &opRegReq, &opRegRes)

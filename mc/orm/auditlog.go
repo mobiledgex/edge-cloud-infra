@@ -198,10 +198,10 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 		} else if strings.Contains(req.RequestURI, "/auth/federation/partner/add") ||
 			strings.Contains(req.RequestURI, "/auth/federation/partner/remove") {
-			opFed := ormapi.PartnerFederator{}
+			opFed := ormapi.Federator{}
 			err := json.Unmarshal(reqBody, &opFed)
 			if err == nil {
-				opFed.PartnerFederationKey = ""
+				opFed.FederationKey = ""
 				reqBody, err = json.Marshal(opFed)
 			}
 			if err != nil {

@@ -817,20 +817,20 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/federator/self/create", CreateSelfFederator)
 	auth.POST("/federator/self/update", UpdateSelfFederator)
 	auth.POST("/federator/self/delete", DeleteSelfFederator)
-	auth.POST("/federator/self/show", ShowSelfFederator)
 	auth.POST("/federator/self/zone/create", CreateSelfFederatorZone)
 	auth.POST("/federator/self/zone/delete", DeleteSelfFederatorZone)
 	auth.POST("/federator/self/zone/share", ShareSelfFederatorZone)
 	auth.POST("/federator/self/zone/unshare", UnshareSelfFederatorZone)
 	auth.POST("/federator/partner/add", AddPartnerFederator)
 	auth.POST("/federator/partner/remove", RemovePartnerFederator)
-	auth.POST("/federator/partner/show", ShowPartnerFederator)
 	auth.POST("/federator/partner/zone/register", RegisterPartnerFederatorZone)
 	auth.POST("/federator/partner/zone/deregister", DeregisterPartnerFederatorZone)
+	auth.POST("/federator/show", ShowFederator)
 	auth.POST("/federator/zone/show", ShowFederatorZone)
 	// Manage federation with partner federator
-	auth.POST("/federation/create", CreateDirectedFederation)
-	auth.POST("/federation/delete", DeleteDirectedFederation)
+	auth.POST("/federation/create", CreateFederation)
+	auth.POST("/federation/delete", DeleteFederation)
+	auth.POST("/federation/show", ShowFederation)
 
 	// Generate new short-lived token to authenticate websocket connections
 	// Note: Web-client should not store auth token as part of local storage,

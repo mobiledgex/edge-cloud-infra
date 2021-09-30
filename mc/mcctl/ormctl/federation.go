@@ -16,11 +16,11 @@ func init() {
 			Name:         "CreateSelfFederator",
 			Use:          "create",
 			Short:        "Create Self Federator",
-			RequiredArgs: "operatorid countrycode mcc mncs regions",
-			OptionalArgs: "locatorendpoint",
+			RequiredArgs: strings.Join(FederatorArgs, " "),
+			OptionalArgs: strings.Join(FederatorOptionalArgs, " "),
 			Comments:     FederatorComments,
 			ReqData:      &ormapi.FederatorRequest{},
-			ReplyData:    &ormapi.SelfFederator{},
+			ReplyData:    &ormapi.Federator{},
 			Path:         "/auth/federator/self/create",
 		},
 		&ApiCommand{
@@ -34,33 +34,34 @@ func init() {
 			Path:         "/auth/federator/self/update",
 		},
 		&ApiCommand{
-			Name:      "DeleteSelfFederator",
-			Use:       "delete",
-			Short:     "Delete Self Federator",
-			Comments:  FederatorComments,
-			ReqData:   &ormapi.FederatorRequest{},
-			ReplyData: &ormapi.Result{},
-			Path:      "/auth/federator/self/delete",
+			Name:         "DeleteSelfFederator",
+			Use:          "delete",
+			Short:        "Delete Self Federator",
+			RequiredArgs: "operatorid countrycode",
+			Comments:     FederatorComments,
+			ReqData:      &ormapi.FederatorRequest{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federator/self/delete",
 		},
 		&ApiCommand{
-			Name:         "ShowSelfFederator",
+			Name:         "ShowFederator",
 			Use:          "show",
-			Short:        "Show Self Federator",
+			Short:        "Show Federator",
 			OptionalArgs: strings.Join(FederatorArgs, " "),
 			Comments:     FederatorComments,
 			ReqData:      &ormapi.FederatorRequest{},
 			ReplyData:    &[]ormapi.FederatorRequest{},
-			Path:         "/auth/federator/self/show",
+			Path:         "/auth/federator/show",
 		},
 		&ApiCommand{
 			Name:         "AddPartnerFederator",
 			Use:          "addpartner",
 			Short:        "Add Partner Federator",
-			RequiredArgs: strings.Join(append(PartnerFederatorArgs, PartnerFederatorRequiredArgs...), " "),
-			OptionalArgs: strings.Join(PartnerFederatorOptionalArgs, " "),
+			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederatorArgs...), " "),
+			OptionalArgs: strings.Join(FederatorOptionalArgs, " "),
 			PasswordArg:  "partnerfederationkey",
-			Comments:     PartnerFederatorComments,
-			ReqData:      &ormapi.PartnerFederator{},
+			Comments:     FederatorComments,
+			ReqData:      &ormapi.FederatorRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/partner/add",
 		},
@@ -68,22 +69,12 @@ func init() {
 			Name:         "RemovePartnerFederator",
 			Use:          "removepartner",
 			Short:        "Remove Partner Federator",
-			RequiredArgs: strings.Join(PartnerFederatorArgs, " "),
+			RequiredArgs: "selfoperatorid selfcountrycode operatorid countrycode",
 			PasswordArg:  "partnerfederationkey",
-			Comments:     PartnerFederatorComments,
-			ReqData:      &ormapi.PartnerFederator{},
+			Comments:     FederatorComments,
+			ReqData:      &ormapi.FederatorRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/partner/remove",
-		},
-		&ApiCommand{
-			Name:         "ShowPartnerFederator",
-			Use:          "showpartner",
-			Short:        "Show Partner Federator",
-			OptionalArgs: strings.Join(PartnerFederatorArgs, " "),
-			Comments:     PartnerFederatorComments,
-			ReqData:      &ormapi.PartnerFederator{},
-			ReplyData:    &[]ormapi.PartnerFederator{},
-			Path:         "/auth/federator/partner/show",
 		},
 		&ApiCommand{
 			Name:         "CreateSelfFederatorZone",
@@ -110,9 +101,9 @@ func init() {
 			Name:         "ShareSelfFederatorZone",
 			Use:          "sharezone",
 			Short:        "Share Self Federation Zone",
-			RequiredArgs: strings.Join(append(PartnerFederatorArgs, FederatorZoneRequiredArgs...), " "),
-			Comments:     PartnerFederatorZoneComments,
-			ReqData:      &ormapi.FederatorZoneShare{},
+			RequiredArgs: strings.Join(FederatorZoneRequestArgs, " "),
+			Comments:     FederatorZoneShareComments,
+			ReqData:      &ormapi.FederatorZoneRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/self/zone/share",
 		},
@@ -120,9 +111,9 @@ func init() {
 			Name:         "UnshareSelfFederationZone",
 			Use:          "unsharezone",
 			Short:        "Unshare Self Federation Zone",
-			RequiredArgs: strings.Join(append(PartnerFederatorArgs, FederatorZoneRequiredArgs...), " "),
-			Comments:     PartnerFederatorZoneComments,
-			ReqData:      &ormapi.FederatorZoneDetails{},
+			RequiredArgs: strings.Join(FederatorZoneRequestArgs, " "),
+			Comments:     FederatorZoneShareComments,
+			ReqData:      &ormapi.FederatorZoneRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/self/zone/unshare",
 		},
@@ -130,9 +121,9 @@ func init() {
 			Name:         "RegisterPartnerFederationZone",
 			Use:          "registerzone",
 			Short:        "Register Partner Federation Zone",
-			RequiredArgs: strings.Join(append(PartnerFederatorArgs, FederatorZoneRequiredArgs...), " "),
-			Comments:     PartnerFederatorZoneComments,
-			ReqData:      &ormapi.FederatorZoneRegister{},
+			RequiredArgs: strings.Join(FederatorZoneRequestArgs, " "),
+			Comments:     FederatorZoneRegisterComments,
+			ReqData:      &ormapi.FederatorZoneRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/partner/zone/register",
 		},
@@ -140,9 +131,9 @@ func init() {
 			Name:         "DeRegisterPartnerFederationZone",
 			Use:          "deregisterzone",
 			Short:        "DeRegister Partner Federation Zone",
-			RequiredArgs: strings.Join(append(PartnerFederatorArgs, FederatorZoneRequiredArgs...), " "),
-			Comments:     PartnerFederatorZoneComments,
-			ReqData:      &ormapi.FederatorZoneRegister{},
+			RequiredArgs: strings.Join(FederatorZoneRequestArgs, " "),
+			Comments:     FederatorZoneRegisterComments,
+			ReqData:      &ormapi.FederatorZoneRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/partner/zone/deregister",
 		},
@@ -151,46 +142,71 @@ func init() {
 			Use:          "showzone",
 			Short:        "Show Federation Zones",
 			OptionalArgs: strings.Join(append(FederatorZoneRequiredArgs, FederatorZoneOptionalArgs...), " "),
+			RequiredArgs: strings.Join(FederatorZoneRequestArgs, " "),
 			Comments:     FederatorZoneComments,
 			ReqData:      &ormapi.FederatorZoneDetails{},
 			ReplyData:    &[]ormapi.FederatorZoneDetails{},
 			Path:         "/auth/federator/zone/show",
 		},
 		&ApiCommand{
-			Name:         "CreateDirectedFederation",
-			Use:          "createdirectedfederation",
-			Short:        "Create Directed Federation",
-			RequiredArgs: strings.Join(PartnerFederatorArgs, " "),
-			Comments:     PartnerFederatorComments,
-			ReqData:      &ormapi.PartnerFederator{},
+			Name:         "CreateFederation",
+			Use:          "createfederation",
+			Short:        "Create Federation",
+			RequiredArgs: strings.Join(FederationArgs, " "),
+			Comments:     FederationComments,
+			ReqData:      &ormapi.FederationRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federation/create",
 		},
 		&ApiCommand{
-			Name:         "DeleteDirectedFederation",
-			Use:          "deletedirectedfederation",
-			Short:        "Delete Directed Federation",
-			RequiredArgs: strings.Join(PartnerFederatorArgs, " "),
-			Comments:     PartnerFederatorComments,
-			ReqData:      &ormapi.PartnerFederator{},
+			Name:         "DeleteFederation",
+			Use:          "deletefederation",
+			Short:        "Delete Federation",
+			RequiredArgs: strings.Join(FederationArgs, " "),
+			Comments:     FederationComments,
+			ReqData:      &ormapi.FederationRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federation/delete",
+		},
+		&ApiCommand{
+			Name:         "ShowFederation",
+			Use:          "showfederation",
+			Short:        "Show Federation",
+			OptionalArgs: strings.Join(FederationArgs, " "),
+			Comments:     FederationComments,
+			ReqData:      &ormapi.FederationRequest{},
+			ReplyData:    &[]ormapi.Federation{},
+			Path:         "/auth/federation/show",
 		},
 	}
 	AllApis.AddGroup(FederationGroup, "Federation APIs", cmds)
 }
 
+var SelfFederatorArgs = []string{
+	"selfoperatorid",
+	"selfcountrycode",
+}
+
 var FederatorArgs = []string{
+	"operatorid",
+	"countrycode",
+	"operatorid",
+	"countrycode",
 	"federationid",
 	"operatorid",
 	"countrycode",
 	"mcc",
 	"mncs",
 	"regions",
+}
+
+var FederatorOptionalArgs = []string{
 	"locatorendpoint",
 }
 
 var FederatorComments = map[string]string{
+	"selfoperatorid":  "Self federator operator ID",
+	"selfcountrycode": "Self federator country code",
 	"federationid":    "Globally unique string used to authenticate operations over federation interface",
 	"federationaddr":  "Federation access point address",
 	"operatorid":      "Globally unique string to identify an operator platform",
@@ -201,34 +217,18 @@ var FederatorComments = map[string]string{
 	"locatorendpoint": "IP and Port of discovery service URL of operator platform",
 }
 
-var PartnerFederatorArgs = []string{
+var FederationArgs = []string{
 	"selfoperatorid",
 	"selfcountrycode",
 	"partneroperatorid",
 	"partnercountrycode",
 }
 
-var PartnerFederatorRequiredArgs = []string{
-	"partnerfederationkey",
-	"partnerfederationaddr",
-	"partnermcc",
-	"partnermncs",
-}
-
-var PartnerFederatorOptionalArgs = []string{
-	"partnerlocatorendpoint",
-}
-
-var PartnerFederatorComments = map[string]string{
-	"selfoperatorid":         "Self federator operator ID",
-	"selfcountrycode":        "Self federator country code",
-	"partneroperatorid":      "Partner federator operator ID",
-	"partnercountrycode":     "Partner federator country code",
-	"partnerfederationkey":   "Partner federator federation key used to authenticate operations over federation interface",
-	"partnerfederationaddr":  "Partner federation access point address",
-	"partnermcc":             "Mobile country code of operator sending the request",
-	"partnermncs":            "Comma separated list of mobile network codes of operator sending the request",
-	"partnerlocatorendpoint": "IP and Port of discovery service URL of operator platform",
+var FederationComments = map[string]string{
+	"selfoperatorid":     "Self federator operator ID",
+	"selfcountrycode":    "Self federator country code",
+	"partneroperatorid":  "Partner federator operator ID",
+	"partnercountrycode": "Partner federator country code",
 }
 
 var FederatorZoneRequiredArgs = []string{
@@ -254,7 +254,23 @@ var FederatorZoneComments = map[string]string{
 	"cloudlets":    "List of cloudlets belonging to the federation zone",
 }
 
-var PartnerFederatorZoneComments = map[string]string{
+var FederatorZoneRequestArgs = []string{
+	"zoneid",
+	"selfoperatorid",
+	"selfcountrycode",
+	"partneroperatorid",
+	"partnercountrycode",
+}
+
+var FederatorZoneShareComments = map[string]string{
+	"zoneid":             "Unique ID to identify zone",
+	"selfoperatorid":     "Self federator operator ID",
+	"selfcountrycode":    "Self federator country code",
+	"partneroperatorid":  "Partner federator operator ID",
+	"partnercountrycode": "Partner federator country code",
+}
+
+var FederatorZoneRegisterComments = map[string]string{
 	"zoneid":             "Unique ID to identify zone",
 	"selfoperatorid":     "Self federator operator ID",
 	"selfcountrycode":    "Self federator country code",

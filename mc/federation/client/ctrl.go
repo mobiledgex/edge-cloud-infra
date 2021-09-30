@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jinzhu/gorm"
+	fedcommon "github.com/mobiledgex/edge-cloud-infra/mc/federation/common"
 	"github.com/mobiledgex/edge-cloud-infra/mc/gormlog"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
@@ -12,7 +13,7 @@ import (
 )
 
 type FederationClient struct {
-	ormapi.PartnerFederator
+	ormapi.Federator
 	Database *gorm.DB
 }
 
@@ -43,12 +44,13 @@ func GetFederationClients(ctx context.Context, database *gorm.DB, region, operat
 	}
 	// NOTE: This client will abstract actions on partner federator's edge infra.
 	//       Hence, consider region as CountryCode
-	partnerFed := ormapi.PartnerFederator{
-		PartnerCountryCode: region,
-		PartnerOperatorId:  operator,
+	partnerFed := ormapi.Federator{
+		OperatorId:  operator,
+		CountryCode: region,
+		Type:        fedcommon.TypePartner,
 	}
 	db := gormlog.LoggedDB(ctx, database)
-	partnerFeds := []ormapi.PartnerFederator{}
+	partnerFeds := []ormapi.Federator{}
 	res := db.Where(&partnerFed).Find(&partnerFeds)
 	if res.Error != nil {
 		if res.RecordNotFound() {
@@ -57,15 +59,27 @@ func GetFederationClients(ctx context.Context, database *gorm.DB, region, operat
 		}
 		return nil, res.Error
 	}
+
 	fedClients := []FederationClient{}
 	for _, partnerFed := range partnerFeds {
 		// Only access those partner federators whose zones can be accessed by self federators
-		if !partnerFed.RoleShareZonesWithSelf {
+		partnerFederation := ormapi.Federation{
+			PartnerOperatorId:  partnerFed.OperatorId,
+			PartnerCountryCode: partnerFed.CountryCode,
+			PartnerRole:        fedcommon.RoleShareZonesWithSelf,
+		}
+		// There can only be one partner federator who can shares zones with MC,
+		// this is enforced during addition of partner federation
+		res := db.Where(&partnerFederation).First(&partnerFederation)
+		if res.RecordNotFound() {
 			continue
 		}
+		if res.Error != nil {
+			return nil, ormutil.DbErr(res.Error)
+		}
 		fedClient := FederationClient{
-			Database:         database,
-			PartnerFederator: partnerFed,
+			Database:  database,
+			Federator: partnerFed,
 		}
 		fedClients = append(fedClients, fedClient)
 	}

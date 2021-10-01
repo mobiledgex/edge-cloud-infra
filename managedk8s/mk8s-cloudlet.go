@@ -60,7 +60,6 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 	if err != nil {
 		return cloudletResourcesCreated, err
 	}
-	cloudletResourcesCreated = true
 	if err := m.CommonPf.InitInfraCommon(ctx, platCfg, props); err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
 		return cloudletResourcesCreated, err

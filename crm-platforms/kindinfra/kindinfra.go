@@ -32,14 +32,14 @@ func (s *Platform) GatherCloudletInfo(ctx context.Context, info *edgeproto.Cloud
 }
 
 func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
-	cleanupOnError, err := s.Platform.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
+	cloudletResourcesCreated, err := s.Platform.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
 	if err != nil {
-		return cleanupOnError, err
+		return cloudletResourcesCreated, err
 	}
 	if err = fakeinfra.ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback); err != nil {
-		return cleanupOnError, err
+		return cloudletResourcesCreated, err
 	}
-	return cleanupOnError, fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
+	return cloudletResourcesCreated, fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
 func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {

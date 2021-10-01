@@ -15,15 +15,15 @@ import (
 
 func (e *EdgeboxPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet for edgebox")
-	cleanupOnError, err := e.generic.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, nil, accessApi, updateCallback)
+	cloudletResourcesCreated, err := e.generic.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, nil, accessApi, updateCallback)
 	if err != nil {
-		return cleanupOnError, err
+		return cloudletResourcesCreated, err
 	}
 	if err = fakeinfra.ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback); err != nil {
-		return cleanupOnError, err
+		return cloudletResourcesCreated, err
 	}
 
-	return cleanupOnError, fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
+	return cloudletResourcesCreated, fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
 func (e *EdgeboxPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {

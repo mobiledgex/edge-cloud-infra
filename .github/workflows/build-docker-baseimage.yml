@@ -57,6 +57,9 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
       -
+        name: Print the docker image tag
+        run: echo "::notice title=Edge-Cloud Base Image::${{ fromJSON(steps.meta.outputs.json).tags[0] }}"
+      -
         name: Notify on Slack
         if: always()
         uses: edge/simple-slack-notify@v1.1.2
@@ -65,7 +68,7 @@ jobs:
           status: ${{ job.status }}
           success_text: |
             ${env.GITHUB_WORKFLOW} (${env.GITHUB_RUN_NUMBER}) build completed successfully.
-            Image: *${{ fromJSON(steps.meta.outputs.json).tags[0] }}*
+            *Image*: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
             See <https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/2302640130/How+to+update+the+edge-cloud+docker+base+image|Confluence> for details on using this base image.
           failure_text: '${env.GITHUB_WORKFLOW} (${env.GITHUB_RUN_NUMBER}) build failed'
           cancelled_text: '${env.GITHUB_WORKFLOW} (${env.GITHUB_RUN_NUMBER}) build was cancelled'

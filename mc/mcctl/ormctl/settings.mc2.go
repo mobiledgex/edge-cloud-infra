@@ -118,7 +118,7 @@ var SettingsOptionalArgs = []string{
 	"clusterautoscaleretrydelay",
 	"alertpolicymintriggertime",
 	"disableratelimit",
-	"maxnumperipratelimiters",
+	"ratelimitmaxtrackedips",
 	"resourcesnapshotthreadinterval",
 	"flavorrefreshthreadinterval",
 }
@@ -162,7 +162,7 @@ var SettingsAliasArgs = []string{
 	"clusterautoscaleretrydelay=settings.clusterautoscaleretrydelay",
 	"alertpolicymintriggertime=settings.alertpolicymintriggertime",
 	"disableratelimit=settings.disableratelimit",
-	"maxnumperipratelimiters=settings.maxnumperipratelimiters",
+	"ratelimitmaxtrackedips=settings.ratelimitmaxtrackedips",
 	"resourcesnapshotthreadinterval=settings.resourcesnapshotthreadinterval",
 	"flavorrefreshthreadinterval=settings.flavorrefreshthreadinterval",
 }
@@ -206,7 +206,7 @@ var SettingsComments = map[string]string{
 	"clusterautoscaleretrydelay":                                        "Cluster auto scale retry delay if scaling failed",
 	"alertpolicymintriggertime":                                         "Minimmum trigger time for alert policies",
 	"disableratelimit":                                                  "Disable rate limiting for APIs (default is false)",
-	"maxnumperipratelimiters":                                           "Maximum number of perip rate limiters for an endpoint (ie. number of ips stored to rate limit)",
+	"ratelimitmaxtrackedips":                                            "Maximum number of IPs to track for rate limiting",
 	"resourcesnapshotthreadinterval":                                    "ResourceSnapshot Refresh thread run interval",
 	"flavorrefreshthreadinterval":                                       "Flavor refresh thread cadence",
 }

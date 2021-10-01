@@ -1,10 +1,18 @@
 name: Edge-Cloud Docker Base Image
+
 on:
-  workflow_dispatch:
   pull_request:
     paths:
       - 'docker/Dockerfile.edge-cloud-base-image'
       - 'docker/edge-cloud-base-image.root/**'
+  push:
+    branches:
+      - master
+    paths:
+      - 'docker/Dockerfile.edge-cloud-base-image'
+      - 'docker/edge-cloud-base-image.root/**'
+  workflow_dispatch:
+
 env:
   REGISTRY: harbor.mobiledgex.net
   SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

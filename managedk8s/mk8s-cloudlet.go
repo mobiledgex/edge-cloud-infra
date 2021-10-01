@@ -45,29 +45,30 @@ func (m *ManagedK8sPlatform) getCloudletClusterName(cloudlet *edgeproto.Cloudlet
 	return m.Provider.NameSanitize(cloudlet.Key.Name + "-pf")
 }
 
-func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "cloudlet", cloudlet)
-
+	cleanupOnError := false
 	if cloudlet.Deployment != cloudcommon.DeploymentTypeKubernetes {
-		return fmt.Errorf("Only kubernetes deployment supported for cloudlet platform: %s", m.Type)
+		return cleanupOnError, fmt.Errorf("Only kubernetes deployment supported for cloudlet platform: %s", m.Type)
 	}
 	platCfg := infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
 	props, err := m.Provider.GetProviderSpecificProps(ctx)
 	if err != nil {
-		return err
+		return cleanupOnError, err
 	}
 	err = m.Provider.InitApiAccessProperties(ctx, accessApi, cloudlet.EnvVar)
 	if err != nil {
-		return err
+		return cleanupOnError, err
 	}
+	cleanupOnError = true
 	if err := m.CommonPf.InitInfraCommon(ctx, platCfg, props); err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitInfraCommon failed", "err", err)
-		return err
+		return cleanupOnError, err
 	}
 
 	err = m.Provider.SetProperties(&m.CommonPf.Properties)
 	if err != nil {
-		return err
+		return cleanupOnError, err
 	}
 	cloudletClusterName := m.getCloudletClusterName(cloudlet)
 
@@ -75,7 +76,7 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 	var info edgeproto.CloudletInfo
 	err = m.Provider.GatherCloudletInfo(ctx, &info)
 	if err != nil {
-		return err
+		return cleanupOnError, err
 	}
 	// Find the closest matching vmspec
 	cli := edgeproto.CloudletInfo{}
@@ -83,17 +84,17 @@ func (m *ManagedK8sPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgep
 	cli.Flavors = info.Flavors
 	vmsp, err := vmspec.GetVMSpec(ctx, *flavor, cli, nil)
 	if err != nil {
-		return err
+		return cleanupOnError, err
 	}
 	// create the cluster to run the platform
 	kconf := fmt.Sprintf("%s.%s.kubeconfig", cloudlet.Key.Name, "platform")
 	client := &pc.LocalClient{}
 	err = m.createClusterInstInternal(ctx, client, cloudletClusterName, kconf, 1, vmsp.FlavorName, updateCallback)
 	if err != nil {
-		return err
+		return cleanupOnError, err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet success")
-	return m.CreatePlatformApp(ctx, "crm-"+cloudletClusterName, kconf, accessApi, pfConfig)
+	return cleanupOnError, m.CreatePlatformApp(ctx, "crm-"+cloudletClusterName, kconf, accessApi, pfConfig)
 }
 
 func (m *ManagedK8sPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {

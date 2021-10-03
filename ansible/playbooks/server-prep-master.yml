@@ -18,14 +18,23 @@
       name: google-cloud-sdk
       state: present
     become: true
-   
+
+  - name: create gcp config dir
+    file:
+      state: directory
+      path: /root/.config/gcloud  
+    become: true
+
+
+ 
   # TODO: this should come from vault not a local file
   - name: upload gcp key
     copy:
        src: files/gcp_auth_key.json
-       dest: /home/ubuntu/.config/gcloud/application_default_credentials.json
-       owner: ubuntu
+       dest: /root/.config/gcloud/application_default_credentials.json
+       owner: root
        mode: 0600
+    become: true
 
   - name: active gcp service account
     shell: gcloud auth activate-service-account --key-file /home/ubuntu/.config/gcloud/application_default_credentials.json 
@@ -42,7 +51,7 @@
     become: true
 
   - name: apt autoremove
-    shell: apt-get autoremove
+    shell: apt-get autoremove -y
     become: true
 
   - name: install kubectl 

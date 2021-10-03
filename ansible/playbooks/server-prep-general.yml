@@ -4,6 +4,28 @@
   become: true
 
   tasks:
+
+  - name: Add Docker GPG key
+    apt_key:
+      url: https://download.docker.com/linux/ubuntu/gpg
+
+  - name: Add Docker apt repository
+    apt_repository:
+      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
+
+  - name: Install docker packages
+    package:
+      name: "{{ item }}"
+      state: present
+      update_cache: yes
+    with_items:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+      - docker-ce
+      - iptables-persistent
+
   - name: create ubuntu user
     user:
       name: ubuntu
@@ -19,9 +41,11 @@
        force: no
 
   - name: create authorized keys for ubuntu user
-    file:
-       name:  /home/ubuntu/.ssh/authorized_keys
+    file: 
+       path: /home/ubuntu/.ssh/authorized_keys
+       state: touch
        owner: ubuntu
+
 
   - name: add root auth keys to ubuntu user for ansible login
     shell: "cat /root/.ssh/authorized_keys >>  /home/ubuntu/.ssh/authorized_keys"
@@ -54,7 +78,6 @@
        path: /etc/sudoers
        regexp: '^%sudo\s+ALL'
        line: '%sudo   ALL=(ALL) NOPASSWD:ALL'
-
     
   - name: fetch keys
     shell: cat ~/.ssh/id_rsa.pub
@@ -77,11 +100,24 @@
   - name: apt update
     command: apt-get update
 
-  ## TODO: firstboot.json and configure interval
   - name: chef install
     apt:
        name: chef
- 
+
+  - name: update firstboot.json
+    copy:
+       src: files/firstboot.json
+       dest: /etc/chef/firstboot.json
+       owner: root
+       mode: 0644
+
+  #TODO: better fix for this
+  - name: update chef interval (workaround)
+    lineinfile:
+      path: /etc/init.d/chef-client
+      regexp: 'DAEMON_OPTS'
+      line: 'DAEMON_OPTS="-d -P $PIDFILE -c $CONFIG -i 10 -s $SPLAY"'  
+
   - name: get chef-client installer
     get_url:
       url: https://omnitruck.chef.io/install.sh 
@@ -94,26 +130,6 @@
   - name: check chef client
     shell: chef-client --chef-license accept --version
 
-  - name: Add Docker GPG key 
-    apt_key:
-      url: https://download.docker.com/linux/ubuntu/gpg
-
-  - name: Add Docker apt repository 
-    apt_repository:
-      repo: deb [arch=amd64] https://download.docker.com/linux/ubuntu bionic stable
-
-  - name: Install docker packages 
-    package:
-      name: "{{ item }}"
-      state: present
-      update_cache: yes
-    with_items:
-      - apt-transport-https
-      - ca-certificates
-      - curl
-      - software-properties-common
-      - docker-ce
-      - iptables-persistent
 
   handlers:
   - name: restart_sshd

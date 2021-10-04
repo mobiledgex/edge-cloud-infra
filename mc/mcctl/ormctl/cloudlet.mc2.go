@@ -354,7 +354,7 @@ var AddCloudletResMappingCmd = &ApiCommand{
 var RemoveCloudletResMappingCmd = &ApiCommand{
 	Name:         "RemoveCloudletResMapping",
 	Use:          "removeresmapping",
-	Short:        "Add Optional Resource tag table",
+	Short:        "Remove Optional Resource tag table",
 	RequiredArgs: "region " + strings.Join(CloudletResMapRequiredArgs, " "),
 	OptionalArgs: strings.Join(CloudletResMapOptionalArgs, " "),
 	AliasArgs:    strings.Join(CloudletResMapAliasArgs, " "),
@@ -363,6 +363,36 @@ var RemoveCloudletResMappingCmd = &ApiCommand{
 	ReqData:      &ormapi.RegionCloudletResMap{},
 	ReplyData:    &edgeproto.Result{},
 	Path:         "/auth/ctrl/RemoveCloudletResMapping",
+	ProtobufApi:  true,
+}
+
+var AddCloudletAllianceOrgCmd = &ApiCommand{
+	Name:         "AddCloudletAllianceOrg",
+	Use:          "addallianceorg",
+	Short:        "Add alliance organization to the cloudlet",
+	RequiredArgs: "region " + strings.Join(CloudletAllianceOrgRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletAllianceOrgOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAllianceOrgAliasArgs, " "),
+	SpecialArgs:  &CloudletAllianceOrgSpecialArgs,
+	Comments:     addRegionComment(CloudletAllianceOrgComments),
+	ReqData:      &ormapi.RegionCloudletAllianceOrg{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/AddCloudletAllianceOrg",
+	ProtobufApi:  true,
+}
+
+var RemoveCloudletAllianceOrgCmd = &ApiCommand{
+	Name:         "RemoveCloudletAllianceOrg",
+	Use:          "removeallianceorg",
+	Short:        "Remove alliance organization from the cloudlet",
+	RequiredArgs: "region " + strings.Join(CloudletAllianceOrgRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletAllianceOrgOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletAllianceOrgAliasArgs, " "),
+	SpecialArgs:  &CloudletAllianceOrgSpecialArgs,
+	Comments:     addRegionComment(CloudletAllianceOrgComments),
+	ReqData:      &ormapi.RegionCloudletAllianceOrg{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/RemoveCloudletAllianceOrg",
 	ProtobufApi:  true,
 }
 
@@ -455,6 +485,8 @@ var CloudletApiCmds = []*ApiCommand{
 	GetCloudletResourceUsageCmd,
 	AddCloudletResMappingCmd,
 	RemoveCloudletResMappingCmd,
+	AddCloudletAllianceOrgCmd,
+	RemoveCloudletAllianceOrgCmd,
 	FindFlavorMatchCmd,
 	ShowFlavorsForCloudletCmd,
 	GetOrganizationsOnCloudletCmd,
@@ -514,6 +546,7 @@ var CreateCloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var DeleteCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -561,6 +594,7 @@ var DeleteCloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var UpdateCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -597,6 +631,7 @@ var UpdateCloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var ShowCloudletRequiredArgs = []string{
 	"cloudlet-org",
@@ -644,6 +679,7 @@ var ShowCloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var GetCloudletPropsRequiredArgs = []string{
 	"platformtype",
@@ -905,6 +941,7 @@ var CloudletOptionalArgs = []string{
 	"gpuconfig.driver.organization",
 	"gpuconfig.properties",
 	"enabledefaultserverlesscluster",
+	"allianceorgs",
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
@@ -1000,27 +1037,28 @@ var CloudletAliasArgs = []string{
 	"gpuconfig.driver.organization=cloudlet.gpuconfig.driver.organization",
 	"gpuconfig.properties=cloudlet.gpuconfig.properties",
 	"enabledefaultserverlesscluster=cloudlet.enabledefaultserverlesscluster",
+	"allianceorgs=cloudlet.allianceorgs",
 }
 var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
 	"cloudlet-org":                        "Organization of the cloudlet site",
 	"cloudlet":                            "Name of the cloudlet",
-	"location.latitude":                   "latitude in WGS 84 coordinates",
-	"location.longitude":                  "longitude in WGS 84 coordinates",
-	"location.horizontalaccuracy":         "horizontal accuracy (radius in meters)",
-	"location.verticalaccuracy":           "vertical accuracy (meters)",
-	"location.altitude":                   "On android only lat and long are guaranteed to be supplied altitude in meters",
-	"location.course":                     "course (IOS) / bearing (Android) (degrees east relative to true north)",
-	"location.speed":                      "speed (IOS) / velocity (Android) (meters/sec)",
+	"location.latitude":                   "Latitude in WGS 84 coordinates",
+	"location.longitude":                  "Longitude in WGS 84 coordinates",
+	"location.horizontalaccuracy":         "Horizontal accuracy (radius in meters)",
+	"location.verticalaccuracy":           "Vertical accuracy (meters)",
+	"location.altitude":                   "On android only lat and long are guaranteed to be supplied Altitude in meters",
+	"location.course":                     "Course (IOS) / bearing (Android) (degrees east relative to true north)",
+	"location.speed":                      "Speed (IOS) / velocity (Android) (meters/sec)",
 	"ipsupport":                           "Type of IP support provided by Cloudlet (see IpSupport), one of Unknown, Static, Dynamic",
 	"staticips":                           "List of static IPs for static IP support",
 	"numdynamicips":                       "Number of dynamic IPs available for dynamic IP support",
-	"timelimits.createclusterinsttimeout": "override default max time to create a cluster instance (duration)",
-	"timelimits.updateclusterinsttimeout": "override default max time to update a cluster instance (duration)",
-	"timelimits.deleteclusterinsttimeout": "override default max time to delete a cluster instance (duration)",
-	"timelimits.createappinsttimeout":     "override default max time to create an app instance (duration)",
-	"timelimits.updateappinsttimeout":     "override default max time to update an app instance (duration)",
-	"timelimits.deleteappinsttimeout":     "override default max time to delete an app instance (duration)",
+	"timelimits.createclusterinsttimeout": "Override default max time to create a cluster instance (duration)",
+	"timelimits.updateclusterinsttimeout": "Override default max time to update a cluster instance (duration)",
+	"timelimits.deleteclusterinsttimeout": "Override default max time to delete a cluster instance (duration)",
+	"timelimits.createappinsttimeout":     "Override default max time to create an app instance (duration)",
+	"timelimits.updateappinsttimeout":     "Override default max time to update an app instance (duration)",
+	"timelimits.deleteappinsttimeout":     "Override default max time to delete an app instance (duration)",
 	"errors":                              "Any errors trying to create, update, or delete the Cloudlet., specify errors:empty=true to clear",
 	"state":                               "Current state of the cloudlet, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"crmoverride":                         "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
@@ -1074,17 +1112,19 @@ var CloudletComments = map[string]string{
 	"resourcequotas:#.value":              "Quota value of the resource",
 	"resourcequotas:#.alertthreshold":     "Generate alert when more than threshold percentage of resource is used",
 	"defaultresourcealertthreshold":       "Default resource alert threshold percentage",
-	"hostcontroller":                      "Addr of the controller hosting the cloudlet services if it is running locally",
-	"kafkacluster":                        "operator provided kafka cluster endpoint to push events to",
-	"kafkauser":                           "username for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
-	"kafkapassword":                       "password for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
+	"hostcontroller":                      "Address of the controller hosting the cloudlet services if it is running locally",
+	"kafkacluster":                        "Operator provided kafka cluster endpoint to push events to",
+	"kafkauser":                           "Username for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
+	"kafkapassword":                       "Password for kafka SASL/PLAIN authentification, stored securely in secret storage and never visible externally",
 	"gpuconfig.driver.name":               "Name of the driver",
 	"gpuconfig.driver.organization":       "Organization to which the driver belongs to",
 	"gpuconfig.properties":                "Properties to identify specifics of GPU, specify gpuconfig.properties:empty=true to clear",
 	"enabledefaultserverlesscluster":      "Enable experimental default multitenant (serverless) cluster",
+	"allianceorgs":                        "This cloudlet will be treated as directly connected to these additional operator organizations for the purposes of FindCloudlet, specify allianceorgs:empty=true to clear",
 }
 var CloudletSpecialArgs = map[string]string{
 	"cloudlet.accessvars":           "StringToString",
+	"cloudlet.allianceorgs":         "StringArray",
 	"cloudlet.chefclientkey":        "StringToString",
 	"cloudlet.config.envvar":        "StringToString",
 	"cloudlet.envvar":               "StringToString",
@@ -1222,6 +1262,23 @@ var CloudletResourceUsageComments = map[string]string{
 	"info:#.alertthreshold": "Generate alert when more than threshold percentage of resource is used",
 }
 var CloudletResourceUsageSpecialArgs = map[string]string{}
+var CloudletAllianceOrgRequiredArgs = []string{
+	"cloudlet-org",
+	"cloudlet",
+	"organization",
+}
+var CloudletAllianceOrgOptionalArgs = []string{}
+var CloudletAllianceOrgAliasArgs = []string{
+	"cloudlet-org=cloudletallianceorg.key.organization",
+	"cloudlet=cloudletallianceorg.key.name",
+	"organization=cloudletallianceorg.organization",
+}
+var CloudletAllianceOrgComments = map[string]string{
+	"cloudlet-org": "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
+	"organization": "Alliance organization",
+}
+var CloudletAllianceOrgSpecialArgs = map[string]string{}
 var CloudletInfoRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",

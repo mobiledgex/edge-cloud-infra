@@ -135,6 +135,7 @@ type VMRequestSpec struct {
 	OptionalResource        string
 	AccessKey               string
 	AdditionalNetworks      map[string]NetworkType
+	Routes                  map[string][]edgeproto.Route
 	VmAppOsType             edgeproto.VmAppOsType
 }
 
@@ -223,6 +224,12 @@ func WithAccessKey(accessKey string) VMReqOp {
 func WithAdditionalNetworks(networks map[string]NetworkType) VMReqOp {
 	return func(s *VMRequestSpec) error {
 		s.AdditionalNetworks = networks
+		return nil
+	}
+}
+func WithRoutes(routes map[string][]edgeproto.Route) VMReqOp {
+	return func(s *VMRequestSpec) error {
+		s.Routes = routes
 		return nil
 	}
 }
@@ -482,6 +489,7 @@ type VMOrchestrationParams struct {
 	AttachExternalDisk      bool
 	CloudConfigParams       VMCloudConfigParams
 	VmAppOsType             edgeproto.VmAppOsType
+	Routes                  map[string][]edgeproto.Route // map of network name to routes
 }
 
 var (
@@ -984,6 +992,7 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				Command:                 vm.Command,
 				ComputeAvailabilityZone: computeAZ,
 				CloudConfigParams:       vccp,
+				Routes:                  vm.Routes,
 			}
 			if vm.ExternalVolumeSize > 0 {
 				externalVolume := VolumeOrchestrationParams{

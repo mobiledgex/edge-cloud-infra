@@ -304,6 +304,8 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb {
 				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
 			}
+			// find routes to add
+
 		}
 	case vmlayer.RoleK8sNode:
 		fallthrough
@@ -328,7 +330,7 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 		// Multiple GWs cause unpredictable behavior depending on the order they are processed. Since the timing
 		// may sometimes be unpredictable, remove also from the netplan file
 		log.SpanLog(ctx, log.DebugLevelInfra, "removing extra default gw from VM", "vm", vm.VM.Name, "gw", gw)
-		vmparams.CloudConfigParams.ExtraBootCommands = append(vmparams.CloudConfigParams.ExtraBootCommands, "route del default gw "+gw)
+		vmparams.CloudConfigParams.ExtraBootCommands = append(vmparams.CloudConfigParams.ExtraBootCommands, "ip route del default via "+gw)
 		netplanFile := "/etc/netplan/99-netcfg-vmware.yaml"
 		removeGwFromNetplan := fmt.Sprintf("sed -i /gateway4:.%s/d %s", gw, netplanFile)
 		vmparams.CloudConfigParams.ExtraBootCommands = append(vmparams.CloudConfigParams.ExtraBootCommands, removeGwFromNetplan)

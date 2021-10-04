@@ -205,20 +205,21 @@ func (v *VMPlatform) GetChefPlatformApiAccess(ctx context.Context, cloudlet *edg
 
 func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, pfFlavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
 	var err error
-	cloudletResourcesCreated := false
+	cleanupOnError := false
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "Creating cloudlet", "cloudletName", cloudlet.Key.Name)
 
 	if !pfConfig.TestMode {
 		err = v.VMProperties.CommonPf.InitCloudletSSHKeys(ctx, accessApi)
 		if err != nil {
-			return cloudletResourcesCreated, err
+			return cleanupOnError, err
 		}
 	}
 	v.VMProperties.Domain = VMDomainPlatform
 	pc := infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
 	err = v.InitProps(ctx, pc)
 	if err != nil {
-		return cloudletResourcesCreated, err
+		return cleanupOnError, err
 	}
 
 	v.VMProvider.InitData(ctx, caches)
@@ -233,14 +234,16 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	log.SpanLog(ctx, log.DebugLevelInfra, "Sourcing access variables", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
 	err = v.VMProvider.InitApiAccessProperties(ctx, accessApi, cloudlet.EnvVar, stage)
 	if err != nil {
-		return cloudletResourcesCreated, err
+		return cleanupOnError, err
 	}
+	// once we have gotten API access, we need cleanup on a failure
+	cleanupOnError = true
 
 	// edge-cloud image already contains the certs
 	if pfConfig.TlsCertFile != "" {
 		crtFile, err := infracommon.GetDockerCrtFile(pfConfig.TlsCertFile)
 		if err != nil {
-			return cloudletResourcesCreated, err
+			return cleanupOnError, err
 		}
 		pfConfig.TlsCertFile = crtFile
 	}
@@ -267,31 +270,28 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
 	if err != nil {
-		return cloudletResourcesCreated, err
+		return cleanupOnError, err
 	}
-	// once we get this far we should ensure delete succeeds on a failure
-	cloudletResourcesCreated = true
-
 	var result OperationInitResult
 	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
-		return cloudletResourcesCreated, err
+		return cleanupOnError, err
 	}
 	if result == OperationNewlyInitialized {
 		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 	}
 	chefApi, err := v.GetChefPlatformApiAccess(ctx, cloudlet)
 	if err != nil {
-		return cloudletResourcesCreated, err
+		return cleanupOnError, err
 	}
 	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, cloudcommon.VMTypePlatform, chefApi)
 	if err != nil {
-		return cloudletResourcesCreated, err
+		return cleanupOnError, err
 	}
 
 	chefClient := v.VMProperties.GetChefClient()
 	if chefClient == nil {
-		return cloudletResourcesCreated, fmt.Errorf("Chef client is not initialized")
+		return cleanupOnError, fmt.Errorf("Chef client is not initialized")
 	}
 
 	chefPolicy := chefmgmt.ChefPolicyDocker
@@ -307,21 +307,21 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 			chefParams := v.GetServerChefParams(clientName, "", chefPolicy, chefAttributes)
 			clientKey, err := chefmgmt.ChefClientCreate(ctx, chefClient, chefParams)
 			if err != nil {
-				return cloudletResourcesCreated, err
+				return cleanupOnError, err
 			}
 			// Store client key in cloudlet obj
 			cloudlet.ChefClientKey[clientName] = clientKey
 		}
 		// Return, as end-user will setup the platform VM
-		return cloudletResourcesCreated, nil
+		return cleanupOnError, nil
 	}
 
 	err = v.SetupPlatformVM(ctx, accessApi, cloudlet, pfConfig, pfFlavor, updateCallback)
 	if err != nil {
-		return cloudletResourcesCreated, err
+		return cleanupOnError, err
 	}
 
-	return cloudletResourcesCreated, chefmgmt.GetChefRunStatus(ctx, chefClient, v.GetChefClientNameForCloudlet(cloudlet), cloudlet, pfConfig, accessApi, updateCallback)
+	return cleanupOnError, chefmgmt.GetChefRunStatus(ctx, chefClient, v.GetChefClientNameForCloudlet(cloudlet), cloudlet, pfConfig, accessApi, updateCallback)
 }
 
 func (v *VMPlatform) GetRestrictedCloudletStatus(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {

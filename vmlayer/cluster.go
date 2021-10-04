@@ -441,7 +441,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		log.SpanLog(ctx, log.DebugLevelInfra, "new dedicated rootLB", "IpAccess", clusterInst.IpAccess)
 		updateCallback(edgeproto.UpdateTask, "Setting Up Root LB")
 		TrustPolicy := edgeproto.TrustPolicy{}
-		err := v.SetupRootLB(ctx, rootLBName, rootLBName, &clusterInst.Key.CloudletKey, &TrustPolicy, false, updateCallback)
+		err := v.SetupRootLB(ctx, rootLBName, rootLBName, &clusterInst.Key.CloudletKey, &TrustPolicy, updateCallback)
 		if err != nil {
 			return err
 		}
@@ -506,6 +506,42 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		proxycerts.SetupTLSCerts(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 	}
+
+	for _, vmp := range vmgp.VMs {
+		if len(vmp.Routes) == 0 {
+			continue
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "Adding additional route", "vm", vmp.Name)
+		if vmp.Role != RoleAgent {
+			nodeIp, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), vmp.Name)
+			if err != nil {
+				return err
+			}
+			nodeClient, err := client.AddHop(nodeIp.ExternalAddr, 22)
+			if err != nil {
+				return err
+			}
+			for netname, rs := range vmp.Routes {
+				routeNetIp, err := v.GetIPFromServerName(ctx, netname, "", vmp.Name)
+				if err != nil {
+					return fmt.Errorf("Unable to find IP for network - %s", netname)
+				}
+				for _, r := range rs {
+					interfaceName := v.GetInterfaceNameForMac(ctx, nodeClient, routeNetIp.MacAddress)
+					if interfaceName == "" {
+						log.SpanLog(ctx, log.DebugLevelInfra, "Unable to find interface name", "nodeIp", nodeIp)
+						return fmt.Errorf("Unable to find interface name for mac - %s", nodeIp.MacAddress)
+					}
+					err = v.VMProperties.AddRouteToServer(ctx, nodeClient, vmp.Name, r.DestinationCidr, r.NextHopIp, interfaceName)
+					if err != nil {
+						return fmt.Errorf("failed to AddRouteToServer for VM: %s network: %s -  %v", vmp.Name, netname, err)
+					}
+				}
+			}
+		}
+
+	}
+
 	log.SpanLog(ctx, log.DebugLevelInfra, "created cluster")
 	return nil
 }
@@ -661,7 +697,7 @@ func (v *VMPlatform) GetChefClusterTags(key *edgeproto.ClusterInstKey, vmType st
 	}
 }
 
-func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, action ActionType, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, string, string, error) {
+func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, action ActionType, lbNets, nodeNets map[string]NetworkType, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, string, string, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfo, "getVMRequestSpecForDockerCluster", "clusterInst", clusterInst)
 
@@ -672,7 +708,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		tags := v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeRootLB)
-		rootlb, err := v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, updateCallback)
+		rootlb, err := v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, lbNets, updateCallback)
 		if err != nil {
 			return vms, newSubnetName, newSecgrpName, err
 		}
@@ -708,6 +744,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		WithChefParams(chefParams),
 		WithOptionalResource(clusterInst.OptRes),
 		WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
+		WithAdditionalNetworks(nodeNets),
 	)
 	if err != nil {
 		return vms, newSubnetName, newSecgrpName, err
@@ -731,20 +768,26 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 	}
 	lbNets := make(map[string]NetworkType)
 	nodeNets := make(map[string]NetworkType)
+	lbRoutes := make(map[string][]edgeproto.Route)
+	nodeRoutes := make(map[string][]edgeproto.Route)
 	for _, n := range networks {
 		switch n.ConnectionType {
 		case edgeproto.NetworkConnectionType_CONNECT_TO_LOAD_BALANCER:
 			lbNets[n.Key.Name] = NetworkTypeExternalAdditionalRootLb
+			lbRoutes[n.Key.Name] = append(lbRoutes[n.Key.Name], n.Routes...)
 		case edgeproto.NetworkConnectionType_CONNECT_TO_CLUSTER_NODES:
 			nodeNets[n.Key.Name] = NetworkTypeExternalAdditionalClusterNode
+			nodeRoutes[n.Key.Name] = append(nodeRoutes[n.Key.Name], n.Routes...)
 		case edgeproto.NetworkConnectionType_CONNECT_TO_ALL:
 			lbNets[n.Key.Name] = NetworkTypeExternalAdditionalRootLb
 			nodeNets[n.Key.Name] = NetworkTypeExternalAdditionalClusterNode
+			lbRoutes[n.Key.Name] = append(lbRoutes[n.Key.Name], n.Routes...)
+			nodeRoutes[n.Key.Name] = append(nodeRoutes[n.Key.Name], n.Routes...)
 		}
 	}
 
 	if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
-		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, action, updateCallback)
+		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, action, lbNets, nodeNets, updateCallback)
 		if err != nil {
 			return nil, err
 		}
@@ -758,7 +801,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			// dedicated for docker means the docker VM acts as its own rootLB
 			tags := v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeRootLB)
-			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, updateCallback)
+			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, lbNets, updateCallback)
 			if err != nil {
 				return nil, err
 			}
@@ -821,6 +864,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 				WithChefParams(chefParams),
 				WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
 				WithAdditionalNetworks(nodeNets),
+				WithRoutes(nodeRoutes),
 			)
 			if err != nil {
 				return nil, err

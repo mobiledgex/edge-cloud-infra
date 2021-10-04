@@ -8,8 +8,8 @@
     image: "{{ edge_cloud_image }}-notifyroot:{{ edge_cloud_version }}"
     restart_policy: unless-stopped
     network_mode: host
+    entrypoint: notifyroot
     command:
-      - notifyroot
       - "--commonName"
       - "{{ inventory_hostname }}"
       - "--notifyAddr"

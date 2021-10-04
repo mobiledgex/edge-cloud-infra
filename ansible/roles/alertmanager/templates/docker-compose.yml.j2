@@ -19,8 +19,8 @@ services:
     container_name: {{ sidecar_container }}
     image: {{ edge_cloud_image }}-alertmgr-sidecar:{{ edge_cloud_version }}
     restart: always
+    entrypoint: alertmgr-sidecar
     command:
-      - "alertmgr-sidecar"
       - "--httpAddr"
       - "0.0.0.0:9094"
       - "--alertmgrAddr"

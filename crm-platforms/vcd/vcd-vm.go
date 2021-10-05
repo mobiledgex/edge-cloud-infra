@@ -301,7 +301,7 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 	case vmlayer.RoleAgent:
 		for netname, netinfo := range netMap {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
-			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb {
+			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalClusterNode {
 				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
 			}
 			// find routes to add
@@ -317,15 +317,6 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 			}
 		}
 	}
-	if vmparams.Role == vmlayer.RoleAgent {
-		for netname, netinfo := range netMap {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
-			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalClusterNode {
-				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
-			}
-		}
-	}
-
 	for _, gw := range gwsToRemove {
 		// Multiple GWs cause unpredictable behavior depending on the order they are processed. Since the timing
 		// may sometimes be unpredictable, remove also from the netplan file

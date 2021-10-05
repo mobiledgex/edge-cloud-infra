@@ -512,34 +512,34 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 			continue
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "Adding additional route", "vm", vmp.Name)
+		vmClient := client
 		if vmp.Role != RoleAgent {
 			nodeIp, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), vmp.Name)
 			if err != nil {
 				return err
 			}
-			nodeClient, err := client.AddHop(nodeIp.ExternalAddr, 22)
+			vmClient, err = client.AddHop(nodeIp.ExternalAddr, 22)
 			if err != nil {
 				return err
 			}
-			for netname, rs := range vmp.Routes {
-				routeNetIp, err := v.GetIPFromServerName(ctx, netname, "", vmp.Name)
-				if err != nil {
-					return fmt.Errorf("Unable to find IP for network - %s", netname)
+		}
+		for netname, rs := range vmp.Routes {
+			routeNetIp, err := v.GetIPFromServerName(ctx, netname, "", vmp.Name)
+			if err != nil {
+				return fmt.Errorf("Unable to find IP for network - %s", netname)
+			}
+			for _, r := range rs {
+				interfaceName := v.GetInterfaceNameForMac(ctx, vmClient, routeNetIp.MacAddress)
+				if interfaceName == "" {
+					log.SpanLog(ctx, log.DebugLevelInfra, "Unable to find interface name", "routeNetIp", routeNetIp)
+					return fmt.Errorf("Unable to find interface name for mac - %s", routeNetIp.MacAddress)
 				}
-				for _, r := range rs {
-					interfaceName := v.GetInterfaceNameForMac(ctx, nodeClient, routeNetIp.MacAddress)
-					if interfaceName == "" {
-						log.SpanLog(ctx, log.DebugLevelInfra, "Unable to find interface name", "nodeIp", nodeIp)
-						return fmt.Errorf("Unable to find interface name for mac - %s", nodeIp.MacAddress)
-					}
-					err = v.VMProperties.AddRouteToServer(ctx, nodeClient, vmp.Name, r.DestinationCidr, r.NextHopIp, interfaceName)
-					if err != nil {
-						return fmt.Errorf("failed to AddRouteToServer for VM: %s network: %s -  %v", vmp.Name, netname, err)
-					}
+				err = v.VMProperties.AddRouteToServer(ctx, vmClient, vmp.Name, r.DestinationCidr, r.NextHopIp, interfaceName)
+				if err != nil {
+					return fmt.Errorf("failed to AddRouteToServer for VM: %s network: %s -  %v", vmp.Name, netname, err)
 				}
 			}
 		}
-
 	}
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "created cluster")
@@ -697,7 +697,7 @@ func (v *VMPlatform) GetChefClusterTags(key *edgeproto.ClusterInstKey, vmType st
 	}
 }
 
-func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, action ActionType, lbNets, nodeNets map[string]NetworkType, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, string, string, error) {
+func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgName string, clusterInst *edgeproto.ClusterInst, action ActionType, lbNets, nodeNets map[string]NetworkType, lbRoutes, nodeRoutes map[string][]edgeproto.Route, updateCallback edgeproto.CacheUpdateCallback) ([]*VMRequestSpec, string, string, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfo, "getVMRequestSpecForDockerCluster", "clusterInst", clusterInst)
 
@@ -708,7 +708,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 		tags := v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeRootLB)
-		rootlb, err := v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, lbNets, updateCallback)
+		rootlb, err := v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, lbNets, lbRoutes, updateCallback)
 		if err != nil {
 			return vms, newSubnetName, newSecgrpName, err
 		}
@@ -745,6 +745,7 @@ func (v *VMPlatform) getVMRequestSpecForDockerCluster(ctx context.Context, imgNa
 		WithOptionalResource(clusterInst.OptRes),
 		WithComputeAvailabilityZone(clusterInst.AvailabilityZone),
 		WithAdditionalNetworks(nodeNets),
+		WithRoutes(nodeRoutes),
 	)
 	if err != nil {
 		return vms, newSubnetName, newSecgrpName, err
@@ -787,7 +788,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 	}
 
 	if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
-		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, action, lbNets, nodeNets, updateCallback)
+		vms, newSubnetName, newSecgrpName, err = v.getVMRequestSpecForDockerCluster(ctx, imgName, clusterInst, action, lbNets, nodeNets, lbRoutes, nodeRoutes, updateCallback)
 		if err != nil {
 			return nil, err
 		}
@@ -801,7 +802,7 @@ func (v *VMPlatform) PerformOrchestrationForCluster(ctx context.Context, imgName
 		if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
 			// dedicated for docker means the docker VM acts as its own rootLB
 			tags := v.GetChefClusterTags(&clusterInst.Key, cloudcommon.VMTypeRootLB)
-			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, lbNets, updateCallback)
+			rootlb, err = v.GetVMSpecForRootLB(ctx, v.VMProperties.GetRootLBNameForCluster(ctx, clusterInst), newSubnetName, tags, lbNets, lbRoutes, updateCallback)
 			if err != nil {
 				return nil, err
 			}

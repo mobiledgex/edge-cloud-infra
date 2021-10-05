@@ -323,7 +323,7 @@ func (v *VMPlatform) GetDefaultRootLBFlavor(ctx context.Context) (*edgeproto.Fla
 
 // GetVMSpecForRootLB gets the VM spec for the rootLB when it is not specified within a cluster. This is
 // used for Shared RootLb and for VM app based RootLb
-func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, subnetConnect string, tags []string, addNets map[string]NetworkType, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
+func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, subnetConnect string, tags []string, addNets map[string]NetworkType, addRoutes map[string][]edgeproto.Route, updateCallback edgeproto.CacheUpdateCallback) (*VMRequestSpec, error) {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetVMSpecForRootLB", "rootLbName", rootLbName)
 
@@ -380,7 +380,8 @@ func (v *VMPlatform) GetVMSpecForRootLB(ctx context.Context, rootLbName string, 
 		WithExternalVolume(spec.ExternalVolumeSize),
 		WithSubnetConnection(subnetConnect),
 		WithChefParams(chefParams),
-		WithAdditionalNetworks(addNets))
+		WithAdditionalNetworks(addNets),
+		WithRoutes(addRoutes))
 }
 
 // GetVMSpecForRootLBPorts get a vmspec for the purpose of creating new ports to the specified subnet
@@ -417,7 +418,8 @@ func (v *VMPlatform) CreateRootLB(
 		}
 	}
 	nets := make(map[string]NetworkType)
-	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLBName, "", tags, nets, updateCallback)
+	routes := make(map[string][]edgeproto.Route)
+	vmreq, err := v.GetVMSpecForRootLB(ctx, rootLBName, "", tags, nets, routes, updateCallback)
 	if err != nil {
 		return err
 	}

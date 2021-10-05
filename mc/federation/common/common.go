@@ -14,7 +14,9 @@ const (
 )
 
 var (
+	// Used just for querying
 	RoleAny FederatorRole = "*"
+
 	// Partner federator can share zones with self federator
 	RoleShareZonesWithSelf FederatorRole = "share-zones-with-self"
 	// Partner federator can access zones of self federator

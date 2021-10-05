@@ -42,8 +42,8 @@ func GetFederationClients(ctx context.Context, database *gorm.DB, region, operat
 	if region == "" {
 		return nil, fmt.Errorf("no region specified")
 	}
-	// NOTE: This client will abstract actions on partner federator's edge infra.
-	//       Hence, consider region as CountryCode
+	// This client will abstract actions on partner federator's edge
+	// infra. Hence, consider region as CountryCode
 	partnerFed := ormapi.Federator{
 		OperatorId:  operator,
 		CountryCode: region,
@@ -68,7 +68,7 @@ func GetFederationClients(ctx context.Context, database *gorm.DB, region, operat
 			PartnerCountryCode: partnerFed.CountryCode,
 			PartnerRole:        fedcommon.RoleShareZonesWithSelf,
 		}
-		// There can only be one partner federator who can shares zones with MC,
+		// There can only be one partner federator who can share zones with MC,
 		// this is enforced during addition of partner federation
 		res := db.Where(&partnerFederation).First(&partnerFederation)
 		if res.RecordNotFound() {

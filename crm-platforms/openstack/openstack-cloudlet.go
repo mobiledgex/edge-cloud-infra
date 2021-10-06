@@ -165,19 +165,44 @@ func (o *OpenstackPlatform) GetCloudletManifest(ctx context.Context, name string
 }
 
 func (o *OpenstackPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error) {
-
+	osLimits, err := o.OSGetAllLimits(ctx)
+	if err != nil {
+		return nil, err
+	}
 	ramUsed := uint64(0)
-	ramMax := uint64(999999)
+	ramMax := uint64(0)
 	vcpusUsed := uint64(0)
-	vcpusMax := uint64(200)
+	vcpusMax := uint64(0)
 	instancesUsed := uint64(0)
-	instancesMax := uint64(2000)
+	instancesMax := uint64(0)
 	fipsUsed := uint64(0)
-	fipsMax := uint64(20)
-
+	fipsMax := uint64(0)
+	for _, l := range osLimits {
+		switch l.Name {
+		case "totalRAMUsed":
+			ramUsed = uint64(l.Value)
+		case "maxTotalRAMSize":
+			ramMax = uint64(l.Value)
+		case "totalCoresUsed":
+			vcpusUsed = uint64(l.Value)
+		case "maxTotalCores":
+			vcpusMax = uint64(l.Value)
+		case "totalInstancesUsed":
+			instancesUsed = uint64(l.Value)
+		case "maxTotalInstances":
+			instancesMax = uint64(l.Value)
+		case "totalFloatingIpsUsed":
+			fipsUsed = uint64(l.Value)
+		case "maxTotalFloatingIps":
+			fipsMax = uint64(l.Value)
+		}
+	}
 	// Get external IP usage
 	pfRes := vmlayer.PlatformResources{}
-
+	err = o.addIpUsageDetails(ctx, &pfRes)
+	if err != nil {
+		return nil, err
+	}
 	resInfo := []edgeproto.InfraResource{
 		edgeproto.InfraResource{
 			Name:          cloudcommon.ResourceRamMb,

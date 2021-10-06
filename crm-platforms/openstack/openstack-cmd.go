@@ -580,6 +580,8 @@ func (s *OpenstackPlatform) RemoveRouterSubnet(ctx context.Context, routerName, 
 func (s *OpenstackPlatform) ListSubnets(ctx context.Context, netName string) ([]OSSubnet, error) {
 	var err error
 	var out []byte
+	subnets := []OSSubnet{}
+
 	if netName != "" {
 		out, err = s.TimedOpenStackCommand(ctx, "openstack", "subnet", "list", "--network", netName, "-f", "json")
 	} else {
@@ -587,13 +589,12 @@ func (s *OpenstackPlatform) ListSubnets(ctx context.Context, netName string) ([]
 	}
 	if err != nil {
 		err = fmt.Errorf("can't get a list of subnets, %s, %v", out, err)
-		return nil, err
+		return subnets, err
 	}
-	subnets := []OSSubnet{}
 	err = json.Unmarshal(out, &subnets)
 	if err != nil {
 		err = fmt.Errorf("can't unmarshal subnets, %v", err)
-		return nil, err
+		return subnets, err
 	}
 	//log.SpanLog(ctx,log.DebugLevelInfra, "list subnets", "subnets", subnets)
 	return subnets, nil
@@ -848,26 +849,10 @@ func (s *OpenstackPlatform) getHeatStackTemplateDetail(ctx context.Context, stac
 // Get resource limits
 func (s *OpenstackPlatform) OSGetLimits(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetLimits (Openstack) - Resources info & Supported flavors")
-	var limits []OSLimit
-	out, err := s.TimedOpenStackCommand(ctx, "openstack", "limits", "show", "--absolute", "-f", "json")
-	if err != nil {
-		err = fmt.Errorf("cannot get limits from openstack, %s, %v", out, err)
-		return err
-	}
-	err = json.Unmarshal(out, &limits)
-	if err != nil {
-		err = fmt.Errorf("cannot unmarshal, %v", err)
-		return err
-	}
-	for _, l := range limits {
-		if l.Name == "maxTotalRAMSize" {
-			info.OsMaxRam = uint64(l.Value)
-		} else if l.Name == "maxTotalCores" {
-			info.OsMaxVcores = uint64(l.Value)
-		} else if l.Name == "maxTotalVolumeGigabytes" {
-			info.OsMaxVolGb = uint64(l.Value)
-		}
-	}
+
+	info.OsMaxRam = uint64(240960)
+	info.OsMaxVcores = uint64(200)
+	info.OsMaxVolGb = uint64(2000)
 
 	finfo, _, _, err := s.GetFlavorInfo(ctx)
 	if err != nil {

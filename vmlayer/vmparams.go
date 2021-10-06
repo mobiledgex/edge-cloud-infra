@@ -346,16 +346,17 @@ type FixedIPOrchestrationParams struct {
 }
 
 type PortOrchestrationParams struct {
-	Name           string
-	Id             string
-	SubnetId       string
-	NetworkName    string
-	NetworkId      string
-	NetType        NetworkType
-	VnicType       string
-	SkipAttachVM   bool
-	FixedIPs       []FixedIPOrchestrationParams
-	SecurityGroups []ResourceReference
+	Name                        string
+	Id                          string
+	SubnetId                    string
+	NetworkName                 string
+	NetworkId                   string
+	NetType                     NetworkType
+	VnicType                    string
+	SkipAttachVM                bool
+	FixedIPs                    []FixedIPOrchestrationParams
+	SecurityGroups              []ResourceReference
+	IsAdditionalExternalNetwork bool
 }
 
 type FloatingIPOrchestrationParams struct {
@@ -917,15 +918,17 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			if spec.NewSecgrpName == "" {
 				return nil, fmt.Errorf("external network specified with no security group: %s", vm.Name)
 			}
+			isAdditionalExternal := netType != NetworkTypeExternalPrimary
 			var externalport PortOrchestrationParams
 			if vmgp.Netspec.FloatingIPNet != "" {
 				externalport = PortOrchestrationParams{
-					Name:        portName,
-					Id:          v.VMProvider.NameSanitize(portName),
-					NetworkName: vmgp.Netspec.FloatingIPNet,
-					NetworkId:   v.VMProvider.NameSanitize(vmgp.Netspec.FloatingIPNet),
-					VnicType:    vmgp.Netspec.VnicType,
-					NetType:     netType,
+					Name:                        portName,
+					Id:                          v.VMProvider.NameSanitize(portName),
+					NetworkName:                 vmgp.Netspec.FloatingIPNet,
+					NetworkId:                   v.VMProvider.NameSanitize(vmgp.Netspec.FloatingIPNet),
+					VnicType:                    vmgp.Netspec.VnicType,
+					NetType:                     netType,
+					IsAdditionalExternalNetwork: isAdditionalExternal,
 				}
 				fip := FloatingIPOrchestrationParams{
 					Name:         portName + "-fip",
@@ -941,12 +944,13 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 
 			} else {
 				externalport = PortOrchestrationParams{
-					Name:        portName,
-					Id:          v.VMProvider.IdSanitize(portName),
-					NetworkName: netName,
-					NetworkId:   v.VMProvider.IdSanitize(netName),
-					VnicType:    vmgp.Netspec.VnicType,
-					NetType:     netType,
+					Name:                        portName,
+					Id:                          v.VMProvider.IdSanitize(portName),
+					NetworkName:                 netName,
+					NetworkId:                   v.VMProvider.IdSanitize(netName),
+					VnicType:                    vmgp.Netspec.VnicType,
+					NetType:                     netType,
+					IsAdditionalExternalNetwork: isAdditionalExternal,
 				}
 			}
 			externalport.SecurityGroups = []ResourceReference{

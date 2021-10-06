@@ -238,9 +238,8 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 		arg.OrgField = "apporg"
 		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
 	} else {
-		arg.OrgField = "cloudletorg"
+		arg.OrgField = "foundOperator"
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
-		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
 	if obj.CellId != 0 {
 		arg.CellId = strconv.FormatUint(uint64(obj.CellId), 10)

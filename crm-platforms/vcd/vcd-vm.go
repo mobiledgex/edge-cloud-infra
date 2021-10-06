@@ -304,8 +304,6 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalClusterNode {
 				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
 			}
-			// find routes to add
-
 		}
 	case vmlayer.RoleK8sNode:
 		fallthrough

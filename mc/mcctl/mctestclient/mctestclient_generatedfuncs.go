@@ -1959,22 +1959,6 @@ func (s *Client) DeleteSelfFederator(uri string, token string, in *ormapi.Federa
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) ShowSelfFederator(uri string, token string, in *ormapi.FederatorRequest) ([]ormapi.FederatorRequest, int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	rundata.In = in
-	var out []ormapi.FederatorRequest
-	rundata.Out = &out
-
-	apiCmd := ormctl.MustGetCommand("ShowSelfFederator")
-	s.ClientRun.Run(apiCmd, &rundata)
-	if rundata.RetError != nil {
-		return nil, rundata.RetStatus, rundata.RetError
-	}
-	return out, rundata.RetStatus, rundata.RetError
-}
-
 func (s *Client) CreatePartnerFederator(uri string, token string, in *ormapi.FederatorRequest) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
@@ -2007,7 +1991,7 @@ func (s *Client) DeletePartnerFederator(uri string, token string, in *ormapi.Fed
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) ShowPartnerFederator(uri string, token string, in *ormapi.FederatorRequest) ([]ormapi.FederatorRequest, int, error) {
+func (s *Client) ShowFederator(uri string, token string, in *ormapi.FederatorRequest) ([]ormapi.FederatorRequest, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -2015,7 +1999,7 @@ func (s *Client) ShowPartnerFederator(uri string, token string, in *ormapi.Feder
 	var out []ormapi.FederatorRequest
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("ShowPartnerFederator")
+	apiCmd := ormctl.MustGetCommand("ShowFederator")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError

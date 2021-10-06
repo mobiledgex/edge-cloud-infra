@@ -122,7 +122,7 @@ func (p *PartnerApi) ValidateWithRoleAndGetFederatorInfo(ctx context.Context, or
 		PartnerCountryCode: origCountryCode,
 		PartnerRole:        role,
 	}
-	res := db.Where(&partnerFederation).First(nil)
+	res := db.Where(&partnerFederation).First(&partnerFederation)
 	if !res.RecordNotFound() && res.Error != nil {
 		return nil, nil, ormutil.DbErr(res.Error)
 	}
@@ -163,7 +163,7 @@ func (p *PartnerApi) FederationOperatorPartnerCreate(c echo.Context) error {
 		PartnerCountryCode: opRegReq.CountryCode,
 		PartnerRole:        fedcommon.RoleAccessToSelfZones,
 	}
-	res := db.Where(&partnerFederation).First(nil)
+	res := db.Where(&partnerFederation).First(&partnerFederation)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
@@ -195,9 +195,11 @@ func (p *PartnerApi) FederationOperatorPartnerCreate(c echo.Context) error {
 	out.LocatorEndPoint = selfFed.LocatorEndPoint
 	for _, opShZone := range opShZones {
 		zoneLookup := ormapi.FederatorZone{
-			ZoneId:      opShZone.ZoneId,
-			OperatorId:  opShZone.OwnerOperatorId,
-			CountryCode: opShZone.OwnerCountryCode,
+			ZoneId:          opShZone.ZoneId,
+			SelfOperatorId:  opShZone.OwnerOperatorId,
+			SelfCountryCode: opShZone.OwnerCountryCode,
+			OperatorId:      opShZone.OwnerOperatorId,
+			CountryCode:     opShZone.OwnerCountryCode,
 		}
 		opZone := ormapi.FederatorZone{}
 		err = db.Where(&zoneLookup).First(&opZone).Error
@@ -302,8 +304,10 @@ func (p *PartnerApi) FederationOperatorPartnerDelete(c echo.Context) error {
 	// Check if all the self zones are deregistered by partner federator
 	db := p.loggedDB(ctx)
 	lookup := ormapi.FederatorZone{
-		OperatorId:  selfFed.OperatorId,
-		CountryCode: selfFed.CountryCode,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      selfFed.OperatorId,
+		CountryCode:     selfFed.CountryCode,
 	}
 	partnerZones := []ormapi.FederatorZone{}
 	err = db.Where(&lookup).Find(&partnerZones).Error
@@ -375,9 +379,11 @@ func (p *PartnerApi) FederationOperatorZoneRegister(c echo.Context) error {
 	db := p.loggedDB(ctx)
 	zoneId := opRegReq.Zones[0]
 	lookup := ormapi.FederatorZone{
-		ZoneId:      zoneId,
-		OperatorId:  selfFed.OperatorId,
-		CountryCode: selfFed.CountryCode,
+		ZoneId:          zoneId,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      selfFed.OperatorId,
+		CountryCode:     selfFed.CountryCode,
 	}
 	existingFed := ormapi.FederatorZone{}
 	err = db.Where(&lookup).First(&existingFed).Error
@@ -445,9 +451,11 @@ func (p *PartnerApi) FederationOperatorZoneDeRegister(c echo.Context) error {
 	db := p.loggedDB(ctx)
 	zoneId := opRegReq.Zone
 	lookup := ormapi.FederatorZone{
-		ZoneId:      zoneId,
-		OperatorId:  selfFed.OperatorId,
-		CountryCode: selfFed.CountryCode,
+		ZoneId:          zoneId,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      selfFed.OperatorId,
+		CountryCode:     selfFed.CountryCode,
 	}
 	existingFed := ormapi.FederatorZone{}
 	err = db.Where(&lookup).First(&existingFed).Error
@@ -489,7 +497,7 @@ func (p *PartnerApi) FederationOperatorZoneShare(c echo.Context) error {
 		return fmt.Errorf("Must specify zone ID")
 	}
 
-	_, partnerFed, err := p.ValidateWithRoleAndGetFederatorInfo(
+	selfFed, partnerFed, err := p.ValidateWithRoleAndGetFederatorInfo(
 		ctx,
 		opZoneShare.OrigFederationId,
 		opZoneShare.DestFederationId,
@@ -505,22 +513,26 @@ func (p *PartnerApi) FederationOperatorZoneShare(c echo.Context) error {
 	db := p.loggedDB(ctx)
 	zoneId := opZoneShare.PartnerZone.ZoneId
 	lookup := ormapi.FederatorZone{
-		ZoneId:      zoneId,
-		OperatorId:  partnerFed.OperatorId,
-		CountryCode: partnerFed.CountryCode,
+		ZoneId:          zoneId,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      partnerFed.OperatorId,
+		CountryCode:     partnerFed.CountryCode,
 	}
-	existingFed := ormapi.FederatorZone{}
-	err = db.Where(&lookup).First(&existingFed).Error
-	if err != nil {
+	existingZone := ormapi.FederatorZone{}
+	res := db.Where(&lookup).First(&existingZone)
+	if !res.RecordNotFound() && err != nil {
 		return ormutil.DbErr(err)
 	}
-	if existingFed.ZoneId != "" {
+	if existingZone.ZoneId != "" {
 		return fmt.Errorf("Zone ID %q already exists for partner federator %s", zoneId,
 			fedcommon.FederatorStr(partnerFed.OperatorId, partnerFed.CountryCode))
 	}
 
 	zoneObj := ormapi.FederatorZone{}
 	zoneObj.ZoneId = zoneId
+	zoneObj.SelfOperatorId = selfFed.OperatorId
+	zoneObj.SelfCountryCode = selfFed.CountryCode
 	zoneObj.OperatorId = partnerFed.OperatorId
 	zoneObj.CountryCode = partnerFed.CountryCode
 	zoneObj.GeoLocation = opZoneShare.PartnerZone.GeoLocation
@@ -531,6 +543,20 @@ func (p *PartnerApi) FederationOperatorZoneShare(c echo.Context) error {
 			return fmt.Errorf("Zone ID %q already exists", zoneObj.ZoneId)
 		}
 		return ormutil.DbErr(err)
+	}
+
+	// Mark zone as shared in DB
+	shareZone := ormapi.FederatorSharedZone{
+		ZoneId:                zoneObj.ZoneId,
+		OwnerOperatorId:       zoneObj.OperatorId,
+		OwnerCountryCode:      zoneObj.CountryCode,
+		SharedWithOperatorId:  zoneObj.SelfOperatorId,
+		SharedWithCountryCode: zoneObj.SelfCountryCode,
+	}
+	if err := db.Create(&shareZone).Error; err != nil {
+		if !strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
+			return ormutil.DbErr(err)
+		}
 	}
 
 	return ormutil.SetReply(c, ormutil.Msg("Added zone successfully"))
@@ -566,13 +592,15 @@ func (p *PartnerApi) FederationOperatorZoneUnShare(c echo.Context) error {
 	db := p.loggedDB(ctx)
 	zoneId := opZone.Zone
 	lookup := ormapi.FederatorZone{
-		ZoneId:      zoneId,
-		OperatorId:  partnerFed.OperatorId,
-		CountryCode: partnerFed.CountryCode,
+		ZoneId:          zoneId,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      partnerFed.OperatorId,
+		CountryCode:     partnerFed.CountryCode,
 	}
 	existingZone := ormapi.FederatorZone{}
-	err = db.Where(&lookup).First(&existingZone).Error
-	if err != nil {
+	res := db.Where(&lookup).First(&existingZone)
+	if !res.RecordNotFound() && err != nil {
 		return ormutil.DbErr(err)
 	}
 	if existingZone.ZoneId == "" {
@@ -589,13 +617,27 @@ func (p *PartnerApi) FederationOperatorZoneUnShare(c echo.Context) error {
 		RegisteredByCountryCode: selfFed.CountryCode,
 	}
 	regZone := ormapi.FederatorRegisteredZone{}
-	res := db.Where(&regLookup).First(&regZone)
+	res = db.Where(&regLookup).First(&regZone)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
 	if regZone.ZoneId != "" {
 		return fmt.Errorf("Cannot remove partner federator zone %q as it is registered locally. "+
 			"Please deregister it before unsharing the zone", regZone.ZoneId)
+	}
+
+	// Delete zone from shared list in DB
+	unshareZone := ormapi.FederatorSharedZone{
+		ZoneId:                existingZone.ZoneId,
+		OwnerOperatorId:       partnerFed.OperatorId,
+		OwnerCountryCode:      partnerFed.CountryCode,
+		SharedWithOperatorId:  selfFed.OperatorId,
+		SharedWithCountryCode: selfFed.CountryCode,
+	}
+	if err := db.Delete(&unshareZone).Error; err != nil {
+		if err != gorm.ErrRecordNotFound {
+			return ormutil.DbErr(err)
+		}
 	}
 
 	if err := db.Delete(&lookup).Error; err != nil {

@@ -77,11 +77,11 @@ func GetPartnerFederator(ctx context.Context, selfOperatorId, selfCountryCode, p
 
 	db := loggedDB(ctx)
 	partnerLookup := ormapi.Federator{
-		OwnerOperatorId:  selfOperatorId,
-		OwnerCountryCode: selfCountryCode,
-		OperatorId:       partnerOperatorId,
-		CountryCode:      partnerCountryCode,
-		Type:             fedcommon.TypePartner,
+		SelfOperatorId:  selfOperatorId,
+		SelfCountryCode: selfCountryCode,
+		OperatorId:      partnerOperatorId,
+		CountryCode:     partnerCountryCode,
+		Type:            fedcommon.TypePartner,
 	}
 	partnerFed := ormapi.Federator{}
 	res := db.Where(&partnerLookup).First(&partnerFed)
@@ -205,10 +205,10 @@ func CreateSelfFederator(c echo.Context) error {
 	db := loggedDB(ctx)
 	fedKey := uuid.New().String()
 	fedStore := ormapi.Federator{}
+	fedStore.SelfOperatorId = opFed.OperatorId
+	fedStore.SelfCountryCode = opFed.CountryCode
 	fedStore.FederationKey = fedKey
 	fedStore.FederationAddr = serverConfig.FederationAddr
-	fedStore.OwnerOperatorId = opFed.OperatorId
-	fedStore.OwnerCountryCode = opFed.CountryCode
 	fedStore.OperatorId = opFed.OperatorId
 	fedStore.CountryCode = opFed.CountryCode
 	fedStore.Type = fedcommon.TypeSelf
@@ -333,9 +333,9 @@ func DeleteSelfFederator(c echo.Context) error {
 
 	db := loggedDB(ctx)
 	fedLookup := ormapi.Federator{
-		OwnerOperatorId:  selfFed.OperatorId,
-		OwnerCountryCode: selfFed.CountryCode,
-		Type:             fedcommon.TypePartner,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		Type:            fedcommon.TypePartner,
 	}
 	partnerFeds := []ormapi.Federator{}
 	res := db.Where(&fedLookup).Find(&partnerFeds)
@@ -366,7 +366,7 @@ func DeleteSelfFederator(c echo.Context) error {
 	return ormutil.SetReply(c, ormutil.Msg("Deleted self federator successfully"))
 }
 
-func ShowSelfFederator(c echo.Context) error {
+func ShowFederator(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -377,14 +377,17 @@ func ShowSelfFederator(c echo.Context) error {
 		return ormutil.BindErr(err)
 	}
 
-	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
+	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
 		return err
 	}
 
 	db := loggedDB(ctx)
 	lookup := ormapi.Federator{
-		OperatorId:  opFed.OperatorId,
-		CountryCode: opFed.CountryCode,
+		SelfOperatorId:  opFed.SelfOperatorId,
+		SelfCountryCode: opFed.SelfCountryCode,
+		OperatorId:      opFed.OperatorId,
+		CountryCode:     opFed.CountryCode,
+		Type:            opFed.Type,
 	}
 	feds := []ormapi.Federator{}
 	err = db.Where(&lookup).Find(&feds).Error
@@ -395,10 +398,12 @@ func ShowSelfFederator(c echo.Context) error {
 	for _, fed := range feds {
 		// Do not display federation ID
 		outFed := ormapi.FederatorRequest{}
-		outFed.Type = fed.Type
-		outFed.FederationAddr = fed.FederationAddr
+		outFed.SelfOperatorId = fed.SelfOperatorId
+		outFed.SelfCountryCode = fed.SelfCountryCode
 		outFed.OperatorId = fed.OperatorId
 		outFed.CountryCode = fed.CountryCode
+		outFed.Type = fed.Type
+		outFed.FederationAddr = fed.FederationAddr
 		outFed.MCC = fed.MCC
 		outFed.MNCs = strings.Split(fed.MNCs, fedcommon.Delimiter)
 		outFed.LocatorEndPoint = fed.LocatorEndPoint
@@ -452,16 +457,16 @@ func CreatePartnerFederator(c echo.Context) error {
 
 	db := loggedDB(ctx)
 	partnerFed := ormapi.Federator{
-		OwnerOperatorId:  selfFed.OperatorId,
-		OwnerCountryCode: selfFed.CountryCode,
-		OperatorId:       opFed.OperatorId,
-		CountryCode:      opFed.CountryCode,
-		Type:             fedcommon.TypePartner,
-		FederationKey:    opFed.FederationKey,
-		FederationAddr:   opFed.FederationAddr,
-		MCC:              opFed.MCC,
-		MNCs:             strings.Join(opFed.MNCs, fedcommon.Delimiter),
-		LocatorEndPoint:  opFed.LocatorEndPoint,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      opFed.OperatorId,
+		CountryCode:     opFed.CountryCode,
+		Type:            fedcommon.TypePartner,
+		FederationKey:   opFed.FederationKey,
+		FederationAddr:  opFed.FederationAddr,
+		MCC:             opFed.MCC,
+		MNCs:            strings.Join(opFed.MNCs, fedcommon.Delimiter),
+		LocatorEndPoint: opFed.LocatorEndPoint,
 	}
 	if err := db.Create(&partnerFed).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
@@ -526,57 +531,6 @@ func DeletePartnerFederator(c echo.Context) error {
 	}
 
 	return ormutil.SetReply(c, ormutil.Msg("Deleted partner federator successfully"))
-}
-
-func ShowPartnerFederator(c echo.Context) error {
-	ctx := ormutil.GetContext(c)
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	opFed := ormapi.FederatorRequest{}
-	if err := c.Bind(&opFed); err != nil {
-		return ormutil.BindErr(err)
-	}
-
-	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
-		return err
-	}
-
-	// validate self federator
-	selfFed, err := GetSelfFederator(ctx, opFed.SelfOperatorId, opFed.SelfCountryCode)
-	if err != nil {
-		return err
-	}
-
-	lookup := ormapi.Federator{
-		OwnerOperatorId:  selfFed.OperatorId,
-		OwnerCountryCode: selfFed.CountryCode,
-		OperatorId:       opFed.OperatorId,
-		CountryCode:      opFed.CountryCode,
-		Type:             fedcommon.TypePartner,
-	}
-	partnerFeds := []ormapi.Federator{}
-	db := loggedDB(ctx)
-	res := db.Where(&lookup).Find(&partnerFeds)
-	if !res.RecordNotFound() && res.Error != nil {
-		return ormutil.DbErr(res.Error)
-	}
-
-	outFeds := []ormapi.FederatorRequest{}
-	for _, fed := range partnerFeds {
-		// Do not display federation ID
-		outFed := ormapi.FederatorRequest{}
-		outFed.Type = fed.Type
-		outFed.FederationAddr = fed.FederationAddr
-		outFed.OperatorId = fed.OperatorId
-		outFed.CountryCode = fed.CountryCode
-		outFed.MCC = fed.MCC
-		outFed.MNCs = strings.Split(fed.MNCs, fedcommon.Delimiter)
-		outFed.LocatorEndPoint = fed.LocatorEndPoint
-		outFeds = append(outFeds, outFed)
-	}
-	return c.JSON(http.StatusOK, outFeds)
 }
 
 func CreateSelfFederatorZone(c echo.Context) error {
@@ -657,6 +611,8 @@ func CreateSelfFederatorZone(c echo.Context) error {
 	}
 
 	az := ormapi.FederatorZone{}
+	az.SelfOperatorId = selfFed.OperatorId
+	az.SelfCountryCode = selfFed.CountryCode
 	az.OperatorId = selfFed.OperatorId
 	az.CountryCode = selfFed.CountryCode
 	az.ZoneId = opZone.ZoneId
@@ -697,15 +653,15 @@ func DeleteSelfFederatorZone(c echo.Context) error {
 		return err
 	}
 	// get federator information
-	_, err = GetSelfFederator(ctx, opZone.OperatorId, opZone.CountryCode)
+	selfFed, err := GetSelfFederator(ctx, opZone.OperatorId, opZone.CountryCode)
 	if err != nil {
 		return err
 	}
 	db := loggedDB(ctx)
 	lookup := ormapi.FederatorZone{
 		ZoneId:      opZone.ZoneId,
-		OperatorId:  opZone.OperatorId,
-		CountryCode: opZone.CountryCode,
+		OperatorId:  selfFed.OperatorId,
+		CountryCode: selfFed.CountryCode,
 	}
 	existingZone := ormapi.FederatorZone{}
 	err = db.Where(&lookup).First(&existingZone).Error
@@ -765,23 +721,22 @@ func ShowFederatorZone(c echo.Context) error {
 	if err := c.Bind(&opZoneReq); err != nil {
 		return ormutil.BindErr(err)
 	}
-	if opZoneReq.OperatorId == "" {
-		return fmt.Errorf("Missing operator ID")
-	}
-	if err := fedAuthorized(ctx, claims.Username, opZoneReq.OperatorId); err != nil {
+	if err := fedAuthorized(ctx, claims.Username, opZoneReq.SelfOperatorId); err != nil {
 		return err
 	}
 	// get self federator information
-	selfFed, err := GetSelfFederator(ctx, opZoneReq.OperatorId, opZoneReq.CountryCode)
+	_, err = GetSelfFederator(ctx, opZoneReq.SelfOperatorId, opZoneReq.SelfCountryCode)
 	if err != nil {
 		return err
 	}
 	db := loggedDB(ctx)
 	opZones := []ormapi.FederatorZone{}
 	lookup := ormapi.FederatorZone{
-		OperatorId:  selfFed.OperatorId,
-		CountryCode: selfFed.CountryCode,
-		ZoneId:      opZoneReq.ZoneId,
+		SelfOperatorId:  opZoneReq.SelfOperatorId,
+		SelfCountryCode: opZoneReq.SelfCountryCode,
+		OperatorId:      opZoneReq.OperatorId,
+		CountryCode:     opZoneReq.CountryCode,
+		ZoneId:          opZoneReq.ZoneId,
 	}
 	err = db.Where(&lookup).Find(&opZones).Error
 	if err != nil {
@@ -793,8 +748,8 @@ func ShowFederatorZone(c echo.Context) error {
 		opRegZones := []ormapi.FederatorRegisteredZone{}
 		regLookup := ormapi.FederatorRegisteredZone{
 			ZoneId:           opZone.ZoneId,
-			OwnerOperatorId:  selfFed.OperatorId,
-			OwnerCountryCode: selfFed.CountryCode,
+			OwnerOperatorId:  opZone.OperatorId,
+			OwnerCountryCode: opZone.CountryCode,
 		}
 		res := db.Where(&regLookup).Find(&opRegZones)
 		if !res.RecordNotFound() && res.Error != nil {
@@ -804,14 +759,18 @@ func ShowFederatorZone(c echo.Context) error {
 		opShZones := []ormapi.FederatorSharedZone{}
 		shLookup := ormapi.FederatorSharedZone{
 			ZoneId:           opZone.ZoneId,
-			OwnerOperatorId:  selfFed.OperatorId,
-			OwnerCountryCode: selfFed.CountryCode,
+			OwnerOperatorId:  opZone.OperatorId,
+			OwnerCountryCode: opZone.CountryCode,
 		}
 		res = db.Where(&shLookup).Find(&opShZones)
 		if !res.RecordNotFound() && res.Error != nil {
 			return ormutil.DbErr(res.Error)
 		}
 		zoneOut := ormapi.FederatorZoneDetails{}
+		zoneOut.SelfOperatorId = opZone.SelfOperatorId
+		zoneOut.SelfCountryCode = opZone.SelfCountryCode
+		zoneOut.OperatorId = opZone.OperatorId
+		zoneOut.CountryCode = opZone.CountryCode
 		zoneOut.ZoneId = opZone.ZoneId
 		zoneOut.GeoLocation = opZone.GeoLocation
 		zoneOut.City = opZone.City
@@ -1061,9 +1020,11 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 	// Check if zone exists
 	db := loggedDB(ctx)
 	lookup := ormapi.FederatorZone{
-		ZoneId:      reg.ZoneId,
-		OperatorId:  partnerFed.OperatorId,
-		CountryCode: partnerFed.CountryCode,
+		ZoneId:          reg.ZoneId,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      partnerFed.OperatorId,
+		CountryCode:     partnerFed.CountryCode,
 	}
 	existingZone := ormapi.FederatorZone{}
 	err = db.Where(&lookup).First(&existingZone).Error
@@ -1151,9 +1112,11 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 	// Check if zone exists
 	db := loggedDB(ctx)
 	lookup := ormapi.FederatorZone{
-		ZoneId:      reg.ZoneId,
-		OperatorId:  partnerFed.OperatorId,
-		CountryCode: partnerFed.CountryCode,
+		ZoneId:          reg.ZoneId,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      partnerFed.OperatorId,
+		CountryCode:     partnerFed.CountryCode,
 	}
 	existingZone := ormapi.FederatorZone{}
 	err = db.Where(&lookup).First(&existingZone).Error
@@ -1277,6 +1240,8 @@ func CreateFederation(c echo.Context) error {
 	// Store partner zones in DB
 	for _, partnerZone := range opRegRes.PartnerZone {
 		zoneObj := ormapi.FederatorZone{}
+		zoneObj.SelfOperatorId = opFed.SelfOperatorId
+		zoneObj.SelfCountryCode = opFed.SelfCountryCode
 		zoneObj.OperatorId = opFed.PartnerOperatorId
 		zoneObj.CountryCode = opFed.PartnerCountryCode
 		zoneObj.ZoneId = partnerZone.ZoneId
@@ -1288,6 +1253,20 @@ func CreateFederation(c echo.Context) error {
 				return fmt.Errorf("Zone Id %q already exists", zoneObj.ZoneId)
 			}
 			return ormutil.DbErr(err)
+		}
+
+		// Mark zone as shared in DB
+		shareZone := ormapi.FederatorSharedZone{
+			ZoneId:                zoneObj.ZoneId,
+			OwnerOperatorId:       zoneObj.OperatorId,
+			OwnerCountryCode:      zoneObj.CountryCode,
+			SharedWithOperatorId:  zoneObj.SelfOperatorId,
+			SharedWithCountryCode: zoneObj.SelfCountryCode,
+		}
+		if err := db.Create(&shareZone).Error; err != nil {
+			if !strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
+				return ormutil.DbErr(err)
+			}
 		}
 	}
 
@@ -1339,8 +1318,10 @@ func DeleteFederation(c echo.Context) error {
 
 	// Check if all the partner zones are unused before deleting the partner federator
 	lookup := ormapi.FederatorZone{
-		OperatorId:  partnerFed.OperatorId,
-		CountryCode: partnerFed.CountryCode,
+		SelfOperatorId:  selfFed.OperatorId,
+		SelfCountryCode: selfFed.CountryCode,
+		OperatorId:      partnerFed.OperatorId,
+		CountryCode:     partnerFed.CountryCode,
 	}
 	partnerZones := []ormapi.FederatorZone{}
 	db := loggedDB(ctx)
@@ -1435,7 +1416,7 @@ func ShowFederation(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	opFed := ormapi.FederatorRequest{}
+	opFed := ormapi.FederationRequest{}
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}

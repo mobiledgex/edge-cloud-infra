@@ -7,10 +7,10 @@ import (
 // GORM objects
 // ============
 type Federator struct {
-	// Globally unique string to identify an operator platform
-	OwnerOperatorId string `gorm:"primary_key"`
-	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
-	OwnerCountryCode string `gorm:"primary_key"`
+	// Globally unique string to identify the self federator owning the federator object
+	SelfOperatorId string `gorm:"primary_key"`
+	// ISO 3166-1 Alpha-2 code for the country where the self federator is located
+	SelfCountryCode string `gorm:"primary_key"`
 	// Globally unique string to identify an operator platform
 	OperatorId string `gorm:"primary_key"`
 	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
@@ -45,6 +45,10 @@ type Federation struct {
 // Zone owned by a Federator. MC defines a zone as a group of cloudlets,
 // but currently it is restricted to one cloudlet
 type FederatorZone struct {
+	// Globally unique string to identify the self federator owning the federator object
+	SelfOperatorId string `gorm:"primary_key"`
+	// ISO 3166-1 Alpha-2 code for the country where the self federator is located
+	SelfCountryCode string `gorm:"primary_key"`
 	// Globally unique string to identify an operator platform
 	OperatorId string `gorm:"primary_key"`
 	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
@@ -140,6 +144,12 @@ type FederationRequest struct {
 }
 
 type FederatorZoneDetails struct {
+	// Self federator operator ID
+	// required: true
+	SelfOperatorId string
+	// Self federator country code
+	// required: true
+	SelfCountryCode string
 	// Globally unique string used to authenticate operations over federation interface
 	// required: true
 	ZoneId string

@@ -6,6 +6,7 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -55,7 +56,6 @@ func AppInstEventsQuery(obj *ormapi.RegionAppInstEvents, cloudletList []string) 
 		Measurement:  EVENT_APPINST,
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		Last:         obj.Last,
 		CloudletList: generateCloudletList(cloudletList),
 	}
 	if obj.AppInst.AppKey.Organization != "" {
@@ -67,8 +67,8 @@ func AppInstEventsQuery(obj *ormapi.RegionAppInstEvents, cloudletList []string) 
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
-
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -77,7 +77,6 @@ func ClusterEventsQuery(obj *ormapi.RegionClusterInstEvents, cloudletList []stri
 		Selector:     getEventFields(EVENT_CLUSTERINST),
 		Measurement:  EVENT_CLUSTERINST,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
-		Last:         obj.Last,
 		CloudletList: generateCloudletList(cloudletList),
 	}
 	if obj.ClusterInst.Organization != "" {
@@ -89,8 +88,8 @@ func ClusterEventsQuery(obj *ormapi.RegionClusterInstEvents, cloudletList []stri
 		arg.ApiCallerOrg = obj.ClusterInst.CloudletKey.Organization
 		arg.ClusterOrg = obj.ClusterInst.Organization
 	}
-
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -102,9 +101,9 @@ func CloudletEventsQuery(obj *ormapi.RegionCloudletEvents) string {
 		ApiCallerOrg: obj.Cloudlet.Organization,
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
-		Last:         obj.Last,
 	}
-	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, operatorInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
 // Common method to handle both app and cluster metrics
@@ -117,7 +116,7 @@ func GetEventsCommon(c echo.Context) error {
 		return err
 	}
 	rc.claims = claims
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	if strings.HasSuffix(c.Path(), "events/app") {
 		in := ormapi.RegionAppInstEvents{}

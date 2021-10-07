@@ -4,18 +4,18 @@
 package orm
 
 import (
-	"context"
 	fmt "fmt"
 	_ "github.com/gogo/googleapis/google/api"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"io"
 	math "math"
 )
 
@@ -27,98 +27,42 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func ShowAlert(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionAlert{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
-	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) error {
+	obj := &in.Alert
+	var authz ctrlclient.ShowAlertAuthz
+	if !rc.SkipAuthz {
+		authz, err = newShowAlertAuthz(ctx, rc.Region, rc.Username, ResourceAlert, ActionView)
+		if err != nil {
+			return err
+		}
+	}
+
+	cb := func(res *edgeproto.Alert) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
-	})
+	}
+	err = ctrlclient.ShowAlertStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-type ShowAlertAuthz interface {
-	Ok(obj *edgeproto.Alert) (bool, bool)
-	Filter(obj *edgeproto.Alert)
-}
-
-func ShowAlertStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert, cb func(res *edgeproto.Alert) error) error {
-	var authz ShowAlertAuthz
-	var err error
-	if !rc.skipAuthz {
-		authz, err = newShowAlertAuthz(ctx, rc.region, rc.username, ResourceAlert, ActionView)
-		if err != nil {
-			return err
-		}
-	}
-	if rc.conn == nil {
-		conn, err := connCache.GetRegionConn(ctx, rc.region)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn = nil
-		}()
-	}
-	api := edgeproto.NewAlertApiClient(rc.conn)
-	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
-	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
-	stream, err := api.ShowAlert(ctx, obj)
-	if err != nil {
-		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		if !rc.skipAuthz {
-			authzOk, filterOutput := authz.Ok(res)
-			if !authzOk {
-				continue
-			}
-			if filterOutput {
-				authz.Filter(res)
-			}
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func ShowAlertObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert) ([]edgeproto.Alert, error) {
-	arr := []edgeproto.Alert{}
-	err := ShowAlertStream(ctx, rc, obj, func(res *edgeproto.Alert) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
 }
 
 func addControllerApis(method string, group *echo.Group) {
@@ -226,6 +170,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// LocationTileSideLengthKm: 29
 	// EdgeEventsMetricsContinuousQueriesCollectionIntervals: 30
 	// EdgeEventsMetricsContinuousQueriesCollectionIntervalsInterval: 30.1
+	// EdgeEventsMetricsContinuousQueriesCollectionIntervalsRetention: 30.2
 	// InfluxDbDownsampledMetricsRetention: 31
 	// InfluxDbEdgeEventsMetricsRetention: 32
 	// AppinstClientCleanupInterval: 33
@@ -233,7 +178,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ClusterAutoScaleRetryDelay: 35
 	// AlertPolicyMinTriggerTime: 36
 	// DisableRateLimit: 37
-	// MaxNumPerIpRateLimiters: 39
+	// RateLimitMaxTrackedIps: 39
 	// ResourceSnapshotThreadInterval: 41
 	// ```
 	// Security:
@@ -944,6 +889,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// GpuConfigPropertiesKey: 45.2.1
 	// GpuConfigPropertiesValue: 45.2.2
 	// EnableDefaultServerlessCluster: 46
+	// AllianceOrgs: 47
 	// ```
 	// Security:
 	//   Bearer:
@@ -1019,7 +965,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddCloudletResMapping", AddCloudletResMapping)
 	// swagger:route POST /auth/ctrl/RemoveCloudletResMapping CloudletResMap RemoveCloudletResMapping
-	// Add Optional Resource tag table.
+	// Remove Optional Resource tag table.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1028,6 +974,26 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveCloudletResMapping", RemoveCloudletResMapping)
+	// swagger:route POST /auth/ctrl/AddCloudletAllianceOrg CloudletAllianceOrg AddCloudletAllianceOrg
+	// Add alliance organization to the cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AddCloudletAllianceOrg", AddCloudletAllianceOrg)
+	// swagger:route POST /auth/ctrl/RemoveCloudletAllianceOrg CloudletAllianceOrg RemoveCloudletAllianceOrg
+	// Remove alliance organization from the cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RemoveCloudletAllianceOrg", RemoveCloudletAllianceOrg)
 	// swagger:route POST /auth/ctrl/FindFlavorMatch FlavorMatch FindFlavorMatch
 	// Discover if flavor produces a matching platform flavor.
 	// Security:
@@ -1048,6 +1014,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowFlavorsForCloudlet", ShowFlavorsForCloudlet)
+	// swagger:route POST /auth/ctrl/GetOrganizationsOnCloudlet CloudletKey GetOrganizationsOnCloudlet
+	// Get organizations of ClusterInsts and AppInsts on cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetOrganizationsOnCloudlet", GetOrganizationsOnCloudlet)
 	// swagger:route POST /auth/ctrl/RevokeAccessKey CloudletKey RevokeAccessKey
 	// Revoke crm access key.
 	// Security:
@@ -1361,6 +1337,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ReservationEndedAtSeconds: 31.1
 	// ReservationEndedAtNanos: 31.2
 	// MultiTenant: 32
+	// Networks: 33
 	// ```
 	// Security:
 	//   Bearer:
@@ -1593,6 +1570,59 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowTrustPolicyExceptionResponse", ShowTrustPolicyExceptionResponse)
+	// swagger:route POST /auth/ctrl/CreateNetwork Network CreateNetwork
+	// Create a Network.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateNetwork", CreateNetwork)
+	// swagger:route POST /auth/ctrl/DeleteNetwork Network DeleteNetwork
+	// Delete a Network.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteNetwork", DeleteNetwork)
+	// swagger:route POST /auth/ctrl/UpdateNetwork Network UpdateNetwork
+	// Update a Network.
+	// The following values should be added to `Network.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyCloudletKey: 2.1
+	// KeyCloudletKeyOrganization: 2.1.1
+	// KeyCloudletKeyName: 2.1.2
+	// KeyName: 2.2
+	// Routes: 3
+	// RoutesDestinationCidr: 3.1
+	// RoutesNextHopIp: 3.2
+	// ConnectionType: 4
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateNetwork", UpdateNetwork)
+	// swagger:route POST /auth/ctrl/ShowNetwork Network ShowNetwork
+	// Show Networks.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowNetwork", ShowNetwork)
 	// swagger:route POST /auth/ctrl/CreateAppInst AppInst CreateAppInst
 	// Create Application Instance.
 	//  Creates an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key. Many of the fields here are inherited from the App definition.
@@ -1700,6 +1730,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
 	// RealClusterName: 37
+	// InternalPortToLbIp: 38
+	// InternalPortToLbIpKey: 38.1
+	// InternalPortToLbIpValue: 38.2
 	// ```
 	// Security:
 	//   Bearer:

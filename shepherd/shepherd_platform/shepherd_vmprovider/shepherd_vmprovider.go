@@ -198,6 +198,7 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 	if err != nil {
 		return cloudletMetric, err
 	}
+	log.SpanLog(ctx, log.DebugLevelMetrics, "Got PlatformStats", "platformResources", platformResources, "err", err)
 	cloudletMetric = shepherd_common.CloudletMetrics(*platformResources)
 	return cloudletMetric, nil
 }
@@ -223,4 +224,8 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 
 func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context) {
 	s.VMPlatform.VMProvider.VmAppChangedCallback(ctx)
+}
+
+func (s *ShepherdPlatform) IsPlatformLocal(ctx context.Context) bool {
+	return false
 }

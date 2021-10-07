@@ -16,6 +16,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -150,7 +151,7 @@ func GenerateCookie(user *ormapi.User, apiKeyId, domain string) (*http.Cookie, e
 
 func getClaims(c echo.Context) (*UserClaims, error) {
 	user := c.Get("user")
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	if user == nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "get claims: no user")
 		return nil, echo.ErrUnauthorized
@@ -268,41 +269,41 @@ func authorized(ctx context.Context, sub, org, obj, act string, ops ...authOp) e
 	if !allow {
 		return echo.ErrForbidden
 	}
-
-	if opts.requiresOrg != "" && !opts.showAudit {
-		if err := checkRequiresOrg(ctx, opts.requiresOrg, obj, admin, opts.noEdgeboxOnly); err != nil {
-			return err
+	if !opts.showAudit {
+		if opts.requiresOrg != "" {
+			if err := checkRequiresOrg(ctx, opts.requiresOrg, obj, admin, opts.noEdgeboxOnly); err != nil {
+				return err
+			}
+		}
+		for _, refOrg := range opts.refOrgs {
+			if refOrg.org == "" {
+				continue
+			}
+			if _, err := checkReferenceOrg(ctx, refOrg.org, refOrg.orgType); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
+// Returns error if required org is not found or invalid.
+// If not present, hides not found error with Forbidden to prevent
+// fishing for org names.
 func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgeboxOnly bool) error {
-	// make sure org actually exists, and is not in the
-	// process of being deleted.
-	lookup, err := orgExists(ctx, org)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "org exists check failed", "err", err)
-		if !admin {
-			return echo.ErrForbidden
-		}
-		if strings.Contains(err.Error(), "not found") {
-			return err
-		}
-		return fmt.Errorf("Org %s lookup failed: %v", org, err)
-	}
-	if lookup.DeleteInProgress {
-		return fmt.Errorf("Operation not allowed for org with delete in progress")
-	}
-	// see if resource is only for a specific type of org
 	orgType := ""
 	if _, ok := DeveloperResourcesMap[resource]; ok {
 		orgType = OrgTypeDeveloper
 	} else if _, ok := OperatorResourcesMap[resource]; ok {
 		orgType = OrgTypeOperator
 	}
-	if orgType != "" && lookup.Type != orgType {
-		return fmt.Errorf("Operation only allowed for organizations of type %s", orgType)
+	lookup, err := checkReferenceOrg(ctx, org, orgType)
+	if err != nil {
+		if _, ok := err.(OrgLookupError); ok && !admin {
+			// prevent bad actors from fishing for org names
+			return echo.ErrForbidden
+		}
+		return err
 	}
 	// make sure only edgebox cloudlets are created for edgebox org
 	if lookup.EdgeboxOnly && noEdgeboxOnly {
@@ -311,12 +312,51 @@ func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgebo
 	return nil
 }
 
+type OrgLookupError struct {
+	Err error
+}
+
+func (e OrgLookupError) Error() string {
+	return e.Err.Error()
+}
+
+// Returns error if referenced org is not found or invalid.
+func checkReferenceOrg(ctx context.Context, org, orgType string) (*ormapi.Organization, error) {
+	// make sure org actually exists, and is not in the
+	// process of being deleted.
+	lookup, err := orgExists(ctx, org)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "org exists check failed", "err", err)
+		if !strings.Contains(err.Error(), "not found") {
+			err = fmt.Errorf("Org %s lookup failed: %v", org, err)
+		}
+		lookupErr := OrgLookupError{
+			Err: err,
+		}
+		return nil, lookupErr
+	}
+	if lookup.DeleteInProgress {
+		return lookup, fmt.Errorf("Operation not allowed for org %s with delete in progress", org)
+	}
+	// see if resource is only for a specific type of org
+	if orgType != "" && lookup.Type != orgType {
+		return lookup, fmt.Errorf("Operation only allowed for organizations of type %s", orgType)
+	}
+	return lookup, nil
+}
+
 type authOptions struct {
 	showAudit          bool
 	requiresOrg        string
 	noEdgeboxOnly      bool
 	requiresBillingOrg string
 	targetCloudlet     *edgeproto.Cloudlet
+	refOrgs            []refOrg
+}
+
+type refOrg struct {
+	org     string
+	orgType string
 }
 
 type authOp func(opts *authOptions)
@@ -327,6 +367,16 @@ func withShowAudit() authOp {
 
 func withRequiresOrg(org string) authOp {
 	return func(opts *authOptions) { opts.requiresOrg = org }
+}
+
+func withReferenceOrg(org, orgType string) authOp {
+	return func(opts *authOptions) {
+		ro := refOrg{
+			org:     org,
+			orgType: orgType,
+		}
+		opts.refOrgs = append(opts.refOrgs, ro)
+	}
 }
 
 func withNoEdgeboxOnly() authOp {

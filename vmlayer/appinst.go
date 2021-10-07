@@ -254,7 +254,25 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				appWaitChan <- ""
 			}
 		}()
-
+		useMetalLb := v.VMProperties.GetUsesMetalLb()
+		patchIp := ""
+		if useMetalLb {
+			// generally MetalLB should already be installed, but if the cluster is pre-existing it is
+			// possible that the install was not yet done
+			lbIpRange, err := v.VMProperties.GetMetalLBIp3rdOctetRangeFromMasterIp(ctx, masterIP.ExternalAddr)
+			if err != nil {
+				return err
+			}
+			if err := infracommon.InstallAndConfigMetalLbIfNotInstalled(ctx, client, clusterInst, lbIpRange); err != nil {
+				return err
+			}
+			err = k8smgmt.PopulateAppInstLoadBalancerIps(ctx, client, names, appInst)
+			if err != nil {
+				return err
+			}
+		} else {
+			patchIp = masterIP.ExternalAddr
+		}
 		features := v.VMProvider.GetFeatures()
 		// set up DNS
 		var rootLBIPaddr *ServerIP
@@ -262,8 +280,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err == nil {
 			getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 				action := infracommon.DnsSvcAction{}
-				action.PatchKube = true
-				action.PatchIP = masterIP.ExternalAddr
+				action.PatchKube = !useMetalLb
+				action.PatchIP = patchIp
 				action.ExternalIP = rootLBIPaddr.ExternalAddr
 				// Should only add DNS for external ports
 				// and if ips are per service.
@@ -316,7 +334,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return err
 		}
-		proxycerts.NewDedicatedLB(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
+		proxycerts.SetupTLSCerts(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 		// clusterInst is empty but that is ok here
 		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 		if err != nil {
@@ -571,7 +589,6 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 		}
-		proxycerts.RemoveDedicatedLB(ctx, lbName)
 		DeleteServerIpFromCache(ctx, lbName)
 
 		imgName, err := cloudcommon.GetFileName(app.ImagePath)

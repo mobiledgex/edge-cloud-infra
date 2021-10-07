@@ -72,6 +72,21 @@ func testPermShowClientMetrics(mcClient *mctestclient.Client, uri, token, region
 	return mcClient.ShowClientApiUsageMetrics(uri, token, dat)
 }
 
+func testPermShowCloudletUsage(mcClient *mctestclient.Client, uri, token, region, org, selector string, data *edgeproto.CloudletKey) (*ormapi.AllMetrics, int, error) {
+	in := &edgeproto.CloudletKey{}
+	if data != nil {
+		in = data
+	} else {
+		in.Name = "testcloudlet"
+		in.Organization = org
+	}
+	dat := &ormapi.RegionCloudletMetrics{}
+	dat.Region = region
+	dat.Selector = selector
+	dat.Cloudlet = *in
+	return mcClient.ShowCloudletUsage(uri, token, dat)
+}
+
 func testPassCheckPermissionsAndGetCloudletList(t *testing.T, ctx context.Context, username, region string, devOrgs []string,
 	resource string, cloudletKeys []edgeproto.CloudletKey, expectedCloudlets []string) {
 
@@ -249,6 +264,15 @@ func goodPermTestMetrics(t *testing.T, mcClient *mctestclient.Client, uri, devTo
 	require.Equal(t, http.StatusBadRequest, status)
 }
 
+func testInvalidOrgForCloudletUsage(t *testing.T, mcClient *mctestclient.Client, uri, adminToken, region, operOrg string) {
+	// bad cloudlet name check
+	invalidCloudlet := edgeproto.CloudletKey{Organization: "InvalidCloudletOrg"}
+	_, status, err := testPermShowCloudletUsage(mcClient, uri, adminToken, region, operOrg, "resourceusage", &invalidCloudlet)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Cloudlet does not exist")
+	require.Equal(t, http.StatusBadRequest, status)
+}
+
 func TestIsMeasurementOutputEmpty(t *testing.T) {
 	// check for nil
 	empty, err := isMeasurementOutputEmpty(nil, EVENT_CLUSTERINST)
@@ -378,4 +402,54 @@ func testInvalidMeasurementData(t *testing.T, resp *client.Response, measurement
 	require.NotNil(t, err, "Invalid series data")
 	require.Contains(t, err.Error(), "Error parsing influx, unexpected format")
 	require.False(t, empty)
+}
+
+func TestValidateMethod(t *testing.T) {
+	obj := ormapi.RegionClientApiUsageMetrics{
+		Region: "test",
+		AppInst: edgeproto.AppInstKey{
+			ClusterInstKey: edgeproto.VirtualClusterInstKey{
+				CloudletKey: edgeproto.CloudletKey{
+					Name:         "testCloudlet",
+					Organization: "testOperator",
+				},
+			},
+		},
+	}
+	obj.Method = "RegisterClient"
+	err := validateMethodString(&obj)
+	require.NotNil(t, err, "RegisterClient cannot have cloudlet name, or org defined")
+
+	obj.Method = "VerifyLocation"
+	err = validateMethodString(&obj)
+	require.NotNil(t, err, "VerifyLocation cannot have cloudlet name, or org defined")
+
+	obj.Method = "FindCloudlet"
+	err = validateMethodString(&obj)
+	require.Nil(t, err, "FindCloudlet should work with cloudlet name/org")
+
+	obj.Method = "PlatformFindCloudlet"
+	err = validateMethodString(&obj)
+	require.Nil(t, err, "PlatformFindCloudlet should work with cloudlet name/org")
+
+	obj.Method = ""
+	err = validateMethodString(&obj)
+	require.Nil(t, err, "with no method specified cloudlet/cloudlet-org is allowed")
+
+	obj.Method = "RegisterClient"
+	// zero out appInst details
+	obj.AppInst = edgeproto.AppInstKey{}
+	err = validateMethodString(&obj)
+	require.Nil(t, err, "RegisterClient should work without cloudlet name/org")
+
+	obj.Method = "VerifyLocation"
+	// zero out appInst details
+	obj.AppInst = edgeproto.AppInstKey{}
+	err = validateMethodString(&obj)
+	require.Nil(t, err, "VerifyLocation should work without cloudlet name/org")
+
+	obj.Method = "InvalidMethod"
+	err = validateMethodString(&obj)
+	require.NotNil(t, err, "Invalid method name should fail")
+	require.Contains(t, err.Error(), "Method is invalid")
 }

@@ -27,6 +27,7 @@ type Platform struct {
 	CloudletMetrics    string
 	VmAppInstMetrics   string
 	FailPlatformClient bool
+	Ncpus              string
 	// TODO - add Prometheus/nginx strings here EDGECLOUD-1252
 }
 
@@ -80,6 +81,10 @@ func (s *Platform) GetMetricsCollectInterval() time.Duration {
 	return 60
 }
 
+func (s *Platform) IsPlatformLocal(ctx context.Context) bool {
+	return true
+}
+
 // UTClient hijacks a set of commands and returns predetermined output
 // For all other commands it just calls pc.LocalClient equivalents
 type UTClient struct {
@@ -120,6 +125,9 @@ func (s *UTClient) getUTData(command string) (string, error) {
 	} else if strings.Contains(command, "docker ps -s") {
 		// docker container size data
 		return s.pf.DockerPsSizeData, nil
+	} else if command == "nproc" {
+		// docker number of vcpus
+		return s.pf.Ncpus, nil
 	}
 	// nginx-stats and envoy-stats unit test
 	// "docker exec containername curl http://url"

@@ -132,7 +132,7 @@ deb ${APT_REPO} bionic main
 deb https://artifactory.mobiledgex.net/artifactory/packages cirrus main
 EOT
 sudo apt-get update
-sudo apt-get upgrade -y
+sudo env UCF_FORCE_CONFFOLD=1 apt-get upgrade -y
 
 log "Disable cloud config overwrite of APT sources"
 sudo tee -a /etc/cloud/cloud.cfg <<EOT

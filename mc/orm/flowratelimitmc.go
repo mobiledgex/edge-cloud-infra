@@ -4,17 +4,19 @@ import (
 	fmt "fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 // Create MC RateLimit Flow settings
 func CreateFlowRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	// Check if rate limiting is disabled
 	if getDisableRateLimit(ctx) {
@@ -33,22 +35,16 @@ func CreateFlowRateLimitSettingsMc(c echo.Context) error {
 	// Get McRateLimitFlowSettings from request
 	in := ormapi.McRateLimitFlowSettings{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 
 	// Create McRateLimitFlowSettings entry
 	db := loggedDB(ctx)
 
-	// Check to make sure FlowSettings doesn't already exist
-	search := &ormapi.McRateLimitFlowSettings{
-		FlowSettingsName: in.FlowSettingsName,
-	}
-	res := db.Where(search).First(&ormapi.McRateLimitFlowSettings{})
-	if !res.RecordNotFound() {
-		return fmt.Errorf("FlowRateLimitSettings with FlowSettingsName %s already exists", in.FlowSettingsName)
-	}
-
 	if err := db.Create(&in).Error; err != nil {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"mc_rate_limit_flow_settings_pkey") {
+			return fmt.Errorf("FlowRateLimitSettings with FlowSettingsName %s already exists", in.FlowSettingsName)
+		}
 		return fmt.Errorf("Unable to create FlowRateLimitSettings %v - error: %s", in, err.Error())
 	}
 
@@ -59,7 +55,7 @@ func CreateFlowRateLimitSettingsMc(c echo.Context) error {
 
 // Update MC RateLimit flow settings
 func UpdateFlowRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	// Check if rate limiting is disabled
 	if getDisableRateLimit(ctx) {
 		return fmt.Errorf("DisableRateLimit must be false to delete ratelimitsettingsmc")
@@ -78,7 +74,7 @@ func UpdateFlowRateLimitSettingsMc(c echo.Context) error {
 	in := ormapi.McRateLimitFlowSettings{}
 	err = BindJson(body, &in)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 
 	// Update McRateLimitFlowSettings entry
@@ -92,17 +88,17 @@ func UpdateFlowRateLimitSettingsMc(c echo.Context) error {
 		return fmt.Errorf("FlowSettingsName not found")
 	}
 	if res.Error != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(res.Error).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(res.Error).Error())
 	}
 
 	err = BindJson(body, &flow)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 
 	err = db.Save(&flow).Error
 	if err != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(err).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(err).Error())
 	}
 
 	// Update RateLimitMgr with new FlowRateLimitSettings
@@ -112,7 +108,7 @@ func UpdateFlowRateLimitSettingsMc(c echo.Context) error {
 
 // Delete MC RateLimit flow settings
 func DeleteFlowRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	// Check if rate limiting is disabled
 	if getDisableRateLimit(ctx) {
 		return fmt.Errorf("DisableRateLimit must be false to delete ratelimitsettingsmc")
@@ -130,7 +126,7 @@ func DeleteFlowRateLimitSettingsMc(c echo.Context) error {
 	// Get McRateLimitFlowSettings from request
 	in := ormapi.McRateLimitFlowSettings{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 
 	// Remove McRateLimitFlowSettings entry
@@ -150,7 +146,7 @@ func DeleteFlowRateLimitSettingsMc(c echo.Context) error {
 
 // Show MC RateLimit flow settings
 func ShowFlowRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	// Check if rate limiting is disabled
 	if getDisableRateLimit(ctx) {
 		return fmt.Errorf("DisableRateLimit must be false to show flowratelimitsettingsmc")
@@ -168,23 +164,17 @@ func ShowFlowRateLimitSettingsMc(c echo.Context) error {
 	// Get McRateLimitFlowSettings from request
 	in := ormapi.McRateLimitFlowSettings{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
-	}
-
-	search := &ormapi.McRateLimitFlowSettings{
-		FlowSettingsName: in.FlowSettingsName,
-		ApiName:          in.ApiName,
-		RateLimitTarget:  in.RateLimitTarget,
+		return ormutil.BindErr(err)
 	}
 
 	// Search for all entries with specified primary keys (if fields are not specified, fields are left out of search)
 	db := loggedDB(ctx)
-	r := db.Where(search)
+	r := db.Where(&in)
 	if r.RecordNotFound() {
 		return fmt.Errorf("Specified Key not found")
 	}
 	if r.Error != nil {
-		return dbErr(r.Error)
+		return ormutil.DbErr(r.Error)
 	}
 
 	mcflowrecords := make([]*ormapi.McRateLimitFlowSettings, 0)
@@ -192,7 +182,7 @@ func ShowFlowRateLimitSettingsMc(c echo.Context) error {
 		log.SpanLog(ctx, log.DebugLevelApi, "Unable to find records for flow", "error", err.Error())
 	}
 
-	return setReply(c, &mcflowrecords)
+	return ormutil.SetReply(c, &mcflowrecords)
 }
 
 func convertToFlowRateLimitSettings(f *ormapi.McRateLimitFlowSettings) *edgeproto.FlowRateLimitSettings {
@@ -204,7 +194,7 @@ func convertToFlowRateLimitSettings(f *ormapi.McRateLimitFlowSettings) *edgeprot
 				RateLimitTarget: f.RateLimitTarget,
 			},
 		},
-		Settings: &edgeproto.FlowSettings{
+		Settings: edgeproto.FlowSettings{
 			FlowAlgorithm: f.FlowAlgorithm,
 			ReqsPerSecond: f.ReqsPerSecond,
 			BurstSize:     f.BurstSize,

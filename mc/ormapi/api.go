@@ -211,10 +211,10 @@ type Config struct {
 	BillingEnable bool
 	// Toggle to enable and disable MC API rate limiting
 	DisableRateLimit bool
-	// Maximum number of PerIp rate limiters for an api
-	MaxNumPerIpRateLimiters int
-	// Maximum number of PerUser rate limiters for an api
-	MaxNumPerUserRateLimiters int
+	// Maximum number of IPs tracked per API group for rate limiting at MC
+	RateLimitMaxTrackedIps int
+	// Maximum number of users tracked per API group for rate limiting at MC
+	RateLimitMaxTrackedUsers int
 }
 
 type McRateLimitFlowSettings struct {
@@ -476,41 +476,39 @@ type MetricSeries struct {
 }
 
 type RegionAppInstMetrics struct {
-	Region    string
-	Selector  string
-	AppInst   edgeproto.AppInstKey   `json:",omitempty"`
-	AppInsts  []edgeproto.AppInstKey `json:",omitempty"`
-	StartTime time.Time              `json:",omitempty"`
-	EndTime   time.Time              `json:",omitempty"`
-	Last      int                    `json:",omitempty"`
+	Region        string
+	Selector      string
+	AppInst       edgeproto.AppInstKey   `json:",omitempty"`
+	AppInsts      []edgeproto.AppInstKey `json:",omitempty"`
+	MetricsCommon `json:",inline"`
 }
 
 type RegionClusterInstMetrics struct {
-	Region      string
-	ClusterInst edgeproto.ClusterInstKey
-	Selector    string
-	StartTime   time.Time `json:",omitempty"`
-	EndTime     time.Time `json:",omitempty"`
-	Last        int       `json:",omitempty"`
+	Region        string
+	ClusterInst   edgeproto.ClusterInstKey   `json:",omitempty"`
+	ClusterInsts  []edgeproto.ClusterInstKey `json:",omitempty"`
+	Selector      string
+	MetricsCommon `json:",inline"`
 }
 
 type RegionCloudletMetrics struct {
-	Region       string
-	Cloudlet     edgeproto.CloudletKey
-	Selector     string
-	PlatformType string
-	StartTime    time.Time `json:",omitempty"`
-	EndTime      time.Time `json:",omitempty"`
-	Last         int       `json:",omitempty"`
+	Region        string
+	Cloudlet      edgeproto.CloudletKey   `json:",omitempty"`
+	Cloudlets     []edgeproto.CloudletKey `json:",omitempty"`
+	Selector      string
+	PlatformType  string
+	MetricsCommon `json:",inline"`
 }
 
 type RegionClientApiUsageMetrics struct {
-	Region        string
-	AppInst       edgeproto.AppInstKey
-	Method        string `json:",omitempty"`
-	CellId        int    `json:",omitempty"`
-	Selector      string
-	MetricsCommon `json:",inline"`
+	Region         string
+	AppInst        edgeproto.AppInstKey
+	Method         string `json:",omitempty"`
+	CellId         int    `json:",omitempty"`
+	DmeCloudlet    string `json:",omitempty"`
+	DmeCloudletOrg string `json:",omitempty"`
+	Selector       string
+	MetricsCommon  `json:",inline"`
 }
 
 type RegionClientAppUsageMetrics struct {
@@ -540,27 +538,21 @@ type RegionClientCloudletUsageMetrics struct {
 }
 
 type RegionAppInstEvents struct {
-	Region    string
-	AppInst   edgeproto.AppInstKey
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
+	Region        string
+	AppInst       edgeproto.AppInstKey
+	MetricsCommon `json:",inline"`
 }
 
 type RegionClusterInstEvents struct {
-	Region      string
-	ClusterInst edgeproto.ClusterInstKey
-	StartTime   time.Time `json:",omitempty"`
-	EndTime     time.Time `json:",omitempty"`
-	Last        int       `json:",omitempty"`
+	Region        string
+	ClusterInst   edgeproto.ClusterInstKey
+	MetricsCommon `json:",inline"`
 }
 
 type RegionCloudletEvents struct {
-	Region    string
-	Cloudlet  edgeproto.CloudletKey
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
+	Region        string
+	Cloudlet      edgeproto.CloudletKey
+	MetricsCommon `json:",inline"`
 }
 
 type RegionAppInstUsage struct {

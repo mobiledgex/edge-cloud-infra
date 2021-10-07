@@ -30,7 +30,6 @@
 - name: Compute mc command line
   set_fact:
     mc_args:
-      - mc
       - "-commonName"
       - "{{ inventory_hostname }}"
       - "-addr"
@@ -73,8 +72,9 @@
 - name: Deploy the MC
   docker_container:
     name: "{{ mc_name }}"
-    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+    image: "{{ edge_cloud_image }}-mc:{{ edge_cloud_version }}"
     restart_policy: unless-stopped
+    entrypoint: mc
     command: "{{ mc_args }}"
     ports:
       - "127.0.0.1:{{ mc_api_port }}:{{ mc_api_port }}"

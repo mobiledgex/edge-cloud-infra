@@ -306,6 +306,39 @@ type swaggerRemoveCloudletResMapping struct {
 	Body RegionCloudletResMap
 }
 
+// Request summary for AddCloudletAllianceOrg
+// swagger:parameters AddCloudletAllianceOrg
+type swaggerAddCloudletAllianceOrg struct {
+	// in: body
+	Body RegionCloudletAllianceOrg
+}
+
+type RegionCloudletAllianceOrg struct {
+	// required: true
+	// Region name
+	Region              string
+	CloudletAllianceOrg edgeproto.CloudletAllianceOrg
+}
+
+func (s *RegionCloudletAllianceOrg) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionCloudletAllianceOrg) GetObj() interface{} {
+	return &s.CloudletAllianceOrg
+}
+
+func (s *RegionCloudletAllianceOrg) GetObjName() string {
+	return "CloudletAllianceOrg"
+}
+
+// Request summary for RemoveCloudletAllianceOrg
+// swagger:parameters RemoveCloudletAllianceOrg
+type swaggerRemoveCloudletAllianceOrg struct {
+	// in: body
+	Body RegionCloudletAllianceOrg
+}
+
 // Request summary for FindFlavorMatch
 // swagger:parameters FindFlavorMatch
 type swaggerFindFlavorMatch struct {
@@ -335,6 +368,13 @@ func (s *RegionFlavorMatch) GetObjName() string {
 // Request summary for ShowFlavorsForCloudlet
 // swagger:parameters ShowFlavorsForCloudlet
 type swaggerShowFlavorsForCloudlet struct {
+	// in: body
+	Body RegionCloudletKey
+}
+
+// Request summary for GetOrganizationsOnCloudlet
+// swagger:parameters GetOrganizationsOnCloudlet
+type swaggerGetOrganizationsOnCloudlet struct {
 	// in: body
 	Body RegionCloudletKey
 }

@@ -5,7 +5,9 @@ import (
 	"strings"
 
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -18,6 +20,17 @@ func generateCloudletList(cloudletList []string) string {
 	// format needs to be: cloudlet='cloudlet1' OR cloudlet='cloudlet2' ... OR cloudlet='cloudlet3'
 	new := strings.Join(cloudletList, "' OR cloudlet='")
 	new = "cloudlet='" + new + "'"
+	return new
+}
+
+// For Dme metrics cloudlets are stored in foundCloudlet field
+func generateDmeApiUsageCloudletList(cloudletList []string) string {
+	if len(cloudletList) == 0 {
+		return ""
+	}
+	// format needs to be: foundCloudlet='cloudlet1' OR foundCloudlet='cloudlet2' ... OR foundCloudlet='cloudlet3'
+	new := strings.Join(cloudletList, "' OR foundCloudlet='")
+	new = "foundCloudlet='" + new + "'"
 	return new
 }
 
@@ -40,7 +53,7 @@ func cloudletPoolEventsQuery(obj *ormapi.RegionCloudletPoolUsage, cloudletList [
 		return ""
 	}
 	queryStart := prevCheckpoint(obj.StartTime)
-	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &queryStart, &obj.EndTime)
+	return fillUsageTimeAndGetCmd(&arg, usageInfluxDBTemplate, &queryStart, &obj.EndTime)
 }
 
 func cloudletPoolCheckpointsQuery(obj *ormapi.RegionCloudletPoolUsage, cloudletList []string, queryType string) string {
@@ -64,20 +77,20 @@ func cloudletPoolCheckpointsQuery(obj *ormapi.RegionCloudletPoolUsage, cloudletL
 	// set endtime to start and back up starttime by a checkpoint interval to hit the most recent
 	// checkpoint that occurred before startTime
 	checkpointTime := prevCheckpoint(obj.StartTime)
-	return fillTimeAndGetCmd(&arg, usageInfluxDBTemplate, &checkpointTime, &checkpointTime)
+	return fillUsageTimeAndGetCmd(&arg, usageInfluxDBTemplate, &checkpointTime, &checkpointTime)
 }
 
 func GetCloudletPoolUsageCommon(c echo.Context) error {
 	rc := &InfluxDBContext{}
-	regionRc := &RegionContext{}
+	regionRc := &ormutil.RegionContext{}
 
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
 	rc.claims = claims
-	regionRc.username = claims.Username
-	ctx := GetContext(c)
+	regionRc.Username = claims.Username
+	ctx := ormutil.GetContext(c)
 
 	if strings.HasSuffix(c.Path(), "usage/cloudletpool") {
 		in := ormapi.RegionCloudletPoolUsage{}
@@ -90,7 +103,7 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 			return fmt.Errorf("CloudletPool details must be present")
 		}
 		rc.region = in.Region
-		regionRc.region = in.Region
+		regionRc.Region = in.Region
 
 		// Check the operator against who is logged in
 		if err := authorized(ctx, rc.claims.Username, in.CloudletPool.Organization, ResourceCloudletAnalytics, ActionView); err != nil {
@@ -99,22 +112,17 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 
 		cloudletpoolQuery := edgeproto.CloudletPool{Key: in.CloudletPool}
 		// Auth check is already performed above
-		regionRc.skipAuthz = true
-		cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
-		// since we specify name, should only have at most 1 result
+		regionRc.SkipAuthz = true
+		cloudletList := []string{}
+		err = ctrlclient.ShowCloudletPoolStream(ctx, regionRc, &cloudletpoolQuery, connCache, nil, func(pool *edgeproto.CloudletPool) error {
+			for _, cloudlet := range pool.Cloudlets {
+				cloudletList = append(cloudletList, cloudlet)
+			}
+			return nil
+		})
 		if err != nil {
 			return err
 		}
-		if len(cloudletPools) != 1 {
-			log.SpanLog(ctx, log.DebugLevelMetrics, "Invalid response retrieving cloudletPool", "cloudletPools", cloudletPools)
-			return fmt.Errorf("Unable to retrieve CloudletPool info")
-		}
-
-		cloudletList := []string{}
-		for _, cloudlet := range cloudletPools[0].Cloudlets {
-			cloudletList = append(cloudletList, cloudlet)
-		}
-
 		// check clusters
 		eventCmd := cloudletPoolEventsQuery(&in, cloudletList, CLUSTER)
 		checkpointCmd := cloudletPoolCheckpointsQuery(&in, cloudletList, CLUSTER)
@@ -143,7 +151,7 @@ func GetCloudletPoolUsageCommon(c echo.Context) error {
 		usage := ormapi.AllMetrics{
 			Data: []ormapi.MetricData{*clusterUsage, *appUsage},
 		}
-		return setReply(c, &usage)
+		return ormutil.SetReply(c, &usage)
 	} else {
 		return echo.ErrNotFound
 	}

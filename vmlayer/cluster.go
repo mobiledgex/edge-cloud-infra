@@ -21,10 +21,11 @@ import (
 const (
 	MexSubnetPrefix = "mex-k8s-subnet-"
 
-	ActionAdd               = "add"
-	ActionRemove            = "remove"
-	ActionNone              = "none"
-	cleanupRetryWaitSeconds = 30
+	ActionAdd                 = "add"
+	ActionRemove              = "remove"
+	ActionNone                = "none"
+	cleanupRetryWaitSeconds   = 30
+	updateClusterSetupMaxTime = time.Minute * 15
 )
 
 //ClusterNodeFlavor contains details of flavor for the node
@@ -60,6 +61,23 @@ func GetClusterMasterName(ctx context.Context, clusterInst *edgeproto.ClusterIns
 		namePrefix = ClusterTypeDockerVMLabel
 	}
 	return namePrefix + "-" + k8smgmt.GetCloudletClusterName(&clusterInst.Key)
+}
+
+// GetClusterMasterNameFromNodeList is used instead of GetClusterMasterName when getting the actual master name from
+// a running cluster, because the name can get truncated if it is too long
+func GetClusterMasterNameFromNodeList(ctx context.Context, client ssh.Client, clusterInst *edgeproto.ClusterInst) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetClusterMasterNameFromNodeList")
+	kconfName := k8smgmt.GetKconfName(clusterInst)
+	cmd := fmt.Sprintf("KUBECONFIG=%s kubectl get nodes --no-headers -l node-role.kubernetes.io/master -o custom-columns=Name:.metadata.name", kconfName)
+	out, err := client.Output(cmd)
+	if err != nil {
+		return "", err
+	}
+	nodes := strings.Split(strings.TrimSpace(out), "\n")
+	if len(nodes) > 0 {
+		return nodes[0], nil
+	}
+	return "", fmt.Errorf("unable to find cluster master")
 }
 
 func GetClusterNodeName(ctx context.Context, clusterInst *edgeproto.ClusterInst, nodeNum uint32) string {
@@ -116,6 +134,10 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 
 	chefUpdateInfo := make(map[string]string)
 	masterTaintAction := k8smgmt.NoScheduleMasterTaintNone
+	masterNodeName, err := GetClusterMasterNameFromNodeList(ctx, client, clusterInst)
+	if err != nil {
+		return err
+	}
 	if clusterInst.Deployment == cloudcommon.DeploymentTypeKubernetes {
 		// if removing nodes, need to tell kubernetes that nodes are
 		// going away forever so that tolerating pods can be migrated
@@ -152,6 +174,13 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 			}
 		}
 		if len(toRemove) > 0 {
+			if clusterInst.NumNodes == 0 {
+				// We are removing all the nodes. Remove the master taint before deleting the node so the pods can migrate immediately
+				err = k8smgmt.SetMasterNoscheduleTaint(ctx, client, masterNodeName, k8smgmt.GetKconfName(clusterInst), k8smgmt.NoScheduleMasterTaintRemove)
+				if err != nil {
+					return err
+				}
+			}
 			log.SpanLog(ctx, log.DebugLevelInfra, "delete nodes", "toRemove", toRemove)
 			err = k8smgmt.DeleteNodes(ctx, client, kconfName, toRemove)
 			if err != nil {
@@ -169,11 +198,9 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 			log.SpanLog(ctx, log.DebugLevelInfra, "no change in nodes", "ClusterInst", clusterInst.Key, "numExistingMaster", numExistingMaster, "numExistingNodes", numExistingNodes)
 			return nil
 		}
-		if clusterInst.NumNodes == 0 && numExistingNodes > 0 {
-			// we are removing all the nodes, remove the taint on the master
-			masterTaintAction = k8smgmt.NoScheduleMasterTaintRemove
-		} else if clusterInst.NumNodes > 0 && numExistingNodes == 0 {
-			// we are adding one or more nodes and there was previously none.  Add the taint to master.
+		if clusterInst.NumNodes > 0 && numExistingNodes == 0 {
+			// we are adding one or more nodes and there was previously none.  Add the taint to master after we do orchestration.
+			// Note the case of removing the master taint is done earlier
 			masterTaintAction = k8smgmt.NoScheduleMasterTaintAdd
 		}
 	}
@@ -181,16 +208,18 @@ func (v *VMPlatform) updateClusterInternal(ctx context.Context, client ssh.Clien
 	if err != nil {
 		return err
 	}
+	err = v.setupClusterRootLBAndNodes(ctx, rootLBName, clusterInst, updateCallback, start, updateClusterSetupMaxTime, vmgp, ActionUpdate)
+	if err != nil {
+		return err
+	}
+	// now that all nodes are back, update master taint if needed
 	if masterTaintAction != k8smgmt.NoScheduleMasterTaintNone {
-		masterName := GetClusterMasterName(ctx, clusterInst)
-		err = k8smgmt.SetMasterNoscheduleTaint(ctx, client, masterName, k8smgmt.GetKconfName(clusterInst), masterTaintAction)
+		err = k8smgmt.SetMasterNoscheduleTaint(ctx, client, masterNodeName, k8smgmt.GetKconfName(clusterInst), masterTaintAction)
 		if err != nil {
 			return err
 		}
 	}
-
-	//todo: calculate timeouts instead of hardcoded value
-	return v.setupClusterRootLBAndNodes(ctx, rootLBName, clusterInst, updateCallback, start, time.Minute*15, vmgp, ActionUpdate)
+	return nil
 }
 
 //DeleteCluster deletes kubernetes cluster
@@ -292,7 +321,6 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 	}
 
 	if dedicatedRootLB {
-		proxycerts.RemoveDedicatedLB(ctx, rootLBName)
 		DeleteServerIpFromCache(ctx, rootLBName)
 	}
 	return nil
@@ -418,25 +446,13 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		}
 	}
 
-	if clusterInst.OptRes == "gpu" {
-		if v.VMProvider.GetGPUSetupStage(ctx) == ClusterInstStage {
-			// setup GPU drivers
-			err = v.setupGPUDrivers(ctx, client, clusterInst, updateCallback, action)
-			if err != nil {
-				return fmt.Errorf("failed to install GPU drivers on cluster VM: %v", err)
-			}
-		} else {
-			updateCallback(edgeproto.UpdateTask, "Skip setting up GPU driver on Cluster nodes")
-		}
-	}
-
 	if clusterInst.Deployment == cloudcommon.DeploymentTypeKubernetes {
 		elapsed := time.Since(start)
 		// subtract elapsed time from total time to get remaining time
 		timeout -= elapsed
 		updateCallback(edgeproto.UpdateTask, "Waiting for Cluster to Initialize")
 		k8sTime := time.Now()
-		err := v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, timeout)
+		masterIP, err := v.waitClusterReady(ctx, clusterInst, rootLBName, updateCallback, timeout)
 		if err != nil {
 			return err
 		}
@@ -446,9 +462,14 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		if err := infracommon.CreateClusterConfigMap(ctx, client, clusterInst); err != nil {
 			return err
 		}
-		// setup GPU operator helm repo
-		if clusterInst.OptRes == "gpu" && v.VMProvider.GetGPUSetupStage(ctx) == ClusterInstStage {
-			v.manageGPUOperator(ctx, client, clusterInst, updateCallback, action)
+		if v.VMProperties.GetUsesMetalLb() {
+			lbIpRange, err := v.VMProperties.GetMetalLBIp3rdOctetRangeFromMasterIp(ctx, masterIP)
+			if err != nil {
+				return err
+			}
+			if err := infracommon.InstallAndConfigMetalLbIfNotInstalled(ctx, client, clusterInst, lbIpRange); err != nil {
+				return err
+			}
 		}
 	} else if clusterInst.Deployment == cloudcommon.DeploymentTypeDocker {
 		// ensure the docker node is ready before calling the cluster create done
@@ -464,8 +485,25 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 			return err
 		}
 	}
+
+	if clusterInst.OptRes == "gpu" {
+		if v.VMProvider.GetGPUSetupStage(ctx) == ClusterInstStage {
+			// setup GPU drivers
+			err = v.setupGPUDrivers(ctx, client, clusterInst, updateCallback, action)
+			if err != nil {
+				return fmt.Errorf("failed to install GPU drivers on cluster VM: %v", err)
+			}
+			if clusterInst.Deployment == cloudcommon.DeploymentTypeKubernetes {
+				// setup GPU operator helm repo
+				v.manageGPUOperator(ctx, client, clusterInst, updateCallback, action)
+			}
+		} else {
+			updateCallback(edgeproto.UpdateTask, "Skip setting up GPU driver on Cluster nodes")
+		}
+	}
+
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		proxycerts.NewDedicatedLB(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
+		proxycerts.SetupTLSCerts(ctx, &clusterInst.Key.CloudletKey, rootLBName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "created cluster")
 	return nil
@@ -497,7 +535,7 @@ func (v *VMPlatform) GetClusterAccessIP(ctx context.Context, clusterInst *edgepr
 	return mip.ExternalAddr, nil
 }
 
-func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) error {
+func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, rootLBName string, updateCallback edgeproto.CacheUpdateCallback, timeout time.Duration) (string, error) {
 	start := time.Now()
 	masterName := ""
 	masterIP := ""
@@ -522,14 +560,14 @@ func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeprot
 			}
 			currReadyCount = readyCount
 			if err != nil {
-				return err
+				return masterIP, err
 			}
 			if ready {
 				log.SpanLog(ctx, log.DebugLevelInfra, "kubernetes cluster ready")
-				return nil
+				return masterIP, nil
 			}
 			if time.Since(start) > timeout {
-				return fmt.Errorf("cluster not ready (yet)")
+				return masterIP, fmt.Errorf("cluster not ready (yet)")
 			}
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "waiting for kubernetes cluster to be ready...")
@@ -539,7 +577,7 @@ func (v *VMPlatform) waitClusterReady(ctx context.Context, clusterInst *edgeprot
 
 //IsClusterReady checks to see if cluster is read, i.e. rootLB is running and active.  returns ready,nodecount, error
 func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.ClusterInst, masterName, masterIP string, rootLBName string, updateCallback edgeproto.CacheUpdateCallback) (bool, uint32, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "checking if cluster is ready")
+	log.SpanLog(ctx, log.DebugLevelInfra, "checking if cluster is ready", "masterIP", masterIP)
 
 	// some commands are run on the rootlb and some on the master directly, so we use separate clients
 	rootLBClient, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
@@ -597,7 +635,8 @@ func (v *VMPlatform) isClusterReady(ctx context.Context, clusterInst *edgeproto.
 		return false, 0, fmt.Errorf("kubeconfig copy failed, %v", err)
 	}
 	if clusterInst.NumNodes == 0 {
-		// untaint the master
+		// Untaint the master.  Note in the update case this has already been done when going from >0 nodes to 0 prior to node deletion but
+		// for the create case this is the earliest it can be done
 		err = k8smgmt.SetMasterNoscheduleTaint(ctx, rootLBClient, masterString, k8smgmt.GetKconfName(clusterInst), k8smgmt.NoScheduleMasterTaintRemove)
 		if err != nil {
 			return false, 0, err

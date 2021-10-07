@@ -526,7 +526,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 		for netname, rs := range vmp.Routes {
 			routeNetIp, err := v.GetIPFromServerName(ctx, netname, "", vmp.Name)
 			if err != nil {
-				return fmt.Errorf("Unable to find IP for network - %s", netname)
+				return fmt.Errorf("Unable to find IP for network: %s - %v", netname, err)
 			}
 			for _, r := range rs {
 				interfaceName := v.GetInterfaceNameForMac(ctx, vmClient, routeNetIp.MacAddress)

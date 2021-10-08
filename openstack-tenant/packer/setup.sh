@@ -24,6 +24,10 @@ archive_log() {
 }
 trap 'archive_log' EXIT
 
+[[ "$PACKER_BUILD_NAME" == debug ]] && DEBUG_BUILD=true || DEBUG_BUILD=false
+
+$DEBUG_BUILD && ROOT_PASS="$DEBUG_ROOT_PASS"
+
 if [[ -z "$ROOT_PASS" ]]; then
 	echo "Root password not found" >&2
 	exit 2
@@ -91,6 +95,7 @@ sudo tee "$MEX_RELEASE" <<EOT
 MEX_BUILD="$MEX_BUILD $( TZ=UTC date +'%Y/%m/%d %H:%M %Z' )"
 MEX_BUILD_TAG=$TAG
 MEX_BUILD_FLAVOR=$FLAVOR
+MEX_BUILD_IMG_TYPE=$PACKER_BUILD_NAME
 MEX_BUILD_SRC_IMG=$SRC_IMG
 MEX_BUILD_SRC_IMG_CHECKSUM=$SRC_IMG_CHECKSUM
 EOT
@@ -152,14 +157,16 @@ log "Remove unnecessary packages"
 cat /tmp/pkg-cleanup.txt | sudo xargs apt-get purge -y
 sudo rm -f /tmp/pkg-cleanup.txt
 
-log "Set up GRUB password"
-sudo tee /etc/grub.d/50_grub_pw <<EOT
+if ! $DEBUG_BUILD; then
+	log "Set up GRUB password"
+	sudo tee /etc/grub.d/50_grub_pw <<EOT
 cat <<PW
 set superusers="root"
 password_pbkdf2 root $GRUB_PW_HASH
 PW
 EOT
-sudo chmod a+x /etc/grub.d/50_grub_pw
+	sudo chmod a+x /etc/grub.d/50_grub_pw
+fi
 
 # Allow boot without requiring passwords
 sudo sed -i '/^CLASS=/s/"$/ --unrestricted"/' /etc/grub.d/10_linux
@@ -202,18 +209,20 @@ sudo grub-mkconfig -o /boot/grub/grub.cfg
 log "Setting the root password"
 echo "root:$ROOT_PASS" | sudo chpasswd
 
-log "Setting up root TOTP"
-sudo apt-get install -y libpam-google-authenticator
-echo "auth required pam_google_authenticator.so" \
-	| sudo tee -a /etc/pam.d/login
-sudo tee /root/.google_authenticator >/dev/null <<EOT
+if ! $DEBUG_BUILD; then
+	log "Setting up root TOTP"
+	sudo apt-get install -y libpam-google-authenticator
+	echo "auth required pam_google_authenticator.so" \
+		| sudo tee -a /etc/pam.d/login
+	sudo tee /root/.google_authenticator >/dev/null <<EOT
 $TOTP_KEY
 " RATE_LIMIT 3 30
 " WINDOW_SIZE 17
 " DISALLOW_REUSE
 " TOTP_AUTH
 EOT
-sudo chmod 400 /root/.google_authenticator
+	sudo chmod 400 /root/.google_authenticator
+fi
 
 # Fetch kubeadm package version
 K8SVERS=$( dpkg -l | grep kubeadm | awk '{print $3}' | cut -d- -f1 )

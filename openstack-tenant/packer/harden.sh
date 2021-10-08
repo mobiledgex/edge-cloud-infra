@@ -350,8 +350,10 @@ set_login_defs_param PASS_MAX_DAYS 365
 for user in `awk -F: '($3 > 0) {print $1 }' /etc/passwd`; do
 	sudo chage --maxdays 365 "$user"
 done
-# Ensure that the root password does not expire
-sudo chage -m 0 -M 99999 -I -1 -E -1 root
+# Ensure that the root and ubuntu passwords do not expire
+for user in root ubuntu; do
+	sudo chage -m 0 -M 99999 -I -1 -E -1 "$user"
+done
 
 log "5.4.1.2 Ensure minimum days between password changes is 7 or more"
 set_login_defs_param PASS_MIN_DAYS 7

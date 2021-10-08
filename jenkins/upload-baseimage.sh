@@ -25,7 +25,7 @@ artf_call() {
 [[ -z "$OPENSTACK_INSTANCE" ]] && die "OPENSTACK_INSTANCE not set"
 [[ -z "$ARTIFACTORY_APIKEY" ]] && die "ARTIFACTORY_APIKEY not set"
 
-COMPRESSED_BASE_IMAGE_NAME="${BASE_IMAGE_NAME%_uncompressed}"
+COMPRESSED_BASE_IMAGE_NAME="${BASE_IMAGE_NAME/_uncompressed/}"
 
 OPENRC="$HOME/.cloudlets/${OPENSTACK_INSTANCE}_cloudlet/openrc.mex"
 [[ -f "$OPENRC" ]] || die "OpenRC not found: $OPENRC"

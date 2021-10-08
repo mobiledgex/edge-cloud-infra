@@ -1,22 +1,17 @@
 package ormapi
 
 import (
-	fedcommon "github.com/mobiledgex/edge-cloud-infra/mc/federation/common"
+	"fmt"
+
+	"github.com/jinzhu/gorm"
+	"github.com/lib/pq"
 )
 
-// GORM objects
-// ============
 type Federator struct {
-	// Globally unique string to identify the self federator owning the federator object
-	SelfOperatorId string `gorm:"primary_key"`
-	// ISO 3166-1 Alpha-2 code for the country where the self federator is located
-	SelfCountryCode string `gorm:"primary_key"`
 	// Globally unique string to identify an operator platform
 	OperatorId string `gorm:"primary_key"`
 	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	CountryCode string `gorm:"primary_key"`
-	// Type of federator: self or partner
-	Type string
 	// Globally unique string used to authenticate operations over federation interface
 	FederationKey string
 	// Federation access point address
@@ -24,8 +19,8 @@ type Federator struct {
 	// Mobile country code of operator sending the request
 	MCC string
 	// Comma separated list of mobile network codes of operator sending the request
-	MNCs string
-	// IP and Port of discovery service URL of OP
+	MNC pq.StringArray `gorm:"type:text[]"`
+	// IP and Port of discovery service URL of operator platform
 	LocatorEndPoint string
 }
 
@@ -34,29 +29,25 @@ type Federation struct {
 	SelfOperatorId string `gorm:"primary_key"`
 	// Self federator country code
 	SelfCountryCode string `gorm:"primary_key"`
-	// Partner federator operator ID
-	PartnerOperatorId string `gorm:"primary_key"`
-	// Partner federator country code
-	PartnerCountryCode string `gorm:"primary_key"`
-	// Role of the partner federator in federation
-	PartnerRole fedcommon.FederatorRole `gorm:"primary_key"`
+	// Partner Federator
+	Federator
+	// Partner shares its zones with self federator as part of federation
+	// read_only: true
+	PartnerRoleShareZonesWithSelf bool
+	// Partner is allowed access to self federator zones as part of federation
+	// read_only: true
+	PartnerRoleAccessToSelfZones bool
 }
 
-// Zone owned by a Federator. MC defines a zone as a group of cloudlets,
+// Details of zone owned by a federator. MC defines a zone as a group of cloudlets,
 // but currently it is restricted to one cloudlet
 type FederatorZone struct {
-	// Globally unique string to identify the self federator owning the federator object
-	SelfOperatorId string `gorm:"primary_key"`
-	// ISO 3166-1 Alpha-2 code for the country where the self federator is located
-	SelfCountryCode string `gorm:"primary_key"`
 	// Globally unique string to identify an operator platform
 	OperatorId string `gorm:"primary_key"`
 	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	CountryCode string `gorm:"primary_key"`
 	// Globally unique string used to authenticate operations over federation interface
 	ZoneId string `gorm:"primary_key"`
-	// Mobile country code of operator sending the request
-	MCC string `json:"MCC"`
 	// GPS co-ordinates associated with the zone (in decimal format)
 	GeoLocation string `json:"geoLocation"`
 	// Comma seperated list of cities under this zone
@@ -68,130 +59,114 @@ type FederatorZone struct {
 	// Region in which cloudlets reside
 	Region string `json:"region"`
 	// Delimited list of cloudlets part of this zone
-	Cloudlets string `json:"cloudlet"`
+	Cloudlets pq.StringArray `gorm:"type:text[]"`
 }
 
-// Information of the Federator with whom the zone is shared
-type FederatorSharedZone struct {
+// Information of the partner federator with whom the self federator zone is shared
+type FederatedSelfZone struct {
 	// Globally unique identifier of the federator zone
 	ZoneId string `gorm:"primary_key"`
-	// Federator operator ID who owns the zone
-	OwnerOperatorId string `gorm:"primary_key"`
-	// Federator country code who owns the zone
-	OwnerCountryCode string `gorm:"primary_key"`
-	// Federator operator ID with whom the zone is shared
-	SharedWithOperatorId string `gorm:"primary_key"`
-	// Federator country code with whom the zone is shared
-	SharedWithCountryCode string `gorm:"primary_key"`
-}
-
-// Information of the Federator who has registered the zone
-type FederatorRegisteredZone struct {
-	// Globally unique identifier of the federator zone
-	ZoneId string `gorm:"primary_key"`
-	// Federator operator ID who owns the zone
-	OwnerOperatorId string `gorm:"primary_key"`
-	// Federator country code who owns the zone
-	OwnerCountryCode string `gorm:"primary_key"`
-	// Federator operator ID who has registered the zone
-	RegisteredByOperatorId string `gorm:"primary_key"`
-	// Federator country code who has registered the zone
-	RegisteredByCountryCode string `gorm:"primary_key"`
-}
-
-// API Objects
-// ===========
-type FederatorRequest struct {
 	// Self federator operator ID
-	// required: true
-	SelfOperatorId string
+	SelfOperatorId string `gorm:"primary_key"`
 	// Self federator country code
-	// required: true
-	SelfCountryCode string
-	// Globally unique string used to authenticate operations over federation interface
-	FederationKey string
-	// Federation access point address
-	FederationAddr string
-	// Globally unique string to identify an operator platform
-	// required: true
-	OperatorId string
-	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
-	// required: true
-	CountryCode string
-	// Type of the federation
-	Type string
-	// Mobile country code of operator sending the request
-	MCC string
-	// List of mobile network codes of operator sending the request
-	MNCs []string
-	// IP and Port of discovery service URL of OP
-	LocatorEndPoint string
+	SelfCountryCode string `gorm:"primary_key"`
+	// Partner federator operator ID
+	PartnerOperatorId string `gorm:"primary_key"`
+	// Partner federator country code
+	PartnerCountryCode string `gorm:"primary_key"`
+	// Zone registered by partner federator
+	// read_only: true
+	Registered bool
 }
 
-type FederationRequest struct {
-	// Operator ID of the self federator
-	// required: true
-	SelfOperatorId string
-	// Country code of the self federator
-	// required: true
-	SelfCountryCode string
-	// Operator ID of the partner federator
-	// required: true
-	PartnerOperatorId string
-	// Country code of the partner federator
-	// required: true
-	PartnerCountryCode string
-}
-
-type FederatorZoneDetails struct {
+// Zones shared as part of federation with partner federator
+type FederatedPartnerZone struct {
 	// Self federator operator ID
-	// required: true
-	SelfOperatorId string
+	SelfOperatorId string `gorm:"primary_key"`
 	// Self federator country code
-	// required: true
-	SelfCountryCode string
-	// Globally unique string used to authenticate operations over federation interface
-	// required: true
-	ZoneId string
-	// Globally unique string to identify an operator platform
-	// required: true
-	OperatorId string
-	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
-	// required: true
-	CountryCode string
-	// Operator region required for zone to get the list of cloudlets
-	Region string
-	// GPS co-ordinates associated with the zone (in decimal format)
-	// Latitude and Longitude is separated by comma. For example: 44.4308975,-89.6884637
-	GeoLocation string
-	// Comma seperated list of cities under this zone
-	City string
-	// Comma seperated list of states under this zone
-	State string
-	// Type of locality eg rural, urban etc.
-	Locality string
-	// List of cloudlets belonging to the federation zone
-	Cloudlets []string
-	// List of partner federators by whom this zone is registered
-	RegisteredByFederators []string
-	// List of partner federators with whom this zone is shared
-	SharedWithFederators []string
+	SelfCountryCode string `gorm:"primary_key"`
+	// Partner federator zone
+	FederatorZone
+	// Zone registered by self federator
+	// read_only: true
+	Registered bool
 }
 
-type FederatorZoneRequest struct {
-	// Operator ID of the self federator
-	// required: true
-	SelfOperatorId string
-	// Country code of the self federator
-	// required: true
-	SelfCountryCode string
-	// Operator ID of the partner federator
-	// required: true
-	PartnerOperatorId string
-	// Country code of the partner federator
-	// required: true
-	PartnerCountryCode string
-	// Zone ID
-	// required: true
-	ZoneId string
+func setForeignKeyConstraint(loggedDb *gorm.DB, fKeyTableName, fKeyFields, refTableName, refFields string) error {
+	cmd := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT self_fk_constraint FOREIGN KEY (%s) "+
+		"REFERENCES %s(%s)", fKeyTableName, fKeyFields, refTableName, refFields)
+	err := loggedDb.Exec(cmd).Error
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func InitFederationAPIConstraints(loggedDb *gorm.DB) error {
+	// setup foreign key constraints, this is done separately here as gorm doesn't
+	// support referencing composite primary key inline to the model
+
+	// Federation's SelfOperatorId/SelfCountryCode references Federator's OperatorId/CountryCode
+	scope := loggedDb.Unscoped().NewScope(&Federation{})
+	fKeyTableName := scope.TableName()
+	fKeyFields := fmt.Sprintf("%s, %s", scope.Quote("self_operator_id"), scope.Quote("self_country_code"))
+
+	scope = loggedDb.Unscoped().NewScope(&Federator{})
+	refTableName := scope.TableName()
+	refFields := fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
+	err := setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	// FederatorZone's OperatorId/CountryCode references Federator's OperatorId/CountryCode
+	scope = loggedDb.Unscoped().NewScope(&FederatorZone{})
+	fKeyTableName = scope.TableName()
+	fKeyFields = fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
+
+	scope = loggedDb.Unscoped().NewScope(&Federator{})
+	refTableName = scope.TableName()
+	refFields = fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
+	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	// FederatedSelfZone's SelfOperatorId/SelfCountryCode/PartnerOperatorId/PartnerCountryCode references
+	//   Federation's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode
+	scope = loggedDb.Unscoped().NewScope(&FederatedSelfZone{})
+	fKeyTableName = scope.TableName()
+	fKeyFields = fmt.Sprintf("%s, %s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("partner_operator_id"), scope.Quote("partner_country_code"))
+
+	scope = loggedDb.Unscoped().NewScope(&Federation{})
+	refTableName = scope.TableName()
+	refFields = fmt.Sprintf("%s, %s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("operator_id"), scope.Quote("country_code"))
+	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	// FederatedPartnerZone's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode references
+	//   Federation's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode
+	scope = loggedDb.Unscoped().NewScope(&FederatedPartnerZone{})
+	fKeyTableName = scope.TableName()
+	fKeyFields = fmt.Sprintf("%s, %s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("operator_id"), scope.Quote("country_code"))
+
+	scope = loggedDb.Unscoped().NewScope(&Federation{})
+	refTableName = scope.TableName()
+	refFields = fmt.Sprintf("%s, %s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("operator_id"), scope.Quote("country_code"))
+	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -82,10 +82,10 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 			&ormapi.McRateLimitMaxReqsSettings{},
 			// Federation GORM Objects
 			&ormapi.Federator{},
-			&ormapi.FederatorZone{},
-			&ormapi.FederatorSharedZone{},
-			&ormapi.FederatorRegisteredZone{},
 			&ormapi.Federation{},
+			&ormapi.FederatorZone{},
+			&ormapi.FederatedPartnerZone{},
+			&ormapi.FederatedSelfZone{},
 		).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "automigrate", "err", err)
@@ -135,6 +135,15 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 		err = InitRateLimitMc(ctx)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "init ratelimitmc", "err", err)
+			if unitTest {
+				initDone <- err
+				return
+			}
+			continue
+		}
+		err = ormapi.InitFederationAPIConstraints(loggedDB(ctx))
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "init federation API constraints", "err", err)
 			if unitTest {
 				initDone <- err
 				return

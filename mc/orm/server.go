@@ -817,6 +817,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/federator/self/create", CreateSelfFederator)
 	auth.POST("/federator/self/update", UpdateSelfFederator)
 	auth.POST("/federator/self/delete", DeleteSelfFederator)
+	auth.POST("/federator/self/show", ShowSelfFederator)
 	auth.POST("/federator/self/zone/create", CreateSelfFederatorZone)
 	auth.POST("/federator/self/zone/delete", DeleteSelfFederatorZone)
 	auth.POST("/federator/self/zone/share", ShareSelfFederatorZone)
@@ -825,12 +826,12 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/federator/partner/delete", DeletePartnerFederator)
 	auth.POST("/federator/partner/zone/register", RegisterPartnerFederatorZone)
 	auth.POST("/federator/partner/zone/deregister", DeregisterPartnerFederatorZone)
-	auth.POST("/federator/show", ShowFederator)
-	auth.POST("/federator/zone/show", ShowFederatorZone)
 	// Manage federation with partner federator
 	auth.POST("/federation/create", CreateFederation)
 	auth.POST("/federation/delete", DeleteFederation)
 	auth.POST("/federation/show", ShowFederation)
+	auth.POST("/federation/self/zone/show", ShowFederatedSelfZone)
+	auth.POST("/federation/partner/zone/show", ShowFederatedPartnerZone)
 
 	// Generate new short-lived token to authenticate websocket connections
 	// Note: Web-client should not store auth token as part of local storage,

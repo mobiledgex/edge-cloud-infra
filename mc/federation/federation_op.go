@@ -156,7 +156,7 @@ func (p *PartnerApi) FederationOperatorPartnerCreate(c echo.Context) error {
 	out.OrigOperatorId = selfFed.OperatorId
 	out.PartnerOperatorId = opRegReq.OperatorId
 	out.MCC = selfFed.MCC
-	out.MNC = selfFed.MNCs
+	out.MNC = selfFed.MNC
 	out.LocatorEndPoint = selfFed.LocatorEndPoint
 	for _, opShZone := range opShZones {
 		zoneLookup := ormapi.FederatorZone{
@@ -223,7 +223,7 @@ func (p *PartnerApi) FederationOperatorPartnerUpdate(c echo.Context) error {
 		update = true
 	}
 	if len(opConf.MNC) > 0 {
-		partnerFed.MNCs = opConf.MNC
+		partnerFed.MNC = opConf.MNC
 		update = true
 	}
 	if opConf.LocatorEndPoint != "" {

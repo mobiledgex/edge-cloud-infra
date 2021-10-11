@@ -16,6 +16,7 @@ func init() {
 			Name:         "CreateSelfFederator",
 			Use:          "create",
 			Short:        "Create Self Federator",
+			SpecialArgs:  &FederatorSpecialArgs,
 			RequiredArgs: strings.Join(FederatorRequiredArgs, " "),
 			OptionalArgs: strings.Join(FederatorOptionalArgs, " "),
 			Comments:     FederatorComments,
@@ -27,6 +28,7 @@ func init() {
 			Name:         "UpdateSelfFederator",
 			Use:          "update",
 			Short:        "Update Self Federator",
+			SpecialArgs:  &FederatorSpecialArgs,
 			RequiredArgs: "operatorid countrycode",
 			OptionalArgs: "mcc mncs locatorendpoint",
 			Comments:     FederatorComments,
@@ -59,6 +61,7 @@ func init() {
 			Name:         "CreateSelfFederatorZone",
 			Use:          "createzone",
 			Short:        "Create Self Federator Zone",
+			SpecialArgs:  &FederatorZoneSpecialArgs,
 			RequiredArgs: strings.Join(FederatorZoneRequiredArgs, " "),
 			OptionalArgs: strings.Join(FederatorZoneOptionalArgs, " "),
 			Comments:     FederatorZoneComments,
@@ -75,6 +78,17 @@ func init() {
 			ReqData:      &ormapi.FederatorZone{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/self/zone/delete",
+		},
+		&ApiCommand{
+			Name:         "ShowSelfFederatorZone",
+			Use:          "showzone",
+			Short:        "Show Self Federator Zone",
+			RequiredArgs: "operatorid countrycode",
+			OptionalArgs: "zoneid city region",
+			Comments:     FederatorZoneComments,
+			ReqData:      &ormapi.FederatorZone{},
+			ReplyData:    &[]ormapi.FederatorZone{},
+			Path:         "/auth/federator/self/zone/show",
 		},
 		&ApiCommand{
 			Name:         "ShareSelfFederatorZone",
@@ -100,9 +114,11 @@ func init() {
 			Name:         "CreatePartnerFederator",
 			Use:          "createpartner",
 			Short:        "Create Partner Federator",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			SpecialArgs:  &FederatorSpecialArgs,
 			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
 			OptionalArgs: strings.Join(FederatorOptionalArgs, " "),
-			PasswordArg:  "federationkey",
+			PasswordArg:  "federator.federationkey",
 			Comments:     FederatorComments,
 			ReqData:      &ormapi.Federation{},
 			ReplyData:    &ormapi.Result{},
@@ -112,6 +128,7 @@ func init() {
 			Name:         "DeletePartnerFederator",
 			Use:          "deletepartner",
 			Short:        "Delete Partner Federator",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			RequiredArgs: "selfoperatorid selfcountrycode operatorid countrycode",
 			Comments:     FederatorComments,
 			ReqData:      &ormapi.Federation{},
@@ -122,6 +139,7 @@ func init() {
 			Name:         "RegisterPartnerFederatorZone",
 			Use:          "registerzone",
 			Short:        "Register Partner Federator Zone",
+			AliasArgs:    strings.Join(FederatorZoneAliasArgs, " "),
 			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederatorZoneRequiredArgs...), " "),
 			Comments:     FederatorZoneComments,
 			ReqData:      &ormapi.FederatedPartnerZone{},
@@ -132,6 +150,7 @@ func init() {
 			Name:         "DeRegisterPartnerFederatorZone",
 			Use:          "deregisterzone",
 			Short:        "DeRegister Partner Federator Zone",
+			AliasArgs:    strings.Join(FederatorZoneAliasArgs, " "),
 			RequiredArgs: "selfoperatorid selfcountrycode operatorid countrycode zoneid",
 			Comments:     FederatorZoneComments,
 			ReqData:      &ormapi.FederatedPartnerZone{},
@@ -142,6 +161,7 @@ func init() {
 			Name:         "CreateFederation",
 			Use:          "createfederation",
 			Short:        "Create Federation",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			RequiredArgs: strings.Join(FederationArgs, " "),
 			Comments:     FederatorComments,
 			ReqData:      &ormapi.Federation{},
@@ -152,6 +172,7 @@ func init() {
 			Name:         "DeleteFederation",
 			Use:          "deletefederation",
 			Short:        "Delete Federation",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			RequiredArgs: strings.Join(FederationArgs, " "),
 			Comments:     FederatorComments,
 			ReqData:      &ormapi.Federation{},
@@ -162,6 +183,7 @@ func init() {
 			Name:         "ShowFederation",
 			Use:          "showfederation",
 			Short:        "Show Federation",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			RequiredArgs: strings.Join(SelfFederatorArgs, " "),
 			OptionalArgs: strings.Join(FederationRequiredArgs, " "),
 			Comments:     FederatorComments,
@@ -184,6 +206,7 @@ func init() {
 			Name:         "ShowFederatedPartnerZone",
 			Use:          "showfederatedpartnerzone",
 			Short:        "Show Federated Partner Zones",
+			AliasArgs:    strings.Join(FederatorZoneAliasArgs, " "),
 			RequiredArgs: strings.Join(SelfFederatorArgs, " "),
 			OptionalArgs: "operatorid countrycode zoneid",
 			Comments:     FederatorZoneComments,
@@ -224,8 +247,25 @@ var FederationRequiredArgs = []string{
 var FederationArgs = []string{
 	"selfoperatorid",
 	"selfcountrycode",
-	"partneroperatorid",
-	"partnercountrycode",
+	"operatorid",
+	"countrycode",
+}
+
+var FederationAliasArgs = []string{
+	"operatorid=federator.operatorid",
+	"countrycode=federator.countrycode",
+	"federationkey=federator.federationkey",
+	"federationaddr=federator.federationaddr",
+	"mcc=federator.mcc",
+	"mnc=federator.mnc",
+	"locatorendpoint=federator.locatorendpoint",
+}
+
+var FederatorSpecialArgs = map[string]string{
+	"federator.mnc": "StringArray",
+}
+var FederatorZoneSpecialArgs = map[string]string{
+	"federatorzone.cloudlets": "StringArray",
 }
 
 var FederatorZoneRequiredArgs = []string{
@@ -240,6 +280,18 @@ var FederatorZoneOptionalArgs = []string{
 	"city",
 	"state",
 	"locality",
+}
+
+var FederatorZoneAliasArgs = []string{
+	"operatorid=federatorzone.operatorid",
+	"countrycode=federatorzone.countrycode",
+	"zoneid=federatorzone.zoneid",
+	"geolocation=federatorzone.geolocation",
+	"city=federatorzone.city",
+	"state=federatorzone.state",
+	"locality=federatorzone.locality",
+	"region=federatorzone.locality",
+	"cloudlets=federatorzone.cloudlets",
 }
 
 var FederatedSelfZoneArgs = []string{

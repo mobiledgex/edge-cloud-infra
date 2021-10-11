@@ -2007,6 +2007,22 @@ func (s *Client) DeleteSelfFederatorZone(uri string, token string, in *ormapi.Fe
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) ShowSelfFederatorZone(uri string, token string, in *ormapi.FederatorZone) ([]ormapi.FederatorZone, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.FederatorZone
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowSelfFederatorZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
 func (s *Client) ShareSelfFederatorZone(uri string, token string, in *ormapi.FederatedSelfZone) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri

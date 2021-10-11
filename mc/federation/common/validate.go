@@ -2,10 +2,22 @@ package common
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	valid "github.com/asaskevich/govalidator"
 )
+
+// NOTE: '.' should be not be allowed as it is used for parse federation ID
+//       from zone ID
+var zoneIdMatch = regexp.MustCompile("^[a-zA-Z0-9][a-zA-Z0-9_-]*[a-zA-Z0-9]$")
+
+func ValidateZoneId(zoneId string) error {
+	if !zoneIdMatch.MatchString(zoneId) {
+		return fmt.Errorf("Invalid zone ID %q, valid format is %s", zoneId, zoneIdMatch)
+	}
+	return nil
+}
 
 func ValidateCountryCode(countryCode string) error {
 	if countryCode == "" {

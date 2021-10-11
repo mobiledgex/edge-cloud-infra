@@ -2,6 +2,7 @@ package ormapi
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jinzhu/gorm"
 	"github.com/lib/pq"
@@ -25,12 +26,15 @@ type Federator struct {
 }
 
 type Federation struct {
+	// Internal ID to reference a federation
+	// read_only: true
+	Id int `gorm:"auto_increment:true"`
 	// Self federator operator ID
 	SelfOperatorId string `gorm:"primary_key"`
 	// Self federator country code
 	SelfCountryCode string `gorm:"primary_key"`
 	// Partner Federator
-	Federator
+	Federator `json:",inline"`
 	// Partner shares its zones with self federator as part of federation
 	// read_only: true
 	PartnerRoleShareZonesWithSelf bool
@@ -86,7 +90,7 @@ type FederatedPartnerZone struct {
 	// Self federator country code
 	SelfCountryCode string `gorm:"primary_key"`
 	// Partner federator zone
-	FederatorZone
+	FederatorZone `json:",inline"`
 	// Zone registered by self federator
 	// read_only: true
 	Registered bool
@@ -97,7 +101,9 @@ func setForeignKeyConstraint(loggedDb *gorm.DB, fKeyTableName, fKeyFields, refTa
 		"REFERENCES %s(%s)", fKeyTableName, fKeyFields, refTableName, refFields)
 	err := loggedDb.Exec(cmd).Error
 	if err != nil {
-		return err
+		if !strings.Contains(err.Error(), "already exists") {
+			return err
+		}
 	}
 	return nil
 }

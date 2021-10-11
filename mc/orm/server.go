@@ -820,6 +820,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/federator/self/show", ShowSelfFederator)
 	auth.POST("/federator/self/zone/create", CreateSelfFederatorZone)
 	auth.POST("/federator/self/zone/delete", DeleteSelfFederatorZone)
+	auth.POST("/federator/self/zone/show", ShowSelfFederatorZone)
 	auth.POST("/federator/self/zone/share", ShareSelfFederatorZone)
 	auth.POST("/federator/self/zone/unshare", UnshareSelfFederatorZone)
 	auth.POST("/federator/partner/create", CreatePartnerFederator)

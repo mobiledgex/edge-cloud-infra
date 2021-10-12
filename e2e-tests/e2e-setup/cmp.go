@@ -558,7 +558,7 @@ func cmpFilterApiMetricData(data []OptimizedMetricsCompare) {
 	for ii := 0; ii < len(data); ii++ {
 		for i, _ := range data[ii].Values {
 			for j, _ := range data[ii].Values[i] {
-				data[ii].Values[i][j] = 0
+				data[ii].Values[i][j] = ""
 			}
 		}
 	}

@@ -1,4 +1,0 @@
-tests:
-  - includefile: {{edge-cloud-testfiles}}/stop_cleanup.yml
-  - includefile: federation_start_create.yml
-  - includefile: {{edge-cloud-testfiles}}/stop_cleanup.yml

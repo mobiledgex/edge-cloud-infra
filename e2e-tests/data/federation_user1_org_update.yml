@@ -1,3 +1,0 @@
-orgs:
-- name: tmus{{suffix}}
-  edgeboxonly: false

@@ -1,5 +1,0 @@
-orgs:
-- name: tmus{{suffix}}
-  type: operator
-  address: tmus headquarters
-  phone: 123-123-1234

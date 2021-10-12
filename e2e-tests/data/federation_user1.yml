@@ -1,4 +1,0 @@
-- name: user1{{suffix}}
-  passhash: user1password-super-long-difficult
-  email: user1@email.com
-  enabletotp: true

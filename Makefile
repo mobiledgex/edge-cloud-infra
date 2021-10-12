@@ -106,12 +106,10 @@ unit-test:
 
 test:
 	e2e-tests -testfile ./e2e-tests/testfiles/regression_run.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml
-	e2e-tests -testfile ./e2e-tests/testfiles/federation_regression_run.yml -setupfile ./e2e-tests/setups/local_federation.yml -varsfile ./e2e-tests/vars.yml
 	make -C ../edge-cloud test
 
 test-debug:
 	e2e-tests -testfile ./e2e-tests/testfiles/regression_run.yml -setupfile ./e2e-tests/setups/local_multi.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
-	e2e-tests -testfile ./e2e-tests/testfiles/federation_regression_run.yml -setupfile ./e2e-tests/setups/local_federation.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
 	make -C ../edge-cloud test-debug
 
 # start/restart local processes to run individual python or other tests against
@@ -131,13 +129,6 @@ test-robot-start:
 
 test-robot-stop:
 	e2e-tests -testfile ./e2e-tests/testfiles/stop_cleanup.yml -setupfile ./e2e-tests/setups/local_multi_automation.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
-
-# Federation testing
-federation-test-start:
-	e2e-tests -testfile ./e2e-tests/testfiles/federation_start_create.yml -setupfile ./e2e-tests/setups/local_federation.yml -varsfile ./e2e-tests/vars.yml -stop -notimestamp
-
-federation-test-stop:
-	e2e-tests -testfile ./e2e-tests/testfiles/stop_cleanup.yml -setupfile ./e2e-tests/setups/local_federation.yml -varsfile ./e2e-tests/vars.yml -notimestamp
 
 # Kind local k8s testing
 kind-test-start:

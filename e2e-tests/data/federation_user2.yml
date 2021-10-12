@@ -1,3 +1,0 @@
-- name: user2{{suffix}}
-  passhash: user2password-super-long-difficult
-  email: user2@email.com

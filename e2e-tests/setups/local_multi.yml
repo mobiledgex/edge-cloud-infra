@@ -343,14 +343,6 @@ sqls:
   dbname: mcdb
   hostname: "127.0.0.1"
 
-#traefiks:
-#- name: traefik-e2e
-#  hostname: "127.0.0.1"
-#  dockernetwork: e2e-logging
-#  tls:
-#    servercert: "{{tlsoutdir}}/mex-server.crt"
-#    serverkey: "{{tlsoutdir}}/mex-server.key"
-
 elasticsearchs:
 - name: elasticsearch-e2e
   hostname: "127.0.0.1"

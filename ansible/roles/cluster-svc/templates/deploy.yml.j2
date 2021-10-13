@@ -42,6 +42,7 @@ spec:
          - "infra,notify,api"
          - "--scrapeInterval"
          - "5s"
+         - "pluginRequired"
         env:
          - name: JAEGER_ENDPOINT
            value: "{{ jaeger_endpoint }}"

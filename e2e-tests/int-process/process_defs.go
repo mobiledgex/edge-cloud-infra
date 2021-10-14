@@ -24,6 +24,7 @@ type MC struct {
 	ApiTlsCert              string
 	ApiTlsKey               string
 	StaticDir               string
+	TestMode                bool
 	cmd                     *exec.Cmd
 }
 type Sql struct {

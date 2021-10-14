@@ -95,6 +95,7 @@ type ServerConfig struct {
 	StaticDir               string
 	DeploymentTag           string
 	ControllerNotifyPort    string
+	TestMode                bool
 }
 
 var DefaultDBUser = "mcuser"

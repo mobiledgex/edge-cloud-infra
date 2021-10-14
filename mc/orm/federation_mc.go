@@ -150,8 +150,12 @@ func CreateSelfFederator(c echo.Context) error {
 	}
 
 	db := loggedDB(ctx)
-	fedKey := uuid.New().String()
-	opFed.FederationKey = fedKey
+	if opFed.FederationKey != "" && serverConfig.TestMode {
+		// In test mode, allow user specified federation key
+	} else {
+		fedKey := uuid.New().String()
+		opFed.FederationKey = fedKey
+	}
 	opFed.FederationAddr = serverConfig.FederationAddr
 	if err := db.Create(&opFed).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
@@ -162,7 +166,7 @@ func CreateSelfFederator(c echo.Context) error {
 	}
 
 	opFedOut := ormapi.Federator{
-		FederationKey: fedKey,
+		FederationKey: opFed.FederationKey,
 	}
 	return c.JSON(http.StatusOK, &opFedOut)
 }
@@ -322,7 +326,8 @@ func ShowSelfFederator(c echo.Context) error {
 		return ormutil.BindErr(err)
 	}
 
-	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
+	if err != nil {
 		return err
 	}
 
@@ -332,11 +337,16 @@ func ShowSelfFederator(c echo.Context) error {
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
-	for ii, _ := range feds {
+	out := []ormapi.Federator{}
+	for _, fed := range feds {
+		if !authz.Ok(fed.OperatorId) {
+			continue
+		}
 		// Do not display federation ID
-		feds[ii].FederationKey = ""
+		fed.FederationKey = ""
+		out = append(out, fed)
 	}
-	return c.JSON(http.StatusOK, feds)
+	return c.JSON(http.StatusOK, out)
 }
 
 // A self federator will create a partner federator. This is done as
@@ -615,11 +625,7 @@ func ShowSelfFederatorZone(c echo.Context) error {
 	if err := c.Bind(&opZoneReq); err != nil {
 		return ormutil.BindErr(err)
 	}
-	if err := fedAuthorized(ctx, claims.Username, opZoneReq.OperatorId); err != nil {
-		return err
-	}
-	// get self federator information
-	_, err = GetSelfFederator(ctx, opZoneReq.OperatorId, opZoneReq.CountryCode)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
 	if err != nil {
 		return err
 	}
@@ -629,8 +635,15 @@ func ShowSelfFederatorZone(c echo.Context) error {
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
+	out := []ormapi.FederatorZone{}
+	for _, opZone := range opZones {
+		if !authz.Ok(opZone.OperatorId) {
+			continue
+		}
+		out = append(out, opZone)
+	}
 
-	return c.JSON(http.StatusOK, opZones)
+	return c.JSON(http.StatusOK, out)
 }
 
 func ShowFederatedSelfZone(c echo.Context) error {
@@ -643,11 +656,7 @@ func ShowFederatedSelfZone(c echo.Context) error {
 	if err := c.Bind(&opZoneReq); err != nil {
 		return ormutil.BindErr(err)
 	}
-	if err := fedAuthorized(ctx, claims.Username, opZoneReq.SelfOperatorId); err != nil {
-		return err
-	}
-	// get self federator information
-	_, err = GetSelfFederator(ctx, opZoneReq.SelfOperatorId, opZoneReq.SelfCountryCode)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
 	if err != nil {
 		return err
 	}
@@ -657,8 +666,15 @@ func ShowFederatedSelfZone(c echo.Context) error {
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
+	out := []ormapi.FederatedSelfZone{}
+	for _, zone := range opZones {
+		if !authz.Ok(zone.SelfOperatorId) {
+			continue
+		}
+		out = append(out, zone)
+	}
 
-	return c.JSON(http.StatusOK, opZones)
+	return c.JSON(http.StatusOK, out)
 }
 
 func ShowFederatedPartnerZone(c echo.Context) error {
@@ -671,11 +687,7 @@ func ShowFederatedPartnerZone(c echo.Context) error {
 	if err := c.Bind(&opZoneReq); err != nil {
 		return ormutil.BindErr(err)
 	}
-	if err := fedAuthorized(ctx, claims.Username, opZoneReq.SelfOperatorId); err != nil {
-		return err
-	}
-	// get self federator information
-	_, err = GetSelfFederator(ctx, opZoneReq.SelfOperatorId, opZoneReq.SelfCountryCode)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
 	if err != nil {
 		return err
 	}
@@ -685,8 +697,15 @@ func ShowFederatedPartnerZone(c echo.Context) error {
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
+	out := []ormapi.FederatedPartnerZone{}
+	for _, zone := range opZones {
+		if !authz.Ok(zone.SelfOperatorId) {
+			continue
+		}
+		out = append(out, zone)
+	}
 
-	return c.JSON(http.StatusOK, opZones)
+	return c.JSON(http.StatusOK, out)
 }
 
 func ShareSelfFederatorZone(c echo.Context) error {
@@ -930,8 +949,8 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 	opZoneReg := federation.OperatorZoneRegister{
 		OrigFederationId: selfFed.FederationKey,
 		DestFederationId: partnerFed.FederationKey,
-		Operator:         partnerFed.OperatorId,
-		Country:          partnerFed.CountryCode,
+		Operator:         selfFed.OperatorId,
+		Country:          selfFed.CountryCode,
 		Zones:            []string{existingZone.ZoneId},
 	}
 	opZoneRes := federation.OperatorZoneRegisterResponse{}
@@ -1000,8 +1019,8 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 	opZoneReg := federation.ZoneRequest{
 		OrigFederationId: selfFed.FederationKey,
 		DestFederationId: partnerFed.FederationKey,
-		Operator:         partnerFed.OperatorId,
-		Country:          partnerFed.CountryCode,
+		Operator:         selfFed.OperatorId,
+		Country:          selfFed.CountryCode,
 		Zone:             existingZone.ZoneId,
 	}
 	err = sendFederationRequest("DELETE", partnerFed.FederationAddr, federation.OperatorZoneAPI, &opZoneReg, nil)
@@ -1204,12 +1223,7 @@ func ShowFederation(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
-	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
-		return err
-	}
-
-	// validate self federator information
-	_, err = GetSelfFederator(ctx, opFed.SelfOperatorId, opFed.SelfCountryCode)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
 	if err != nil {
 		return err
 	}
@@ -1227,9 +1241,14 @@ func ShowFederation(c echo.Context) error {
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
-	for ii, _ := range outFeds {
+	out := []ormapi.Federation{}
+	for _, fed := range outFeds {
+		if !authz.Ok(fed.SelfOperatorId) {
+			continue
+		}
 		// hide federation key
-		outFeds[ii].Federator.FederationKey = ""
+		fed.Federator.FederationKey = ""
+		out = append(out, fed)
 	}
-	return c.JSON(http.StatusOK, outFeds)
+	return c.JSON(http.StatusOK, out)
 }

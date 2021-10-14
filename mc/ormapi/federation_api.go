@@ -10,19 +10,19 @@ import (
 
 type Federator struct {
 	// Globally unique string to identify an operator platform
-	OperatorId string `gorm:"primary_key"`
+	OperatorId string `gorm:"primary_key" json:"operatorid"`
 	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
-	CountryCode string `gorm:"primary_key"`
+	CountryCode string `gorm:"primary_key" json:"countrycode"`
 	// Globally unique string used to authenticate operations over federation interface
-	FederationKey string
+	FederationKey string `json:"federationkey"`
 	// Federation access point address
-	FederationAddr string
+	FederationAddr string `json:"federationaddr"`
 	// Mobile country code of operator sending the request
-	MCC string
-	// Comma separated list of mobile network codes of operator sending the request
-	MNC pq.StringArray `gorm:"type:text[]"`
+	MCC string `json:"mcc"`
+	// List of mobile network codes of operator sending the request
+	MNC pq.StringArray `gorm:"type:text[]" json:"mnc"`
 	// IP and Port of discovery service URL of operator platform
-	LocatorEndPoint string
+	LocatorEndPoint string `json:"locatorendpoint"`
 }
 
 type Federation struct {
@@ -30,9 +30,9 @@ type Federation struct {
 	// read_only: true
 	Id int `gorm:"auto_increment:true"`
 	// Self federator operator ID
-	SelfOperatorId string `gorm:"primary_key"`
+	SelfOperatorId string `gorm:"primary_key" json:"selfoperatorid"`
 	// Self federator country code
-	SelfCountryCode string `gorm:"primary_key"`
+	SelfCountryCode string `gorm:"primary_key" json:"selfcountrycode"`
 	// Partner Federator
 	Federator `json:",inline"`
 	// Partner shares its zones with self federator as part of federation
@@ -47,13 +47,13 @@ type Federation struct {
 // but currently it is restricted to one cloudlet
 type FederatorZone struct {
 	// Globally unique string to identify an operator platform
-	OperatorId string `gorm:"primary_key"`
+	OperatorId string `gorm:"primary_key" json:"operatorid"`
 	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
-	CountryCode string `gorm:"primary_key"`
+	CountryCode string `gorm:"primary_key" json:"countrycode"`
 	// Globally unique string used to authenticate operations over federation interface
-	ZoneId string `gorm:"primary_key"`
+	ZoneId string `gorm:"primary_key" json:"zoneid"`
 	// GPS co-ordinates associated with the zone (in decimal format)
-	GeoLocation string `json:"geoLocation"`
+	GeoLocation string `json:"geolocation"`
 	// Comma seperated list of cities under this zone
 	City string `json:"city"`
 	// Comma seperated list of states under this zone
@@ -62,22 +62,22 @@ type FederatorZone struct {
 	Locality string `json:"locality"`
 	// Region in which cloudlets reside
 	Region string `json:"region"`
-	// Delimited list of cloudlets part of this zone
-	Cloudlets pq.StringArray `gorm:"type:text[]"`
+	// List of cloudlets part of this zone
+	Cloudlets pq.StringArray `gorm:"type:text[]" json:"cloudlets"`
 }
 
 // Information of the partner federator with whom the self federator zone is shared
 type FederatedSelfZone struct {
 	// Globally unique identifier of the federator zone
-	ZoneId string `gorm:"primary_key"`
+	ZoneId string `gorm:"primary_key" json:"zoneid"`
 	// Self federator operator ID
-	SelfOperatorId string `gorm:"primary_key"`
+	SelfOperatorId string `gorm:"primary_key" json:"selfoperatorid"`
 	// Self federator country code
-	SelfCountryCode string `gorm:"primary_key"`
+	SelfCountryCode string `gorm:"primary_key" json:"selfcountrycode"`
 	// Partner federator operator ID
-	PartnerOperatorId string `gorm:"primary_key"`
+	PartnerOperatorId string `gorm:"primary_key" json:"partneroperatorid"`
 	// Partner federator country code
-	PartnerCountryCode string `gorm:"primary_key"`
+	PartnerCountryCode string `gorm:"primary_key" json:"partnercountrycode"`
 	// Zone registered by partner federator
 	// read_only: true
 	Registered bool
@@ -86,9 +86,9 @@ type FederatedSelfZone struct {
 // Zones shared as part of federation with partner federator
 type FederatedPartnerZone struct {
 	// Self federator operator ID
-	SelfOperatorId string `gorm:"primary_key"`
+	SelfOperatorId string `gorm:"primary_key" json:"selfoperatorid"`
 	// Self federator country code
-	SelfCountryCode string `gorm:"primary_key"`
+	SelfCountryCode string `gorm:"primary_key" json:"selfcountrycode"`
 	// Partner federator zone
 	FederatorZone `json:",inline"`
 	// Zone registered by self federator

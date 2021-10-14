@@ -12,6 +12,7 @@ type MC struct {
 	Addr                    string
 	FederationAddr          string
 	SqlAddr                 string
+	NotifyAddrs             string
 	RolesFile               string
 	LdapAddr                string
 	NotifySrvAddr           string

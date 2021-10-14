@@ -351,6 +351,7 @@ mcs:
   addr: "127.0.0.1:9900"
   sqladdr: "127.0.0.1:5432"
   vaultaddr: "http://127.0.0.1:8200"
+  notifyaddrs: "127.0.0.1:53001"
   usevaultpki: true
   hostname: "127.0.0.1"
   ldapaddr: "127.0.0.1:9389"
@@ -372,6 +373,7 @@ mcs:
   addr: "127.0.0.1:9901"
   sqladdr: "127.0.0.1:5432"
   vaultaddr: "http://127.0.0.1:8200"
+  notifyaddrs: "127.0.0.1:53001"
   usevaultpki: true
   hostname: "127.0.0.1"
   ldapaddr: "127.0.0.1:9390"

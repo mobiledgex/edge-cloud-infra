@@ -30,7 +30,7 @@ var jaegerAddr = flag.String("jaegerAddr", "127.0.0.1:16686", "Jaeger server add
 var pingInterval = flag.Duration("pingInterval", 20*time.Second, "SQL database ping keep-alive interval")
 var skipVerifyEmail = flag.Bool("skipVerifyEmail", false, "skip email verification, for testing only")
 var skipOriginCheck = flag.Bool("skipOriginCheck", false, "skip origin check constraint, for testing only")
-var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:53001", "Parent notify listener addresses")
+var notifyAddrs = flag.String("notifyAddrs", "", "Parent notify listener addresses")
 var notifySrvAddr = flag.String("notifySrvAddr", "127.0.0.1:52001", "Notify listener address")
 var alertMgrAddr = flag.String("alertMgrApiAddr", "http://127.0.0.1:9094", "Global Alertmanager api address")
 

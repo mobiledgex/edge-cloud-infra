@@ -35,6 +35,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--sqlAddr")
 		args = append(args, p.SqlAddr)
 	}
+	if p.NotifyAddrs != "" {
+		args = append(args, "--notifyAddrs")
+		args = append(args, p.NotifyAddrs)
+	}
 	if p.TLS.ClientCert != "" {
 		args = append(args, "--clientCert")
 		args = append(args, p.TLS.ClientCert)

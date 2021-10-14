@@ -2055,7 +2055,7 @@ func (s *Client) UnshareSelfFederatorZone(uri string, token string, in *ormapi.F
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) CreatePartnerFederator(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -2063,7 +2063,7 @@ func (s *Client) CreatePartnerFederator(uri string, token string, in *ormapi.Fed
 	var out ormapi.Result
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("CreatePartnerFederator")
+	apiCmd := ormctl.MustGetCommand("CreateFederation")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
@@ -2071,7 +2071,7 @@ func (s *Client) CreatePartnerFederator(uri string, token string, in *ormapi.Fed
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) DeletePartnerFederator(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+func (s *Client) DeleteFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -2079,7 +2079,7 @@ func (s *Client) DeletePartnerFederator(uri string, token string, in *ormapi.Fed
 	var out ormapi.Result
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("DeletePartnerFederator")
+	apiCmd := ormctl.MustGetCommand("DeleteFederation")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
@@ -2119,7 +2119,7 @@ func (s *Client) DeRegisterPartnerFederatorZone(uri string, token string, in *or
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+func (s *Client) RegisterFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -2127,7 +2127,7 @@ func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federatio
 	var out ormapi.Result
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("CreateFederation")
+	apiCmd := ormctl.MustGetCommand("RegisterFederation")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
@@ -2135,7 +2135,7 @@ func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federatio
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) DeleteFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+func (s *Client) DeregisterFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -2143,7 +2143,7 @@ func (s *Client) DeleteFederation(uri string, token string, in *ormapi.Federatio
 	var out ormapi.Result
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("DeleteFederation")
+	apiCmd := ormctl.MustGetCommand("DeregisterFederation")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError

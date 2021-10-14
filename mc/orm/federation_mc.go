@@ -16,7 +16,123 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 )
+
+func setForeignKeyConstraint(loggedDb *gorm.DB, fKeyTableName, fKeyFields, refTableName, refFields string) error {
+	cmd := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT self_fk_constraint FOREIGN KEY (%s) "+
+		"REFERENCES %s(%s)", fKeyTableName, fKeyFields, refTableName, refFields)
+	err := loggedDb.Exec(cmd).Error
+	if err != nil {
+		if !strings.Contains(err.Error(), "already exists") {
+			return err
+		}
+	}
+	return nil
+}
+
+func setUniqueConstraintOnFields(loggedDb *gorm.DB, tableName, fields string) error {
+	cmd := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT unique_key UNIQUE (%s)",
+		tableName, fields)
+	err := loggedDb.Exec(cmd).Error
+	if err != nil {
+		if !strings.Contains(err.Error(), "already exists") {
+			return err
+		}
+	}
+	return nil
+}
+
+func InitFederationAPIConstraints(loggedDb *gorm.DB) error {
+	// Cannot create unique constant for FederationKey in Federator object
+	// inline as same object is used inline in Federation.
+	// Hence, set it up here manually
+	scope := loggedDb.Unscoped().NewScope(&ormapi.Federator{})
+	err := setUniqueConstraintOnFields(loggedDb, scope.TableName(), scope.Quote("federation_key"))
+	if err != nil {
+		return err
+	}
+
+	// setup foreign key constraints, this is done separately here as gorm doesn't
+	// support referencing composite primary key inline to the model
+
+	// Federation's SelfOperatorId/SelfCountryCode references Federator's OperatorId/CountryCode
+	scope = loggedDb.Unscoped().NewScope(&ormapi.Federation{})
+	fKeyTableName := scope.TableName()
+	fKeyFields := fmt.Sprintf("%s, %s", scope.Quote("self_operator_id"), scope.Quote("self_country_code"))
+
+	scope = loggedDb.Unscoped().NewScope(&ormapi.Federator{})
+	refTableName := scope.TableName()
+	refFields := fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
+	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	// FederatorZone's OperatorId/CountryCode references Federator's OperatorId/CountryCode
+	scope = loggedDb.Unscoped().NewScope(&ormapi.FederatorZone{})
+	fKeyTableName = scope.TableName()
+	fKeyFields = fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
+
+	scope = loggedDb.Unscoped().NewScope(&ormapi.Federator{})
+	refTableName = scope.TableName()
+	refFields = fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
+	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	// FederatedSelfZone's SelfOperatorId/SelfCountryCode/PartnerOperatorId/PartnerCountryCode references
+	//   Federation's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode
+	scope = loggedDb.Unscoped().NewScope(&ormapi.FederatedSelfZone{})
+	fKeyTableName = scope.TableName()
+	fKeyFields = fmt.Sprintf("%s, %s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("partner_operator_id"), scope.Quote("partner_country_code"))
+
+	scope = loggedDb.Unscoped().NewScope(&ormapi.Federation{})
+	refTableName = scope.TableName()
+	refFields = fmt.Sprintf("%s, %s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("operator_id"), scope.Quote("country_code"))
+	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	fKeyFields = fmt.Sprintf("%s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("zone_id"))
+	scope = loggedDb.Unscoped().NewScope(&ormapi.FederatorZone{})
+	refTableName = scope.TableName()
+	refFields = fmt.Sprintf("%s, %s, %s",
+		scope.Quote("operator_id"), scope.Quote("country_code"),
+		scope.Quote("zone_id"))
+	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	// FederatedPartnerZone's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode references
+	//   Federation's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode
+	scope = loggedDb.Unscoped().NewScope(&ormapi.FederatedPartnerZone{})
+	fKeyTableName = scope.TableName()
+	fKeyFields = fmt.Sprintf("%s, %s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("operator_id"), scope.Quote("country_code"))
+
+	scope = loggedDb.Unscoped().NewScope(&ormapi.Federation{})
+	refTableName = scope.TableName()
+	refFields = fmt.Sprintf("%s, %s, %s, %s",
+		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
+		scope.Quote("operator_id"), scope.Quote("country_code"))
+	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 func sendFederationRequest(method, fedAddr, endpoint string, reqData, replyData interface{}) error {
 	if fedAddr == "" {
@@ -39,7 +155,7 @@ func sendFederationRequest(method, fedAddr, endpoint string, reqData, replyData 
 
 func fedAuthorized(ctx context.Context, username, operatorId string) error {
 	if operatorId == "" {
-		return fmt.Errorf("Missing self operator ID %q", operatorId)
+		return fmt.Errorf("Missing self operator ID")
 	}
 	return authorized(ctx, username, operatorId, ResourceCloudlets, ActionManage)
 }
@@ -58,7 +174,7 @@ func GetSelfFederator(ctx context.Context, operatorId, countryCode string) (*orm
 	}
 	res := db.Where(&fedObj).First(&fedObj)
 	if res.RecordNotFound() {
-		return nil, fmt.Errorf("Self federator %s does not exist", fedcommon.FederatorStr(operatorId, countryCode))
+		return nil, fmt.Errorf("Self federator %s does not exist", fedObj.IdString())
 	}
 	if res.Error != nil {
 		return nil, ormutil.DbErr(res.Error)
@@ -66,7 +182,7 @@ func GetSelfFederator(ctx context.Context, operatorId, countryCode string) (*orm
 	return &fedObj, nil
 }
 
-func GetPartnerFederator(ctx context.Context, selfOperatorId, selfCountryCode, partnerOperatorId, partnerCountryCode string) (*ormapi.Federation, error) {
+func GetFederation(ctx context.Context, selfOperatorId, selfCountryCode, partnerOperatorId, partnerCountryCode string) (*ormapi.Federation, error) {
 	if partnerOperatorId == "" {
 		return nil, fmt.Errorf("Missing partner operator ID %q", partnerOperatorId)
 	}
@@ -90,13 +206,13 @@ func GetPartnerFederator(ctx context.Context, selfOperatorId, selfCountryCode, p
 	}
 	if res.RecordNotFound() {
 		return nil, fmt.Errorf("Partner federator (%s) does not exist",
-			fedcommon.FederatorStr(partnerOperatorId, partnerCountryCode))
+			partnerFed.PartnerIdString())
 	}
 
 	return &partnerFed, nil
 }
 
-func GetPartnerFederations(ctx context.Context, selfOperatorId, selfCountryCode string) ([]ormapi.Federation, error) {
+func GetFederationsForSelf(ctx context.Context, selfOperatorId, selfCountryCode string) ([]ormapi.Federation, error) {
 	db := loggedDB(ctx)
 	lookup := ormapi.Federation{
 		SelfOperatorId:  selfOperatorId,
@@ -159,8 +275,7 @@ func CreateSelfFederator(c echo.Context) error {
 	opFed.FederationAddr = serverConfig.FederationAddr
 	if err := db.Create(&opFed).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
-			return fmt.Errorf("Self federator %s already exists",
-				fedcommon.FederatorStr(opFed.OperatorId, opFed.CountryCode))
+			return fmt.Errorf("Self federator %s already exists", opFed.IdString())
 		}
 		return ormutil.DbErr(err)
 	}
@@ -229,10 +344,11 @@ func UpdateSelfFederator(c echo.Context) error {
 	}
 
 	// Notify all the partner federators who have access to self zones
-	partnerFeds, err := GetPartnerFederations(ctx, selfFed.OperatorId, selfFed.CountryCode)
+	partnerFeds, err := GetFederationsForSelf(ctx, selfFed.OperatorId, selfFed.CountryCode)
 	if err != nil {
 		return err
 	}
+	errMsgs := []string{}
 	for _, partnerFed := range partnerFeds {
 		if !partnerFed.PartnerRoleAccessToSelfZones {
 			continue
@@ -248,11 +364,18 @@ func UpdateSelfFederator(c echo.Context) error {
 		}
 		err = sendFederationRequest("PUT", partnerFed.FederationAddr, federation.OperatorPartnerAPI, &opConf, nil)
 		if err != nil {
-			return err
+			log.SpanLog(ctx, log.DebugLevelApi, "Failed to update partner federator", "partner federator", partnerFed.PartnerIdString(), "error", err)
+			errMsgs = append(errMsgs, fmt.Sprintf("%s, err: %v", partnerFed.PartnerIdString(), err))
 		}
 	}
 
-	return ormutil.SetReply(c, ormutil.Msg("Updated self federator attributes successfully"))
+	errOut := ""
+	if len(errMsgs) > 0 {
+		errOut = fmt.Sprintf(". But failed for %s", strings.Join(errMsgs, ";"))
+	}
+
+	return ormutil.SetReply(c, ormutil.Msg(
+		fmt.Sprintf("Updated self federator attributes%s", errOut)))
 }
 
 // Delete self federator, given that there are no more
@@ -352,7 +475,7 @@ func ShowSelfFederator(c echo.Context) error {
 // A self federator will create a partner federator. This is done as
 // part of federation planning. This does not form federation with
 // partner federator
-func CreatePartnerFederator(c echo.Context) error {
+func CreateFederation(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -396,7 +519,7 @@ func CreatePartnerFederator(c echo.Context) error {
 	if err := db.Create(&opFed).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Partner federator (%s) already exists",
-				fedcommon.FederatorStr(opFed.OperatorId, opFed.CountryCode))
+				opFed.PartnerIdString())
 		}
 		return ormutil.DbErr(err)
 	}
@@ -404,7 +527,7 @@ func CreatePartnerFederator(c echo.Context) error {
 	return ormutil.SetReply(c, ormutil.Msg("Created partner federator successfully"))
 }
 
-func DeletePartnerFederator(c echo.Context) error {
+func DeleteFederation(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -424,7 +547,7 @@ func DeletePartnerFederator(c echo.Context) error {
 		return err
 	}
 
-	partnerFed, err := GetPartnerFederator(ctx,
+	partnerFed, err := GetFederation(ctx,
 		opFed.SelfOperatorId, opFed.SelfCountryCode,
 		opFed.OperatorId, opFed.CountryCode)
 	if err != nil {
@@ -435,8 +558,7 @@ func DeletePartnerFederator(c echo.Context) error {
 	db := loggedDB(ctx)
 	if partnerFed.PartnerRoleShareZonesWithSelf || partnerFed.PartnerRoleAccessToSelfZones {
 		return fmt.Errorf("Cannot delete partner federator (%s) "+
-			"as it is part of federation",
-			fedcommon.FederatorStr(partnerFed.OperatorId, partnerFed.CountryCode))
+			"as it is part of federation", partnerFed.PartnerIdString())
 	}
 
 	// Delete partner federator
@@ -476,7 +598,7 @@ func CreateSelfFederatorZone(c echo.Context) error {
 	if err := fedcommon.ValidateZoneId(opZone.ZoneId); err != nil {
 		return err
 	}
-	if err := fedcommon.ValidateGeoLocation(opZone.GeoLocation); err != nil {
+	if _, _, err := fedcommon.ParseGeoLocation(opZone.GeoLocation); err != nil {
 		return err
 	}
 	if err := fedAuthorized(ctx, claims.Username, opZone.OperatorId); err != nil {
@@ -539,7 +661,7 @@ func CreateSelfFederatorZone(c echo.Context) error {
 	if err := db.Create(&az).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Zone with same zone ID %q already exists for federator (%s)",
-				az.ZoneId, fedcommon.FederatorStr(selfFed.OperatorId, selfFed.CountryCode))
+				az.ZoneId, az.IdString())
 		}
 		return ormutil.DbErr(err)
 	}
@@ -567,16 +689,11 @@ func DeleteSelfFederatorZone(c echo.Context) error {
 	if err := fedAuthorized(ctx, claims.Username, opZone.OperatorId); err != nil {
 		return err
 	}
-	// get federator information
-	selfFed, err := GetSelfFederator(ctx, opZone.OperatorId, opZone.CountryCode)
-	if err != nil {
-		return err
-	}
 	db := loggedDB(ctx)
 	lookup := ormapi.FederatorZone{
 		ZoneId:      opZone.ZoneId,
-		OperatorId:  selfFed.OperatorId,
-		CountryCode: selfFed.CountryCode,
+		OperatorId:  opZone.OperatorId,
+		CountryCode: opZone.CountryCode,
 	}
 	existingZone := ormapi.FederatorZone{}
 	res := db.Where(&lookup).First(&existingZone)
@@ -600,12 +717,12 @@ func DeleteSelfFederatorZone(c echo.Context) error {
 	if shZone.ZoneId != "" {
 		return fmt.Errorf("Cannot delete zone %q as it is shared with partner federator "+
 			"(%s). Please unshare it before deleting it", shZone.ZoneId,
-			fedcommon.FederatorStr(shZone.PartnerOperatorId, shZone.PartnerCountryCode))
+			shZone.PartnerIdString())
 	}
 	if shZone.Registered {
 		return fmt.Errorf("Cannot delete zone %q as it is registered by partner federator "+
 			"(%s). Please deregister it before deleting it", shZone.ZoneId,
-			fedcommon.FederatorStr(shZone.PartnerOperatorId, shZone.PartnerCountryCode))
+			shZone.PartnerIdString())
 	}
 
 	if err := db.Delete(&existingZone).Error; err != nil {
@@ -733,7 +850,7 @@ func ShareSelfFederatorZone(c echo.Context) error {
 	}
 
 	// get partner federator information
-	partnerFed, err := GetPartnerFederator(ctx,
+	partnerFed, err := GetFederation(ctx,
 		shZone.SelfOperatorId, shZone.SelfCountryCode,
 		shZone.PartnerOperatorId, shZone.PartnerCountryCode)
 	if err != nil {
@@ -795,7 +912,7 @@ func ShareSelfFederatorZone(c echo.Context) error {
 	}
 	return ormutil.SetReply(c, ormutil.Msg(
 		fmt.Sprintf("Zone %q shared with partner federator (%s) successfully",
-			shareZone.ZoneId, fedcommon.FederatorStr(partnerFed.OperatorId, partnerFed.CountryCode))))
+			shareZone.ZoneId, partnerFed.PartnerIdString())))
 }
 
 func UnshareSelfFederatorZone(c echo.Context) error {
@@ -821,7 +938,7 @@ func UnshareSelfFederatorZone(c echo.Context) error {
 		return err
 	}
 	// get partner federator information
-	partnerFed, err := GetPartnerFederator(ctx,
+	partnerFed, err := GetFederation(ctx,
 		unshZone.SelfOperatorId, unshZone.SelfCountryCode,
 		unshZone.PartnerOperatorId, unshZone.PartnerCountryCode)
 	if err != nil {
@@ -858,7 +975,7 @@ func UnshareSelfFederatorZone(c echo.Context) error {
 	}
 	if fedZone.Registered {
 		return fmt.Errorf("Cannot unshare zone %q as it is registered by partner federator (%s). Please deregister it first",
-			unshZone.ZoneId, fedcommon.FederatorStr(partnerFed.OperatorId, partnerFed.CountryCode))
+			unshZone.ZoneId, partnerFed.PartnerIdString())
 	}
 
 	// Only unshare with those partner federators who are permitted to access our zones
@@ -887,7 +1004,7 @@ func UnshareSelfFederatorZone(c echo.Context) error {
 		}
 	}
 	return ormutil.SetReply(c, ormutil.Msg(fmt.Sprintf("Zone %s unshared from partner federator (%s) successfully",
-		unshZone.ZoneId, fedcommon.FederatorStr(partnerFed.OperatorId, partnerFed.CountryCode))))
+		unshZone.ZoneId, partnerFed.PartnerIdString())))
 }
 
 func RegisterPartnerFederatorZone(c echo.Context) error {
@@ -912,7 +1029,7 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	partnerFed, err := GetPartnerFederator(ctx,
+	partnerFed, err := GetFederation(ctx,
 		reg.SelfOperatorId, reg.SelfCountryCode,
 		reg.OperatorId, reg.CountryCode,
 	)
@@ -991,7 +1108,7 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 		return err
 	}
 	// Only deregister with those partner federator whose zones can be accessed by self federator
-	partnerFed, err := GetPartnerFederator(ctx,
+	partnerFed, err := GetFederation(ctx,
 		reg.SelfOperatorId, reg.SelfCountryCode,
 		reg.OperatorId, reg.CountryCode,
 	)
@@ -1014,6 +1131,9 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 	if res.RecordNotFound() {
 		return fmt.Errorf("Zone ID %q not found", reg.ZoneId)
 	}
+
+	// TODO: make sure no AppInsts are deployed on the cloudlet
+	//       before the zone is deregistered
 
 	// Notify federated partner about zone deregistration
 	opZoneReg := federation.ZoneRequest{
@@ -1040,7 +1160,7 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 // Creates a directed federation between self federator and partner federator.
 // This gives self federator access to all the zones of the partner federator
 // which it is willing to share
-func CreateFederation(c echo.Context) error {
+func RegisterFederation(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -1061,7 +1181,7 @@ func CreateFederation(c echo.Context) error {
 	}
 
 	// get partner federator information
-	partnerFed, err := GetPartnerFederator(ctx,
+	partnerFed, err := GetFederation(ctx,
 		selfFed.OperatorId, selfFed.CountryCode,
 		opFed.OperatorId, opFed.CountryCode)
 	if err != nil {
@@ -1071,7 +1191,7 @@ func CreateFederation(c echo.Context) error {
 	// check that there is no existing federation with partner federator
 	if partnerFed.PartnerRoleShareZonesWithSelf {
 		return fmt.Errorf("Federation already exists with partner federator (%s)",
-			fedcommon.FederatorStr(opFed.OperatorId, opFed.CountryCode))
+			opFed.PartnerIdString())
 	}
 
 	// Call federation API
@@ -1118,12 +1238,12 @@ func CreateFederation(c echo.Context) error {
 
 	return ormutil.SetReply(c, ormutil.Msg(
 		fmt.Sprintf("Created directed federation with partner federator (%s) successfully",
-			fedcommon.FederatorStr(opFed.OperatorId, opFed.CountryCode))))
+			opFed.PartnerIdString())))
 }
 
 // Delete directed federation between self federator and partner federator.
 // Partner federator will no longer have access to any of self federator zones
-func DeleteFederation(c echo.Context) error {
+func DeregisterFederation(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -1144,7 +1264,7 @@ func DeleteFederation(c echo.Context) error {
 	}
 
 	// get partner federator information with appropriate federation role
-	partnerFed, err := GetPartnerFederator(ctx,
+	partnerFed, err := GetFederation(ctx,
 		opFed.SelfOperatorId, opFed.SelfCountryCode,
 		opFed.OperatorId, opFed.CountryCode,
 	)
@@ -1175,7 +1295,7 @@ func DeleteFederation(c echo.Context) error {
 		if pZone.Registered {
 			return fmt.Errorf("Cannot delete federation with partner federator (%s) as partner "+
 				"zone %q is registered locally. Please deregister it before removing the federation partner",
-				fedcommon.FederatorStr(pZone.OperatorId, pZone.CountryCode), pZone.ZoneId)
+				pZone.PartnerIdString(), pZone.ZoneId)
 		}
 	}
 
@@ -1210,7 +1330,7 @@ func DeleteFederation(c echo.Context) error {
 
 	return ormutil.SetReply(c, ormutil.Msg(
 		fmt.Sprintf("Deleted federation with partner federator (%s) successfully",
-			fedcommon.FederatorStr(opFed.OperatorId, opFed.CountryCode))))
+			opFed.PartnerIdString())))
 }
 
 func ShowFederation(c echo.Context) error {

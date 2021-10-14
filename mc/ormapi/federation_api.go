@@ -2,9 +2,7 @@ package ormapi
 
 import (
 	"fmt"
-	"strings"
 
-	"github.com/jinzhu/gorm"
 	"github.com/lib/pq"
 )
 
@@ -28,7 +26,7 @@ type Federator struct {
 type Federation struct {
 	// Internal ID to reference a federation
 	// read_only: true
-	Id int `gorm:"auto_increment:true"`
+	Id int `gorm:"auto_increment:true; unique; not null"`
 	// Self federator operator ID
 	SelfOperatorId string `gorm:"primary_key" json:"selfoperatorid"`
 	// Self federator country code
@@ -96,83 +94,38 @@ type FederatedPartnerZone struct {
 	Registered bool
 }
 
-func setForeignKeyConstraint(loggedDb *gorm.DB, fKeyTableName, fKeyFields, refTableName, refFields string) error {
-	cmd := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT self_fk_constraint FOREIGN KEY (%s) "+
-		"REFERENCES %s(%s)", fKeyTableName, fKeyFields, refTableName, refFields)
-	err := loggedDb.Exec(cmd).Error
-	if err != nil {
-		if !strings.Contains(err.Error(), "already exists") {
-			return err
-		}
-	}
-	return nil
+func federatorStr(operatorId, countryCode string) string {
+	return fmt.Sprintf("OperatorID:%q/CountryCode:%q", operatorId, countryCode)
 }
 
-func InitFederationAPIConstraints(loggedDb *gorm.DB) error {
-	// setup foreign key constraints, this is done separately here as gorm doesn't
-	// support referencing composite primary key inline to the model
+func (s *Federator) IdString() string {
+	return federatorStr(s.OperatorId, s.CountryCode)
+}
 
-	// Federation's SelfOperatorId/SelfCountryCode references Federator's OperatorId/CountryCode
-	scope := loggedDb.Unscoped().NewScope(&Federation{})
-	fKeyTableName := scope.TableName()
-	fKeyFields := fmt.Sprintf("%s, %s", scope.Quote("self_operator_id"), scope.Quote("self_country_code"))
+func (s *Federation) SelfIdString() string {
+	return federatorStr(s.SelfOperatorId, s.SelfCountryCode)
+}
 
-	scope = loggedDb.Unscoped().NewScope(&Federator{})
-	refTableName := scope.TableName()
-	refFields := fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
-	err := setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
-	if err != nil {
-		return err
-	}
+func (s *Federation) PartnerIdString() string {
+	return s.Federator.IdString()
+}
 
-	// FederatorZone's OperatorId/CountryCode references Federator's OperatorId/CountryCode
-	scope = loggedDb.Unscoped().NewScope(&FederatorZone{})
-	fKeyTableName = scope.TableName()
-	fKeyFields = fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
+func (s *FederatorZone) IdString() string {
+	return federatorStr(s.OperatorId, s.CountryCode)
+}
 
-	scope = loggedDb.Unscoped().NewScope(&Federator{})
-	refTableName = scope.TableName()
-	refFields = fmt.Sprintf("%s, %s", scope.Quote("operator_id"), scope.Quote("country_code"))
-	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
-	if err != nil {
-		return err
-	}
+func (s *FederatedSelfZone) SelfIdString() string {
+	return federatorStr(s.SelfOperatorId, s.SelfCountryCode)
+}
 
-	// FederatedSelfZone's SelfOperatorId/SelfCountryCode/PartnerOperatorId/PartnerCountryCode references
-	//   Federation's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode
-	scope = loggedDb.Unscoped().NewScope(&FederatedSelfZone{})
-	fKeyTableName = scope.TableName()
-	fKeyFields = fmt.Sprintf("%s, %s, %s, %s",
-		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
-		scope.Quote("partner_operator_id"), scope.Quote("partner_country_code"))
+func (s *FederatedSelfZone) PartnerIdString() string {
+	return federatorStr(s.PartnerOperatorId, s.PartnerCountryCode)
+}
 
-	scope = loggedDb.Unscoped().NewScope(&Federation{})
-	refTableName = scope.TableName()
-	refFields = fmt.Sprintf("%s, %s, %s, %s",
-		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
-		scope.Quote("operator_id"), scope.Quote("country_code"))
-	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
-	if err != nil {
-		return err
-	}
+func (s *FederatedPartnerZone) SelfIdString() string {
+	return federatorStr(s.SelfOperatorId, s.SelfCountryCode)
+}
 
-	// FederatedPartnerZone's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode references
-	//   Federation's SelfOperatorId/SelfCountryCode/OperatorId/CountryCode
-	scope = loggedDb.Unscoped().NewScope(&FederatedPartnerZone{})
-	fKeyTableName = scope.TableName()
-	fKeyFields = fmt.Sprintf("%s, %s, %s, %s",
-		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
-		scope.Quote("operator_id"), scope.Quote("country_code"))
-
-	scope = loggedDb.Unscoped().NewScope(&Federation{})
-	refTableName = scope.TableName()
-	refFields = fmt.Sprintf("%s, %s, %s, %s",
-		scope.Quote("self_operator_id"), scope.Quote("self_country_code"),
-		scope.Quote("operator_id"), scope.Quote("country_code"))
-	err = setForeignKeyConstraint(loggedDb, fKeyTableName, fKeyFields, refTableName, refFields)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (s *FederatedPartnerZone) PartnerIdString() string {
+	return federatorStr(s.OperatorId, s.CountryCode)
 }

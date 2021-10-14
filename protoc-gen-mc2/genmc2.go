@@ -724,10 +724,9 @@ func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edg
 func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, connObj ClientConnMgr) (*edgeproto.{{.OutName}}, error) {
 {{- end}}
 {{- end}}
-{{- if .TargetCloudlet}}
-{{- if .Outstream}}
+{{- if and .TargetCloudlet .Outstream}}
 {{- if .Show }}
-	fedClients, err := fedclient.GetFederationClients(ctx, rc.Database, rc.Region, &obj.{{.TargetCloudlet}})
+        fedClients, err := fedclient.GetFederationClients(ctx, rc.Database, rc.Region, &obj.{{.TargetCloudlet}})
         if err != nil {
                 return err
         }
@@ -750,23 +749,22 @@ func {{.MethodName}}Obj(ctx context.Context, rc *ormutil.RegionContext, obj *edg
         if err != nil {
                 return err
         }
-	if federationId > 0 {
-		fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, federationId)
-		if err != nil {
-			return err
-		}
-		if found {
-			var clientIntf interface{}
-			clientIntf = fedClientObj
-			clientApi, ok := clientIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
-			if !ok {
-				// method doesn't exist
-				return fmt.Errorf("{{.MethodName}} is not implemented for federation partner")
-			}
-			return clientApi.{{.MethodName}}Stream(ctx, rc, obj, cb)
-		}
-	}
-{{- end}}
+        if federationId > 0 {
+                fedClientObj, found, err := fedclient.GetFederationClient(ctx, rc.Database, federationId)
+                if err != nil {
+                        return err
+                }
+                if found {
+                        var clientIntf interface{}
+                        clientIntf = fedClientObj
+                        clientApi, ok := clientIntf.(interface{ {{.MethodName}}Stream(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.{{.InName}}, cb func(res *edgeproto.{{.OutName}}) error) error })
+                        if !ok {
+                                // method doesn't exist
+                                return fmt.Errorf("{{.MethodName}} is not implemented for federation partner")
+                        }
+                        return clientApi.{{.MethodName}}Stream(ctx, rc, obj, cb)
+                }
+        }
 {{- end}}
 {{- end}}
 {{- if .NotifyRoot}}

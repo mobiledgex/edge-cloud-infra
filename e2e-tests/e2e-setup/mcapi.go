@@ -450,19 +450,19 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 
 	var errs []Err
 	switch api {
-	case "createfederation":
+	case "registerfederation":
 		output := &AllDataOut{}
 		for ii, fd := range data.Federations {
-			_, st, err := mcClient.CreateFederation(uri, token, &fd)
-			outMcErr(output, fmt.Sprintf("CreateFederation[%d]", ii), st, err)
+			_, st, err := mcClient.RegisterFederation(uri, token, &fd)
+			outMcErr(output, fmt.Sprintf("RegisterFederation[%d]", ii), st, err)
 		}
 		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
 		errs = output.Errors
-	case "deletefederation":
+	case "deregisterfederation":
 		output := &AllDataOut{}
 		for ii, fd := range data.Federations {
-			_, st, err := mcClient.DeleteFederation(uri, token, &fd)
-			outMcErr(output, fmt.Sprintf("DeleteFederation[%d]", ii), st, err)
+			_, st, err := mcClient.DeregisterFederation(uri, token, &fd)
+			outMcErr(output, fmt.Sprintf("DeregisterFederation[%d]", ii), st, err)
 		}
 		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
 		errs = output.Errors
@@ -895,8 +895,8 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		outMcErr(output, fmt.Sprintf("CreateSelfFederatorZone[%d]", ii), st, err)
 	}
 	for ii, fd := range data.Federations {
-		_, st, err := mcClient.CreatePartnerFederator(uri, token, &fd)
-		outMcErr(output, fmt.Sprintf("CreatePartnerFederation[%d]", ii), st, err)
+		_, st, err := mcClient.CreateFederation(uri, token, &fd)
+		outMcErr(output, fmt.Sprintf("CreateFederation[%d]", ii), st, err)
 	}
 }
 
@@ -956,8 +956,8 @@ func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		outMcErr(output, fmt.Sprintf("DeleteController[%d]", ii), st, err)
 	}
 	for ii, fd := range data.Federations {
-		_, st, err := mcClient.DeletePartnerFederator(uri, token, &fd)
-		outMcErr(output, fmt.Sprintf("DeletePartnerFederation[%d]", ii), st, err)
+		_, st, err := mcClient.DeleteFederation(uri, token, &fd)
+		outMcErr(output, fmt.Sprintf("DeleteFederation[%d]", ii), st, err)
 	}
 	for ii, fd := range data.FederatorZones {
 		_, st, err := mcClient.DeleteSelfFederatorZone(uri, token, &fd)

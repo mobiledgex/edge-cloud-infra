@@ -141,7 +141,7 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 			}
 			continue
 		}
-		err = ormapi.InitFederationAPIConstraints(loggedDB(ctx))
+		err = InitFederationAPIConstraints(loggedDB(ctx))
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "init federation API constraints", "err", err)
 			if unitTest {

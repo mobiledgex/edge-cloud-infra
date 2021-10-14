@@ -9,10 +9,6 @@ import (
 	valid "github.com/asaskevich/govalidator"
 )
 
-func FederatorStr(operatorId, countryCode string) string {
-	return fmt.Sprintf("OperatorID: %q/CountryCode: %q", operatorId, countryCode)
-}
-
 func ParseGeoLocation(geoLoc string) (float64, float64, error) {
 	var lat float64
 	var long float64
@@ -28,10 +24,16 @@ func ParseGeoLocation(geoLoc string) (float64, float64, error) {
 	if err != nil {
 		return lat, long, err
 	}
+	if !valid.IsLatitude(latStr) {
+		return lat, long, fmt.Errorf("Invalid latitude: %s", latStr)
+	}
 
 	long, err = strconv.ParseFloat(longStr, 64)
 	if err != nil {
 		return lat, long, err
+	}
+	if !valid.IsLongitude(longStr) {
+		return lat, long, fmt.Errorf("Invalid longitude: %s", longStr)
 	}
 
 	return lat, long, nil
@@ -56,22 +58,4 @@ func ValidateCountryCode(countryCode string) error {
 		return nil
 	}
 	return fmt.Errorf("Invalid country code %q. It must be a valid ISO 3166-1 Alpha-2 code for the country", countryCode)
-}
-
-func ValidateGeoLocation(geoLoc string) error {
-	if geoLoc == "" {
-		return fmt.Errorf("Missing geo location")
-	}
-	loc := strings.Split(geoLoc, ",")
-	if len(loc) != 2 {
-		return fmt.Errorf("Invalid geo location %q. Valid format: <LatInDecimal,LongInDecimal>", geoLoc)
-	}
-	lat, long := strings.TrimSpace(loc[0]), strings.TrimSpace(loc[1])
-	if !valid.IsLatitude(lat) {
-		return fmt.Errorf("Invalid latitude specified in geo location %q", lat)
-	}
-	if !valid.IsLongitude(long) {
-		return fmt.Errorf("Invalid longitude specified in geo location %q", long)
-	}
-	return nil
 }

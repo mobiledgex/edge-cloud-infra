@@ -814,7 +814,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/report/show", ShowReport)
 	auth.POST("/report/download", DownloadReport)
 
-	// Plan federator and manage zone
+	// Plan and manage federation
 	auth.POST("/federator/self/create", CreateSelfFederator)
 	auth.POST("/federator/self/update", UpdateSelfFederator)
 	auth.POST("/federator/self/delete", DeleteSelfFederator)
@@ -824,13 +824,12 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/federator/self/zone/show", ShowSelfFederatorZone)
 	auth.POST("/federator/self/zone/share", ShareSelfFederatorZone)
 	auth.POST("/federator/self/zone/unshare", UnshareSelfFederatorZone)
-	auth.POST("/federator/partner/create", CreatePartnerFederator)
-	auth.POST("/federator/partner/delete", DeletePartnerFederator)
 	auth.POST("/federator/partner/zone/register", RegisterPartnerFederatorZone)
 	auth.POST("/federator/partner/zone/deregister", DeregisterPartnerFederatorZone)
-	// Manage federation with partner federator
 	auth.POST("/federation/create", CreateFederation)
 	auth.POST("/federation/delete", DeleteFederation)
+	auth.POST("/federation/register", RegisterFederation)
+	auth.POST("/federation/deregister", DeregisterFederation)
 	auth.POST("/federation/show", ShowFederation)
 	auth.POST("/federation/self/zone/show", ShowFederatedSelfZone)
 	auth.POST("/federation/partner/zone/show", ShowFederatedPartnerZone)

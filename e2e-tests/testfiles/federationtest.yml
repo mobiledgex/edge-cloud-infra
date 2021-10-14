@@ -326,16 +326,16 @@ tests:
     yaml2: '{{datadir2}}/mcappdata_empty.yml'
     filetype: mcdata
 
-- name: self federator creates federation with partner1
-  actions: [mcapi-createfederation]
+- name: self federator registers federation with partner1
+  actions: [mcapi-registerfederation]
   apifile: '{{datadir2}}/federation_self_partner_federation.yml'
   apifilevars:
     partnertag: "partner1"
     region: "PA"
   curuserfile: '{{datadir2}}/mc_user1.yml'
 
-- name: self federator creates federation with partner2
-  actions: [mcapi-createfederation,mcapi-showfederations]
+- name: self federator registers federation with partner2
+  actions: [mcapi-registerfederation,mcapi-showfederations]
   apifile: '{{datadir2}}/federation_self_partner_federation.yml'
   apifilevars:
     partnertag: "partner2"
@@ -446,16 +446,16 @@ tests:
     yaml2: '{{datadir2}}/federation_shared_partner1_zones.yml'
     filetype: mcdata
 
-- name: self federator deletes federation with partner1
-  actions: [mcapi-deletefederation]
+- name: self federator deregisters federation with partner1
+  actions: [mcapi-deregisterfederation]
   apifile: '{{datadir2}}/federation_self_partner_federation.yml'
   apifilevars:
     partnertag: "partner1"
     region: "PA"
   curuserfile: '{{datadir2}}/mc_user1.yml'
 
-- name: self federator deletes federation with partner2
-  actions: [mcapi-deletefederation,mcapi-showfederations]
+- name: self federator deregisters federation with partner2
+  actions: [mcapi-deregisterfederation,mcapi-showfederations]
   apifile: '{{datadir2}}/federation_self_partner_federation.yml'
   apifilevars:
     partnertag: "partner2"

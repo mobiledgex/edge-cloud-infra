@@ -8,13 +8,17 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jarcoal/httpmock"
+	"github.com/jinzhu/gorm"
+	_ "github.com/jinzhu/gorm/dialects/postgres"
 	"github.com/lib/pq"
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/mc/federation"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
 	ormtestutil "github.com/mobiledgex/edge-cloud-infra/mc/orm/testutil"
@@ -25,6 +29,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/nodetest"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/testutil"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -709,8 +714,8 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 			MNC:            []string{"123", "345"},
 		},
 	}
-	_, status, err := mcClient.CreatePartnerFederator(op.uri, selfFed1.tokenOper, partnerFedReq)
-	require.Nil(t, err, "create partner federator")
+	_, status, err := mcClient.CreateFederation(op.uri, selfFed1.tokenOper, partnerFedReq)
+	require.Nil(t, err, "create federation")
 	require.Equal(t, http.StatusOK, status)
 
 	// Validate partner federator info
@@ -729,8 +734,9 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	// selfFed2 should not be able to see selfFed1's partner
 	// =====================================================
 	federations, status, err = mcClient.ShowFederation(op.uri, selfFed2.tokenOper, partnerFedReq)
-	require.NotNil(t, err, "do not show partner federator")
-	require.Equal(t, http.StatusForbidden, status)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 0, len(federations))
 	partnerFedLookup := &ormapi.Federation{
 		SelfOperatorId:  selfFed2.operatorId,
 		SelfCountryCode: selfFed2.countryCode,
@@ -882,8 +888,8 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 			CountryCode: partnerFed.countryCode,
 		},
 	}
-	_, status, err = mcClient.CreateFederation(op.uri, selfFed1.tokenOper, fedReq)
-	require.Nil(t, err, "create federation")
+	_, status, err = mcClient.RegisterFederation(op.uri, selfFed1.tokenOper, fedReq)
+	require.Nil(t, err, "register federation")
 	require.Equal(t, http.StatusOK, status)
 
 	// Verify federation is created
@@ -963,8 +969,8 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 			CountryCode: partnerFed.countryCode,
 		},
 	}
-	_, _, err = mcClient.DeleteFederation(op.uri, selfFed1.tokenOper, fedReq)
-	require.NotNil(t, err, "delete federation")
+	_, _, err = mcClient.DeregisterFederation(op.uri, selfFed1.tokenOper, fedReq)
+	require.NotNil(t, err, "deregister federation")
 	require.Contains(t, err.Error(), "Please deregister it before removing")
 
 	// Deregister all the partner zones
@@ -1001,8 +1007,8 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 			CountryCode: partnerFed.countryCode,
 		},
 	}
-	_, status, err = mcClient.DeleteFederation(op.uri, selfFed1.tokenOper, fedReq)
-	require.Nil(t, err, "delete federation")
+	_, status, err = mcClient.DeregisterFederation(op.uri, selfFed1.tokenOper, fedReq)
+	require.Nil(t, err, "deregister federation")
 	require.Equal(t, http.StatusOK, status)
 
 	// Verify federation is deleted
@@ -1109,8 +1115,8 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 			CountryCode: partnerFed.countryCode,
 		},
 	}
-	_, status, err = mcClient.DeletePartnerFederator(op.uri, selfFed1.tokenOper, partnerFedReq)
-	require.Nil(t, err, "delete partner federator")
+	_, status, err = mcClient.DeleteFederation(op.uri, selfFed1.tokenOper, partnerFedReq)
+	require.Nil(t, err, "delete federation")
 	require.Equal(t, http.StatusOK, status)
 
 	// Delete self federators
@@ -1123,5 +1129,199 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 		_, status, err := mcClient.DeleteSelfFederator(op.uri, selfFed.tokenOper, fedReq)
 		require.Nil(t, err, "delete self federator")
 		require.Equal(t, http.StatusOK, status)
+	}
+}
+
+type DBExec struct {
+	obj  interface{}
+	pass bool
+}
+
+func StartDB() (*intprocess.Sql, *gorm.DB, error) {
+	sqlAddrHost := "127.0.0.1"
+	sqlAddrPort := "51001"
+	dbUser := "testuser"
+	dbName := "mctestdb"
+	sql := intprocess.Sql{
+		Common: process.Common{
+			Name: "sql1",
+		},
+		DataDir:  "./.postgres",
+		HttpAddr: sqlAddrHost + ":" + sqlAddrPort,
+		Username: dbUser,
+		Dbname:   dbName,
+	}
+	_, err := os.Stat(sql.DataDir)
+	if os.IsNotExist(err) {
+		sql.InitDataDir()
+	}
+	err = sql.StartLocal("")
+	if err != nil {
+		return nil, nil, fmt.Errorf("local sql start failed: %v", err)
+	}
+
+	db, err := gorm.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable", sqlAddrHost, sqlAddrPort, dbUser, dbName))
+	if err != nil {
+		sql.StopLocal()
+		return nil, nil, fmt.Errorf("failed to open gorm object: %v", err)
+	}
+	return &sql, db, nil
+}
+
+func TestFederationGormObjs(t *testing.T) {
+	sql, db, err := StartDB()
+	require.Nil(t, err, "start sql db")
+	defer sql.StopLocal()
+	defer db.Close()
+
+	dbObjs := []interface{}{
+		&ormapi.Federator{},
+		&ormapi.Federation{},
+		&ormapi.FederatorZone{},
+		&ormapi.FederatedPartnerZone{},
+		&ormapi.FederatedSelfZone{},
+	}
+
+	db.DropTableIfExists(dbObjs...)
+	db.LogMode(true)
+	db.AutoMigrate(dbObjs...)
+
+	err = InitFederationAPIConstraints(db)
+	require.Nil(t, err, "set constraints")
+
+	tests := []DBExec{
+		{
+			obj:  &ormapi.Federator{OperatorId: "TDG", CountryCode: "EU", FederationKey: "key1"},
+			pass: true,
+		},
+		{
+			obj:  &ormapi.Federator{OperatorId: "BT", CountryCode: "US", FederationKey: "key2"},
+			pass: true,
+		},
+		{
+			obj: &ormapi.Federation{
+				SelfOperatorId: "TDG", SelfCountryCode: "EU",
+				Federator: ormapi.Federator{
+					OperatorId: "VOD", CountryCode: "KR", FederationKey: "keyA",
+				},
+				PartnerRoleShareZonesWithSelf: true,
+			},
+			pass: true,
+		},
+		{
+			obj: &ormapi.Federation{
+				SelfOperatorId: "BT", SelfCountryCode: "US",
+				Federator: ormapi.Federator{
+					OperatorId: "VOD", CountryCode: "KR", FederationKey: "keyB",
+				},
+			},
+			pass: true,
+		},
+		{
+			// embedded struct's primary keys are considered
+			obj: &ormapi.Federation{
+				SelfOperatorId: "BT", SelfCountryCode: "US",
+				Federator: ormapi.Federator{
+					OperatorId: "VODA", CountryCode: "KR", FederationKey: "keyC",
+				},
+			},
+			pass: true,
+		},
+		{
+			// NOTE: This should fail
+			obj: &ormapi.Federation{
+				SelfOperatorId: "BTS", SelfCountryCode: "US",
+				Federator: ormapi.Federator{
+					OperatorId: "VODA", CountryCode: "KR", FederationKey: "keyD",
+				},
+			},
+			pass: false,
+		},
+		{
+			obj: &ormapi.FederatorZone{
+				OperatorId: "BT", CountryCode: "US",
+				ZoneId:      "Z1",
+				GeoLocation: "123,321",
+			},
+			pass: true,
+		},
+		{
+			obj: &ormapi.FederatorZone{
+				OperatorId: "TDG", CountryCode: "EU",
+				ZoneId:      "Z2",
+				GeoLocation: "123,321",
+			},
+			pass: true,
+		},
+		{
+			// NOTE: should fail
+			obj: &ormapi.FederatorZone{
+				OperatorId: "BTS", CountryCode: "US",
+				ZoneId:      "Z3",
+				GeoLocation: "123,321",
+			},
+			pass: false,
+		},
+		{
+			// NOTE: should fail
+			obj: &ormapi.FederatedPartnerZone{
+				SelfOperatorId: "BTS", SelfCountryCode: "US",
+				FederatorZone: ormapi.FederatorZone{
+					OperatorId: "VOD", CountryCode: "KR",
+					ZoneId:      "Z4",
+					GeoLocation: "123,321",
+				},
+				Registered: true,
+			},
+			pass: false,
+		},
+		{
+			// NOTE: should fail
+			obj: &ormapi.FederatedPartnerZone{
+				SelfOperatorId: "BT", SelfCountryCode: "US",
+				FederatorZone: ormapi.FederatorZone{
+					OperatorId: "VODAF", CountryCode: "KR",
+					ZoneId:      "Z4",
+					GeoLocation: "123,321",
+				},
+				Registered: true,
+			},
+			pass: false,
+		},
+		{
+			// NOTE: should fail, as such federation doesn't exist
+			obj: &ormapi.FederatedPartnerZone{
+				SelfOperatorId: "TDG", SelfCountryCode: "EU",
+				FederatorZone: ormapi.FederatorZone{
+					OperatorId: "VODA", CountryCode: "KR",
+					ZoneId:      "Z4",
+					GeoLocation: "123,321",
+				},
+				Registered: true,
+			},
+			pass: false,
+		},
+		{
+			obj: &ormapi.FederatedPartnerZone{
+				SelfOperatorId: "TDG", SelfCountryCode: "EU",
+				FederatorZone: ormapi.FederatorZone{
+					OperatorId: "VOD", CountryCode: "KR",
+					ZoneId:      "Z4",
+					GeoLocation: "123,321",
+				},
+				Registered: true,
+			},
+			pass: true,
+		},
+	}
+
+	for _, test := range tests {
+		err = db.Create(test.obj).Error
+		if test.pass {
+			require.Nil(t, err, test.obj)
+		} else {
+			require.NotNil(t, err, test.obj)
+		}
+		defer db.Delete(test.obj)
 	}
 }

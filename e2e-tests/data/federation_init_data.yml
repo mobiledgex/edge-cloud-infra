@@ -54,6 +54,7 @@ regiondata:
       disableratelimit: true
       maxnumperipratelimiters: 10000
       resourcesnapshotthreadinterval: 10m
+      ratelimitmaxtrackedips: 10000
     flavors:
     - key:
         name: x1.tiny

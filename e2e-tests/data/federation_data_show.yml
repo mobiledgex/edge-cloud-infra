@@ -73,6 +73,7 @@ regiondata:
       disableratelimit: true
       maxnumperipratelimiters: 10000
       resourcesnapshotthreadinterval: 10m0s
+      ratelimitmaxtrackedips: 10000
     cloudlets:
     - key:
         organization: {{partnertag}}

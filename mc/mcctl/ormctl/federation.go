@@ -7,7 +7,9 @@ import (
 )
 
 const (
-	FederationGroup = "Federation"
+	FederatorGroup     = "Federator"
+	FederatorZoneGroup = "FederatorZone"
+	FederationGroup    = "Federation"
 )
 
 func init() {
@@ -48,7 +50,7 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "ShowSelfFederator",
-			Use:          "showselffederator",
+			Use:          "show",
 			Short:        "Show Self Federator",
 			OptionalArgs: strings.Join(append(FederatorRequiredArgs, FederatorOptionalArgs...), " "),
 			Comments:     ormapi.FederatorComments,
@@ -56,9 +58,13 @@ func init() {
 			ReplyData:    &[]ormapi.Federator{},
 			Path:         "/auth/federator/self/show",
 		},
+	}
+	AllApis.AddGroup(FederatorGroup, "Federator APIs", cmds)
+
+	cmds = []*ApiCommand{
 		&ApiCommand{
 			Name:         "CreateSelfFederatorZone",
-			Use:          "createzone",
+			Use:          "create",
 			Short:        "Create Self Federator Zone",
 			SpecialArgs:  &FederatorZoneSpecialArgs,
 			RequiredArgs: strings.Join(FederatorZoneRequiredArgs, " "),
@@ -70,7 +76,7 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "DeleteSelfFederatorZone",
-			Use:          "deletezone",
+			Use:          "delete",
 			Short:        "Delete Self Federator Zone",
 			RequiredArgs: "zoneid operatorid countrycode",
 			Comments:     ormapi.FederatorZoneComments,
@@ -80,7 +86,7 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "ShowSelfFederatorZone",
-			Use:          "showzone",
+			Use:          "show",
 			Short:        "Show Self Federator Zone",
 			OptionalArgs: "operatorid countrycode zoneid city region",
 			Comments:     ormapi.FederatorZoneComments,
@@ -90,7 +96,7 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "ShareSelfFederatorZone",
-			Use:          "sharezone",
+			Use:          "share",
 			Short:        "Share Self Federator Zone",
 			RequiredArgs: strings.Join(FederatedSelfZoneArgs, " "),
 			Comments:     ormapi.FederatorZoneComments,
@@ -100,7 +106,7 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "UnshareSelfFederatorZone",
-			Use:          "unsharezone",
+			Use:          "unshare",
 			Short:        "Unshare Self Federator Zone",
 			RequiredArgs: strings.Join(FederatedSelfZoneArgs, " "),
 			Comments:     ormapi.FederatorZoneComments,
@@ -109,33 +115,8 @@ func init() {
 			Path:         "/auth/federator/self/zone/unshare",
 		},
 		&ApiCommand{
-			Name:         "CreateFederation",
-			Use:          "createfederation",
-			Short:        "Create Federation",
-			AliasArgs:    strings.Join(FederationAliasArgs, " "),
-			SpecialArgs:  &FederatorSpecialArgs,
-			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
-			OptionalArgs: strings.Join(FederatorOptionalArgs, " "),
-			PasswordArg:  "federator.federationkey",
-			Comments:     ormapi.FederationComments,
-			ReqData:      &ormapi.Federation{},
-			ReplyData:    &ormapi.Result{},
-			Path:         "/auth/federation/create",
-		},
-		&ApiCommand{
-			Name:         "DeleteFederation",
-			Use:          "deletefederation",
-			Short:        "Delete Federation",
-			AliasArgs:    strings.Join(FederationAliasArgs, " "),
-			RequiredArgs: "selfoperatorid selfcountrycode operatorid countrycode",
-			Comments:     ormapi.FederationComments,
-			ReqData:      &ormapi.Federation{},
-			ReplyData:    &ormapi.Result{},
-			Path:         "/auth/federation/delete",
-		},
-		&ApiCommand{
 			Name:         "RegisterPartnerFederatorZone",
-			Use:          "registerzone",
+			Use:          "register",
 			Short:        "Register Partner Federator Zone",
 			AliasArgs:    strings.Join(FederatorZoneAliasArgs, " "),
 			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederatorZoneRequiredArgs...), " "),
@@ -146,7 +127,7 @@ func init() {
 		},
 		&ApiCommand{
 			Name:         "DeRegisterPartnerFederatorZone",
-			Use:          "deregisterzone",
+			Use:          "deregister",
 			Short:        "DeRegister Partner Federator Zone",
 			AliasArgs:    strings.Join(FederatorZoneAliasArgs, " "),
 			RequiredArgs: "selfoperatorid selfcountrycode operatorid countrycode zoneid",
@@ -154,39 +135,6 @@ func init() {
 			ReqData:      &ormapi.FederatedPartnerZone{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/partner/zone/deregister",
-		},
-		&ApiCommand{
-			Name:         "RegisterFederation",
-			Use:          "registerfederation",
-			Short:        "Register Federation",
-			AliasArgs:    strings.Join(FederationAliasArgs, " "),
-			RequiredArgs: strings.Join(FederationArgs, " "),
-			Comments:     ormapi.FederationComments,
-			ReqData:      &ormapi.Federation{},
-			ReplyData:    &ormapi.Result{},
-			Path:         "/auth/federation/register",
-		},
-		&ApiCommand{
-			Name:         "DeregisterFederation",
-			Use:          "deregisterfederation",
-			Short:        "Deregister Federation",
-			AliasArgs:    strings.Join(FederationAliasArgs, " "),
-			RequiredArgs: strings.Join(FederationArgs, " "),
-			Comments:     ormapi.FederationComments,
-			ReqData:      &ormapi.Federation{},
-			ReplyData:    &ormapi.Result{},
-			Path:         "/auth/federation/deregister",
-		},
-		&ApiCommand{
-			Name:         "ShowFederation",
-			Use:          "showfederation",
-			Short:        "Show Federation",
-			AliasArgs:    strings.Join(FederationAliasArgs, " "),
-			OptionalArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
-			Comments:     ormapi.FederationComments,
-			ReqData:      &ormapi.Federation{},
-			ReplyData:    &[]ormapi.Federation{},
-			Path:         "/auth/federation/show",
 		},
 		&ApiCommand{
 			Name:         "ShowFederatedSelfZone",
@@ -208,6 +156,68 @@ func init() {
 			ReqData:      &ormapi.FederatedPartnerZone{},
 			ReplyData:    &[]ormapi.FederatedPartnerZone{},
 			Path:         "/auth/federation/partner/zone/show",
+		},
+	}
+	AllApis.AddGroup(FederatorZoneGroup, "Federator Zone APIs", cmds)
+
+	cmds = []*ApiCommand{
+		&ApiCommand{
+			Name:         "CreateFederation",
+			Use:          "create",
+			Short:        "Create Federation",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			SpecialArgs:  &FederatorSpecialArgs,
+			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
+			OptionalArgs: strings.Join(FederatorOptionalArgs, " "),
+			PasswordArg:  "federator.federationkey",
+			Comments:     ormapi.FederationComments,
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/create",
+		},
+		&ApiCommand{
+			Name:         "DeleteFederation",
+			Use:          "delete",
+			Short:        "Delete Federation",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			RequiredArgs: "selfoperatorid selfcountrycode operatorid countrycode",
+			Comments:     ormapi.FederationComments,
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/delete",
+		},
+		&ApiCommand{
+			Name:         "RegisterFederation",
+			Use:          "register",
+			Short:        "Register Federation",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			RequiredArgs: strings.Join(FederationArgs, " "),
+			Comments:     ormapi.FederationComments,
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/register",
+		},
+		&ApiCommand{
+			Name:         "DeregisterFederation",
+			Use:          "deregister",
+			Short:        "Deregister Federation",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			RequiredArgs: strings.Join(FederationArgs, " "),
+			Comments:     ormapi.FederationComments,
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/deregister",
+		},
+		&ApiCommand{
+			Name:         "ShowFederation",
+			Use:          "show",
+			Short:        "Show Federation",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			OptionalArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
+			Comments:     ormapi.FederationComments,
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &[]ormapi.Federation{},
+			Path:         "/auth/federation/show",
 		},
 	}
 	AllApis.AddGroup(FederationGroup, "Federation APIs", cmds)

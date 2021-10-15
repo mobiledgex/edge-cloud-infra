@@ -188,7 +188,7 @@ func (k *K8sBareMetalPlatform) UpdateTrustPolicyException(ctx context.Context, T
 	return fmt.Errorf("UpdateTrustPolicyException TODO")
 }
 
-func (k *K8sBareMetalPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException) error {
+func (k *K8sBareMetalPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey) error {
 	return fmt.Errorf("DeleteTrustPolicyException TODO")
 }
 

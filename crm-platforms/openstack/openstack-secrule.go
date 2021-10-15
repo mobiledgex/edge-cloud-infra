@@ -82,10 +82,19 @@ func (s *OpenstackPlatform) CreateSecurityGroup(ctx context.Context, groupName s
 	return nil
 }
 
-func (s *OpenstackPlatform) AddSecurityGroupToPort(ctx context.Context, portID, groupName string) error {
+func (s *OpenstackPlatform) AttachSecurityGroupToPort(ctx context.Context, portID, groupName string) error {
 	out, err := s.TimedOpenStackCommand(ctx, "openstack", "port", "set", "--security-group", groupName, portID)
 	if err != nil {
-		err = fmt.Errorf("can't add security group to port, %s, %v", out, err)
+		err = fmt.Errorf("can't attach security group to port, %s, %v", out, err)
+		return err
+	}
+	return nil
+}
+
+func (s *OpenstackPlatform) DetachSecurityGroupFromPort(ctx context.Context, portID, groupName string) error {
+	out, err := s.TimedOpenStackCommand(ctx, "openstack", "port", "unset", "--security-group", groupName, portID)
+	if err != nil {
+		err = fmt.Errorf("can't detach security group to port, %s, %v", out, err)
 		return err
 	}
 	return nil
@@ -358,29 +367,76 @@ func (o *OpenstackPlatform) DeleteCloudletSecgrpStack(ctx context.Context, updat
 	return o.deleteHeatStack(ctx, grpName)
 }
 
-func (o *OpenstackPlatform) getTrustPolicyExceptionStackName(TrustPolicyException *edgeproto.TrustPolicyException) string {
-	grpName := o.NameSanitize(TrustPolicyException.Key.Name + "-" + TrustPolicyException.Key.AppKey.Name + "-" + TrustPolicyException.Key.AppKey.Organization + "-" + TrustPolicyException.Key.AppKey.Version + "-" + TrustPolicyException.Key.CloudletPoolKey.Name + "-" + TrustPolicyException.Key.CloudletPoolKey.Organization)
+func (o *OpenstackPlatform) getTrustPolicyExceptionStackName(tpeKey *edgeproto.TrustPolicyExceptionKey) string {
+	grpName := o.NameSanitize(tpeKey.Name + "-" + tpeKey.AppKey.Name + "-" + tpeKey.AppKey.Organization + "-" + tpeKey.AppKey.Version + "-" + tpeKey.CloudletPoolKey.Name + "-" + tpeKey.CloudletPoolKey.Organization)
 	return grpName
 }
 
-func (o *OpenstackPlatform) ConfigureTrustPolicyExceptionSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicyException *edgeproto.TrustPolicyException, rootLbClients map[string]ssh.Client, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
-	grpName := o.getTrustPolicyExceptionStackName(TrustPolicyException)
+// Attach or Detach a security group to/from a port of rootLbClients
+func (o *OpenstackPlatform) programSecurityGroupToPort(ctx context.Context, grpName string, rootLbClients map[string]ssh.Client, action vmlayer.ActionType) error {
+	var err error
+	err = nil
+	for keyServerName, _ := range rootLbClients {
+
+		netTypes := []vmlayer.NetworkType{
+			vmlayer.NetworkTypeExternalAdditionalRootLb,
+			vmlayer.NetworkTypeExternalPrimary,
+		}
+		externalNetMap := o.VMProperties.GetNetworksByType(ctx, netTypes)
+
+		var ports []OSPort
+		for keyNetworkName, _ := range externalNetMap {
+			portList, err := o.ListPortsServerNetwork(ctx, keyServerName, keyNetworkName)
+			if err != nil {
+				err = fmt.Errorf("cannot get port list, %s, %v", keyServerName, err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "ListPortsServer failed", "server:", keyServerName, "err:", err)
+				continue
+			}
+			ports = append(ports, portList...)
+		}
+
+		for _, port := range ports {
+			if action == vmlayer.ActionCreate || action == vmlayer.ActionUpdate {
+				err = o.AttachSecurityGroupToPort(ctx, port.ID, grpName)
+			} else {
+				err = o.DetachSecurityGroupFromPort(ctx, port.ID, grpName)
+			}
+			if err != nil {
+				err = fmt.Errorf("cannot program security group %s to server:%s port: %s err:%v", grpName, keyServerName, port.ID, err)
+			}
+		}
+	}
+	return err
+}
+
+func (o *OpenstackPlatform) ConfigureTrustPolicyExceptionSecurityRules(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, rootLbClients map[string]ssh.Client, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
+	grpName := o.getTrustPolicyExceptionStackName(&TrustPolicyException.Key)
+	egressRestricted := false
 	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureTrustPolicyExceptionSecurityRules", "TrustPolicyExceptionSecgrpName", grpName, "action", action, "egressRestricted", egressRestricted)
 
 	if action == vmlayer.ActionCreate || action == vmlayer.ActionUpdate {
-		return o.CreateOrUpdateTrustPolicyExceptionSecgrpStack(ctx, egressRestricted, TrustPolicyException, updateCallback)
+		err := o.CreateOrUpdateTrustPolicyExceptionSecgrpStack(ctx, egressRestricted, TrustPolicyException, updateCallback)
+		if err != nil {
+			return err
+		}
+	} else {
+		err := o.DeleteTrustPolicyExceptionSecgrpStack(ctx, &TrustPolicyException.Key, updateCallback)
+		if err != nil {
+			return err
+		}
 	}
-	return o.DeleteTrustPolicyExceptionSecgrpStack(ctx, TrustPolicyException, updateCallback)
+	return o.programSecurityGroupToPort(ctx, grpName, rootLbClients, action)
+
 }
 
 func (o *OpenstackPlatform) CreateOrUpdateTrustPolicyExceptionSecgrpStack(ctx context.Context, egressRestricted bool, TrustPolicyException *edgeproto.TrustPolicyException, updateCallback edgeproto.CacheUpdateCallback) error {
-	grpName := o.getTrustPolicyExceptionStackName(TrustPolicyException)
+	grpName := o.getTrustPolicyExceptionStackName(&TrustPolicyException.Key)
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateTrustPolicyExceptionSecgrpStack", "grpName", grpName, "TrustPolicyException", TrustPolicyException)
 	return o.CreateOrUpdateSecgrpStack(ctx, grpName, egressRestricted, TrustPolicyException.OutboundSecurityRules, updateCallback)
 }
 
-func (o *OpenstackPlatform) DeleteTrustPolicyExceptionSecgrpStack(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, updateCallback edgeproto.CacheUpdateCallback) error {
-	grpName := o.getTrustPolicyExceptionStackName(TrustPolicyException)
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteTrustPolicyExceptionSecgrpStack", "grpName", grpName, "TrustPolicyException", TrustPolicyException)
+func (o *OpenstackPlatform) DeleteTrustPolicyExceptionSecgrpStack(ctx context.Context, tpeKey *edgeproto.TrustPolicyExceptionKey, updateCallback edgeproto.CacheUpdateCallback) error {
+	grpName := o.getTrustPolicyExceptionStackName(tpeKey)
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteTrustPolicyExceptionSecgrpStack", "grpName", grpName, "tpeKey", tpeKey)
 	return o.deleteHeatStack(ctx, grpName)
 }

@@ -111,7 +111,7 @@ func (m *ManagedK8sPlatform) UpdateTrustPolicyException(ctx context.Context, Tru
 	return fmt.Errorf("UpdateTrustPolicyException TODO")
 }
 
-func (m *ManagedK8sPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException) error {
+func (m *ManagedK8sPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey) error {
 	return fmt.Errorf("DeleteTrustPolicyException TODO")
 }
 

@@ -1,0 +1,40 @@
+federatedpartnerzones:
+# tmus/SA registers partner zones
+- selfoperatorid: tmus
+  selfcountrycode: SA
+  federatorzone:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    zoneid: {{partnertag}}-cloud-1
+- selfoperatorid: tmus
+  selfcountrycode: SA
+  federatorzone:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    zoneid: {{partnertag}}-cloud-2
+# enterprise/SA registers partner zones
+- selfoperatorid: enterprise
+  selfcountrycode: SA
+  federatorzone:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    zoneid: {{partnertag}}-cloud-1
+- selfoperatorid: enterprise
+  selfcountrycode: SA
+  federatorzone:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    zoneid: {{partnertag}}-cloud-2
+# enterprise/SB registers partner zones
+- selfoperatorid: enterprise
+  selfcountrycode: SB
+  federatorzone:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    zoneid: {{partnertag}}-cloud-1
+- selfoperatorid: enterprise
+  selfcountrycode: SB
+  federatorzone:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    zoneid: {{partnertag}}-cloud-2

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -266,7 +267,7 @@ func CreateSelfFederator(c echo.Context) error {
 	}
 
 	db := loggedDB(ctx)
-	if opFed.FederationKey != "" && serverConfig.TestMode {
+	if fTest := os.Getenv("E2ETEST_FEDERATION"); fTest != "" && opFed.FederationKey != "" {
 		// In test mode, allow user specified federation key
 	} else {
 		fedKey := uuid.New().String()
@@ -371,7 +372,7 @@ func UpdateSelfFederator(c echo.Context) error {
 
 	errOut := ""
 	if len(errMsgs) > 0 {
-		errOut = fmt.Sprintf(". But failed for %s", strings.Join(errMsgs, ";"))
+		errOut = fmt.Sprintf(". But failed to update partners %s", strings.Join(errMsgs, ";"))
 	}
 
 	return ormutil.SetReply(c, ormutil.Msg(

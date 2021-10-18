@@ -41,7 +41,6 @@ var usageCollectionInterval = flag.Duration("usageCollectionInterval", -1*time.S
 var usageCheckpointInterval = flag.String("usageCheckpointInterval", "MONTH", "Checkpointing interval(must be same as controller's checkpointInterval)")
 var staticDir = flag.String("staticDir", "/", "Path to static data")
 var controllerNotifyPort = flag.String("controllerNotifyPort", "50001", "Controller notify listener port to connect to")
-var testMode = flag.Bool("testMode", false, "Run MC in test mode")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -85,7 +84,6 @@ func main() {
 		StaticDir:               *staticDir,
 		DeploymentTag:           nodeMgr.DeploymentTag,
 		ControllerNotifyPort:    *controllerNotifyPort,
-		TestMode:                *testMode,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {

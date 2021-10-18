@@ -293,6 +293,8 @@ func (o *OpenstackPlatform) ConfigureCloudletSecurityRules(ctx context.Context, 
 
 func (o *OpenstackPlatform) CreateOrUpdateSecgrpStack(ctx context.Context, grpName string, egressRestricted bool, rules []edgeproto.SecurityRule, updateCallback edgeproto.CacheUpdateCallback) error {
 
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateOrUpdateSecgrpStack", "grpName", grpName)
+
 	grpExists := false
 	stackExists := false
 	_, err := o.GetSecurityGroupIDForName(ctx, grpName)

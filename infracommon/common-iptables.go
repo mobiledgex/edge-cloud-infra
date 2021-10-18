@@ -462,7 +462,7 @@ func RemoveTrustPolicyIfExists(ctx context.Context, client ssh.Client, isTrustPo
 
 	// For TrustPolicyException, use parameter secGrpName as the label
 	// For TrustPolicy, label used is "trust-policy"
-	if isTrustPolicy == true {
+	if isTrustPolicy {
 		secGrpName = TrustPolicySecGrpNameLabel
 	}
 

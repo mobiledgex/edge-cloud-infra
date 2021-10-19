@@ -211,6 +211,7 @@ module "teleport" {
   environ_tag         = var.environ_tag
   zone                = var.teleport_zone
   boot_image          = "ubuntu-os-cloud/ubuntu-2004-lts"
+  boot_disk_size      = 100
   tags                = [
     "mexplat-internal",
     "http-server",

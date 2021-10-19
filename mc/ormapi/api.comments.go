@@ -216,24 +216,23 @@ var GenerateReportComments = map[string]string{
 }
 
 var FederatorComments = map[string]string{
+	"federationid":    `Globally unique string used to indentify a federation with partner federation`,
 	"operatorid":      `Globally unique string to identify an operator platform`,
 	"countrycode":     `ISO 3166-1 Alpha-2 code for the country where operator platform is located`,
-	"federationkey":   `Globally unique string used to authenticate operations over federation interface`,
 	"federationaddr":  `Federation access point address`,
 	"mcc":             `Mobile country code of operator sending the request`,
 	"locatorendpoint": `IP and Port of discovery service URL of operator platform`,
 }
 
 var FederationComments = map[string]string{
+	"federator.federationid":        `Globally unique string used to indentify a federation with partner federation`,
 	"federator.operatorid":          `Globally unique string to identify an operator platform`,
 	"federator.countrycode":         `ISO 3166-1 Alpha-2 code for the country where operator platform is located`,
-	"federator.federationkey":       `Globally unique string used to authenticate operations over federation interface`,
 	"federator.federationaddr":      `Federation access point address`,
 	"federator.mcc":                 `Mobile country code of operator sending the request`,
 	"federator.locatorendpoint":     `IP and Port of discovery service URL of operator platform`,
 	"id":                            `Internal ID to reference a federation read_only: true`,
-	"selfoperatorid":                `Self federator operator ID`,
-	"selfcountrycode":               `Self federator country code`,
+	"selffederationid":              `Self federation ID`,
 	"partnerrolesharezoneswithself": `Partner shares its zones with self federator as part of federation read_only: true`,
 	"partnerroleaccesstoselfzones":  `Partner is allowed access to self federator zones as part of federation read_only: true`,
 }
@@ -250,12 +249,10 @@ var FederatorZoneComments = map[string]string{
 }
 
 var FederatedSelfZoneComments = map[string]string{
-	"zoneid":             `Globally unique identifier of the federator zone`,
-	"selfoperatorid":     `Self federator operator ID`,
-	"selfcountrycode":    `Self federator country code`,
-	"partneroperatorid":  `Partner federator operator ID`,
-	"partnercountrycode": `Partner federator country code`,
-	"registered":         `Zone registered by partner federator read_only: true`,
+	"zoneid":              `Globally unique identifier of the federator zone`,
+	"selffederationid":    `Self federation ID`,
+	"partnerfederationid": `Partner federation ID`,
+	"registered":          `Zone registered by partner federator read_only: true`,
 }
 
 var FederatedPartnerZoneComments = map[string]string{
@@ -267,7 +264,7 @@ var FederatedPartnerZoneComments = map[string]string{
 	"federatorzone.state":       `Comma seperated list of states under this zone`,
 	"federatorzone.locality":    `Type of locality eg rural, urban etc.`,
 	"federatorzone.region":      `Region in which cloudlets reside`,
-	"selfoperatorid":            `Self federator operator ID`,
-	"selfcountrycode":           `Self federator country code`,
+	"selffederationid":          `Self federation ID`,
+	"partnerfederationid":       `Partner federation ID`,
 	"registered":                `Zone registered by self federator read_only: true`,
 }

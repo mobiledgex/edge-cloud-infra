@@ -48,6 +48,7 @@
         ports:
           - 127.0.0.1:24268:14268
           - 127.0.0.1:26686:16686
+          - 127.0.0.1:14269:14269
 
   when:
     - es_instance is not defined
@@ -74,6 +75,7 @@
         restart_policy: unless-stopped
         ports:
           - 127.0.0.1:24268:14268
+          - 127.0.0.1:14269:14269
         env:
           SPAN_STORAGE_TYPE: elasticsearch
           ES_SERVER_URLS: "{{ jaeger_es_url }}"
@@ -89,6 +91,7 @@
         restart_policy: unless-stopped
         ports:
           - 127.0.0.1:26686:16686
+          - 127.0.0.1:16687:16687
         env:
           SPAN_STORAGE_TYPE: elasticsearch
           ES_SERVER_URLS: "{{ jaeger_es_url }}"

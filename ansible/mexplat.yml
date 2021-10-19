@@ -305,6 +305,9 @@
 
     - import_role:
         name: telegraf
+      vars:
+        telegraf_additional_config:
+          - input/jaeger-metrics.conf.j2
       tags:
         - monitoring
         - setup

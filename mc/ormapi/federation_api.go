@@ -21,6 +21,10 @@ type Federator struct {
 	MNC pq.StringArray `gorm:"type:text[]" json:"mnc"`
 	// IP and Port of discovery service URL of operator platform
 	LocatorEndPoint string `json:"locatorendpoint"`
+	// Revision ID to track object changes. We use timestamps but
+	// this can differ with what partner federator uses
+	// read_only: true
+	Revision string `json:"revision"`
 }
 
 type Federation struct {
@@ -29,8 +33,7 @@ type Federation struct {
 	Id int `gorm:"auto_increment:true; unique; not null"`
 	// Self federation ID
 	SelfFederationId string `gorm:"primary_key; unique" json:"selffederationid"`
-	// Self operator ID, makes rbac easier
-	// read_only: true
+	// Self operator ID
 	SelfOperatorId string `json:"selfoperatorid"`
 	// Partner Federator
 	Federator `json:",inline"`
@@ -63,14 +66,17 @@ type FederatorZone struct {
 	Region string `json:"region"`
 	// List of cloudlets part of this zone
 	Cloudlets pq.StringArray `gorm:"type:text[]" json:"cloudlets"`
+	// Revision ID to track object changes. We use timestamps but
+	// this can differ with what partner federator uses
+	// read_only: true
+	Revision string `json:"revision"`
 }
 
 // Information of the partner federator with whom the self federator zone is shared
 type FederatedSelfZone struct {
 	// Globally unique identifier of the federator zone
 	ZoneId string `gorm:"primary_key;type:text REFERENCES federator_zones(zone_id)" json:"zoneid"`
-	// Self operator ID, makes rbac easier
-	// read_only: true
+	// Self operator ID
 	SelfOperatorId string `json:"selfoperatorid"`
 	// Self federation ID
 	SelfFederationId string `gorm:"primary_key" json:"selffederationid"`
@@ -79,12 +85,15 @@ type FederatedSelfZone struct {
 	// Zone registered by partner federator
 	// read_only: true
 	Registered bool
+	// Revision ID to track object changes. We use timestamps but
+	// this can differ with what partner federator uses
+	// read_only: true
+	Revision string `json:"revision"`
 }
 
 // Zones shared as part of federation with partner federator
 type FederatedPartnerZone struct {
-	// Self operator ID, makes rbac easier
-	// read_only: true
+	// Self operator ID
 	SelfOperatorId string `json:"selfoperatorid"`
 	// Self federation ID
 	SelfFederationId string `gorm:"primary_key" json:"selffederationid"`

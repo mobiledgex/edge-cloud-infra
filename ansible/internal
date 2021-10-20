@@ -25,3 +25,6 @@ chef.mobiledgex.net
 
 [monitor]
 monitor.mobiledgex.net
+
+[teleport]
+teleport.mobiledgex.net

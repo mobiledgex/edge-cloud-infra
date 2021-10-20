@@ -1,34 +1,28 @@
 federatedselfzones:
 # Share tmus/SA zones
 - selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: {{partnertag}}
-  partnercountrycode: {{region}}
+  selffederationid: tmus-SA-{{partnertag}}-{{region}}
+  partnerfederationid: {{partnertag}}-{{region}}-tmus-SA
   zoneid: tmus-cloud-1
 - selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: {{partnertag}}
-  partnercountrycode: {{region}}
+  selffederationid: tmus-SA-{{partnertag}}-{{region}}
+  partnerfederationid: {{partnertag}}-{{region}}-tmus-SA
   zoneid: tmus-cloud-2
 - selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: {{partnertag}}
-  partnercountrycode: {{region}}
+  selffederationid: tmus-SA-{{partnertag}}-{{region}}
+  partnerfederationid: {{partnertag}}-{{region}}-tmus-SA
   zoneid: tmus-cloud-3
 - selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: {{partnertag}}
-  partnercountrycode: {{region}}
+  selffederationid: tmus-SA-{{partnertag}}-{{region}}
+  partnerfederationid: {{partnertag}}-{{region}}-tmus-SA
   zoneid: tmus-cloud-4
 # Share enterprise/SA zones
 - selfoperatorid: enterprise
-  selfcountrycode: SA
-  partneroperatorid: {{partnertag}}
-  partnercountrycode: {{region}}
+  selffederationid: enterprise-SA-{{partnertag}}-{{region}}
+  partnerfederationid: {{partnertag}}-{{region}}-enterprise-SA
   zoneid: enterprise-1
 # Share enterprise/SB zones
 - selfoperatorid: enterprise
-  selfcountrycode: SB
-  partneroperatorid: {{partnertag}}
-  partnercountrycode: {{region}}
+  selffederationid: enterprise-SB-{{partnertag}}-{{region}}
+  partnerfederationid: {{partnertag}}-{{region}}-enterprise-SB
   zoneid: enterprise-2

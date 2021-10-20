@@ -10,7 +10,7 @@ type Federator struct {
 	// Globally unique string used to indentify a federation with partner federation
 	FederationId string `gorm:"primary_key" json:"federationid"`
 	// Globally unique string to identify an operator platform
-	OperatorId string `json:"operatorid"`
+	OperatorId string `gorm:"type:citext" json:"operatorid"`
 	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	CountryCode string `json:"countrycode"`
 	// Federation access point address
@@ -29,6 +29,9 @@ type Federation struct {
 	Id int `gorm:"auto_increment:true; unique; not null"`
 	// Self federation ID
 	SelfFederationId string `gorm:"primary_key; unique" json:"selffederationid"`
+	// Self operator ID, makes rbac easier
+	// read_only: true
+	SelfOperatorId string `json:"selfoperatorid"`
 	// Partner Federator
 	Federator `json:",inline"`
 	// Partner shares its zones with self federator as part of federation
@@ -45,7 +48,7 @@ type FederatorZone struct {
 	// Globally unique string used to authenticate operations over federation interface
 	ZoneId string `gorm:"primary_key" json:"zoneid"`
 	// Globally unique string to identify an operator platform
-	OperatorId string `json:"operatorid"`
+	OperatorId string `gorm:"type:citext" json:"operatorid"`
 	// ISO 3166-1 Alpha-2 code for the country where operator platform is located
 	CountryCode string `json:"countrycode"`
 	// GPS co-ordinates associated with the zone (in decimal format)
@@ -66,6 +69,9 @@ type FederatorZone struct {
 type FederatedSelfZone struct {
 	// Globally unique identifier of the federator zone
 	ZoneId string `gorm:"primary_key;type:text REFERENCES federator_zones(zone_id)" json:"zoneid"`
+	// Self operator ID, makes rbac easier
+	// read_only: true
+	SelfOperatorId string `json:"selfoperatorid"`
 	// Self federation ID
 	SelfFederationId string `gorm:"primary_key" json:"selffederationid"`
 	// Partner federation ID
@@ -77,6 +83,9 @@ type FederatedSelfZone struct {
 
 // Zones shared as part of federation with partner federator
 type FederatedPartnerZone struct {
+	// Self operator ID, makes rbac easier
+	// read_only: true
+	SelfOperatorId string `json:"selfoperatorid"`
 	// Self federation ID
 	SelfFederationId string `gorm:"primary_key" json:"selffederationid"`
 	// Partner federation ID

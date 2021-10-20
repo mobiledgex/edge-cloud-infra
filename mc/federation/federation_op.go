@@ -445,6 +445,7 @@ func (p *PartnerApi) FederationOperatorZoneShare(c echo.Context) error {
 	db := p.loggedDB(ctx)
 	zoneId := opZoneShare.PartnerZone.ZoneId
 	zoneObj := ormapi.FederatedPartnerZone{}
+	zoneObj.SelfOperatorId = selfFed.OperatorId
 	zoneObj.SelfFederationId = selfFed.FederationId
 	zoneObj.PartnerFederationId = partnerFed.FederationId
 	zoneObj.ZoneId = zoneId

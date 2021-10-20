@@ -223,6 +223,7 @@ func init() {
 }
 
 var SelfFederatorArgs = []string{
+	"selfoperatorid",
 	"selffederationid",
 }
 
@@ -248,6 +249,7 @@ var FederationRequiredArgs = []string{
 }
 
 var FederationArgs = []string{
+	"selfoperatorid",
 	"selffederationid",
 	"federationid",
 }
@@ -297,6 +299,7 @@ var FederatorZoneAliasArgs = []string{
 
 var FederatedSelfZoneArgs = []string{
 	"zoneid",
+	"selfoperatorid",
 	"selffederationid",
 	"partnerfederationid",
 }

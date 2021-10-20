@@ -233,14 +233,15 @@ var FederationComments = map[string]string{
 	"federator.locatorendpoint":     `IP and Port of discovery service URL of operator platform`,
 	"id":                            `Internal ID to reference a federation read_only: true`,
 	"selffederationid":              `Self federation ID`,
+	"selfoperatorid":                `Self operator ID, makes rbac easier read_only: true`,
 	"partnerrolesharezoneswithself": `Partner shares its zones with self federator as part of federation read_only: true`,
 	"partnerroleaccesstoselfzones":  `Partner is allowed access to self federator zones as part of federation read_only: true`,
 }
 
 var FederatorZoneComments = map[string]string{
+	"zoneid":      `Globally unique string used to authenticate operations over federation interface`,
 	"operatorid":  `Globally unique string to identify an operator platform`,
 	"countrycode": `ISO 3166-1 Alpha-2 code for the country where operator platform is located`,
-	"zoneid":      `Globally unique string used to authenticate operations over federation interface`,
 	"geolocation": `GPS co-ordinates associated with the zone (in decimal format)`,
 	"city":        `Comma seperated list of cities under this zone`,
 	"state":       `Comma seperated list of states under this zone`,
@@ -250,20 +251,22 @@ var FederatorZoneComments = map[string]string{
 
 var FederatedSelfZoneComments = map[string]string{
 	"zoneid":              `Globally unique identifier of the federator zone`,
+	"selfoperatorid":      `Self operator ID, makes rbac easier read_only: true`,
 	"selffederationid":    `Self federation ID`,
 	"partnerfederationid": `Partner federation ID`,
 	"registered":          `Zone registered by partner federator read_only: true`,
 }
 
 var FederatedPartnerZoneComments = map[string]string{
+	"federatorzone.zoneid":      `Globally unique string used to authenticate operations over federation interface`,
 	"federatorzone.operatorid":  `Globally unique string to identify an operator platform`,
 	"federatorzone.countrycode": `ISO 3166-1 Alpha-2 code for the country where operator platform is located`,
-	"federatorzone.zoneid":      `Globally unique string used to authenticate operations over federation interface`,
 	"federatorzone.geolocation": `GPS co-ordinates associated with the zone (in decimal format)`,
 	"federatorzone.city":        `Comma seperated list of cities under this zone`,
 	"federatorzone.state":       `Comma seperated list of states under this zone`,
 	"federatorzone.locality":    `Type of locality eg rural, urban etc.`,
 	"federatorzone.region":      `Region in which cloudlets reside`,
+	"selfoperatorid":            `Self operator ID, makes rbac easier read_only: true`,
 	"selffederationid":          `Self federation ID`,
 	"partnerfederationid":       `Partner federation ID`,
 	"registered":                `Zone registered by self federator read_only: true`,

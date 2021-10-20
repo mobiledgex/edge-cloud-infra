@@ -1122,8 +1122,8 @@ func RegisterFederation(c echo.Context) error {
 		zoneObj.SelfOperatorId = selfFed.OperatorId
 		zoneObj.SelfFederationId = selfFed.FederationId
 		zoneObj.PartnerFederationId = partnerFed.FederationId
-		zoneObj.OperatorId = opFed.OperatorId
-		zoneObj.CountryCode = opFed.CountryCode
+		zoneObj.OperatorId = partnerFed.OperatorId
+		zoneObj.CountryCode = partnerFed.CountryCode
 		zoneObj.ZoneId = partnerZone.ZoneId
 		zoneObj.GeoLocation = partnerZone.GeoLocation
 		zoneObj.City = partnerZone.City

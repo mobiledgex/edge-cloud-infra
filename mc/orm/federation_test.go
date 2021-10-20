@@ -582,6 +582,8 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 	require.Nil(t, err, "show federator zones")
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(pZones))
+	require.Equal(t, partnerFed.operatorId, pZones[0].OperatorId)
+	require.Equal(t, partnerFed.countryCode, pZones[0].CountryCode)
 	require.Equal(t, newZone.ZoneId, pZones[0].ZoneId)
 	require.False(t, pZones[0].Registered, "not registered")
 
@@ -899,6 +901,8 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Equal(t, len(partnerFed.zones), len(partnerZones))
 	// none of them are registered yet
 	for _, pZone := range partnerZones {
+		require.Equal(t, partnerFed.operatorId, pZone.OperatorId)
+		require.Equal(t, partnerFed.countryCode, pZone.CountryCode)
 		require.False(t, pZone.Registered)
 	}
 

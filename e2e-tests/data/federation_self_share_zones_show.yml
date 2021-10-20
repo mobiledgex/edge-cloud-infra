@@ -1,61 +1,49 @@
 federatedselfzones:
 - zoneid: tmus-cloud-1
   selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: partner1
-  partnercountrycode: PA
+  selffederationid: tmus-SA-partner1-PA
+  partnerfederationid: partner1-PA-tmus-SA
 - zoneid: tmus-cloud-2
   selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: partner1
-  partnercountrycode: PA
+  selffederationid: tmus-SA-partner1-PA
+  partnerfederationid: partner1-PA-tmus-SA
 - zoneid: tmus-cloud-3
   selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: partner1
-  partnercountrycode: PA
+  selffederationid: tmus-SA-partner1-PA
+  partnerfederationid: partner1-PA-tmus-SA
 - zoneid: tmus-cloud-4
   selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: partner1
-  partnercountrycode: PA
+  selffederationid: tmus-SA-partner1-PA
+  partnerfederationid: partner1-PA-tmus-SA
 - zoneid: enterprise-1
   selfoperatorid: enterprise
-  selfcountrycode: SA
-  partneroperatorid: partner1
-  partnercountrycode: PA
+  selffederationid: enterprise-SA-partner1-PA
+  partnerfederationid: partner1-PA-enterprise-SA
 - zoneid: enterprise-2
   selfoperatorid: enterprise
-  selfcountrycode: SB
-  partneroperatorid: partner1
-  partnercountrycode: PA
+  selffederationid: enterprise-SB-partner1-PA
+  partnerfederationid: partner1-PA-enterprise-SB
 - zoneid: tmus-cloud-1
   selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: partner2
-  partnercountrycode: PS
+  selffederationid: tmus-SA-partner2-PS
+  partnerfederationid: partner2-PS-tmus-SA
 - zoneid: tmus-cloud-2
   selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: partner2
-  partnercountrycode: PS
+  selffederationid: tmus-SA-partner2-PS
+  partnerfederationid: partner2-PS-tmus-SA
 - zoneid: tmus-cloud-3
   selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: partner2
-  partnercountrycode: PS
+  selffederationid: tmus-SA-partner2-PS
+  partnerfederationid: partner2-PS-tmus-SA
 - zoneid: tmus-cloud-4
   selfoperatorid: tmus
-  selfcountrycode: SA
-  partneroperatorid: partner2
-  partnercountrycode: PS
+  selffederationid: tmus-SA-partner2-PS
+  partnerfederationid: partner2-PS-tmus-SA
 - zoneid: enterprise-1
   selfoperatorid: enterprise
-  selfcountrycode: SA
-  partneroperatorid: partner2
-  partnercountrycode: PS
+  selffederationid: enterprise-SA-partner2-PS
+  partnerfederationid: partner2-PS-enterprise-SA
 - zoneid: enterprise-2
   selfoperatorid: enterprise
-  selfcountrycode: SB
-  partneroperatorid: partner2
-  partnercountrycode: PS
+  selffederationid: enterprise-SB-partner2-PS
+  partnerfederationid: partner2-PS-enterprise-SB

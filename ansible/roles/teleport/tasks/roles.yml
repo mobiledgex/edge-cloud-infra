@@ -1,0 +1,12 @@
+---
+- name: "Set up infra-{{ environ }} role"
+  template:
+    src: infra-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/infra-{{ environ }}-role.yaml"
+  become: yes
+  register: role
+
+- name: "Apply infra-{{ environ }} role"
+  command: "tctl create -f {{ role.dest }}"
+  become: yes
+  when: role is changed

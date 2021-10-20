@@ -1,0 +1,9 @@
+kind: role
+version: v4
+metadata:
+  name: infra-{{ environ }}
+spec:
+  allow:
+    kubernetes_groups: ["system:masters"]
+    kubernetes_labels:
+      env: {{ environ }}

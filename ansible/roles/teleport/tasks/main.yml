@@ -69,3 +69,15 @@
   loop: [ "dev", "qa", "stage", "main" ]
   loop_control:
     loop_var: environ
+
+- name: Set up audit-access role
+  template:
+    src: audit-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/audit-access-role.yaml"
+  become: yes
+  register: audit_role
+
+- name: Apply audit-access role
+  command: "tctl create -f {{ audit_role.dest }}"
+  become: yes
+  when: role is changed

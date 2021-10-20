@@ -15,13 +15,7 @@ auth_service:
   authentication:
     type: github
 ssh_service:
-  enabled: "yes"
-  labels:
-    env: example
-  commands:
-  - name: hostname
-    command: [hostname]
-    period: 1m0s
+  enabled: "no"
 proxy_service:
   enabled: "yes"
   listen_addr: 0.0.0.0:3023

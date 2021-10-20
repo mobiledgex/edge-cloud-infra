@@ -1,8 +1,9 @@
 federations:
 - id: 1
+  selffederationid: tmus-SA-partner1-PA
   selfoperatorid: tmus
-  selfcountrycode: SA
   federator:
+    federationid: partner1-PA-tmus-SA
     operatorid: partner1
     countrycode: PA
     federationaddr: 127.0.0.1:9808
@@ -12,9 +13,10 @@ federations:
     - "222"
     - "333"
 - id: 2
+  selffederationid: enterprise-SA-partner1-PA
   selfoperatorid: enterprise
-  selfcountrycode: SA
   federator:
+    federationid: partner1-PA-enterprise-SA
     operatorid: partner1
     countrycode: PA
     federationaddr: 127.0.0.1:9808
@@ -24,9 +26,10 @@ federations:
     - "222"
     - "333"
 - id: 3
+  selffederationid: enterprise-SB-partner1-PA
   selfoperatorid: enterprise
-  selfcountrycode: SB
   federator:
+    federationid: partner1-PA-enterprise-SB
     operatorid: partner1
     countrycode: PA
     federationaddr: 127.0.0.1:9808
@@ -36,9 +39,10 @@ federations:
     - "222"
     - "333"
 - id: 4
+  selffederationid: tmus-SA-partner2-PS
   selfoperatorid: tmus
-  selfcountrycode: SA
   federator:
+    federationid: partner2-PS-tmus-SA
     operatorid: partner2
     countrycode: PS
     federationaddr: 127.0.0.1:9809
@@ -48,9 +52,10 @@ federations:
     - "222"
     - "333"
 - id: 5
+  selffederationid: enterprise-SA-partner2-PS
   selfoperatorid: enterprise
-  selfcountrycode: SA
   federator:
+    federationid: partner2-PS-enterprise-SA
     operatorid: partner2
     countrycode: PS
     federationaddr: 127.0.0.1:9809
@@ -60,9 +65,10 @@ federations:
     - "222"
     - "333"
 - id: 6
+  selffederationid: enterprise-SB-partner2-PS
   selfoperatorid: enterprise
-  selfcountrycode: SB
   federator:
+    federationid: partner2-PS-enterprise-SB
     operatorid: partner2
     countrycode: PS
     federationaddr: 127.0.0.1:9809

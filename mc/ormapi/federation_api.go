@@ -21,15 +21,15 @@ type Federator struct {
 	MNC pq.StringArray `gorm:"type:text[]" json:"mnc"`
 	// IP and Port of discovery service URL of operator platform
 	LocatorEndPoint string `json:"locatorendpoint"`
-	// Revision ID to track object changes. We use timestamps but
-	// this can differ with what partner federator uses
-	// read_only: true
+	// Revision ID to track object changes. We use jaeger traceID for easy debugging
+	// but this can differ with what partner federator uses
+	// read only: true
 	Revision string `json:"revision"`
 }
 
 type Federation struct {
 	// Internal ID to reference a federation
-	// read_only: true
+	// read only: true
 	Id int `gorm:"auto_increment:true; unique; not null"`
 	// Self federation ID
 	SelfFederationId string `gorm:"primary_key; unique" json:"selffederationid"`
@@ -38,10 +38,10 @@ type Federation struct {
 	// Partner Federator
 	Federator `json:",inline"`
 	// Partner shares its zones with self federator as part of federation
-	// read_only: true
+	// read only: true
 	PartnerRoleShareZonesWithSelf bool
 	// Partner is allowed access to self federator zones as part of federation
-	// read_only: true
+	// read only: true
 	PartnerRoleAccessToSelfZones bool
 }
 
@@ -66,9 +66,9 @@ type FederatorZone struct {
 	Region string `json:"region"`
 	// List of cloudlets part of this zone
 	Cloudlets pq.StringArray `gorm:"type:text[]" json:"cloudlets"`
-	// Revision ID to track object changes. We use timestamps but
-	// this can differ with what partner federator uses
-	// read_only: true
+	// Revision ID to track object changes. We use jaeger traceID for easy debugging
+	// but this can differ with what partner federator uses
+	// read only: true
 	Revision string `json:"revision"`
 }
 
@@ -83,11 +83,11 @@ type FederatedSelfZone struct {
 	// Partner federation ID
 	PartnerFederationId string `gorm:"primary_key" json:"partnerfederationid"`
 	// Zone registered by partner federator
-	// read_only: true
+	// read only: true
 	Registered bool
-	// Revision ID to track object changes. We use timestamps but
-	// this can differ with what partner federator uses
-	// read_only: true
+	// Revision ID to track object changes. We use jaeger traceID for easy debugging
+	// but this can differ with what partner federator uses
+	// read only: true
 	Revision string `json:"revision"`
 }
 
@@ -102,7 +102,7 @@ type FederatedPartnerZone struct {
 	// Partner federator zone
 	FederatorZone `json:",inline"`
 	// Zone registered by self federator
-	// read_only: true
+	// read only: true
 	Registered bool
 }
 

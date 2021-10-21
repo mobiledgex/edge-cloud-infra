@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jinzhu/gorm"
@@ -19,10 +18,6 @@ import (
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
-
-func getCurrentTimestampStr() string {
-	return time.Now().Format("2006-01-02T150405")
-}
 
 func setForeignKeyConstraint(loggedDb *gorm.DB, fKeyTableName, fKeyFields, refTableName, refFields string) error {
 	cmd := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT self_fk_constraint FOREIGN KEY (%s) "+
@@ -219,7 +214,7 @@ func CreateSelfFederator(c echo.Context) error {
 		opFed.FederationId = uuid.New().String()
 	}
 	opFed.FederationAddr = serverConfig.FederationAddr
-	opFed.Revision = getCurrentTimestampStr()
+	opFed.Revision = log.SpanTraceID(ctx)
 	if err := db.Create(&opFed).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Self federator %s already exists", opFed.IdString())
@@ -286,7 +281,7 @@ func UpdateSelfFederator(c echo.Context) error {
 	if !update {
 		return fmt.Errorf("nothing to update")
 	}
-	selfFed.Revision = getCurrentTimestampStr()
+	selfFed.Revision = log.SpanTraceID(ctx)
 	err = db.Save(selfFed).Error
 	if err != nil {
 		return ormutil.DbErr(err)
@@ -451,7 +446,7 @@ func CreateFederation(c echo.Context) error {
 	}
 
 	db := loggedDB(ctx)
-	opFed.Revision = getCurrentTimestampStr()
+	opFed.Revision = log.SpanTraceID(ctx)
 	if err := db.Create(&opFed).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Partner federation (%s) already exists",
@@ -586,7 +581,7 @@ func CreateSelfFederatorZone(c echo.Context) error {
 	az.Locality = opZone.Locality
 	az.Region = opZone.Region
 	az.Cloudlets = opZone.Cloudlets
-	az.Revision = getCurrentTimestampStr()
+	az.Revision = log.SpanTraceID(ctx)
 	if err := db.Create(&az).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
 			return fmt.Errorf("Zone with same zone ID %q already exists for federator (%s)",
@@ -700,8 +695,15 @@ func ShowFederatedSelfZone(c echo.Context) error {
 		return err
 	}
 	db := loggedDB(ctx)
+	lookup := ormapi.FederatedSelfZone{
+		SelfOperatorId:      opZoneReq.SelfOperatorId,
+		SelfFederationId:    opZoneReq.SelfFederationId,
+		PartnerFederationId: opZoneReq.PartnerFederationId,
+		ZoneId:              opZoneReq.ZoneId,
+		Registered:          opZoneReq.Registered,
+	}
 	opZones := []ormapi.FederatedSelfZone{}
-	res := db.Where(&opZoneReq).Find(&opZones)
+	res := db.Where(&lookup).Find(&opZones)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
@@ -731,8 +733,17 @@ func ShowFederatedPartnerZone(c echo.Context) error {
 		return err
 	}
 	db := loggedDB(ctx)
+	lookup := ormapi.FederatedPartnerZone{
+		SelfOperatorId:      opZoneReq.SelfOperatorId,
+		SelfFederationId:    opZoneReq.SelfFederationId,
+		PartnerFederationId: opZoneReq.PartnerFederationId,
+		FederatorZone: ormapi.FederatorZone{
+			ZoneId: opZoneReq.ZoneId,
+		},
+		Registered: opZoneReq.Registered,
+	}
 	opZones := []ormapi.FederatedPartnerZone{}
-	res := db.Where(&opZoneReq).Find(&opZones)
+	res := db.Where(&lookup).Find(&opZones)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
@@ -794,7 +805,7 @@ func ShareSelfFederatorZone(c echo.Context) error {
 		return fmt.Errorf("Zone ID %q not found", shZone.ZoneId)
 	}
 
-	revision := getCurrentTimestampStr()
+	revision := log.SpanTraceID(ctx)
 
 	// Only share with those partner federators who are permitted to access our zones
 	// And only share if federation exists with partner federator, else
@@ -901,7 +912,7 @@ func UnshareSelfFederatorZone(c echo.Context) error {
 			unshZone.ZoneId, partnerFed.PartnerIdString())
 	}
 
-	revision := getCurrentTimestampStr()
+	revision := log.SpanTraceID(ctx)
 
 	// Only unshare with those partner federators who are permitted to access our zones
 	// And only unshare if federation exists with partner federator, else
@@ -988,7 +999,7 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 		return fmt.Errorf("Zone ID %q not found", reg.ZoneId)
 	}
 
-	revision := getCurrentTimestampStr()
+	revision := log.SpanTraceID(ctx)
 
 	// Notify partner federator about zone registration
 	opZoneReg := federation.OperatorZoneRegister{
@@ -1065,7 +1076,7 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 	// TODO: make sure no AppInsts are deployed on the cloudlet
 	//       before the zone is deregistered
 
-	revision := getCurrentTimestampStr()
+	revision := log.SpanTraceID(ctx)
 
 	// Notify federated partner about zone deregistration
 	opZoneReg := federation.ZoneRequest{
@@ -1127,7 +1138,7 @@ func RegisterFederation(c echo.Context) error {
 			opFed.PartnerIdString())
 	}
 
-	revision := getCurrentTimestampStr()
+	revision := log.SpanTraceID(ctx)
 
 	// Call federation API
 	opRegReq := federation.OperatorRegistrationRequest{
@@ -1232,7 +1243,7 @@ func DeregisterFederation(c echo.Context) error {
 		}
 	}
 
-	revision := getCurrentTimestampStr()
+	revision := log.SpanTraceID(ctx)
 
 	// call federation API
 	opFedReq := federation.FederationRequest{

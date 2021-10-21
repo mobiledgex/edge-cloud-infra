@@ -1468,7 +1468,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/CreateTrustPolicyException", CreateTrustPolicyException)
 	// swagger:route POST /auth/ctrl/UpdateTrustPolicyException TrustPolicyException UpdateTrustPolicyException
-	// Update a Trust Policy Exception, by App Developer Organization.
+	// Update a Trust Policy Exception, by Operator Organization.
 	// The following values should be added to `TrustPolicyException.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
@@ -1480,12 +1480,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyCloudletPoolKeyOrganization: 2.2.1
 	// KeyCloudletPoolKeyName: 2.2.2
 	// KeyName: 2.3
-	// OutboundSecurityRules: 3
-	// OutboundSecurityRulesProtocol: 3.1
-	// OutboundSecurityRulesPortRangeMin: 3.2
-	// OutboundSecurityRulesPortRangeMax: 3.3
-	// OutboundSecurityRulesRemoteCidr: 3.4
-	// State: 4
+	// State: 3
+	// OutboundSecurityRules: 4
+	// OutboundSecurityRulesProtocol: 4.1
+	// OutboundSecurityRulesPortRangeMin: 4.2
+	// OutboundSecurityRulesPortRangeMax: 4.3
+	// OutboundSecurityRulesRemoteCidr: 4.4
 	// ```
 	// Security:
 	//   Bearer:
@@ -1516,60 +1516,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowTrustPolicyException", ShowTrustPolicyException)
-	// swagger:route POST /auth/ctrl/CreateTrustPolicyExceptionResponse TrustPolicyExceptionResponse CreateTrustPolicyExceptionResponse
-	// Approve or reject a Trust Policy Exception, by Cloudlet Operator Organization.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateTrustPolicyExceptionResponse", CreateTrustPolicyExceptionResponse)
-	// swagger:route POST /auth/ctrl/UpdateTrustPolicyExceptionResponse TrustPolicyExceptionResponse UpdateTrustPolicyExceptionResponse
-	// Update a Trust Policy Exception response, by Cloudlet Operator Organization.
-	// The following values should be added to `TrustPolicyExceptionResponse.fields` field array to specify which fields will be updated.
-	// ```
-	// Key: 2
-	// KeyAppKey: 2.1
-	// KeyAppKeyOrganization: 2.1.1
-	// KeyAppKeyName: 2.1.2
-	// KeyAppKeyVersion: 2.1.3
-	// KeyCloudletPoolKey: 2.2
-	// KeyCloudletPoolKeyOrganization: 2.2.1
-	// KeyCloudletPoolKeyName: 2.2.2
-	// KeyName: 2.3
-	// State: 3
-	// ```
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateTrustPolicyExceptionResponse", UpdateTrustPolicyExceptionResponse)
-	// swagger:route POST /auth/ctrl/DeleteTrustPolicyExceptionResponse TrustPolicyExceptionResponse DeleteTrustPolicyExceptionResponse
-	// Delete a Trust Policy Exception response, by Cloudlet Operator Organization.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteTrustPolicyExceptionResponse", DeleteTrustPolicyExceptionResponse)
-	// swagger:route POST /auth/ctrl/ShowTrustPolicyExceptionResponse TrustPolicyExceptionResponse ShowTrustPolicyExceptionResponse
-	// Show Trust Policy Exception Response.
-	//  Any fields specified will be used to filter results.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowTrustPolicyExceptionResponse", ShowTrustPolicyExceptionResponse)
 	// swagger:route POST /auth/ctrl/CreateNetwork Network CreateNetwork
 	// Create a Network.
 	// Security:

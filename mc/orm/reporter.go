@@ -730,6 +730,7 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 	rc := &ormutil.RegionContext{
 		Region:   report.Region,
 		Username: username,
+		Database: database,
 	}
 	obj := edgeproto.Cloudlet{
 		Key: edgeproto.CloudletKey{
@@ -741,6 +742,8 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 	err := ctrlclient.ShowCloudletStream(ctx, rc, &obj, connCache, nil, func(res *edgeproto.Cloudlet) error {
 		platformTypeStr := edgeproto.PlatformType_CamelName[int32(res.PlatformType)]
 		platformTypeStr = strings.TrimPrefix(platformTypeStr, "PlatformType")
+		// Better to show platform type as "simulated", instead of "fake"
+		platformTypeStr = strings.Replace(platformTypeStr, "Fake", "Simulated", -1)
 		stateStr := edgeproto.TrackedState_CamelName[int32(res.State)]
 		cloudletData := []string{res.Key.Name, platformTypeStr, stateStr}
 
@@ -752,7 +755,7 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 		return nil, err
 	}
 	sort.Slice(cloudlets, func(i, j int) bool {
-		return cloudlets[i][0] > cloudlets[j][0]
+		return cloudlets[i][0] < cloudlets[j][0]
 	})
 	return cloudlets, nil
 }
@@ -792,6 +795,7 @@ func GetCloudletPoolSummaryData(ctx context.Context, username string, report *or
 	rc := ormutil.RegionContext{
 		Region:   report.Region,
 		Username: username,
+		Database: database,
 	}
 	poolKey := edgeproto.CloudletPoolKey{Organization: report.Org}
 	poolCloudlets := make(map[string][]string)
@@ -1096,6 +1100,7 @@ func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.Gene
 	rc := &ormutil.RegionContext{
 		Region:   report.Region,
 		Username: username,
+		Database: database,
 	}
 	obj := &edgeproto.Alert{
 		Labels: map[string]string{
@@ -1134,6 +1139,7 @@ func GetCloudletAppUsageData(ctx context.Context, username string, report *ormap
 	rc := &ormutil.RegionContext{
 		Region:   report.Region,
 		Username: username,
+		Database: database,
 	}
 	obj := &edgeproto.AppInst{
 		Key: edgeproto.AppInstKey{

@@ -1,0 +1,46 @@
+federatorzones:
+# tmus/SA zones
+- operatorid: tmus
+  countrycode: SA
+  zoneid: tmus-cloud-1
+  geolocation: "31,-91"
+  region: local
+  cloudlets:
+  - tmus-cloud-1
+- operatorid: tmus
+  countrycode: SA
+  zoneid: tmus-cloud-2
+  geolocation: "35,-95"
+  region: local
+  cloudlets:
+  - tmus-cloud-2
+- operatorid: tmus
+  countrycode: SA
+  zoneid: tmus-cloud-3
+  geolocation: "32,-92"
+  region: locala
+  cloudlets:
+  - tmus-cloud-3
+- operatorid: tmus
+  countrycode: SA
+  zoneid: tmus-cloud-4
+  geolocation: "36,-96"
+  region: locala
+  cloudlets:
+  - tmus-cloud-4
+# enterprise/SA zones
+- operatorid: enterprise
+  countrycode: SA
+  zoneid: enterprise-1
+  geolocation: "31,-91"
+  region: local
+  cloudlets:
+  - enterprise-1
+# enterprise/SB zones
+- operatorid: enterprise
+  countrycode: SB
+  zoneid: enterprise-2
+  geolocation: "31,-91"
+  region: locala
+  cloudlets:
+  - enterprise-2

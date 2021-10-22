@@ -57,20 +57,23 @@ var ClientApiUsageTags = []string{
 	"\"cloudletorg\"",
 	"\"cloudlet\"",
 	"\"dmeId\"",
-	"\"cellID\"",
 	"\"method\"",
-	"\"foundCloudlet\"",
-	"\"foundOperator\"",
 }
 
 var ApiFields = []string{
 	"\"reqs\"",
 	"\"errs\"",
+	"\"cellID\"",
+	"\"foundCloudlet\"",
+	"\"foundOperator\"",
 }
 
 var ClientApiAggregationFunctions = map[string]string{
-	"reqs": "sum(\"reqs\")",
-	"errs": "sum(\"errs\")",
+	"reqs":          "sum(\"reqs\")",
+	"errs":          "sum(\"errs\")",
+	"cellID":        "last(\"cellID\")",
+	"foundCloudlet": "last(\"foundCloudlet\")",
+	"foundOperator": "last(\"foundOperator\")",
 }
 
 var ClientAppUsageTags = []string{
@@ -134,9 +137,12 @@ var DeviceInfoFields = []string{
 }
 
 const (
-	CLIENT_APIUSAGE      = "dme"
-	CLIENT_APPUSAGE      = "clientappusage"
-	CLIENT_CLOUDLETUSAGE = "clientcloudletusage"
+	CLIENT_APIUSAGE                 = "dme"
+	CLIENT_APPUSAGE                 = "clientappusage"
+	CLIENT_CLOUDLETUSAGE            = "clientcloudletusage"
+	CLIENT_APP_ORG_FIELD            = "apporg"
+	CLIENT_CLOUDLET_ORG_FIELD       = "cloudlet"
+	CLIENT_FOUND_CLOUDLET_ORG_FIELD = "foundOperator"
 )
 
 var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
@@ -235,12 +241,11 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 		TagSet:           getTagSet(CLIENT_APIUSAGE, obj.Selector),
 	}
 	if obj.AppInst.AppKey.Organization != "" {
-		arg.OrgField = "apporg"
+		arg.OrgField = CLIENT_APP_ORG_FIELD
 		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
 	} else {
-		arg.OrgField = "cloudletorg"
+		arg.OrgField = CLIENT_FOUND_CLOUDLET_ORG_FIELD
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
-		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
 	if obj.CellId != 0 {
 		arg.CellId = strconv.FormatUint(uint64(obj.CellId), 10)
@@ -278,11 +283,11 @@ func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics, cloudle
 		TagSet:          getTagSet(CLIENT_APPUSAGE, obj.Selector),
 	}
 	if obj.AppInst.AppKey.Organization != "" {
-		arg.OrgField = "apporg"
+		arg.OrgField = CLIENT_APP_ORG_FIELD
 		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
 		arg.CloudletOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 	} else {
-		arg.OrgField = "cloudletorg"
+		arg.OrgField = CLIENT_CLOUDLET_ORG_FIELD
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}

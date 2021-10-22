@@ -13,7 +13,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
-	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
@@ -43,6 +42,7 @@ func CreateVMPool(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.VMPool.GetKey().GetTags())
@@ -85,6 +85,7 @@ func DeleteVMPool(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.VMPool.GetKey().GetTags())
@@ -127,6 +128,7 @@ func UpdateVMPool(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.VMPool.GetKey().GetTags())
@@ -173,6 +175,7 @@ func ShowVMPool(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.VMPool.GetKey().GetTags())
@@ -214,6 +217,7 @@ func AddVMPoolMember(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.VMPoolMember.GetKey().GetTags())
@@ -256,6 +260,7 @@ func RemoveVMPoolMember(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.VMPoolMember.GetKey().GetTags())

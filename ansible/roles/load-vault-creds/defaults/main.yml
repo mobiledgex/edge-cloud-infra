@@ -12,6 +12,7 @@ mc_ldap_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc_ldap"
 ns1_account_path: secret/ansible/common/accounts/ns1
 sendgrid_account_path: secret/ansible/common/accounts/sendgrid
 slack_org_mgmt_path: secret/ansible/internal/accounts/slack_org_mgmt
+teleport_github_creds_path: secret/ansible/internal/accounts/teleport_github
 mexenv_path: secret/cloudlet/openstack/mexenv.json
 noreply_email_path: secret/data/accounts/noreplyemail
 recaptcha_key_path: secret/ansible/common/accounts/recaptcha

@@ -1100,7 +1100,7 @@ var CloudletComments = map[string]string{
 	"infraconfig.externalnetworkname":     "Infra specific external network name",
 	"infraconfig.flavorname":              "Infra specific flavor name",
 	"chefclientkey":                       "Chef client key, specify chefclientkey:empty=true to clear",
-	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, NormalOperationInit, UnderMaintenance",
+	"maintenancestate":                    "State for maintenance, one of NormalOperation, MaintenanceStart, MaintenanceStartNoFailover",
 	"overridepolicycontainerversion":      "Override container version from policy file",
 	"vmpool":                              "VM Pool",
 	"crmaccesspublickey":                  "CRM access public key",
@@ -1339,6 +1339,11 @@ var CloudletInfoOptionalArgs = []string{
 	"trustpolicystate",
 	"compatibilityversion",
 	"properties",
+	"nodeinfos:#.name",
+	"nodeinfos:#.allocatable:#.key",
+	"nodeinfos:#.allocatable:#.value",
+	"nodeinfos:#.capacity:#.key",
+	"nodeinfos:#.capacity:#.value",
 }
 var CloudletInfoAliasArgs = []string{
 	"fields=cloudletinfo.fields",
@@ -1399,6 +1404,11 @@ var CloudletInfoAliasArgs = []string{
 	"trustpolicystate=cloudletinfo.trustpolicystate",
 	"compatibilityversion=cloudletinfo.compatibilityversion",
 	"properties=cloudletinfo.properties",
+	"nodeinfos:#.name=cloudletinfo.nodeinfos:#.name",
+	"nodeinfos:#.allocatable:#.key=cloudletinfo.nodeinfos:#.allocatable:#.key",
+	"nodeinfos:#.allocatable:#.value=cloudletinfo.nodeinfos:#.allocatable:#.value",
+	"nodeinfos:#.capacity:#.key=cloudletinfo.nodeinfos:#.capacity:#.key",
+	"nodeinfos:#.capacity:#.value=cloudletinfo.nodeinfos:#.capacity:#.value",
 }
 var CloudletInfoComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
@@ -1422,7 +1432,7 @@ var CloudletInfoComments = map[string]string{
 	"osimages:#.properties":                  "image properties/metadata",
 	"osimages:#.diskformat":                  "format qcow2, img, etc",
 	"controllercachereceived":                "Indicates all controller data has been sent to CRM",
-	"maintenancestate":                       "State for maintenance, one of NormalOperation, MaintenanceStart, FailoverRequested, FailoverDone, FailoverError, MaintenanceStartNoFailover, CrmRequested, CrmUnderMaintenance, CrmError, NormalOperationInit, UnderMaintenance",
+	"maintenancestate":                       "State for maintenance, one of NormalOperation, MaintenanceStart, MaintenanceStartNoFailover",
 	"resourcessnapshot.platformvms:#.name":   "Virtual machine name",
 	"resourcessnapshot.platformvms:#.type":   "Type can be platform, rootlb, cluster-master, cluster-k8s-node, cluster-docker-node, appvm",
 	"resourcessnapshot.platformvms:#.status": "Runtime status of the VM",
@@ -1449,6 +1459,7 @@ var CloudletInfoComments = map[string]string{
 	"trustpolicystate":     "Trust Policy State, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"compatibilityversion": "Version for compatibility tracking",
 	"properties":           "Cloudlet properties",
+	"nodeinfos:#.name":     "Node name",
 }
 var CloudletInfoSpecialArgs = map[string]string{
 	"cloudletinfo.errors":            "StringArray",

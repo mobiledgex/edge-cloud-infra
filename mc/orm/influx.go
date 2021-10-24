@@ -304,6 +304,7 @@ func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings
 	rc := &ormutil.RegionContext{
 		Region:    idc.region,
 		SkipAuthz: true, // this is internal call, so no auth needed
+		Database:  database,
 	}
 	return ctrlclient.ShowSettingsObj(ctx, rc, in, connCache)
 }
@@ -630,6 +631,7 @@ func getCloudletPlatformTypes(ctx context.Context, username, region string, key 
 	rc := &ormutil.RegionContext{}
 	rc.Username = username
 	rc.Region = region
+	rc.Database = database
 	obj := edgeproto.Cloudlet{
 		Key: *key,
 	}
@@ -844,6 +846,10 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateSelectorString(in.Selector, CLOUDLETUSAGE); err != nil {
 			return err
 		}
+
+		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
 		rc.region = in.Region
 		org = in.Cloudlet.Organization
 
@@ -1019,6 +1025,7 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 	regionRc := &ormutil.RegionContext{}
 	regionRc.Username = username
 	regionRc.Region = region
+	regionRc.Database = database
 	uniqueCloudlets := make(map[string]struct{})
 	devOrgPermOk := false
 	operOrgPermOk := false

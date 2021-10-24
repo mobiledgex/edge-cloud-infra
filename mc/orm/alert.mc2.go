@@ -41,6 +41,7 @@ func ShowAlert(c echo.Context) error {
 		return err
 	}
 	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
@@ -574,6 +575,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// AllowServerless: 39
 	// ServerlessConfig: 40
 	// ServerlessConfigVcpus: 40.1
+	// ServerlessConfigVcpusWhole: 40.1.1
+	// ServerlessConfigVcpusNanos: 40.1.2
 	// ServerlessConfigRam: 40.2
 	// ServerlessConfigMinReplicas: 40.3
 	// VmAppOsType: 41

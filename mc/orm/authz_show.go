@@ -52,6 +52,7 @@ func (s *AuthzShow) setCloudletKeysFromPool(ctx context.Context, region, usernam
 		Region:    region,
 		Username:  username,
 		SkipAuthz: true,
+		Database:  database,
 	}
 	operRes, operAction := getOperatorPermToViewDeveloperStuff()
 	allowedOperOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, operRes, operAction)
@@ -248,6 +249,7 @@ func newShowGPUDriverAuthz(ctx context.Context, region, username string, resourc
 		Region:    region,
 		Username:  username,
 		SkipAuthz: false,
+		Database:  database,
 	}
 	err = ctrlclient.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, connCache, nil, func(cl *edgeproto.Cloudlet) error {
 		// ignore non-GPU cloudlets

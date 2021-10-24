@@ -1,0 +1,25 @@
+federators:
+- operatorid: tmus
+  countrycode: SA
+  federationid: tmus-SA-{{partnertag}}-{{region}} # Just for testing, in production it will be auto-generated
+  mcc: 456 
+  mnc:
+  - 444
+  - 555
+  - 666
+- operatorid: enterprise
+  countrycode: SA
+  federationid: enterprise-SA-{{partnertag}}-{{region}} # Just for testing, in production it will be auto-generated
+  mcc: 456 
+  mnc:
+  - 444
+  - 555
+  - 666
+- operatorid: enterprise
+  countrycode: SB
+  federationid: enterprise-SB-{{partnertag}}-{{region}} # Just for testing, in production it will be auto-generated
+  mcc: 789 
+  mnc:
+  - 777
+  - 888
+  - 999

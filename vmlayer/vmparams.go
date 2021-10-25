@@ -481,6 +481,7 @@ type VMOrchestrationParams struct {
 	AttachExternalDisk      bool
 	CloudConfigParams       VMCloudConfigParams
 	VmAppOsType             edgeproto.VmAppOsType
+	ExistingVm              bool
 }
 
 var (

@@ -1,1 +1,5 @@
 dme_replicas: 1
+dme_cpu_request: 150m
+dme_cpu_limit: 300m
+dme_memory_request: 100 MB
+dme_memory_limit: 200 MB

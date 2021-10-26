@@ -17,14 +17,21 @@
   vars:
     crm_role_name: "{{ region | lower }}.crm.v1"
 
-- name: Deploy the Mex Controller
+- name: Deploy the controller
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     state: present
     definition: "{{ lookup('template', 'deploy.yml.j2') }}"
 
-- name: Deploy the Mex Controller LB
+- name: Deploy the controller autoscaler
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'hpa.yml.j2') }}"
+
+- name: Deploy the controller LB
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default

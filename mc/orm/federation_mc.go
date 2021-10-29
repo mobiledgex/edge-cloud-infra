@@ -500,7 +500,13 @@ func CreateFederation(c echo.Context) error {
 	opFed.Revision = log.SpanTraceID(ctx)
 	if err := db.Create(&opFed).Error; err != nil {
 		if strings.Contains(err.Error(), "pq: duplicate key value violates unique constraint") {
-			return fmt.Errorf("Partner federation %q already exists", opFed.Name)
+			if strings.Contains(err.Error(), "federations_self_federation_id_key") {
+				return fmt.Errorf("Partner federation with same self federation id %q already exists", opFed.SelfFederationId)
+			}
+			if strings.Contains(err.Error(), "federations_name_key") {
+				return fmt.Errorf("Partner federation %q already exists", opFed.Name)
+			}
+			return fmt.Errorf("Partner federation with same federation id pair already exists")
 		}
 		return ormutil.DbErr(err)
 	}

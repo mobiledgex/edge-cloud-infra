@@ -720,6 +720,20 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Nil(t, err, "create federation")
 	require.Equal(t, http.StatusOK, status)
 
+	// Federation creation with same federation ID pair should fail
+	newPartnerFedReq := *partnerFedReq
+	newPartnerFedReq.Name = "testErr"
+	_, _, err = mcClient.CreateFederation(op.uri, selfFed1.tokenOper, &newPartnerFedReq)
+	require.NotNil(t, err, "create federation")
+	require.Contains(t, err.Error(), "same federation id pair")
+
+	// Federation creation with same self federation ID should fail
+	newPartnerFedReq.Name = "testErr"
+	newPartnerFedReq.FederationId = "1234"
+	_, _, err = mcClient.CreateFederation(op.uri, selfFed1.tokenOper, &newPartnerFedReq)
+	require.NotNil(t, err, "create federation")
+	require.Contains(t, err.Error(), "same self federation id")
+
 	// Validate partner federator info
 	federations, status, err := mcClient.ShowFederation(op.uri, selfFed1.tokenOper, partnerFedReq)
 	require.Nil(t, err, "show partner federation")
@@ -1142,7 +1156,7 @@ func StartDB() (*intprocess.Sql, *gorm.DB, error) {
 	return &sql, db, nil
 }
 
-func TestFederationGormObjs(t *testing.T) {
+func TestGormFederationObjs(t *testing.T) {
 	sql, db, err := StartDB()
 	require.Nil(t, err, "start sql db")
 	defer sql.StopLocal()

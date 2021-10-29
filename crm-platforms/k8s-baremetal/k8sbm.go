@@ -49,6 +49,10 @@ func (k *K8sBareMetalPlatform) IsCloudletServicesLocal() bool {
 	return false
 }
 
+func platformName() string {
+	return platform.GetType(edgeproto.PlatformType_PLATFORM_TYPE_K8S_BARE_METAL.String())
+}
+
 func UpdateDockerUser(ctx context.Context, client ssh.Client) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "update docker user")
 	cmd := "id -u"

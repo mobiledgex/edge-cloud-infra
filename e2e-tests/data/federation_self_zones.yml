@@ -15,14 +15,14 @@ federatorzones:
   cloudlets:
   - tmus-cloud-2
 - operatorid: tmus
-  countrycode: SA
+  countrycode: SB
   zoneid: tmus-cloud-3
   geolocation: "32,-92"
   region: locala
   cloudlets:
   - tmus-cloud-3
 - operatorid: tmus
-  countrycode: SA
+  countrycode: SB
   zoneid: tmus-cloud-4
   geolocation: "36,-96"
   region: locala

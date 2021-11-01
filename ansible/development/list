@@ -26,7 +26,6 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 etcd_quota_backend="150 MB"
 etcd_auto_compaction_retention=2
-gitlab_version=13.8.7-ee.0
 letsencrypt_env=staging
 
 [notifyroot]

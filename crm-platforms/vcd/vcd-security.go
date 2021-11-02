@@ -208,6 +208,7 @@ func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, root
 	tp, err := v.GetCloudletTrustPolicy(ctx)
 	if tp == nil || err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB no TrustPolicy")
+		return nil
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "PrepareRootLB have TrustPolicy")
 		trustPolicy = tp

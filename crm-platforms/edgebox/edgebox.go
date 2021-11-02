@@ -114,3 +114,7 @@ func (s *EdgeboxPlatform) GetAccessData(ctx context.Context, cloudlet *edgeproto
 func (s *EdgeboxPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	return s.generic.GetRootLBClients(ctx)
 }
+
+func (s *EdgeboxPlatform) BecomeActive(ctx context.Context, activeInstance string) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "BecomeActive")
+}

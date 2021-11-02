@@ -34,3 +34,7 @@ func (s *TestClient) IssueCert(ctx context.Context, in *edgeproto.IssueCertReque
 func (s *TestClient) UpgradeAccessKey(ctx context.Context, in *edgeproto.UpgradeAccessKeyClientMsg) ([]edgeproto.UpgradeAccessKeyServerMsg, error) {
 	return nil, nil
 }
+
+func (s *TestClient) UpgradeSecondaryAccessKey(ctx context.Context, in *edgeproto.UpgradeAccessKeyClientMsg) ([]edgeproto.UpgradeAccessKeyServerMsg, error) {
+	return nil, nil
+}

@@ -474,7 +474,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		}
 	case "stop":
 		if actionSubtype == "crm" {
-			if err := apis.StopCrmsLocal(ctx, actionParam, spec.ApiFile, spec.ApiFileVars); err != nil {
+			if err := apis.StopCrmsLocal(ctx, actionParam, spec.ApiFile, spec.ApiFileVars, process.HARoleNone); err != nil {
 				errors = append(errors, err.Error())
 			}
 		} else {

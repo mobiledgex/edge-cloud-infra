@@ -181,6 +181,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// DisableRateLimit: 37
 	// RateLimitMaxTrackedIps: 39
 	// ResourceSnapshotThreadInterval: 41
+	// PlatformHaInstancePollInterval: 42
+	// PlatformHaInstanceActiveExpireTime: 43
 	// ```
 	// Security:
 	//   Bearer:
@@ -845,6 +847,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigCrmAccessPrivateKey: 21.22
 	// ConfigAccessApiAddr: 21.23
 	// ConfigCacheDir: 21.24
+	// ConfigCrmSecondaryAccessPrivateKey: 21.25
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2
@@ -894,6 +897,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// EnableDefaultServerlessCluster: 46
 	// AllianceOrgs: 47
 	// SingleKubernetesClusterOwner: 48
+	// PlatformHighAvailability: 49
+	// CrmSecondaryAccessPublicKey: 50
+	// CrmSecondaryAccessKeyUpgradeRequired: 51
+	// SecondaryNotifySrvAddr: 52
 	// ```
 	// Security:
 	//   Bearer:

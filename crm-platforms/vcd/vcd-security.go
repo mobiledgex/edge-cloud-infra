@@ -226,8 +226,6 @@ func (v *VcdPlatform) PrepareRootLB(ctx context.Context, client ssh.Client, root
 	var rules []edgeproto.SecurityRule
 	if trustPolicy != nil {
 		rules = trustPolicy.OutboundSecurityRules
-	} else {
-		rules = nil
 	}
 	err = v.vmProperties.SetupIptablesRulesForRootLB(ctx, client, sshCidrsAllowed, isTrustPolicy, secGrpName, rules)
 	if err != nil {

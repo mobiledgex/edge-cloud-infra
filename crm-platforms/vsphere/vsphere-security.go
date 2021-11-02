@@ -36,8 +36,6 @@ func (v *VSpherePlatform) PrepareRootLB(ctx context.Context, client ssh.Client, 
 	var rules []edgeproto.SecurityRule
 	if TrustPolicy != nil {
 		rules = TrustPolicy.OutboundSecurityRules
-	} else {
-		rules = nil
 	}
 	return v.vmProperties.SetupIptablesRulesForRootLB(ctx, client, sshCidrsAllowed, isTrustPolicy, infracommon.TrustPolicySecGrpNameLabel, rules)
 }

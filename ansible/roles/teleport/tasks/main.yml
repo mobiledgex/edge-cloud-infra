@@ -13,10 +13,11 @@
 
 - name: Install teleport
   apt:
-    name: teleport
+    name: "teleport={{ teleport_version }}"
     state: present
     update_cache: yes
   become: yes
+  notify: Restart teleport
 
 - name: Install config file
   template:

@@ -318,13 +318,15 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Flavor not in cache", "appkey", key, "flavorKey", flavorKey)
 		return nil, fmt.Errorf("GetVMStats failed to find flavor in cache for AppInst %s", key)
 	}
-
-	vmName := cloudcommon.GetAppFQN(&key.AppKey)
+	vmName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, "")
 	if vmName == "" {
-		return nil, fmt.Errorf("GetAppFQN failed to return vmName for AppInst %s\n", key.AppKey.Name)
+		// try old format
+		vmName := cloudcommon.GetAppFQN(&key.AppKey)
+		if vmName == "" {
+			return nil, fmt.Errorf("cloudcommon vmName not found for AppInst %s\n", key.AppKey.Name)
+		}
 	}
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats for", "vm", vmName)
-
 	vm, err = v.FindVMByName(ctx, vmName, vcdClient, vdc)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMStats vm not found", "vnname", vmName)

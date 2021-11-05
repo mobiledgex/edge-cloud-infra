@@ -15,6 +15,8 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	dme_proto "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/tls"
@@ -1037,6 +1039,54 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 	if err != nil {
 		return ormutil.DbErr(err)
 	}
+
+	rc := &ormutil.RegionContext{}
+	rc.Username = claims.Username
+	rc.Region = selfFed.Region
+	rc.Database = database
+	cb := func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
+	}
+	for _, zoneReg := range opZoneRes.Zone {
+		// Store this zone as a cloudlet on the regional controller
+		lat, long, err := fedcommon.ParseGeoLocation(existingZone.GeoLocation)
+		if err != nil {
+			return err
+		}
+		fedCloudlet := edgeproto.Cloudlet{
+			Key: edgeproto.CloudletKey{
+				Name:                  zoneReg.ZoneId,
+				Organization:          selfFed.OperatorId,
+				FederatedOrganization: partnerFed.OperatorId,
+			},
+			Location: dme_proto.Loc{
+				Latitude:  lat,
+				Longitude: long,
+			},
+			PlatformType: edgeproto.PlatformType_PLATFORM_TYPE_FEDERATION,
+			ResourceQuotas: []edgeproto.ResourceQuota{
+				{
+					Name:  cloudcommon.ResourceVcpus,
+					Value: uint64(zoneReg.GuaranteedResources.CPU),
+				},
+				{
+					Name:  cloudcommon.ResourceRamMb,
+					Value: uint64(zoneReg.GuaranteedResources.RAM) * 1024,
+				},
+				{
+					Name:  cloudcommon.ResourceDisk,
+					Value: uint64(zoneReg.GuaranteedResources.Disk),
+				},
+			},
+		}
+		err = ctrlclient.CreateCloudletStream(ctx, rc, &fedCloudlet, connCache, cb)
+		if err != nil {
+			return err
+		}
+	}
+
 	return ormutil.SetReply(c, ormutil.Msg(fmt.Sprintf("Partner federator zone %q registered successfully", existingZone.ZoneId)))
 }
 

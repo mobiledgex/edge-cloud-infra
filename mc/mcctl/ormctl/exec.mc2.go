@@ -104,6 +104,7 @@ var RunCommandRequiredArgs = []string{
 	"cluster",
 	"cloudlet-org",
 	"cloudlet",
+	"appinstkey.clusterinstkey.cloudletkey.federatedorganization",
 	"command",
 }
 var RunCommandOptionalArgs = []string{
@@ -116,6 +117,7 @@ var RunConsoleRequiredArgs = []string{
 	"appvers",
 	"cloudlet-org",
 	"cloudlet",
+	"appinstkey.clusterinstkey.cloudletkey.federatedorganization",
 }
 var RunConsoleOptionalArgs = []string{
 	"cluster",
@@ -128,6 +130,7 @@ var ShowLogsRequiredArgs = []string{
 	"cluster",
 	"cloudlet-org",
 	"cloudlet",
+	"appinstkey.clusterinstkey.cloudletkey.federatedorganization",
 }
 var ShowLogsOptionalArgs = []string{
 	"cluster-org",
@@ -142,6 +145,7 @@ var AccessCloudletRequiredArgs = []string{
 	"cloudlet",
 }
 var AccessCloudletOptionalArgs = []string{
+	"appinstkey.clusterinstkey.cloudletkey.federatedorganization",
 	"command",
 	"node-type",
 	"node-name",
@@ -153,6 +157,7 @@ var ExecRequestRequiredArgs = []string{
 	"cluster",
 	"cloudlet-org",
 	"cloudlet",
+	"appinstkey.clusterinstkey.cloudletkey.federatedorganization",
 	"cluster-org",
 }
 var ExecRequestOptionalArgs = []string{
@@ -172,6 +177,7 @@ var ExecRequestAliasArgs = []string{
 	"cluster=execrequest.appinstkey.clusterinstkey.clusterkey.name",
 	"cloudlet-org=execrequest.appinstkey.clusterinstkey.cloudletkey.organization",
 	"cloudlet=execrequest.appinstkey.clusterinstkey.cloudletkey.name",
+	"appinstkey.clusterinstkey.cloudletkey.federatedorganization=execrequest.appinstkey.clusterinstkey.cloudletkey.federatedorganization",
 	"cluster-org=execrequest.appinstkey.clusterinstkey.organization",
 	"containerid=execrequest.containerid",
 	"offer=execrequest.offer",
@@ -196,6 +202,7 @@ var ExecRequestComments = map[string]string{
 	"cluster":      "Cluster name",
 	"cloudlet-org": "Organization of the cloudlet site",
 	"cloudlet":     "Name of the cloudlet",
+	"appinstkey.clusterinstkey.cloudletkey.federatedorganization": "Federated operator organization who shared this cloudlet",
 	"cluster-org":  "Name of Developer organization that this cluster belongs to",
 	"containerid":  "ContainerId is the name or ID of the target container, if applicable",
 	"offer":        "Offer",

@@ -23,7 +23,6 @@ azure_volume_storage_class=managed-premium
 influxdb_volume_size=10Gi
 console_prod=yes
 events_elasticsearch_cleanup_age=183
-controller_replicas=1
 etcd_compact_after_backup=true
 
 [platform]

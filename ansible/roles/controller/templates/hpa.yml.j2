@@ -7,7 +7,7 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: controller
-  minReplicas: 1
+  minReplicas: 2
   maxReplicas: {{ controller_replicas }}
   metrics:
   - type: Resource

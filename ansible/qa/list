@@ -26,8 +26,6 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 etcd_quota_backend="150 MB"
 etcd_auto_compaction_retention=2
-controller_replicas=2
-dme_replicas=2
 gitlab_version=13.8.7-ee.0
 billing_platform=chargify
 

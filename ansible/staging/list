@@ -26,7 +26,6 @@ letsencrypt_env=production
 console_prod=yes
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
-gitlab_version=13.8.7-ee.0
 billing_platform=chargify
 
 [notifyroot]

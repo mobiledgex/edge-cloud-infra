@@ -25,7 +25,7 @@ variable "azure_tenant_id" {
 
 variable "cloudflare_account_email" {
   description = "Cloudflare account email"
-  default			= "mobiledgex.ops@mobiledgex.com"
+  default     = "mobiledgex.ops@mobiledgex.com"
 }
 
 variable "cloudflare_account_api_token" {
@@ -51,22 +51,22 @@ variable "gcp_zone" {
 
 variable "postgres_domain_name" {
   description = "Postgres domain name"
-	default			= "postgres-upg.mobiledgex.net"
+  default     = "postgres-upg.mobiledgex.net"
 }
 
 variable "gitlab_domain_name" {
   description = "Gitlab domain name"
-	default			= "gitlab-upg.mobiledgex.net"
+  default     = "gitlab-upg.mobiledgex.net"
 }
 
 variable "gitlab_docker_domain_name" {
   description = "Gitlab docker repo domain name"
-	default			= "docker-upg.mobiledgex.net"
+  default     = "docker-upg.mobiledgex.net"
 }
 
 variable "crm_vm_domain_name" {
   description = "CRM VM domain name"
-	default			= "crm-upg.mobiledgex.net"
+  default     = "crm-upg.mobiledgex.net"
 }
 
 variable "vault_vm_name" {
@@ -95,17 +95,17 @@ variable "console_instance_name" {
 
 variable "console_domain_name" {
   description = "Console domain name"
-	default			= "console-upg.mobiledgex.net"
+  default     = "console-upg.mobiledgex.net"
 }
 
 variable "console_vnc_domain_name" {
   description = "Console VNC domain name"
-	default			= "console-upg-vnc.mobiledgex.net"
+  default     = "console-upg-vnc.mobiledgex.net"
 }
 
 variable "notifyroot_domain_name" {
   description = "Notifyroot service domain name"
-	default			= "notifyroot-upg.mobiledgex.net"
+  default     = "notifyroot-upg.mobiledgex.net"
 }
 
 variable "jaeger_instance_name" {

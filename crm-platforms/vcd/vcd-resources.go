@@ -319,19 +319,17 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 		return nil, fmt.Errorf("GetVMStats failed to find flavor in cache for AppInst %s", key)
 	}
 	vmName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, "")
-	if vmName == "" {
+	vm, err = v.FindVMByName(ctx, vmName, vcdClient, vdc)
+	if err != nil {
 		// try old format
 		vmName := cloudcommon.GetAppFQN(&key.AppKey)
-		if vmName == "" {
-			return nil, fmt.Errorf("cloudcommon vmName not found for AppInst %s\n", key.AppKey.Name)
+		vm, err = v.FindVMByName(ctx, vmName, vcdClient, vdc)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "GetVMStats vm not found", "vnname", vmName)
+			return nil, err
 		}
 	}
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats for", "vm", vmName)
-	vm, err = v.FindVMByName(ctx, vmName, vcdClient, vdc)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMStats vm not found", "vnname", vmName)
-		return nil, err
-	}
 	link := vm.VM.Link.ForType(CurrentVmMetrics, types.RelMetrics)
 	if link == nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics for VM", "vmName", vmName)

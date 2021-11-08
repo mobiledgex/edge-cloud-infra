@@ -322,7 +322,7 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 	vm, err = v.FindVMByName(ctx, vmName, vcdClient, vdc)
 	if err != nil {
 		// try old format
-		vmName := cloudcommon.GetAppFQN(&key.AppKey)
+		vmName = cloudcommon.GetAppFQN(&key.AppKey)
 		vm, err = v.FindVMByName(ctx, vmName, vcdClient, vdc)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetVMStats vm not found", "vnname", vmName)

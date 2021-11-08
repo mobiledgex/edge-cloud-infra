@@ -71,18 +71,10 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	if err != nil {
 		return &orchVals, err
 	}
-
 	err = v.VMProvider.AddImageIfNotPresent(ctx, &imageInfo, updateCallback)
 	if err != nil {
-		// Try old name format
-		objName = cloudcommon.GetAppFQN(&app.Key)
-		imageInfo.VmName = objName
-		err = v.VMProvider.AddImageIfNotPresent(ctx, &imageInfo, updateCallback)
-		if err != nil {
-			return &orchVals, err
-		}
+		return &orchVals, err
 	}
-
 	deploymentVars := crmutil.DeploymentReplaceVars{
 		Deployment: crmutil.CrmReplaceVars{
 			CloudletName: k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
@@ -606,14 +598,11 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		objName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, "")
 		log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM", "stackName", objName)
 		err := v.VMProvider.DeleteVMs(ctx, objName)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM failed", "stackName", objName, "error", err)
-			objName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, "")
-			log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM try old name format", "stackName", objName)
-			err := v.VMProvider.DeleteVMs(ctx, objName)
+		if err.Error() == ServerDoesNotExistError {
 			if err != nil {
 				// try old format
 				objName = cloudcommon.GetAppFQN(&app.Key)
+				log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM failed try old format", "stackName", objName, "error", err)
 				err := v.VMProvider.DeleteVMs(ctx, objName)
 				if err != nil {
 					return fmt.Errorf("DeleteVMAppInst error: %v", err)

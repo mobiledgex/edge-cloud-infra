@@ -50,7 +50,7 @@ module "gitlab" {
     "crm",
     "stun-turn",
     "vault-ac",
-		"jaeger",
+    "jaeger",
     module.fw_vault_gcp.target_tag,
   ]
   labels              = {
@@ -75,12 +75,12 @@ module "console" {
   zone                = var.gcp_zone
   boot_disk_size      = 100
   tags                = [ "http-server",
-													"https-server",
-													"console-debug",
-													"mc",
-													"notifyroot",
-												  "alertmanager"
-												]
+                          "https-server",
+                          "console-debug",
+                          "mc",
+                          "notifyroot",
+                          "alertmanager"
+                        ]
 }
 
 module "gitlab_dns" {

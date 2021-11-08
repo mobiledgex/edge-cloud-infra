@@ -503,7 +503,7 @@ func init() {
 var CreateCloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 	"location.latitude",
 	"location.longitude",
 	"numdynamicips",
@@ -553,7 +553,7 @@ var CreateCloudletOptionalArgs = []string{
 var DeleteCloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 }
 var DeleteCloudletOptionalArgs = []string{
 	"location.latitude",
@@ -603,7 +603,7 @@ var DeleteCloudletOptionalArgs = []string{
 var UpdateCloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 }
 var UpdateCloudletOptionalArgs = []string{
 	"location.latitude",
@@ -642,7 +642,7 @@ var UpdateCloudletOptionalArgs = []string{
 var ShowCloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 }
 var ShowCloudletOptionalArgs = []string{
 	"location.latitude",
@@ -704,7 +704,7 @@ var GetCloudletResourceQuotaPropsOptionalArgs = []string{
 var GetCloudletResourceUsageRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 }
 var GetCloudletResourceUsageOptionalArgs = []string{
 	"infrausage",
@@ -773,21 +773,21 @@ func init() {
 var CloudletResMapRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 	"mapping",
 }
 var CloudletResMapOptionalArgs = []string{}
 var CloudletResMapAliasArgs = []string{
 	"cloudlet-org=cloudletresmap.key.organization",
 	"cloudlet=cloudletresmap.key.name",
-	"key.federatedorganization=cloudletresmap.key.federatedorganization",
+	"federated-org=cloudletresmap.key.federatedorganization",
 	"mapping=cloudletresmap.mapping",
 }
 var CloudletResMapComments = map[string]string{
-	"cloudlet-org":              "Organization of the cloudlet site",
-	"cloudlet":                  "Name of the cloudlet",
-	"key.federatedorganization": "Federated operator organization who shared this cloudlet",
-	"mapping":                   "Resource mapping info",
+	"cloudlet-org":  "Organization of the cloudlet site",
+	"cloudlet":      "Name of the cloudlet",
+	"federated-org": "Federated operator organization who shared this cloudlet",
+	"mapping":       "Resource mapping info",
 }
 var CloudletResMapSpecialArgs = map[string]string{
 	"cloudletresmap.mapping": "StringToString",
@@ -905,7 +905,7 @@ var GPUDriverSpecialArgs = map[string]string{
 var CloudletRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 }
 var CloudletOptionalArgs = []string{
 	"location.latitude",
@@ -961,7 +961,7 @@ var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",
 	"cloudlet-org=cloudlet.key.organization",
 	"cloudlet=cloudlet.key.name",
-	"key.federatedorganization=cloudlet.key.federatedorganization",
+	"federated-org=cloudlet.key.federatedorganization",
 	"location.latitude=cloudlet.location.latitude",
 	"location.longitude=cloudlet.location.longitude",
 	"location.horizontalaccuracy=cloudlet.location.horizontalaccuracy",
@@ -1059,7 +1059,7 @@ var CloudletComments = map[string]string{
 	"fields":                              "Fields are used for the Update API to specify which fields to apply",
 	"cloudlet-org":                        "Organization of the cloudlet site",
 	"cloudlet":                            "Name of the cloudlet",
-	"key.federatedorganization":           "Federated operator organization who shared this cloudlet",
+	"federated-org":                       "Federated operator organization who shared this cloudlet",
 	"location.latitude":                   "Latitude in WGS 84 coordinates",
 	"location.longitude":                  "Longitude in WGS 84 coordinates",
 	"location.horizontalaccuracy":         "Horizontal accuracy (radius in meters)",
@@ -1154,7 +1154,7 @@ var CloudletSpecialArgs = map[string]string{
 var FlavorMatchRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 	"flavor",
 }
 var FlavorMatchOptionalArgs = []string{
@@ -1163,16 +1163,16 @@ var FlavorMatchOptionalArgs = []string{
 var FlavorMatchAliasArgs = []string{
 	"cloudlet-org=flavormatch.key.organization",
 	"cloudlet=flavormatch.key.name",
-	"key.federatedorganization=flavormatch.key.federatedorganization",
+	"federated-org=flavormatch.key.federatedorganization",
 	"flavor=flavormatch.flavorname",
 	"availabilityzone=flavormatch.availabilityzone",
 }
 var FlavorMatchComments = map[string]string{
-	"cloudlet-org":              "Organization of the cloudlet site",
-	"cloudlet":                  "Name of the cloudlet",
-	"key.federatedorganization": "Federated operator organization who shared this cloudlet",
-	"flavor":                    "Flavor name to lookup",
-	"availabilityzone":          "availability zone for optional resources if any",
+	"cloudlet-org":     "Organization of the cloudlet site",
+	"cloudlet":         "Name of the cloudlet",
+	"federated-org":    "Federated operator organization who shared this cloudlet",
+	"flavor":           "Flavor name to lookup",
+	"availabilityzone": "availability zone for optional resources if any",
 }
 var FlavorMatchSpecialArgs = map[string]string{}
 var CloudletPropsRequiredArgs = []string{}
@@ -1247,7 +1247,7 @@ var CloudletResourceQuotaPropsSpecialArgs = map[string]string{}
 var CloudletResourceUsageRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 }
 var CloudletResourceUsageOptionalArgs = []string{
 	"infrausage",
@@ -1262,7 +1262,7 @@ var CloudletResourceUsageOptionalArgs = []string{
 var CloudletResourceUsageAliasArgs = []string{
 	"cloudlet-org=cloudletresourceusage.key.organization",
 	"cloudlet=cloudletresourceusage.key.name",
-	"key.federatedorganization=cloudletresourceusage.key.federatedorganization",
+	"federated-org=cloudletresourceusage.key.federatedorganization",
 	"infrausage=cloudletresourceusage.infrausage",
 	"info:#.name=cloudletresourceusage.info:#.name",
 	"info:#.value=cloudletresourceusage.info:#.value",
@@ -1273,43 +1273,43 @@ var CloudletResourceUsageAliasArgs = []string{
 	"info:#.alertthreshold=cloudletresourceusage.info:#.alertthreshold",
 }
 var CloudletResourceUsageComments = map[string]string{
-	"cloudlet-org":              "Organization of the cloudlet site",
-	"cloudlet":                  "Name of the cloudlet",
-	"key.federatedorganization": "Federated operator organization who shared this cloudlet",
-	"infrausage":                "Show Infra based usage",
-	"info:#.name":               "Resource name",
-	"info:#.value":              "Resource value",
-	"info:#.inframaxvalue":      "Resource infra max value",
-	"info:#.quotamaxvalue":      "Resource quota max value",
-	"info:#.description":        "Resource description",
-	"info:#.units":              "Resource units",
-	"info:#.alertthreshold":     "Generate alert when more than threshold percentage of resource is used",
+	"cloudlet-org":          "Organization of the cloudlet site",
+	"cloudlet":              "Name of the cloudlet",
+	"federated-org":         "Federated operator organization who shared this cloudlet",
+	"infrausage":            "Show Infra based usage",
+	"info:#.name":           "Resource name",
+	"info:#.value":          "Resource value",
+	"info:#.inframaxvalue":  "Resource infra max value",
+	"info:#.quotamaxvalue":  "Resource quota max value",
+	"info:#.description":    "Resource description",
+	"info:#.units":          "Resource units",
+	"info:#.alertthreshold": "Generate alert when more than threshold percentage of resource is used",
 }
 var CloudletResourceUsageSpecialArgs = map[string]string{}
 var CloudletAllianceOrgRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 	"organization",
 }
 var CloudletAllianceOrgOptionalArgs = []string{}
 var CloudletAllianceOrgAliasArgs = []string{
 	"cloudlet-org=cloudletallianceorg.key.organization",
 	"cloudlet=cloudletallianceorg.key.name",
-	"key.federatedorganization=cloudletallianceorg.key.federatedorganization",
+	"federated-org=cloudletallianceorg.key.federatedorganization",
 	"organization=cloudletallianceorg.organization",
 }
 var CloudletAllianceOrgComments = map[string]string{
-	"cloudlet-org":              "Organization of the cloudlet site",
-	"cloudlet":                  "Name of the cloudlet",
-	"key.federatedorganization": "Federated operator organization who shared this cloudlet",
-	"organization":              "Alliance organization",
+	"cloudlet-org":  "Organization of the cloudlet site",
+	"cloudlet":      "Name of the cloudlet",
+	"federated-org": "Federated operator organization who shared this cloudlet",
+	"organization":  "Alliance organization",
 }
 var CloudletAllianceOrgSpecialArgs = map[string]string{}
 var CloudletInfoRequiredArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"key.federatedorganization",
+	"federated-org",
 }
 var CloudletInfoOptionalArgs = []string{
 	"state",
@@ -1377,7 +1377,7 @@ var CloudletInfoAliasArgs = []string{
 	"fields=cloudletinfo.fields",
 	"cloudlet-org=cloudletinfo.key.organization",
 	"cloudlet=cloudletinfo.key.name",
-	"key.federatedorganization=cloudletinfo.key.federatedorganization",
+	"federated-org=cloudletinfo.key.federatedorganization",
 	"state=cloudletinfo.state",
 	"notifyid=cloudletinfo.notifyid",
 	"controller=cloudletinfo.controller",
@@ -1443,7 +1443,7 @@ var CloudletInfoComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
 	"cloudlet-org":                           "Organization of the cloudlet site",
 	"cloudlet":                               "Name of the cloudlet",
-	"key.federatedorganization":              "Federated operator organization who shared this cloudlet",
+	"federated-org":                          "Federated operator organization who shared this cloudlet",
 	"state":                                  "State of cloudlet, one of Unknown, Errors, Ready, Offline, NotPresent, Init, Upgrade, NeedSync",
 	"notifyid":                               "Id of client assigned by server (internal use only)",
 	"controller":                             "Connected controller unique id",

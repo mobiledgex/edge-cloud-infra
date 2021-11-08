@@ -6,8 +6,10 @@ import (
 
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
@@ -63,7 +65,16 @@ func (f *FederationPlatform) GetClusterAdditionalResources(ctx context.Context, 
 
 // Get Cloudlet Resource Properties
 func (f *FederationPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
-	return &edgeproto.CloudletResourceQuotaProps{}, nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetCloudletResourceQuotaProps")
+
+	return &edgeproto.CloudletResourceQuotaProps{
+		Properties: []edgeproto.InfraResource{
+			{
+				Name:        cloudcommon.ResourceDisk,
+				Description: cloudcommon.ResourceQuotaDesc[cloudcommon.ResourceDisk],
+			},
+		},
+	}, nil
 }
 
 // Get cluster additional resource metric

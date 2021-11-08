@@ -51,7 +51,7 @@ func init() {
 
 var AppInstClientKeyRequiredArgs = []string{
 	"app-org",
-	"appinstkey.clusterinstkey.cloudletkey.federatedorganization",
+	"federated-org",
 }
 var AppInstClientKeyOptionalArgs = []string{
 	"appname",
@@ -70,21 +70,21 @@ var AppInstClientKeyAliasArgs = []string{
 	"cluster=appinstclientkey.appinstkey.clusterinstkey.clusterkey.name",
 	"cloudlet-org=appinstclientkey.appinstkey.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinstclientkey.appinstkey.clusterinstkey.cloudletkey.name",
-	"appinstkey.clusterinstkey.cloudletkey.federatedorganization=appinstclientkey.appinstkey.clusterinstkey.cloudletkey.federatedorganization",
+	"federated-org=appinstclientkey.appinstkey.clusterinstkey.cloudletkey.federatedorganization",
 	"cluster-org=appinstclientkey.appinstkey.clusterinstkey.organization",
 	"uniqueid=appinstclientkey.uniqueid",
 	"uniqueidtype=appinstclientkey.uniqueidtype",
 }
 var AppInstClientKeyComments = map[string]string{
-	"app-org":      "App developer organization",
-	"appname":      "App name",
-	"appvers":      "App version",
-	"cluster":      "Cluster name",
-	"cloudlet-org": "Organization of the cloudlet site",
-	"cloudlet":     "Name of the cloudlet",
-	"appinstkey.clusterinstkey.cloudletkey.federatedorganization": "Federated operator organization who shared this cloudlet",
-	"cluster-org":  "Name of Developer organization that this cluster belongs to",
-	"uniqueid":     "AppInstClient Unique Id",
-	"uniqueidtype": "AppInstClient Unique Id Type",
+	"app-org":       "App developer organization",
+	"appname":       "App name",
+	"appvers":       "App version",
+	"cluster":       "Cluster name",
+	"cloudlet-org":  "Organization of the cloudlet site",
+	"cloudlet":      "Name of the cloudlet",
+	"federated-org": "Federated operator organization who shared this cloudlet",
+	"cluster-org":   "Name of Developer organization that this cluster belongs to",
+	"uniqueid":      "AppInstClient Unique Id",
+	"uniqueidtype":  "AppInstClient Unique Id Type",
 }
 var AppInstClientKeySpecialArgs = map[string]string{}

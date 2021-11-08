@@ -220,20 +220,20 @@ var AutoProvPolicyCloudletRequiredArgs = []string{
 var AutoProvPolicyCloudletOptionalArgs = []string{
 	"cloudlet-org",
 	"cloudlet",
-	"cloudletkey.federatedorganization",
+	"federated-org",
 }
 var AutoProvPolicyCloudletAliasArgs = []string{
 	"app-org=autoprovpolicycloudlet.key.organization",
 	"name=autoprovpolicycloudlet.key.name",
 	"cloudlet-org=autoprovpolicycloudlet.cloudletkey.organization",
 	"cloudlet=autoprovpolicycloudlet.cloudletkey.name",
-	"cloudletkey.federatedorganization=autoprovpolicycloudlet.cloudletkey.federatedorganization",
+	"federated-org=autoprovpolicycloudlet.cloudletkey.federatedorganization",
 }
 var AutoProvPolicyCloudletComments = map[string]string{
-	"app-org":                           "Name of the organization for the cluster that this policy will apply to",
-	"name":                              "Policy name",
-	"cloudlet-org":                      "Organization of the cloudlet site",
-	"cloudlet":                          "Name of the cloudlet",
-	"cloudletkey.federatedorganization": "Federated operator organization who shared this cloudlet",
+	"app-org":       "Name of the organization for the cluster that this policy will apply to",
+	"name":          "Policy name",
+	"cloudlet-org":  "Organization of the cloudlet site",
+	"cloudlet":      "Name of the cloudlet",
+	"federated-org": "Federated operator organization who shared this cloudlet",
 }
 var AutoProvPolicyCloudletSpecialArgs = map[string]string{}

@@ -172,8 +172,20 @@ func init() {
 			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
 			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
 			ReqData:      &ormapi.Federation{},
-			ReplyData:    &ormapi.Result{},
+			ReplyData:    &ormapi.FederationApiKey{},
 			Path:         "/auth/federation/create",
+		},
+		&ApiCommand{
+			Name:         "UpdateFederation",
+			Use:          "update",
+			Short:        "Update Federation",
+			SpecialArgs:  &FederatorSpecialArgs,
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			RequiredArgs: strings.Join(append(FederationArgs, FederationUpdateArgs...), " "),
+			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/update",
 		},
 		&ApiCommand{
 			Name:         "DeleteFederation",
@@ -185,6 +197,17 @@ func init() {
 			ReqData:      &ormapi.Federation{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federation/delete",
+		},
+		&ApiCommand{
+			Name:         "GenerateFederationAPIKey",
+			Use:          "generateapikey",
+			Short:        "Generate Federation API Key",
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			RequiredArgs: strings.Join(FederationArgs, " "),
+			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &ormapi.FederationApiKey{},
+			Path:         "/auth/federation/generateapikey",
 		},
 		&ApiCommand{
 			Name:         "RegisterFederation",
@@ -248,11 +271,16 @@ var FederationRequiredArgs = []string{
 	"countrycode",
 	"federationid",
 	"federationaddr",
+	"apikey",
 }
 
 var FederationArgs = []string{
 	"selfoperatorid",
 	"name",
+}
+
+var FederationUpdateArgs = []string{
+	"apikey",
 }
 
 var FederationAliasArgs = []string{
@@ -263,6 +291,7 @@ var FederationAliasArgs = []string{
 	"mcc=federator.mcc",
 	"mnc=federator.mnc",
 	"locatorendpoint=federator.locatorendpoint",
+	"apikey=federator.apikey",
 }
 
 var FederatorSpecialArgs = map[string]string{

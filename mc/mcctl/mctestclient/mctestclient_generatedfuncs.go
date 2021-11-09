@@ -1911,7 +1911,23 @@ func (s *Client) AccessCloudlet(uri string, token string, in *ormapi.RegionExecR
 
 // Generating group Federation
 
-func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federation) (*ormapi.FederationApiKey, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.FederationApiKey
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateFederation(uri string, token string, in *cli.MapData) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -1919,7 +1935,7 @@ func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federatio
 	var out ormapi.Result
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("CreateFederation")
+	apiCmd := ormctl.MustGetCommand("UpdateFederation")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
@@ -1936,6 +1952,22 @@ func (s *Client) DeleteFederation(uri string, token string, in *ormapi.Federatio
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("DeleteFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) GenerateFederationAPIKey(uri string, token string, in *ormapi.Federation) (*ormapi.FederationApiKey, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.FederationApiKey
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("GenerateFederationAPIKey")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/jarcoal/httpmock"
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"github.com/labstack/echo"
 	"github.com/lib/pq"
 	"github.com/mobiledgex/edge-cloud-infra/billing"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
@@ -38,6 +40,7 @@ import (
 )
 
 var MockESUrl = "http://mock.es"
+var PartnerApiKey = "dummyKey"
 
 type CtrlObj struct {
 	addr        string
@@ -119,9 +122,6 @@ func (c *CtrlObj) Cleanup(ctx context.Context) {
 }
 
 func SetupOperatorPlatform(t *testing.T, ctx context.Context) (*OPAttr, []FederatorAttr) {
-	vaultServer, vaultConfig := vault.DummyServer()
-	defer vaultServer.Close()
-
 	// any requests that don't have a registered URL will be fetched normally
 	mockESUrl := "http://mock.es"
 	httpmock.RegisterNoResponder(httpmock.InitialTransport.RoundTrip)
@@ -155,9 +155,9 @@ func SetupOperatorPlatform(t *testing.T, ctx context.Context) (*OPAttr, []Federa
 		FederationAddr:          fedAddr,
 		RunLocal:                true,
 		InitLocal:               true,
+		LocalVault:              true,
 		IgnoreEnv:               true,
 		SkipVerifyEmail:         true,
-		vaultConfig:             vaultConfig,
 		AlertMgrAddr:            testAlertMgrAddr,
 		AlertmgrResolveTimout:   3 * time.Minute,
 		UsageCheckpointInterval: "MONTH",
@@ -175,7 +175,7 @@ func SetupOperatorPlatform(t *testing.T, ctx context.Context) (*OPAttr, []Federa
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
 
-	Jwks.Init(vaultConfig, "region", "mcorm")
+	Jwks.Init(config.vaultConfig, "region", "mcorm")
 	Jwks.Meta.CurrentVersion = 1
 	Jwks.Keys[1] = &vault.JWK{
 		Secret:  "12345",
@@ -254,8 +254,29 @@ func getFederationAPI(fedAddr, fedApi string) string {
 }
 
 func registerFederationAPIs(t *testing.T, partnerFed *FederatorAttr) {
+	valApiKey := func(req *http.Request) error {
+		auth := req.Header.Get(echo.HeaderAuthorization)
+		scheme := "Bearer"
+		l := len(scheme)
+		apiKey := ""
+		if len(auth) > len(scheme) && strings.HasPrefix(auth, scheme) {
+			apiKey = auth[l+1:]
+		}
+		if apiKey == "" {
+			return fmt.Errorf("no api key found")
+		}
+		if apiKey != PartnerApiKey {
+			return fmt.Errorf("invalid api key")
+		}
+		return nil
+	}
 	httpmock.RegisterResponder("POST", getFederationAPI(partnerFed.fedAddr, federation.OperatorPartnerAPI),
 		func(req *http.Request) (*http.Response, error) {
+			err := valApiKey(req)
+			if err != nil {
+				fmt.Printf("failed to validate api key from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "api key error"), nil
+			}
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
@@ -283,6 +304,11 @@ func registerFederationAPIs(t *testing.T, partnerFed *FederatorAttr) {
 
 	httpmock.RegisterResponder("PUT", getFederationAPI(partnerFed.fedAddr, federation.OperatorPartnerAPI),
 		func(req *http.Request) (*http.Response, error) {
+			err := valApiKey(req)
+			if err != nil {
+				fmt.Printf("failed to validate api key from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "api key error"), nil
+			}
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
@@ -301,6 +327,11 @@ func registerFederationAPIs(t *testing.T, partnerFed *FederatorAttr) {
 
 	httpmock.RegisterResponder("DELETE", getFederationAPI(partnerFed.fedAddr, federation.OperatorPartnerAPI),
 		func(req *http.Request) (*http.Response, error) {
+			err := valApiKey(req)
+			if err != nil {
+				fmt.Printf("failed to validate api key from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "api key error"), nil
+			}
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
@@ -319,6 +350,11 @@ func registerFederationAPIs(t *testing.T, partnerFed *FederatorAttr) {
 
 	httpmock.RegisterResponder("POST", getFederationAPI(partnerFed.fedAddr, federation.OperatorZoneAPI),
 		func(req *http.Request) (*http.Response, error) {
+			err := valApiKey(req)
+			if err != nil {
+				fmt.Printf("failed to validate api key from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "api key error"), nil
+			}
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
@@ -350,6 +386,11 @@ func registerFederationAPIs(t *testing.T, partnerFed *FederatorAttr) {
 	)
 	httpmock.RegisterResponder("DELETE", getFederationAPI(partnerFed.fedAddr, federation.OperatorZoneAPI),
 		func(req *http.Request) (*http.Response, error) {
+			err := valApiKey(req)
+			if err != nil {
+				fmt.Printf("failed to validate api key from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "api key error"), nil
+			}
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
@@ -368,6 +409,11 @@ func registerFederationAPIs(t *testing.T, partnerFed *FederatorAttr) {
 
 	httpmock.RegisterResponder("POST", getFederationAPI(partnerFed.fedAddr, federation.OperatorNotifyZoneAPI),
 		func(req *http.Request) (*http.Response, error) {
+			err := valApiKey(req)
+			if err != nil {
+				fmt.Printf("failed to validate api key from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "api key error"), nil
+			}
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
@@ -389,6 +435,11 @@ func registerFederationAPIs(t *testing.T, partnerFed *FederatorAttr) {
 	)
 	httpmock.RegisterResponder("DELETE", getFederationAPI(partnerFed.fedAddr, federation.OperatorNotifyZoneAPI),
 		func(req *http.Request) (*http.Response, error) {
+			err := valApiKey(req)
+			if err != nil {
+				fmt.Printf("failed to validate api key from request %s: %v\n", req.URL.String(), err)
+				return httpmock.NewStringResponse(400, "api key error"), nil
+			}
 			body, err := ioutil.ReadAll(req.Body)
 			if err != nil {
 				fmt.Printf("failed to read body from request %s: %v\n", req.URL.String(), err)
@@ -433,7 +484,7 @@ func TestFederation(t *testing.T) {
 		fedId:       partnerFedId,
 		fedName:     "partnerFed",
 		fedAddr:     "http://111.111.111.111",
-		apiKey:      "dummyKey",
+		apiKey:      PartnerApiKey,
 	}
 	partnerZones := []federation.ZoneInfo{
 		federation.ZoneInfo{
@@ -461,7 +512,7 @@ func TestFederation(t *testing.T) {
 	}
 }
 
-func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mctestclient.Client, op *OPAttr, selfFederators []FederatorAttr, partnerFed *FederatorAttr, apiKey string) {
+func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mctestclient.Client, op *OPAttr, selfFederators []FederatorAttr, partnerFed *FederatorAttr, selfFedApiKey string) {
 	selfFed1 := selfFederators[0]
 
 	// Verify that selfFed1 has added partnerFed as partner federator (federation planning)
@@ -485,7 +536,7 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 		CountryCode:      partnerFed.countryCode,
 	}
 	opRegRes := federation.OperatorRegistrationResponse{}
-	err = sendFederationRequest("POST", selfFed1.fedAddr, apiKey, federation.OperatorPartnerAPI, &opRegReq, &opRegRes)
+	err = sendFederationRequest("POST", selfFed1.fedAddr, partnerFed.fedName, selfFedApiKey, federation.OperatorPartnerAPI, &opRegReq, &opRegRes)
 	require.Nil(t, err, "partnerFed adds selfFed1 as partner OP")
 	// verify federation response
 	require.Equal(t, opRegRes.OrigOperatorId, selfFed1.operatorId)
@@ -518,7 +569,7 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 		Country:          partnerFed.countryCode,
 		MCC:              "999",
 	}
-	err = sendFederationRequest("PUT", selfFed1.fedAddr, apiKey, federation.OperatorPartnerAPI, &updateReq, nil)
+	err = sendFederationRequest("PUT", selfFed1.fedAddr, partnerFed.fedName, selfFedApiKey, federation.OperatorPartnerAPI, &updateReq, nil)
 	require.Nil(t, err, "partnerFed updates its attributes and notifies selfFed1 about it")
 
 	// verify that selfFed1 has successfully updated partnerFed's new MCC value
@@ -545,7 +596,7 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 			Zones:            []string{sZone.ZoneId},
 		}
 		opZoneRes := federation.OperatorZoneRegisterResponse{}
-		err = sendFederationRequest("POST", selfFed1.fedAddr, apiKey, federation.OperatorZoneAPI, &zoneRegReq, &opZoneRes)
+		err = sendFederationRequest("POST", selfFed1.fedAddr, partnerFed.fedName, selfFedApiKey, federation.OperatorZoneAPI, &zoneRegReq, &opZoneRes)
 		require.Nil(t, err, "partnerFed sends registration request for selfFed1 zone")
 		require.Equal(t, zoneRegReq.RequestId, opZoneRes.RequestId)
 
@@ -580,7 +631,7 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 		Country:          partnerFed.countryCode,
 		PartnerZone:      newZone,
 	}
-	err = sendFederationRequest("POST", selfFed1.fedAddr, apiKey, federation.OperatorNotifyZoneAPI, &zoneNotifyReq, nil)
+	err = sendFederationRequest("POST", selfFed1.fedAddr, partnerFed.fedName, selfFedApiKey, federation.OperatorNotifyZoneAPI, &zoneNotifyReq, nil)
 	require.Nil(t, err, "partnerFed notifies selfFed1 about a new zone")
 
 	// verify that selfFed1 added this new zone in its db
@@ -611,7 +662,7 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 		Country:          partnerFed.countryCode,
 		Zone:             newZone.ZoneId,
 	}
-	err = sendFederationRequest("DELETE", selfFed1.fedAddr, apiKey, federation.OperatorNotifyZoneAPI, &zoneUnshareReq, nil)
+	err = sendFederationRequest("DELETE", selfFed1.fedAddr, partnerFed.fedName, selfFedApiKey, federation.OperatorNotifyZoneAPI, &zoneUnshareReq, nil)
 	require.Nil(t, err, "partnerFed notifies selfFed1 about a deleted zone")
 
 	// verify that selfFed1 deleted this zone from its db
@@ -631,7 +682,7 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 			Country:          partnerFed.countryCode,
 			Zone:             sZone.ZoneId,
 		}
-		err = sendFederationRequest("DELETE", selfFed1.fedAddr, apiKey, federation.OperatorZoneAPI, &zoneDeRegReq, nil)
+		err = sendFederationRequest("DELETE", selfFed1.fedAddr, partnerFed.fedName, selfFedApiKey, federation.OperatorZoneAPI, &zoneDeRegReq, nil)
 		require.Nil(t, err, "partnerFed sends deregistration request for selfFed1 zone")
 
 		// Verify that zones are deregistered
@@ -657,7 +708,7 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 		Operator:         partnerFed.operatorId,
 		Country:          partnerFed.countryCode,
 	}
-	err = sendFederationRequest("DELETE", selfFed1.fedAddr, apiKey, federation.OperatorPartnerAPI, &opFedReq, nil)
+	err = sendFederationRequest("DELETE", selfFed1.fedAddr, partnerFed.fedName, selfFedApiKey, federation.OperatorPartnerAPI, &opFedReq, nil)
 	require.Nil(t, err, "partnerFed removes selfFed1 as partner OP")
 
 	// verify that partnerFed has successfully removed federation with selfFed1
@@ -739,6 +790,7 @@ func testFederationInterconnect(t *testing.T, ctx context.Context, clientRun mct
 	require.Contains(t, err.Error(), "same self federation id")
 
 	// Validate partner federator info
+	partnerFedReq.ApiKey = ""
 	federations, status, err := mcClient.ShowFederation(op.uri, selfFed1.tokenOper, partnerFedReq)
 	require.Nil(t, err, "show partner federation")
 	require.Equal(t, http.StatusOK, status)

@@ -281,6 +281,7 @@ var FederatorZoneRequiredArgs = []string{
 	"countrycode",
 	"cloudlets",
 	"geolocation",
+	"region",
 }
 
 var FederatorZoneOptionalArgs = []string{
@@ -297,7 +298,7 @@ var FederatorZoneAliasArgs = []string{
 	"city=federatorzone.city",
 	"state=federatorzone.state",
 	"locality=federatorzone.locality",
-	"region=federatorzone.locality",
+	"region=federatorzone.region",
 	"cloudlets=federatorzone.cloudlets",
 }
 

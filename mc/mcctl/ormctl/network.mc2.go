@@ -103,10 +103,10 @@ func init() {
 var NetworkRequiredArgs = []string{
 	"cloudlet-org",
 	"key.cloudletkey.name",
-	"federated-org",
 	"name",
 }
 var NetworkOptionalArgs = []string{
+	"federated-org",
 	"routes:empty",
 	"routes:#.destinationcidr",
 	"routes:#.nexthopip",

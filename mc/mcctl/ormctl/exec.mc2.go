@@ -157,10 +157,10 @@ var ExecRequestRequiredArgs = []string{
 	"cluster",
 	"cloudlet-org",
 	"cloudlet",
-	"federated-org",
 	"cluster-org",
 }
 var ExecRequestOptionalArgs = []string{
+	"federated-org",
 	"containerid",
 	"command",
 	"node-type",

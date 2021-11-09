@@ -222,6 +222,8 @@ func CreateSelfFederator(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
 	// sanity check
 	if opFed.OperatorId == "" {
 		return fmt.Errorf("Missing Operator ID")
@@ -287,12 +289,15 @@ func UpdateSelfFederator(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
 
 	// get self federator information
 	selfFed, err := GetSelfFederator(ctx, opFed.FederationId)
 	if err != nil {
 		return err
 	}
+	span.SetTag("region", selfFed.Region)
 	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
 		return err
 	}
@@ -374,11 +379,14 @@ func DeleteSelfFederator(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
 	// get federator information
 	selfFed, err := GetSelfFederator(ctx, opFed.FederationId)
 	if err != nil {
 		return err
 	}
+	span.SetTag("region", opFed.Region)
 	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
 		return err
 	}
@@ -466,6 +474,8 @@ func CreateFederation(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
 	// sanity check
 	if opFed.Name == "" {
 		return fmt.Errorf("Missing federation name")
@@ -490,10 +500,11 @@ func CreateFederation(c echo.Context) error {
 	}
 
 	// validate self federator
-	_, err = GetSelfFederator(ctx, opFed.SelfFederationId)
+	selfFed, err := GetSelfFederator(ctx, opFed.SelfFederationId)
 	if err != nil {
 		return err
 	}
+	span.SetTag("region", selfFed.Region)
 	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
 		return err
 	}
@@ -526,6 +537,8 @@ func DeleteFederation(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
 	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
 		return err
 	}
@@ -558,6 +571,10 @@ func CreateSelfFederatorZone(c echo.Context) error {
 	if err := c.Bind(&opZone); err != nil {
 		return ormutil.BindErr(err)
 	}
+
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opZone.GetTags())
+
 	// sanity check
 	if opZone.ZoneId == "" {
 		return fmt.Errorf("Missing zone ID")
@@ -654,6 +671,10 @@ func DeleteSelfFederatorZone(c echo.Context) error {
 	if err := c.Bind(&opZone); err != nil {
 		return ormutil.BindErr(err)
 	}
+
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opZone.GetTags())
+
 	// sanity check
 	if opZone.ZoneId == "" {
 		return fmt.Errorf("Missing zone ID")
@@ -741,6 +762,7 @@ func ShowFederatedSelfZone(c echo.Context) error {
 	if err := c.Bind(&opZoneReq); err != nil {
 		return ormutil.BindErr(err)
 	}
+
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
 	if err != nil {
 		return err
@@ -803,6 +825,10 @@ func ShareSelfFederatorZone(c echo.Context) error {
 	if err := c.Bind(&shZone); err != nil {
 		return ormutil.BindErr(err)
 	}
+
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, shZone.GetTags())
+
 	// sanity check
 	if shZone.ZoneId == "" {
 		return fmt.Errorf("Must specify the zone which is to be shared")
@@ -892,6 +918,10 @@ func UnshareSelfFederatorZone(c echo.Context) error {
 	if err := c.Bind(&unshZone); err != nil {
 		return ormutil.BindErr(err)
 	}
+
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, unshZone.GetTags())
+
 	// sanity check
 	if unshZone.ZoneId == "" {
 		return fmt.Errorf("Must specify the zone which is to be unshared")
@@ -977,6 +1007,10 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 	if err := c.Bind(&reg); err != nil {
 		return ormutil.BindErr(err)
 	}
+
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, reg.GetTags())
+
 	// sanity check
 	if reg.ZoneId == "" {
 		return fmt.Errorf("Must specify the zone which is to be registered")
@@ -1106,6 +1140,10 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 	if err := c.Bind(&reg); err != nil {
 		return ormutil.BindErr(err)
 	}
+
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, reg.GetTags())
+
 	// sanity check
 	if reg.ZoneId == "" {
 		return fmt.Errorf("Must specify the zone which is to be deregistered")
@@ -1200,6 +1238,9 @@ func RegisterFederation(c echo.Context) error {
 		return ormutil.BindErr(err)
 	}
 
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
+
 	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
 		return err
 	}
@@ -1277,6 +1318,9 @@ func DeregisterFederation(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
+
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
 
 	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
 		return err

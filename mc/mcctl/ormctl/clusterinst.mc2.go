@@ -126,10 +126,10 @@ var UpdateClusterInstRequiredArgs = []string{
 	"cluster",
 	"cloudlet-org",
 	"cloudlet",
-	"federated-org",
 	"cluster-org",
 }
 var UpdateClusterInstOptionalArgs = []string{
+	"federated-org",
 	"crmoverride",
 	"numnodes",
 	"autoscalepolicy",
@@ -163,10 +163,10 @@ var ClusterInstRequiredArgs = []string{
 	"cluster",
 	"cloudlet-org",
 	"cloudlet",
-	"federated-org",
 	"cluster-org",
 }
 var ClusterInstOptionalArgs = []string{
+	"federated-org",
 	"flavor",
 	"crmoverride",
 	"ipaccess",

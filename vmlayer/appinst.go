@@ -598,16 +598,15 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		objName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, "")
 		log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM", "stackName", objName)
 		err := v.VMProvider.DeleteVMs(ctx, objName)
-		if err.Error() == ServerDoesNotExistError {
-			if err != nil {
-				// try old format
-				objName = cloudcommon.GetAppFQN(&app.Key)
-				log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM failed try old format", "stackName", objName, "error", err)
-				err := v.VMProvider.DeleteVMs(ctx, objName)
-				if err != nil {
-					return fmt.Errorf("DeleteVMAppInst error: %v", err)
-				}
+		if err != nil && err.Error() == ServerDoesNotExistError {
+			// try old format
+			objName = cloudcommon.GetAppFQN(&app.Key)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM failed try old format", "stackName", objName, "error", err)
+			err := v.VMProvider.DeleteVMs(ctx, objName)
+			if err != nil && err.Error() != ServerDoesNotExistError {
+				return fmt.Errorf("DeleteVMAppInst error: %v", err)
 			}
+
 		}
 		lbName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
 		clientName := v.GetChefClientName(lbName)

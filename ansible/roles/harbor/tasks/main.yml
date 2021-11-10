@@ -8,15 +8,14 @@
       - hook_name: harbor_reload_hook
         hook_content: |
           #!/bin/bash
-          cd /home/ansible/harbor
-          docker-compose down -v
+          docker stop nginx
     post_renewal_hooks:
       - hook_name: harbor_reload_hook
         hook_content: |
           #!/bin/bash
-          cd /home/ansible/harbor
-          ./prepare --with-trivy --with-chardmuuseum
-          docker-compose up -d
+          cp -f /etc/letsencrypt/live/{{ inventory_hostname }}/fullchain.pem /data/secret/cert/server.crt
+          cp -f /etc/letsencrypt/live/{{ inventory_hostname }}/privkey.pem /data/secret/cert/server.key
+          docker start nginx
   tags: setup
 
 - name: Configure the docker daemon

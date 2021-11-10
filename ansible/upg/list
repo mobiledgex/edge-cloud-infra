@@ -24,6 +24,7 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 letsencrypt_env=production
 vault_firewall_setup=no
+federated_mc=true
 
 [notifyroot]
 notifyroot-upg.mobiledgex.net

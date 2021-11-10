@@ -60,10 +60,7 @@ func SetupFRMNotify(nodeMgr *node.NodeMgr, hostname, region, notifyAddrs string)
 		return nil, nil, err
 	}
 	dialOption := tls.GetGrpcDialOption(notifyClientTls)
-	notifyClient := notify.NewClient(nodeMgr.Name(), addrs, dialOption,
-		notify.ClientUnaryInterceptors(nodeMgr.AccessKeyClient.UnaryAddAccessKey),
-		notify.ClientStreamInterceptors(nodeMgr.AccessKeyClient.StreamAddAccessKey),
-	)
+	notifyClient := notify.NewClient(nodeMgr.Name(), addrs, dialOption)
 
 	notifyClient.SetFilterByFederatedCloudlet()
 	InitClientNotify(notifyClient, nodeMgr, controllerData)

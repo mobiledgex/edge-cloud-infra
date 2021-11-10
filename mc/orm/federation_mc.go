@@ -1079,7 +1079,7 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 	rc.Region = selfFed.Region
 	rc.Database = database
 	cb := func(res *edgeproto.Result) error {
-		// ignore
+		log.SpanLog(ctx, log.DebugLevelApi, "add partner zone as cloudlet progress", "progress result", res)
 		return nil
 	}
 	for _, zoneReg := range opZoneRes.Zone {
@@ -1121,6 +1121,7 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 			})
 
 		}
+		log.SpanLog(ctx, log.DebugLevelApi, "add partner zone as cloudlet", "key", fedCloudlet.Key)
 		err = ctrlclient.CreateCloudletStream(ctx, rc, &fedCloudlet, connCache, cb)
 		if err != nil {
 			return err
@@ -1179,7 +1180,7 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 	rc.Region = selfFed.Region
 	rc.Database = database
 	cb := func(res *edgeproto.Result) error {
-		// ignore
+		log.SpanLog(ctx, log.DebugLevelApi, "delete partner zone as cloudlet progress", "progress result", res)
 		return nil
 	}
 
@@ -1193,6 +1194,7 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 			FederatedOrganization: existingZone.OperatorId,
 		},
 	}
+	log.SpanLog(ctx, log.DebugLevelApi, "delete partner zone as cloudlet", "key", fedCloudlet.Key)
 	err = ctrlclient.DeleteCloudletStream(ctx, rc, &fedCloudlet, connCache, cb)
 	if err != nil {
 		return err

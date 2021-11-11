@@ -1,10 +1,11 @@
 {
-  "revision_id": "ec3983078d4964293c8dc239e0932bde216e4e1994774b9f8c33d13e6c44600c",
+  "revision_id": "fd5e0d6c99d72a13e42d668a68a4bb9bdc99c51ea6d866caf9710676635680df",
   "name": "base",
   "run_list": [
     "recipe[chef_client_updater::default]",
     "recipe[runstatus_handler::default]",
     "recipe[copy_resource_tracker::default]",
+    "recipe[disable_password_expiry::default]",
     "recipe[upgrade_mobiledgex_package::default]"
   ],
   "included_policy_locks": [
@@ -31,6 +32,17 @@
       "source_options": {
         "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
         "version": "1.0.1"
+      }
+    },
+    "disable_password_expiry": {
+      "version": "1.0.0",
+      "identifier": "79f3dc5fe164a2cf4bfc331a409940570ca5bde9",
+      "dotted_decimal_identifier": "34326600008950946.58348866740306073.70742618521065",
+      "cache_key": "disable_password_expiry-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
       }
     },
     "runstatus_handler": {
@@ -75,6 +87,10 @@
         "= 1.0.1"
       ],
       [
+        "disable_password_expiry",
+        "= 1.0.0"
+      ],
+      [
         "runstatus_handler",
         "= 1.0.0"
       ],
@@ -88,6 +104,9 @@
 
       ],
       "copy_resource_tracker (1.0.1)": [
+
+      ],
+      "disable_password_expiry (1.0.0)": [
 
       ],
       "runstatus_handler (1.0.0)": [

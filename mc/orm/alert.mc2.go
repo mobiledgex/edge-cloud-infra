@@ -786,6 +786,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// Key: 2
 	// KeyOrganization: 2.1
 	// KeyName: 2.2
+	// KeyFederatedOrganization: 2.3
 	// Location: 5
 	// LocationLatitude: 5.1
 	// LocationLongitude: 5.2
@@ -1293,6 +1294,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyCloudletKey: 2.2
 	// KeyCloudletKeyOrganization: 2.2.1
 	// KeyCloudletKeyName: 2.2.2
+	// KeyCloudletKeyFederatedOrganization: 2.2.3
 	// KeyOrganization: 2.3
 	// Flavor: 3
 	// FlavorName: 3.1
@@ -1415,6 +1417,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// CloudletsKey: 5.1
 	// CloudletsKeyOrganization: 5.1.1
 	// CloudletsKeyName: 5.1.2
+	// CloudletsKeyFederatedOrganization: 5.1.3
 	// CloudletsLoc: 5.2
 	// CloudletsLocLatitude: 5.2.1
 	// CloudletsLocLongitude: 5.2.2
@@ -1558,6 +1561,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyCloudletKey: 2.1
 	// KeyCloudletKeyOrganization: 2.1.1
 	// KeyCloudletKeyName: 2.1.2
+	// KeyCloudletKeyFederatedOrganization: 2.1.3
 	// KeyName: 2.2
 	// Routes: 3
 	// RoutesDestinationCidr: 3.1
@@ -1633,6 +1637,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyClusterInstKeyCloudletKey: 2.4.2
 	// KeyClusterInstKeyCloudletKeyOrganization: 2.4.2.1
 	// KeyClusterInstKeyCloudletKeyName: 2.4.2.2
+	// KeyClusterInstKeyCloudletKeyFederatedOrganization: 2.4.2.3
 	// KeyClusterInstKeyOrganization: 2.4.3
 	// CloudletLoc: 3
 	// CloudletLocLatitude: 3.1

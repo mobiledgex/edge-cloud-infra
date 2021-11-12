@@ -1,0 +1,17 @@
+federations:
+- name: tmus-SA-{{partnertag}}-{{region}}-fed
+  selfoperatorid: tmus
+  federator:
+    federationid: {{partnertag}}-{{region}}-tmus-SA
+- name: tmus-SB-{{partnertag}}-{{region}}-fed
+  selfoperatorid: tmus
+  federator:
+    federationid: {{partnertag}}-{{region}}-tmus-SB
+- name: enterprise-SA-{{partnertag}}-{{region}}-fed
+  selfoperatorid: enterprise
+  federator:
+    federationid: {{partnertag}}-{{region}}-enterprise-SA
+- name: enterprise-SB-{{partnertag}}-{{region}}-fed
+  selfoperatorid: enterprise
+  federator:
+    federationid: {{partnertag}}-{{region}}-enterprise-SB

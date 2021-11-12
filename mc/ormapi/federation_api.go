@@ -112,3 +112,37 @@ type FederatedPartnerZone struct {
 type FederationApiKey struct {
 	ApiKey string `json:"apikey"`
 }
+
+func (f *Federator) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.OperatorId
+	tags["region"] = f.Region
+	return tags
+}
+
+func (f *Federation) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.SelfOperatorId
+	tags["federatedorg"] = f.OperatorId
+	return tags
+}
+
+func (f *FederatorZone) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.OperatorId
+	tags["region"] = f.Region
+	return tags
+}
+
+func (f *FederatedSelfZone) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.SelfOperatorId
+	return tags
+}
+
+func (f *FederatedPartnerZone) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.SelfOperatorId
+	tags["federatedorg"] = f.OperatorId
+	return tags
+}

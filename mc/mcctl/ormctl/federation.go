@@ -167,7 +167,7 @@ func init() {
 			Name:         "CreateFederation",
 			Use:          "create",
 			Short:        "Create Federation",
-			SpecialArgs:  &FederatorSpecialArgs,
+			SpecialArgs:  &FederationSpecialArgs,
 			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
 			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
@@ -235,7 +235,7 @@ func init() {
 			Name:         "ShowFederation",
 			Use:          "show",
 			Short:        "Show Federation",
-			SpecialArgs:  &FederatorSpecialArgs,
+			SpecialArgs:  &FederationSpecialArgs,
 			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			OptionalArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
 			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
@@ -295,6 +295,9 @@ var FederationAliasArgs = []string{
 }
 
 var FederatorSpecialArgs = map[string]string{
+	"mnc": "StringArray",
+}
+var FederationSpecialArgs = map[string]string{
 	"federator.mnc": "StringArray",
 }
 var FederatorZoneSpecialArgs = map[string]string{
@@ -307,6 +310,7 @@ var FederatorZoneRequiredArgs = []string{
 	"countrycode",
 	"cloudlets",
 	"geolocation",
+	"region",
 }
 
 var FederatorZoneOptionalArgs = []string{
@@ -323,7 +327,7 @@ var FederatorZoneAliasArgs = []string{
 	"city=federatorzone.city",
 	"state=federatorzone.state",
 	"locality=federatorzone.locality",
-	"region=federatorzone.locality",
+	"region=federatorzone.region",
 	"cloudlets=federatorzone.cloudlets",
 }
 

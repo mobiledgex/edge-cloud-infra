@@ -1927,22 +1927,6 @@ func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federatio
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) UpdateFederation(uri string, token string, in *cli.MapData) (*ormapi.Result, int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	rundata.In = in
-	var out ormapi.Result
-	rundata.Out = &out
-
-	apiCmd := ormctl.MustGetCommand("UpdateFederation")
-	s.ClientRun.Run(apiCmd, &rundata)
-	if rundata.RetError != nil {
-		return nil, rundata.RetStatus, rundata.RetError
-	}
-	return &out, rundata.RetStatus, rundata.RetError
-}
-
 func (s *Client) DeleteFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
@@ -1959,7 +1943,23 @@ func (s *Client) DeleteFederation(uri string, token string, in *ormapi.Federatio
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) GenerateFederationAPIKey(uri string, token string, in *ormapi.Federation) (*ormapi.FederationApiKey, int, error) {
+func (s *Client) SetPartnerFederationAPIKey(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("SetPartnerFederationAPIKey")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) GenerateSelfFederationAPIKey(uri string, token string, in *ormapi.Federation) (*ormapi.FederationApiKey, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -1967,7 +1967,7 @@ func (s *Client) GenerateFederationAPIKey(uri string, token string, in *ormapi.F
 	var out ormapi.FederationApiKey
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("GenerateFederationAPIKey")
+	apiCmd := ormctl.MustGetCommand("GenerateSelfFederationAPIKey")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError

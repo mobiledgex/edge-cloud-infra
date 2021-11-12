@@ -196,7 +196,8 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			if err != nil {
 				reqBody = []byte{}
 			}
-		} else if strings.Contains(req.RequestURI, "/auth/federation/create") {
+		} else if strings.Contains(req.RequestURI, "/auth/federation/create") ||
+			strings.Contains(req.RequestURI, "/auth/federation/partner/setapikey") {
 			fedReq := ormapi.Federation{}
 			err := json.Unmarshal(reqBody, &fedReq)
 			if err == nil {
@@ -257,7 +258,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 					} else {
 						response = string(resBody)
 					}
-				} else if strings.Contains(req.RequestURI, "/federation/generateapikey") ||
+				} else if strings.Contains(req.RequestURI, "/federation/self/generateapikey") ||
 					strings.Contains(req.RequestURI, "/federation/create") {
 					resp := ormapi.FederationApiKey{}
 					err := json.Unmarshal(resBody, &resp)

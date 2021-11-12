@@ -522,9 +522,6 @@ func CreateFederation(c echo.Context) error {
 	if opFed.FederationAddr == "" {
 		return fmt.Errorf("Missing partner federation access address")
 	}
-	if opFed.ApiKey == "" {
-		return fmt.Errorf("Missing partner federation API key")
-	}
 	if err := fedcommon.ValidateFederationName(opFed.Name); err != nil {
 		return err
 	}
@@ -565,45 +562,19 @@ func CreateFederation(c echo.Context) error {
 		return ormutil.DbErr(err)
 	}
 
-	vPath := getApiKeyVaultPath(opFed.Name)
-	err = vault.PutData(serverConfig.vaultConfig, vPath, &ApiKeyData{Data: partnerApiKey})
-	if err != nil {
-		return fmt.Errorf("Unable to store partner API key in vault: %s", err)
+	if partnerApiKey != "" {
+		log.SpanLog(ctx, log.DebugLevelApi, "Storing partner federation API key in vault", "federation name", opFed.Name)
+		vPath := getApiKeyVaultPath(opFed.Name)
+		err = vault.PutData(serverConfig.vaultConfig, vPath, &ApiKeyData{Data: partnerApiKey})
+		if err != nil {
+			return fmt.Errorf("Unable to store partner API key in vault: %s", err)
+		}
 	}
 
 	apiKeyOut := ormapi.FederationApiKey{
 		ApiKey: apiKey,
 	}
 	return c.JSON(http.StatusOK, &apiKeyOut)
-}
-
-func UpdateFederation(c echo.Context) error {
-	ctx := ormutil.GetContext(c)
-	claims, err := getClaims(c)
-	if err != nil {
-		return err
-	}
-	opFed := ormapi.Federation{}
-	if err := c.Bind(&opFed); err != nil {
-		return ormutil.BindErr(err)
-	}
-	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
-		return err
-	}
-	_, _, err = GetFederationByName(ctx, opFed.Name)
-	if err != nil {
-		return err
-	}
-
-	// allow update of API key in case partner federator regenerates it
-	if opFed.ApiKey != "" {
-		vPath := getApiKeyVaultPath(opFed.Name)
-		err = vault.PutData(serverConfig.vaultConfig, vPath, &ApiKeyData{Data: opFed.ApiKey})
-		if err != nil {
-			return fmt.Errorf("Unable to store partner API key in vault: %s", err)
-		}
-	}
-	return ormutil.SetReply(c, ormutil.Msg("Updated federation attributes"))
 }
 
 func DeleteFederation(c echo.Context) error {
@@ -638,6 +609,7 @@ func DeleteFederation(c echo.Context) error {
 	}
 
 	// Delete partner API key
+	log.SpanLog(ctx, log.DebugLevelApi, "Deleting partner federation API key from vault", "federation name", opFed.Name)
 	client, err := serverConfig.vaultConfig.Login()
 	if err == nil {
 		vault.DeleteKV(client, getApiKeyVaultPath(partnerFed.Name))
@@ -649,7 +621,7 @@ func DeleteFederation(c echo.Context) error {
 	return ormutil.SetReply(c, ormutil.Msg("Deleted partner federator successfully"))
 }
 
-func GenerateFederationAPIKey(c echo.Context) error {
+func SetPartnerFederationAPIKey(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -659,6 +631,42 @@ func GenerateFederationAPIKey(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
+	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
+		return err
+	}
+	_, _, err = GetFederationByName(ctx, opFed.Name)
+	if err != nil {
+		return err
+	}
+
+	if opFed.ApiKey == "" {
+		return fmt.Errorf("nothing to update")
+	}
+
+	// allow update of API key in case partner federator regenerates it
+	log.SpanLog(ctx, log.DebugLevelApi, "Storing partner federation API key in vault", "federation name", opFed.Name)
+	vPath := getApiKeyVaultPath(opFed.Name)
+	err = vault.PutData(serverConfig.vaultConfig, vPath, &ApiKeyData{Data: opFed.ApiKey})
+	if err != nil {
+		return fmt.Errorf("Unable to store partner API key in vault: %s", err)
+	}
+	return ormutil.SetReply(c, ormutil.Msg("Updated federation attributes"))
+}
+
+func GenerateSelfFederationAPIKey(c echo.Context) error {
+	ctx := ormutil.GetContext(c)
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	opFed := ormapi.Federation{}
+	if err := c.Bind(&opFed); err != nil {
+		return ormutil.BindErr(err)
+	}
+	span := log.SpanFromContext(ctx)
+	log.SetTags(span, opFed.GetTags())
 	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
 		return err
 	}

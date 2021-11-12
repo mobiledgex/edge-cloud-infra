@@ -5,7 +5,7 @@ metadata:
   labels:
     app: dme
 spec:
-  replicas: {{ dme_replicas }}
+  replicas: 1
   selector:
     matchLabels:
       app: dme
@@ -20,11 +20,11 @@ spec:
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: "150m"
-            memory: "100Mi"
+            cpu: "{{ dme_cpu_request }}"
+            memory: "{{ dme_memory_request | human_to_bytes }}"
           limits:
-            cpu: "300m"
-            memory: "200Mi"
+            cpu: "{{ dme_cpu_limit }}"
+            memory: "{{ dme_memory_limit | human_to_bytes }}"
         command:
          - "dme-server"
          - "--commonName"

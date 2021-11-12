@@ -1,0 +1,7 @@
+regions:
+  - name: mexplat-upg-eu
+    location: northeurope
+    region: EU
+    latitude: 53.3478
+    longitude: -6.2597
+    kubernetes_version: 1.18.19

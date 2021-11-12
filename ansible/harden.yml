@@ -1,0 +1,25 @@
+---
+- hosts:
+  - "all,!localhost,!platform"
+  gather_facts: yes
+  tasks:
+
+    - name: Turn off cron access globally except for ansible user
+      template:
+        src: cron.allow.j2
+        dest: /etc/cron.allow
+        owner: root
+        group: root
+        mode: 0644
+      become: yes
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'
+
+    - name: 'Turn off "at" access globally'
+      copy:
+        dest: /etc/at.allow
+        content: ""
+        owner: root
+        group: root
+        mode: 0644
+      become: yes
+      when: ansible_distribution == 'Debian' or ansible_distribution == 'Ubuntu'

@@ -370,7 +370,6 @@ tests:
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
       yaml2: '{{datadir2}}/mcappdata_empty.yml'
-      # mcdata-xind keeps health check status
       filetype: mcalerts
 
   - name: check that the app on the cloudlet is back online
@@ -382,6 +381,7 @@ tests:
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
       yaml2: '{{datadir2}}/cloudlet_alert_appinst_online_show.yml'
+      # mcdata-xind keeps health check status
       filetype: mcdata-xind
 
   - name: enable resource quotas alerts

@@ -44,8 +44,8 @@ var edgeboxProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := e.generic.Init(ctx, platformConfig, caches, updateCallback)
+func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, platformActive bool, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := e.generic.Init(ctx, platformConfig, caches, platformActive, updateCallback)
 	// Set the test Mode based on what is in PlatformConfig
 	infracommon.SetTestMode(platformConfig.TestMode)
 	infracommon.SetEdgeboxMode(true)

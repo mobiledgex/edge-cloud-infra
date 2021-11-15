@@ -469,7 +469,7 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 			// present in edge-cloud image itself
 			containerVersion := cloudlet.ContainerVersion
 			cloudlet.ContainerVersion = ""
-			serviceCmdArgs, envVars, err = cloudcommon.GetCRMCmdArgs(cloudlet, pfConfig, process.HARoleNone) // TODO HA Role
+			serviceCmdArgs, envVars, err = cloudcommon.GetCRMCmdArgs(cloudlet, pfConfig, process.HARolePrimary) // TODO phase 2
 			if err != nil {
 				return nil, err
 			}

@@ -905,13 +905,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// AllianceOrgs: 47
 	// SingleKubernetesClusterOwner: 48
 	// DeletePrepare: 49
-<<<<<<< HEAD
 	// PlatformHighAvailability: 50
 	// SecondaryCrmAccessPublicKey: 51
 	// SecondaryCrmAccessKeyUpgradeRequired: 52
 	// SecondaryNotifySrvAddr: 53
-=======
->>>>>>> b026f04e1c8d664a8d86bc04c195438984fff61c
 	// ```
 	// Security:
 	//   Bearer:

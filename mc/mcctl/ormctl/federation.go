@@ -167,12 +167,13 @@ func init() {
 			Name:         "CreateFederation",
 			Use:          "create",
 			Short:        "Create Federation",
-			SpecialArgs:  &FederatorSpecialArgs,
+			SpecialArgs:  &FederationSpecialArgs,
 			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
 			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
+			OptionalArgs: strings.Join(FederationUpdateArgs, " "),
 			ReqData:      &ormapi.Federation{},
-			ReplyData:    &ormapi.Result{},
+			ReplyData:    &ormapi.FederationApiKey{},
 			Path:         "/auth/federation/create",
 		},
 		&ApiCommand{
@@ -185,6 +186,30 @@ func init() {
 			ReqData:      &ormapi.Federation{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federation/delete",
+		},
+		&ApiCommand{
+			Name:         "SetPartnerFederationAPIKey",
+			Use:          "setpartnerapikey",
+			Short:        "Set Partner Federation API Key",
+			SpecialArgs:  &FederatorSpecialArgs,
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			RequiredArgs: strings.Join(append(FederationArgs, FederationUpdateArgs...), " "),
+			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &ormapi.Result{},
+			Path:         "/auth/federation/partner/setapikey",
+		},
+		&ApiCommand{
+			Name:         "GenerateSelfFederationAPIKey",
+			Use:          "generateselfapikey",
+			Short:        "Generate Self Federation API Key",
+			SpecialArgs:  &FederatorSpecialArgs,
+			AliasArgs:    strings.Join(FederationAliasArgs, " "),
+			RequiredArgs: strings.Join(FederationArgs, " "),
+			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
+			ReqData:      &ormapi.Federation{},
+			ReplyData:    &ormapi.FederationApiKey{},
+			Path:         "/auth/federation/self/generateapikey",
 		},
 		&ApiCommand{
 			Name:         "RegisterFederation",
@@ -212,7 +237,7 @@ func init() {
 			Name:         "ShowFederation",
 			Use:          "show",
 			Short:        "Show Federation",
-			SpecialArgs:  &FederatorSpecialArgs,
+			SpecialArgs:  &FederationSpecialArgs,
 			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			OptionalArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
 			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
@@ -255,6 +280,10 @@ var FederationArgs = []string{
 	"name",
 }
 
+var FederationUpdateArgs = []string{
+	"apikey",
+}
+
 var FederationAliasArgs = []string{
 	"operatorid=federator.operatorid",
 	"countrycode=federator.countrycode",
@@ -263,9 +292,13 @@ var FederationAliasArgs = []string{
 	"mcc=federator.mcc",
 	"mnc=federator.mnc",
 	"locatorendpoint=federator.locatorendpoint",
+	"apikey=federator.apikey",
 }
 
 var FederatorSpecialArgs = map[string]string{
+	"mnc": "StringArray",
+}
+var FederationSpecialArgs = map[string]string{
 	"federator.mnc": "StringArray",
 }
 var FederatorZoneSpecialArgs = map[string]string{
@@ -278,6 +311,7 @@ var FederatorZoneRequiredArgs = []string{
 	"countrycode",
 	"cloudlets",
 	"geolocation",
+	"region",
 }
 
 var FederatorZoneOptionalArgs = []string{
@@ -294,7 +328,7 @@ var FederatorZoneAliasArgs = []string{
 	"city=federatorzone.city",
 	"state=federatorzone.state",
 	"locality=federatorzone.locality",
-	"region=federatorzone.locality",
+	"region=federatorzone.region",
 	"cloudlets=federatorzone.cloudlets",
 }
 

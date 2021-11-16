@@ -771,9 +771,10 @@ func (v *VMPlatform) GetRootLBClientsForTpe(ctx context.Context, tpeKey *edgepro
 			log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client for VM app instance", "key", appInst, "error", err)
 			client = nil
 			// set client as nil and continue, caller will generate alert accordingly
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Found Root lbName", "lbName", lbName)
+			rootLBClients[lbName] = client
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "Found Root lbName", "lbName", lbName)
-		rootLBClients[lbName] = client
 	}
 	return rootLBClients, nil
 }

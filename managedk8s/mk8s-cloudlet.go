@@ -145,3 +145,13 @@ func (v *ManagedK8sPlatform) GetRestrictedCloudletStatus(ctx context.Context, cl
 func (v *ManagedK8sPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	return nil, nil
 }
+
+func (v *ManagedK8sPlatform) HasTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey, clusterInst *edgeproto.ClusterInst) bool {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ManagedK8sPlatform HasTrustPolicyException", "policyKey", TrustPolicyExceptionKey)
+	return false
+}
+
+func (v *ManagedK8sPlatform) TrustPolicyExceptionCount(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey) int {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ManagedK8sPlatform TrustPolicyExceptionCount", "policyKey", TrustPolicyExceptionKey)
+	return 0
+}

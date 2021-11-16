@@ -400,6 +400,16 @@ func (v *VMPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicy
 	return v.VMProvider.ConfigureTrustPolicyExceptionSecurityRules(ctx, &TrustPolicyException, rootlbClients, ActionDelete, edgeproto.DummyUpdateCallback)
 }
 
+func (v *VMPlatform) HasTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey, clusterInst *edgeproto.ClusterInst) bool {
+	log.SpanLog(ctx, log.DebugLevelInfra, "VMPlatform HasTrustPolicyException", "policyKey", TrustPolicyExceptionKey)
+	return false
+}
+
+func (v *VMPlatform) TrustPolicyExceptionCount(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey) int {
+	log.SpanLog(ctx, log.DebugLevelInfra, "VMPlatform TrustPolicyExceptionCount", "policyKey", TrustPolicyExceptionKey)
+	return 0
+}
+
 func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Deleting cloudlet", "cloudletName", cloudlet.Key.Name)
 

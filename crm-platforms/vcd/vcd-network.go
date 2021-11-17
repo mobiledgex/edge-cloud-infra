@@ -1194,7 +1194,7 @@ func (v *VcdPlatform) RebuildIsoNamesAndFreeMaps(ctx context.Context) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "found org vdc networks", "num nets", len(orgNets))
 	rootLBFound := false
 	var rootlbVapp *govcd.VApp
-	lbServerDetail, err := v.GetServerDetail(ctx, v.vmProperties.SharedRootLBName)
+	lbServerDetail, err := v.GetServerDetailWithVdc(ctx, v.vmProperties.SharedRootLBName, vdc, vcdClient)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB find fail", "err", err)
 	} else {

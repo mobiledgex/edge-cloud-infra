@@ -208,6 +208,12 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 		if err.Error() == vmlayer.ServerDoesNotExistError {
 			return err
 		}
+		if v.GetHrefCacheEnabled() {
+			for _, vm := range vapp.VApp.Children.VM {
+				// delete from cache
+				v.DeleteVmHrefFromCache(ctx, vm.Name)
+			}
+		}
 		return nil
 	}
 
@@ -478,7 +484,7 @@ func (v *VcdPlatform) GetAllVMsInVApp(ctx context.Context, vapp *govcd.VApp) (VM
 	}
 	var err error
 	for _, child := range vapp.VApp.Children.VM {
-		vm, err := vapp.GetVMByName(child.Name, true)
+		vm, err := vapp.GetVMByName(child.Name, false)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsInVApp child vm not found ", "Vapp", vapp.VApp.Name, "vm", child.Name, "err", err)
 			return vmMap, err

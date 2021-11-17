@@ -1270,7 +1270,7 @@ func (v *VcdPlatform) FindVMByHrefCache(ctx context.Context, vmName string, vcdC
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "FindVMByName could not get VM by href", "err", err)
 		// delete the href from the cache since we could not find anything with it
-		v.DeleteVmHrefFromCache(ctx, href)
+		v.DeleteVmHrefFromCache(ctx, vmName)
 	}
 	return nil
 }

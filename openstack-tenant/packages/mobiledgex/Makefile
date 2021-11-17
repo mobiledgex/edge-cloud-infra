@@ -1,5 +1,5 @@
 PACKAGE = mobiledgex
-VERSION = 4.6.0
+VERSION = 4.6.1
 DISTRIBUTION = cirrus
 COMPONENT = main
 
@@ -33,6 +33,7 @@ setup_files: \
 	$(PKGDIR)/etc/mobiledgex/get-flavor.sh \
 	$(PKGDIR)/etc/mobiledgex/setup-chef.sh \
 	$(PKGDIR)/etc/mobiledgex/install-gpu-driver.sh \
+	$(PKGDIR)/etc/mobiledgex/weave-2.8.1.yml \
 	$(PKGDIR)/etc/systemd/system/mobiledgex.service \
 	$(PKGDIR)/usr/local/bin/mobiledgex-init.sh
 

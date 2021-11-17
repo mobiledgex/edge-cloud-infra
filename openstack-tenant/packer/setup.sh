@@ -119,6 +119,10 @@ machine artifactory.mobiledgex.net login ${APT_USER} password ${APT_PASS}
 machine apt.mobiledgex.net login ${APT_USER} password ${APT_PASS}
 EOT
 
+sudo tee /etc/apt/apt.conf.d/10cert-validation <<EOT
+Acquire::https::Verify-Peer "false";
+EOT
+
 log "Set up the APT keys"
 curl -s https://${APT_USER}:${APT_PASS}@artifactory.mobiledgex.net/artifactory/api/gpg/key/public | sudo apt-key add -
 curl -s https://${APT_USER}:${APT_PASS}@apt.mobiledgex.net/gpg.key | sudo apt-key add -

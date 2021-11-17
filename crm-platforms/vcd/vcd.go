@@ -189,7 +189,8 @@ func (v VcdPlatform) CheckServerReady(ctx context.Context, client ssh.Client, se
 	}
 }
 
-// Retrieve our top level Org object. Always tries from context
+// Retrieve our top level Org object. Tries to retrieve the org from context first, if the org is not
+// in context then uses the APIs to retrieve it
 func (v *VcdPlatform) GetOrg(ctx context.Context, vcdClient *govcd.VCDClient) (*govcd.Org, error) {
 	// try to get from context first
 	org, found := ctx.Value(VCDOrgCtxKey).(*govcd.Org)

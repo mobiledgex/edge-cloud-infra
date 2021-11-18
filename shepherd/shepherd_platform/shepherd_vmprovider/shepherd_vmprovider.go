@@ -230,3 +230,7 @@ func (s *ShepherdPlatform) SetUsageAccessArgs(ctx context.Context, addr string, 
 	// Nothing to do for vmprovider
 	return nil
 }
+
+func (s *ShepherdPlatform) IsPlatformLocal(ctx context.Context) bool {
+	return false
+}

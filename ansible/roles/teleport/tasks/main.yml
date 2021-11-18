@@ -1,0 +1,84 @@
+---
+- name: Add teleport GPG key
+  apt_key:
+    url: https://deb.releases.teleport.dev/teleport-pubkey.asc
+    state: present
+  become: yes
+
+- name: Add teleport APT repo
+  apt_repository:
+    repo: deb https://deb.releases.teleport.dev/ stable main
+    state: present
+  become: yes
+
+- name: Install teleport
+  apt:
+    name: "teleport={{ teleport_version }}"
+    state: present
+    update_cache: yes
+  become: yes
+  notify: Restart teleport
+
+- name: Install config file
+  template:
+    src: teleport.yaml.j2
+    dest: "{{ teleport_config }}"
+    mode: 0400
+  become: yes
+  notify: Restart teleport
+
+- name: Install systemd service
+  template:
+    src: teleport.service.j2
+    dest: /etc/systemd/system/teleport.service
+  become: yes
+
+- name: Start the teleport service
+  systemd:
+    name: teleport
+    enabled: yes
+    state: started
+  become: yes
+
+- name: Create teleport config dir
+  file:
+    path: /etc/teleport
+    state: directory
+    owner: root
+    group: root
+    mode: 0700
+  become: yes
+  register: teleport_config_dir
+
+- name: Load github credentials
+  import_role:
+    name: load-vault-creds
+    tasks_from: teleport-github
+
+- name: Install github auth config
+  template:
+    src: github.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/github.yaml"
+    mode: 0400
+  become: yes
+  notify: Import github auth
+
+- name: Install infra access roles
+  include_role:
+    name: teleport
+    tasks_from: roles
+  loop: [ "dev", "qa", "stage", "main" ]
+  loop_control:
+    loop_var: environ
+
+- name: Set up audit-access role
+  template:
+    src: audit-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/audit-access-role.yaml"
+  become: yes
+  register: audit_role
+
+- name: Apply audit-access role
+  command: "tctl create -f {{ audit_role.dest }}"
+  become: yes
+  when: role is changed

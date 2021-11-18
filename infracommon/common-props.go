@@ -17,7 +17,7 @@ import (
 // Ansible should always specify the correct ones to the controller.
 // These are not used if running the CRM manually, because these are only
 // used by CreateCloudlet to set up the CRM VM and container.
-var DefaultContainerRegistryPath = "registry.mobiledgex.net:5000/mobiledgex/edge-cloud"
+var DefaultContainerRegistryPath = "registry.mobiledgex.net:5000/mobiledgex/edge-cloud-crm"
 
 // Cloudlet Infra Common Properties
 var InfraCommonProps = map[string]*edgeproto.PropertyInfo{
@@ -49,7 +49,7 @@ var InfraCommonProps = map[string]*edgeproto.PropertyInfo{
 		Name:        "Platform Stats Max Cache Time",
 		Description: "Maximum time to used cached platform stats if nothing changed, in seconds",
 		Internal:    true,
-		Value:       "60",
+		Value:       "3600",
 	},
 }
 

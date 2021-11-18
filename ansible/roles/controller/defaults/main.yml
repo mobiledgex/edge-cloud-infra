@@ -1,4 +1,8 @@
 artifactory_fqdn: https://artifactory.mobiledgex.net/artifactory/
-cloudlet_registry_path: registry.mobiledgex.net:5000/mobiledgex/edge-cloud
+cloudlet_registry_path: registry.mobiledgex.net:5000/mobiledgex/edge-cloud-crm
 cloudlet_vm_path: "https://artifactory.mobiledgex.net/artifactory/baseimages"
-controller_replicas: 1
+controller_replicas: 3
+controller_cpu_request: 200m
+controller_cpu_limit: 400m
+controller_memory_request: 500 MB
+controller_memory_limit: 2 GB

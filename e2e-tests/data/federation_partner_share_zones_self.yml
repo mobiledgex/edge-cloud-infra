@@ -1,0 +1,29 @@
+federatedselfzones:
+# Share with tmus/SA
+- selfoperatorid: {{partnertag}}
+  federationname: {{partnertag}}-{{region}}-tmus-SA-fed
+  zoneid: {{partnertag}}-cloud-1
+- selfoperatorid: {{partnertag}}
+  federationname: {{partnertag}}-{{region}}-tmus-SA-fed
+  zoneid: {{partnertag}}-cloud-2
+# Share with tmus/SB
+- selfoperatorid: {{partnertag}}
+  federationname: {{partnertag}}-{{region}}-tmus-SB-fed
+  zoneid: {{partnertag}}-cloud-1
+- selfoperatorid: {{partnertag}}
+  federationname: {{partnertag}}-{{region}}-tmus-SB-fed
+  zoneid: {{partnertag}}-cloud-2
+# Share with enterprise/SA
+- selfoperatorid: {{partnertag}}
+  federationname: {{partnertag}}-{{region}}-enterprise-SA-fed
+  zoneid: {{partnertag}}-cloud-1
+- selfoperatorid: {{partnertag}}
+  federationname: {{partnertag}}-{{region}}-enterprise-SA-fed
+  zoneid: {{partnertag}}-cloud-2
+# Share with enterprise/SB
+- selfoperatorid: {{partnertag}}
+  federationname: {{partnertag}}-{{region}}-enterprise-SB-fed
+  zoneid: {{partnertag}}-cloud-1
+- selfoperatorid: {{partnertag}}
+  federationname: {{partnertag}}-{{region}}-enterprise-SB-fed
+  zoneid: {{partnertag}}-cloud-2

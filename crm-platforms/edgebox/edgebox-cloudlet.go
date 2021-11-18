@@ -13,17 +13,17 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-func (e *EdgeboxPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+func (e *EdgeboxPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet for edgebox")
-	err := e.generic.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, nil, accessApi, updateCallback)
+	cloudletResourcesCreated, err := e.generic.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, nil, accessApi, updateCallback)
 	if err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
 	if err = fakeinfra.ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback); err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
 
-	return fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
+	return cloudletResourcesCreated, fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
 func (e *EdgeboxPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -35,6 +35,16 @@ func (e *EdgeboxPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeprot
 
 func (e *EdgeboxPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgeproto.TrustPolicy) error {
 	log.DebugLog(log.DebugLevelInfra, "update edgebox TrustPolicy", "policy", TrustPolicy)
+	return nil
+}
+
+func (e *EdgeboxPlatform) UpdateTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException) error {
+	log.DebugLog(log.DebugLevelInfra, "update edgebox TrustPolicyException", "policy", TrustPolicyException)
+	return nil
+}
+
+func (e *EdgeboxPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey) error {
+	log.DebugLog(log.DebugLevelInfra, "delete edgebox TrustPolicyException", "policyKey", TrustPolicyExceptionKey)
 	return nil
 }
 

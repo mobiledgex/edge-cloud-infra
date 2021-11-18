@@ -28,6 +28,7 @@
     - policies/cloudlets.read.v1.hcl.j2
     - policies/cloudlets.write.v1.hcl.j2
     - policies/edge-cloud-registry.read.v1.hcl.j2
+    - policies/federation.write.v1.hcl.j2
     - policies/gcs.read.v1.hcl.j2
     - policies/gcp-auth.read.v1.hcl.j2
     - policies/gcp-bucket-create-key.read.v1.hcl.j2

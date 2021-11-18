@@ -1,0 +1,7 @@
+- name: Look up teleport github app credentials in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', teleport_github_creds_path) }}"
+
+- set_fact:
+    client_id: "{{ vault_lookup.teleport_github.data.client_id }}"
+    client_secret: "{{ vault_lookup.teleport_github.data.client_secret }}"

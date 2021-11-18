@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -234,7 +236,7 @@ func createOrgCloudletPool(ctx context.Context, op *ormapi.OrgCloudletPool) erro
 		return fmt.Errorf("Specified developer organization not found")
 	}
 	if res.Error != nil {
-		return dbErr(res.Error)
+		return ormutil.DbErr(res.Error)
 	}
 	if org.Type != OrgTypeDeveloper {
 		return fmt.Errorf("Specified organization is not a developer organization")
@@ -262,7 +264,7 @@ func createOrgCloudletPool(ctx context.Context, op *ormapi.OrgCloudletPool) erro
 		if strings.Contains(err.Error(), "duplicate key value violates unique") {
 			return fmt.Errorf("CloudletPool %s for org %s, region %s, pool %s poolorg %s already exists", op.Type, op.Org, op.Region, op.CloudletPool, op.CloudletPoolOrg)
 		}
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	return nil
 }
@@ -318,7 +320,7 @@ func deleteOrgCloudletPool(ctx context.Context, op *ormapi.OrgCloudletPool) erro
 	}
 	res := db.Delete(op, args...)
 	if res.Error != nil {
-		return dbErr(res.Error)
+		return ormutil.DbErr(res.Error)
 	}
 	if res.RowsAffected == 0 {
 		return fmt.Errorf("%s not found", util.CapitalizeMessage(op.Type))
@@ -332,7 +334,7 @@ func ShowOrgCloudlet(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	oc := ormapi.OrgCloudlet{}
 	_, err = ReadConn(c, &oc)
 	if err != nil {
@@ -354,7 +356,7 @@ func ShowOrgCloudlet(c echo.Context) error {
 		return fmt.Errorf("Specified Organization not found")
 	}
 	if res.Error != nil {
-		return dbErr(res.Error)
+		return ormutil.DbErr(res.Error)
 	}
 
 	authzCloudlet := AuthzCloudlet{}
@@ -363,13 +365,14 @@ func ShowOrgCloudlet(c echo.Context) error {
 		return err
 	}
 
-	rc := RegionContext{
-		region:    oc.Region,
-		username:  claims.Username,
-		skipAuthz: true,
+	rc := ormutil.RegionContext{
+		Region:    oc.Region,
+		Username:  claims.Username,
+		SkipAuthz: true,
+		Database:  database,
 	}
 	show := make([]*edgeproto.Cloudlet, 0)
-	err = ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, func(cloudlet *edgeproto.Cloudlet) error {
+	err = ctrlclient.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, connCache, nil, func(cloudlet *edgeproto.Cloudlet) error {
 		authzOk, filterOutput := authzCloudlet.Ok(cloudlet)
 		if authzOk {
 			if filterOutput {
@@ -382,7 +385,7 @@ func ShowOrgCloudlet(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, show)
+	return ormutil.SetReply(c, show)
 }
 
 // Used by UI to show cloudlets for the current organization
@@ -391,7 +394,7 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	oc := ormapi.OrgCloudlet{}
 	_, err = ReadConn(c, &oc)
 	if err != nil {
@@ -412,7 +415,7 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 		return fmt.Errorf("Specified Organization not found")
 	}
 	if res.Error != nil {
-		return dbErr(res.Error)
+		return ormutil.DbErr(res.Error)
 	}
 
 	authzCloudlet := AuthzCloudlet{}
@@ -421,13 +424,14 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 		return err
 	}
 
-	rc := RegionContext{
-		region:    oc.Region,
-		username:  claims.Username,
-		skipAuthz: true,
+	rc := ormutil.RegionContext{
+		Region:    oc.Region,
+		Username:  claims.Username,
+		SkipAuthz: true,
+		Database:  database,
 	}
 	show := make([]*edgeproto.CloudletInfo, 0)
-	err = ShowCloudletInfoStream(ctx, &rc, &edgeproto.CloudletInfo{}, func(CloudletInfo *edgeproto.CloudletInfo) error {
+	err = ctrlclient.ShowCloudletInfoStream(ctx, &rc, &edgeproto.CloudletInfo{}, connCache, nil, func(CloudletInfo *edgeproto.CloudletInfo) error {
 		cloudlet := edgeproto.Cloudlet{
 			Key: CloudletInfo.Key,
 		}
@@ -452,7 +456,7 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, show)
+	return ormutil.SetReply(c, show)
 }
 
 // Operators invite Developers to their CloudletPool
@@ -501,11 +505,11 @@ func createDeleteCloudletPoolAccess(c echo.Context, action cloudcommon.Action, t
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	in := ormapi.OrgCloudletPool{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	if err := validateOrgCloudletPool(&in); err != nil {
 		return err
@@ -540,7 +544,7 @@ func createDeleteCloudletPoolAccess(c echo.Context, action cloudcommon.Action, t
 				return fmt.Errorf("No invitation for specified cloudlet pool access")
 			}
 			if res.Error != nil {
-				return dbErr(res.Error)
+				return ormutil.DbErr(res.Error)
 			}
 		}
 	} else {
@@ -568,7 +572,7 @@ func createDeleteCloudletPoolAccess(c echo.Context, action cloudcommon.Action, t
 		return err
 	}
 	// TODO: trigger email or slack to notify other party
-	return setReply(c, Msg(msg))
+	return ormutil.SetReply(c, ormutil.Msg(msg))
 }
 
 func showCloudletPoolAccess(c echo.Context, typ string) error {
@@ -576,7 +580,7 @@ func showCloudletPoolAccess(c echo.Context, typ string) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	filter, err := bindDbFilter(c, &ormapi.OrgCloudletPool{})
 	if err != nil {
@@ -586,7 +590,7 @@ func showCloudletPoolAccess(c echo.Context, typ string) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, out)
+	return ormutil.SetReply(c, out)
 }
 
 func showCloudletPoolAccessObj(ctx context.Context, username string, filter map[string]interface{}, typ string) ([]ormapi.OrgCloudletPool, error) {
@@ -612,7 +616,7 @@ func showCloudletPoolAccessObj(ctx context.Context, username string, filter map[
 	db := loggedDB(ctx)
 	err = db.Where(filter).Find(&ops).Error
 	if err != nil {
-		return nil, dbErr(err)
+		return nil, ormutil.DbErr(err)
 	}
 
 	retops := []ormapi.OrgCloudletPool{}

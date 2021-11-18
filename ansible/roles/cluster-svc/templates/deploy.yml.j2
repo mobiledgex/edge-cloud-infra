@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: cluster-svc
-        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        image: "{{ edge_cloud_image }}-cluster-svc:{{ edge_cloud_version }}"
         imagePullPolicy: Always
         resources:
           requests:
@@ -42,6 +42,7 @@ spec:
          - "infra,notify,api"
          - "--scrapeInterval"
          - "5s"
+         - "pluginRequired"
         env:
          - name: JAEGER_ENDPOINT
            value: "{{ jaeger_endpoint }}"

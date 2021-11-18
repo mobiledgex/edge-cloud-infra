@@ -1,0 +1,41 @@
+federators:
+- operatorid: {{partnertag}}
+  countrycode: {{region}}
+  region: {{region}}
+  federationid: {{partnertag}}-{{region}}-tmus-SA
+  federationaddr: {{fedaddr}}
+  mcc: 123
+  mnc:
+  - 111
+  - 222
+  - 333
+- operatorid: {{partnertag}}
+  countrycode: {{region}}
+  region: {{region}}
+  federationid: {{partnertag}}-{{region}}-tmus-SB
+  federationaddr: {{fedaddr}}
+  mcc: 123
+  mnc:
+  - 111
+  - 222
+  - 333
+- operatorid: {{partnertag}}
+  countrycode: {{region}}
+  region: {{region}}
+  federationid: {{partnertag}}-{{region}}-enterprise-SA
+  federationaddr: {{fedaddr}}
+  mcc: 123
+  mnc:
+  - 111
+  - 222
+  - 333
+- operatorid: {{partnertag}}
+  countrycode: {{region}}
+  region: {{region}}
+  federationid: {{partnertag}}-{{region}}-enterprise-SB
+  federationaddr: {{fedaddr}}
+  mcc: 123
+  mnc:
+  - 111
+  - 222
+  - 333

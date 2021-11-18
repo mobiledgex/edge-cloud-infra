@@ -8,6 +8,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/ratelimit"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -109,7 +110,7 @@ func InitRateLimitMc(ctx context.Context) error {
 	}
 
 	// Init RateLimitMgr and add Global RateLimitSettings and UserCreate RateLimitSettings
-	rateLimitMgr = ratelimit.NewRateLimitManager(getDisableRateLimit(ctx), getMaxNumPerIpRateLimiters(ctx), getMaxNumPerUserRateLimiters(ctx))
+	rateLimitMgr = ratelimit.NewRateLimitManager(getDisableRateLimit(ctx), getRateLimitMaxTrackedIps(ctx), getRateLimitMaxTrackedUsers(ctx))
 	rateLimitMgr.CreateApiEndpointLimiter(edgeproto.GlobalApiName, convertToRateLimitSettings(GlobalAllRequestsMcRateLimitSettings), convertToRateLimitSettings(GlobalPerIpMcRateLimitSettings), convertToRateLimitSettings(GlobalPerUserMcRateLimitSettings))
 	rateLimitMgr.CreateApiEndpointLimiter(userCreateApiName, convertToRateLimitSettings(UserCreateAllRequestsMcRateLimitSettings), convertToRateLimitSettings(UserCreatePerIpMcRateLimitSettings), nil)
 	return nil
@@ -165,7 +166,7 @@ func executeDbOperationOnMcRateLimitSettings(settings *ormapi.McRateLimitSetting
 // Echo middleware function that handles rate limiting for MC APIs
 func RateLimit(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		ctx := GetContext(c)
+		ctx := ormutil.GetContext(c)
 
 		// Check if rate limiting is disabled, if disabled continue
 		if getDisableRateLimit(ctx) {
@@ -208,29 +209,29 @@ func getDisableRateLimit(ctx context.Context) bool {
 	return config.DisableRateLimit
 }
 
-// Helper function that grabs the MaxNumPerIpRateLimiters int from the Config struct
-func getMaxNumPerIpRateLimiters(ctx context.Context) int {
+// Helper function that grabs the RateLimitMaxTrackedIps int from the Config struct
+func getRateLimitMaxTrackedIps(ctx context.Context) int {
 	config, err := getConfig(ctx)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "unable to check config for maxNumPerIpRateLimiters", "err", err)
-		return defaultConfig.MaxNumPerIpRateLimiters
+		log.SpanLog(ctx, log.DebugLevelApi, "unable to check config for RateLimitMaxTrackedIps", "err", err)
+		return defaultConfig.RateLimitMaxTrackedIps
 	}
-	return config.MaxNumPerIpRateLimiters
+	return config.RateLimitMaxTrackedIps
 }
 
-// Helper function that grabs the MaxNumPerUserRateLimiters int from the Config struct
-func getMaxNumPerUserRateLimiters(ctx context.Context) int {
+// Helper function that grabs the RateLimitMaxTrackedUsers int from the Config struct
+func getRateLimitMaxTrackedUsers(ctx context.Context) int {
 	config, err := getConfig(ctx)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "unable to check config for maxNumPerUserRateLimiters", "err", err)
-		return defaultConfig.MaxNumPerUserRateLimiters
+		log.SpanLog(ctx, log.DebugLevelApi, "unable to check config for RateLimitMaxTrackedUsers", "err", err)
+		return defaultConfig.RateLimitMaxTrackedUsers
 	}
-	return config.MaxNumPerUserRateLimiters
+	return config.RateLimitMaxTrackedUsers
 }
 
 // Show MC RateLimit settings
 func ShowRateLimitSettingsMc(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	// Check if rate limiting is disabled
 	if getDisableRateLimit(ctx) {
@@ -249,7 +250,7 @@ func ShowRateLimitSettingsMc(c echo.Context) error {
 	// Get McRateLimitSettings from request
 	in := ormapi.McRateLimitSettings{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 
 	db := loggedDB(ctx)
@@ -259,7 +260,7 @@ func ShowRateLimitSettingsMc(c echo.Context) error {
 	}
 
 	show := buildMcRateLimitSettings(mcflowrecords, mcmaxreqsrecords)
-	return setReply(c, &show)
+	return ormutil.SetReply(c, &show)
 }
 
 // Search for all entries with specified primary keys (if fields are not specified, fields are left out of search)
@@ -274,7 +275,7 @@ func getAllEntriesForApiAndTarget(ctx context.Context, db *gorm.DB, apiName stri
 		return nil, nil, fmt.Errorf("Specified Key not found")
 	}
 	if r.Error != nil {
-		return nil, nil, dbErr(r.Error)
+		return nil, nil, ormutil.DbErr(r.Error)
 	}
 
 	mcflowrecords := make([]*ormapi.McRateLimitFlowSettings, 0)

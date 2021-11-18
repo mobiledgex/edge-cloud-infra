@@ -1,0 +1,53 @@
+federations:
+- name: {{partnertag}}-{{region}}-tmus-SA-fed
+  selfoperatorid: {{partnertag}}
+  selffederationid: {{partnertag}}-{{region}}-tmus-SA
+  federator:
+    operatorid: tmus
+    countrycode: SA
+    federationid: tmus-SA-{{partnertag}}-{{region}}
+    federationaddr: "127.0.0.1:9801"
+    mcc: 456
+    mnc:
+    - 444
+    - 555
+    - 666
+- name: {{partnertag}}-{{region}}-tmus-SB-fed
+  selfoperatorid: {{partnertag}}
+  selffederationid: {{partnertag}}-{{region}}-tmus-SB
+  federator:
+    operatorid: tmus
+    countrycode: SB
+    federationid: tmus-SB-{{partnertag}}-{{region}}
+    federationaddr: "127.0.0.1:9801"
+    mcc: 456
+    mnc:
+    - 444
+    - 555
+    - 666
+- name: {{partnertag}}-{{region}}-enterprise-SA-fed
+  selfoperatorid: {{partnertag}}
+  selffederationid: {{partnertag}}-{{region}}-enterprise-SA
+  federator:
+    operatorid: enterprise
+    countrycode: SA
+    federationid: enterprise-SA-{{partnertag}}-{{region}}
+    federationaddr: "127.0.0.1:9801"
+    mcc: 456
+    mnc:
+    - 444
+    - 555
+    - 666
+- name: {{partnertag}}-{{region}}-enterprise-SB-fed
+  selfoperatorid: {{partnertag}}
+  selffederationid: {{partnertag}}-{{region}}-enterprise-SB
+  federator:
+    operatorid: enterprise
+    countrycode: SB 
+    federationid: enterprise-SB-{{partnertag}}-{{region}}
+    federationaddr: "127.0.0.1:9801"
+    mcc: 789
+    mnc:
+    - 777
+    - 888
+    - 999

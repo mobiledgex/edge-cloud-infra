@@ -85,6 +85,10 @@ func (s *Platform) SetUsageAccessArgs(ctx context.Context, addr string, client s
 	return nil
 }
 
+func (s *Platform) IsPlatformLocal(ctx context.Context) bool {
+	return true
+}
+
 // UTClient hijacks a set of commands and returns predetermined output
 // For all other commands it just calls pc.LocalClient equivalents
 type UTClient struct {

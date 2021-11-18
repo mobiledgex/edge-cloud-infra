@@ -104,15 +104,11 @@ func GetIPFromServerDetails(ctx context.Context, networkName string, portName st
 	return nil, fmt.Errorf(ServerIPNotFound+" for server: %s on network: %s port: %s", sd.Name, networkName, portName)
 }
 
-func GetCloudletNetworkIfaceFile(netplanEnabled bool) string {
-	if netplanEnabled {
-		return "/etc/netplan/50-cloud-init.yaml"
-	} else {
-		return "/etc/network/interfaces.d/50-cloud-init.cfg"
-	}
+func GetCloudletNetworkIfaceFile() string {
+	return "/etc/netplan/50-cloud-init.yaml"
 }
 
-func (v *VMPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (string, error) {
+func (v *VMPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst) (string, error) {
 	var err error
 	var result OperationInitResult
 	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
@@ -125,8 +121,16 @@ func (v *VMPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (str
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeVM:
-		objName := cloudcommon.GetAppFQN(&app.Key)
-		return v.VMProvider.GetConsoleUrl(ctx, objName)
+
+		objName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, "")
+
+		url, err := v.VMProvider.GetConsoleUrl(ctx, objName)
+		if err != nil {
+			// try old format
+			objName = cloudcommon.GetAppFQN(&app.Key)
+			return v.VMProvider.GetConsoleUrl(ctx, objName)
+		}
+		return url, err
 	default:
 		return "", fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -147,7 +151,7 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeVM:
-		serverName := cloudcommon.GetAppFQN(&app.Key)
+		serverName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, "")
 		fqdn := appInst.Uri
 
 		log.SpanLog(ctx, log.DebugLevelInfra, "setting server state", "serverName", serverName, "fqdn", fqdn, "PowerState", PowerState)
@@ -155,7 +159,12 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 		updateCallback(edgeproto.UpdateTask, "Verifying AppInst state")
 		serverDetail, err := v.VMProvider.GetServerDetail(ctx, serverName)
 		if err != nil {
-			return err
+			// try old format
+			serverName = cloudcommon.GetAppFQN(&app.Key)
+			serverDetail, err = v.VMProvider.GetServerDetail(ctx, serverName)
+			if err != nil {
+				return err
+			}
 		}
 
 		serverAction := ""

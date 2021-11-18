@@ -65,6 +65,7 @@ type VMProvider interface {
 	ValidateAdditionalNetworks(ctx context.Context, additionalNets map[string]NetworkType) error
 	GetSessionTokens(ctx context.Context, vaultConfig *vault.Config, account string) (map[string]string, error)
 	ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, rootlbClients map[string]ssh.Client, action ActionType, updateCallback edgeproto.CacheUpdateCallback) error
+	ConfigureTrustPolicyExceptionSecurityRules(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, rootLbClients map[string]ssh.Client, action ActionType, updateCallback edgeproto.CacheUpdateCallback) error
 	InitOperationContext(ctx context.Context, operationStage OperationInitStage) (context.Context, OperationInitResult, error)
 	GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error)
 	GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error)
@@ -478,7 +479,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	log.SpanLog(ctx, log.DebugLevelInfra, "calling SetupRootLB")
 	updateCallback(edgeproto.UpdateTask, "Setting up RootLB")
 	rootLBFQDN := v.GetRootLBFQDN(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
-	err = v.SetupRootLB(ctx, v.VMProperties.SharedRootLBName, rootLBFQDN, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, nil, true, updateCallback)
+	err = v.SetupRootLB(ctx, v.VMProperties.SharedRootLBName, rootLBFQDN, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, nil, updateCallback)
 	if err != nil {
 		return err
 	}

@@ -90,8 +90,8 @@ var ConfigComments = map[string]string{
 	"userapikeycreatelimit":        `Max number of API keys a user can create`,
 	"billingenable":                `Toggle for enabling billing (primarily for testing purposes)`,
 	"disableratelimit":             `Toggle to enable and disable MC API rate limiting`,
-	"maxnumperipratelimiters":      `Maximum number of PerIp rate limiters for an api`,
-	"maxnumperuserratelimiters":    `Maximum number of PerUser rate limiters for an api`,
+	"ratelimitmaxtrackedips":       `Maximum number of IPs tracked per API group for rate limiting at MC`,
+	"ratelimitmaxtrackedusers":     `Maximum number of users tracked per API group for rate limiting at MC`,
 }
 
 var McRateLimitFlowSettingsComments = map[string]string{
@@ -213,4 +213,72 @@ var GenerateReportComments = map[string]string{
 	"endtime":   `Absolute time (in RFC3339 format with intended timezone) to end report capture`,
 	"region":    `Region name (for internal use only)`,
 	"timezone":  `Timezone in which to show the reports, defaults to UTC`,
+}
+
+var FederatorComments = map[string]string{
+	"federationid":    `Globally unique string used to indentify a federation with partner federation`,
+	"operatorid":      `Globally unique string to identify an operator platform`,
+	"countrycode":     `ISO 3166-1 Alpha-2 code for the country where operator platform is located`,
+	"federationaddr":  `Federation access point address`,
+	"region":          `Region to which this federator is associated with`,
+	"mcc":             `Mobile country code of operator sending the request`,
+	"mnc":             `List of mobile network codes of operator sending the request`,
+	"locatorendpoint": `IP and Port of discovery service URL of operator platform`,
+	"revision":        `Revision ID to track object changes. We use jaeger traceID for easy debugging but this can differ with what partner federator uses`,
+	"apikey":          `API Key used for authentication`,
+}
+
+var FederationComments = map[string]string{
+	"federator.federationid":        `Globally unique string used to indentify a federation with partner federation`,
+	"federator.operatorid":          `Globally unique string to identify an operator platform`,
+	"federator.countrycode":         `ISO 3166-1 Alpha-2 code for the country where operator platform is located`,
+	"federator.federationaddr":      `Federation access point address`,
+	"federator.region":              `Region to which this federator is associated with`,
+	"federator.mcc":                 `Mobile country code of operator sending the request`,
+	"federator.mnc":                 `List of mobile network codes of operator sending the request`,
+	"federator.locatorendpoint":     `IP and Port of discovery service URL of operator platform`,
+	"federator.revision":            `Revision ID to track object changes. We use jaeger traceID for easy debugging but this can differ with what partner federator uses`,
+	"federator.apikey":              `API Key used for authentication`,
+	"name":                          `Name to uniquely identify a federation`,
+	"selffederationid":              `Self federation ID`,
+	"selfoperatorid":                `Self operator ID`,
+	"partnerrolesharezoneswithself": `Partner shares its zones with self federator as part of federation`,
+	"partnerroleaccesstoselfzones":  `Partner is allowed access to self federator zones as part of federation`,
+}
+
+var FederatorZoneComments = map[string]string{
+	"zoneid":      `Globally unique string used to authenticate operations over federation interface`,
+	"operatorid":  `Globally unique string to identify an operator platform`,
+	"countrycode": `ISO 3166-1 Alpha-2 code for the country where operator platform is located`,
+	"geolocation": `GPS co-ordinates associated with the zone (in decimal format)`,
+	"city":        `Comma seperated list of cities under this zone`,
+	"state":       `Comma seperated list of states under this zone`,
+	"locality":    `Type of locality eg rural, urban etc.`,
+	"region":      `Region in which cloudlets reside`,
+	"cloudlets":   `List of cloudlets part of this zone`,
+	"revision":    `Revision ID to track object changes. We use jaeger traceID for easy debugging but this can differ with what partner federator uses`,
+}
+
+var FederatedSelfZoneComments = map[string]string{
+	"zoneid":         `Globally unique identifier of the federator zone`,
+	"selfoperatorid": `Self operator ID`,
+	"federationname": `Name of the Federation`,
+	"registered":     `Zone registered by partner federator`,
+	"revision":       `Revision ID to track object changes. We use jaeger traceID for easy debugging but this can differ with what partner federator uses`,
+}
+
+var FederatedPartnerZoneComments = map[string]string{
+	"federatorzone.zoneid":      `Globally unique string used to authenticate operations over federation interface`,
+	"federatorzone.operatorid":  `Globally unique string to identify an operator platform`,
+	"federatorzone.countrycode": `ISO 3166-1 Alpha-2 code for the country where operator platform is located`,
+	"federatorzone.geolocation": `GPS co-ordinates associated with the zone (in decimal format)`,
+	"federatorzone.city":        `Comma seperated list of cities under this zone`,
+	"federatorzone.state":       `Comma seperated list of states under this zone`,
+	"federatorzone.locality":    `Type of locality eg rural, urban etc.`,
+	"federatorzone.region":      `Region in which cloudlets reside`,
+	"federatorzone.cloudlets":   `List of cloudlets part of this zone`,
+	"federatorzone.revision":    `Revision ID to track object changes. We use jaeger traceID for easy debugging but this can differ with what partner federator uses`,
+	"selfoperatorid":            `Self operator ID`,
+	"federationname":            `Name of the Federation`,
+	"registered":                `Zone registered by self federator`,
 }

@@ -10,7 +10,9 @@ type MC struct {
 	process.Common          `yaml:",inline"`
 	process.NodeCommon      `yaml:",inline"`
 	Addr                    string
+	FederationAddr          string
 	SqlAddr                 string
+	NotifyAddrs             string
 	RolesFile               string
 	LdapAddr                string
 	NotifySrvAddr           string
@@ -23,6 +25,7 @@ type MC struct {
 	ApiTlsCert              string
 	ApiTlsKey               string
 	StaticDir               string
+	TestMode                bool
 	cmd                     *exec.Cmd
 }
 type Sql struct {
@@ -97,4 +100,12 @@ type AlertmanagerSidecar struct {
 	LocalTest      bool
 	TLS            process.TLSCerts
 	cmd            *exec.Cmd
+}
+
+type FRM struct {
+	process.Common     `yaml:",inline"`
+	process.NodeCommon `yaml:",inline"`
+	NotifyAddrs        string
+	Region             string
+	cmd                *exec.Cmd
 }

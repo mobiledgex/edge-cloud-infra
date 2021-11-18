@@ -355,6 +355,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	// number of dummy objects we add of each type and org
 	dcnt := 3
 	tag := "ctrltest"
+	require.Equal(t, 0, len(ds.FlavorCache.Objs))
 	ds.SetDummyObjs(ctx, testutil.Create, tag, dcnt)
 	ds.SetDummyOrgObjs(ctx, testutil.Create, org1, dcnt)
 	ds.SetDummyOrgObjs(ctx, testutil.Create, org2, dcnt)
@@ -367,6 +368,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		ds.SetDummyOrgObjs(ctx, testutil.Delete, org3, dcnt)
 		ds.SetDummyOrgObjs(ctx, testutil.Delete, org4, dcnt)
 	}()
+	require.Equal(t, dcnt, len(ds.FlavorCache.Objs))
 
 	testMCParseJSONErrors(t, ctx, mcClient, uri, token)
 
@@ -383,7 +385,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	badPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, nil)
 	badPermShowClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 
-	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1)
+	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1, nil)
 	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	badPermTestEvents(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	badPermTestAlertReceivers(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
@@ -398,6 +400,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	testAddUserRole(t, mcClient, uri, tokenDev4, org1, "DeveloperViewer", user5.Name, Fail)
 	testAddUserRole(t, mcClient, uri, tokenOper3, org3, "OperatorViewer", user5.Name, Fail)
 	testAddUserRole(t, mcClient, uri, tokenOper4, org3, "OperatorViewer", user5.Name, Fail)
+	require.Equal(t, dcnt, len(ds.FlavorCache.Objs))
 
 	// make sure developer and operator cannot modify controllers
 	// all users can see controllers (required for UI to be able to
@@ -449,25 +452,35 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	// +1 count for Cloudlets because of extra one above
 	ccount := count + 1
 
+	require.Equal(t, dcnt, len(ds.FlavorCache.Objs))
+
+	// custom authz requires valid name for cloudlet pool
+	cpMod := func(cp *edgeproto.CloudletPool) {
+		cp.Key.Name = "cloudletpoolname"
+		cp.Fields = append(cp.Fields, edgeproto.CloudletPoolFieldKeyName)
+	}
+
 	// admin can do everything
 	goodPermTestFlavor(t, mcClient, uri, tokenAd, ctrl.Region, "", dcnt)
-	goodPermTestCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org3, ccount)
-	goodPermTestCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org4, ccount)
+	goodPermTestCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org3, nil, ccount)
+	goodPermTestCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org4, nil, ccount)
+	goodPermTestCloudletAllianceOrg(t, mcClient, uri, tokenAd, ctrl.Region, org3, 0)
+	goodPermTestCloudletAllianceOrg(t, mcClient, uri, tokenAd, ctrl.Region, org4, 0)
 	goodPermTestApp(t, mcClient, uri, tokenAd, ctrl.Region, org1, dcnt)
 	goodPermTestApp(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
 	goodPermTestAppInst(t, mcClient, uri, tokenAd, ctrl.Region, org1, tc3, dcnt)
 	goodPermTestAppInst(t, mcClient, uri, tokenAd, ctrl.Region, org2, tc3, dcnt)
 	goodPermTestClusterInst(t, mcClient, uri, tokenAd, ctrl.Region, org1, tc3, dcnt)
 	goodPermTestClusterInst(t, mcClient, uri, tokenAd, ctrl.Region, org2, tc3, dcnt)
-	goodPermTestCloudletPool(t, mcClient, uri, tokenAd, ctrl.Region, org3, dcnt)
-	goodPermTestCloudletPool(t, mcClient, uri, tokenAd, ctrl.Region, org4, dcnt)
+	goodPermTestCloudletPool(t, mcClient, uri, tokenAd, ctrl.Region, org3, dcnt, cpMod)
+	goodPermTestCloudletPool(t, mcClient, uri, tokenAd, ctrl.Region, org4, dcnt, cpMod)
 	goodPermTestAutoProvPolicy(t, mcClient, uri, tokenAd, ctrl.Region, org1, dcnt)
 	goodPermTestAutoProvPolicy(t, mcClient, uri, tokenAd, ctrl.Region, org2, dcnt)
 
 	// some create actions are restricted by org type, even for admin
 	sbr := http.StatusBadRequest
-	badCreateCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org1, sbr)
-	badCreateCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org2, sbr)
+	badCreateCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org1, sbr, nil)
+	badCreateCloudlet(t, mcClient, uri, tokenAd, ctrl.Region, org2, sbr, nil)
 	badCreateApp(t, mcClient, uri, tokenAd, ctrl.Region, org3, sbr)
 	badCreateApp(t, mcClient, uri, tokenAd, ctrl.Region, org4, sbr)
 	badCreateAppInst(t, mcClient, uri, tokenAd, ctrl.Region, org3, sbr, tc3)
@@ -549,9 +562,9 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		// Add dev user as part of operator org
 		testAddUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", dev.Name, Success)
 		// dev user will be able to create new cloudlet only for that org
-		goodPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3, ccount)
+		goodPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3, nil, ccount)
 		// it will fail for other orgs
-		badPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org4)
+		badPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org4, nil)
 		// dev will be able to create clusterinst/appinst only on org3 cloudlet
 		goodPermTestAppInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, org1CloudletCnt)
 		// dev3 will be not be able to create clusterinst/appinst on org3 cloudlet
@@ -564,13 +577,13 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		require.Equal(t, err.Error(), "Billing Org must be set up to deploy to public cloudlets, please contact MobiledgeX support")
 		require.Equal(t, http.StatusBadRequest, status)
 		// cleanup created cloudlet
-		goodPermDeleteCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
+		goodPermDeleteCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3, nil)
 		// Other users will not be able to create new cloudlet
-		badPermCreateCloudlet(t, mcClient, uri, tokenDev3, ctrl.Region, org3)
+		badPermCreateCloudlet(t, mcClient, uri, tokenDev3, ctrl.Region, org3, nil)
 		// Remove dev user from operator org
 		testRemoveUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", dev.Name, Success)
 		// User will no longer be able to create clusterinst/appinst on the cloudlet
-		badPermCreateCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
+		badPermCreateCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3, nil)
 		// Create billing org for org1
 		// testCreateBillingOrg(t, mcClient, uri, tokenDev, "self", org1)
 		testCreateBillingOrg(t, mcClient, uri, tokenAd, "self", org1) // TODO: remove this when we remove the admin only checks on create billing org
@@ -654,13 +667,17 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	badPermTestShowClusterInst(t, mcClient, uri, tokenOper2, ctrl.Region, org1)
 
 	// make sure developer cannot create cloudlet (but they can see all of them)
-	badPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3)
-	badPermTestCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, org3)
+	badPermTestCloudlet(t, mcClient, uri, tokenDev, ctrl.Region, org3, nil)
+	badPermTestCloudlet(t, mcClient, uri, tokenDev2, ctrl.Region, org3, nil)
+	badPermTestCloudletAllianceOrg(t, mcClient, uri, tokenDev, ctrl.Region, org3)
+	badPermTestCloudletAllianceOrg(t, mcClient, uri, tokenDev2, ctrl.Region, org3)
 
 	// test operators can modify their own objs but not each other's
-	badPermTestCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, org4)
-	badPermTestCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org3)
-	permTestCloudletPool(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
+	badPermTestCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, org4, nil)
+	badPermTestCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org3, nil)
+	badPermTestCloudletAllianceOrg(t, mcClient, uri, tokenOper, ctrl.Region, org4)
+	badPermTestCloudletAllianceOrg(t, mcClient, uri, tokenOper2, ctrl.Region, org3)
+	permTestCloudletPool(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt, cpMod)
 	permTestVMPool(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
 	permTestTrustPolicy(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
 
@@ -682,9 +699,11 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev3, ctrl.Region, org1, tc3, dcnt)
 	goodPermTestMetrics(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
 	goodPermTestEvents(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
+	testInvalidOrgForCloudletUsage(t, mcClient, uri, tokenAd, ctrl.Region, org1)
 
 	// test users with different roles
-	goodPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3, ccount)
+	goodPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3, nil, ccount)
+	goodPermTestCloudletAllianceOrg(t, mcClient, uri, tokenOper3, ctrl.Region, org3, ccount)
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, dcnt)
 	badPermTestClusterInst(t, mcClient, uri, tokenDev2, ctrl.Region, org1, tc3)
 
@@ -769,7 +788,8 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	testFailCheckPermissionsAndGetCloudletList(t, ctx, dev3.Name, ctrl.Region, []string{org1}, ResourceAppAnalytics,
 		[]edgeproto.CloudletKey{org3Cloudlet.Key}, "Forbidden")
 	testRemoveUserRole(t, mcClient, uri, tokenOper, org3, "OperatorContributor", oper3.Name, Success)
-	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3)
+	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3, nil)
+	badPermTestCloudletAllianceOrg(t, mcClient, uri, tokenOper3, ctrl.Region, org3)
 
 	{
 		// Tests checks for adding cloudlets to cloudletpool that
@@ -822,6 +842,12 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		_, status, err = mcClient.AddCloudletPoolMember(uri, tokenOper, &member)
 		require.NotNil(t, err)
 		require.Equal(t, "Cannot add cloudlet somecloudlet to CloudletPool because it has AppInsts/ClusterInsts from developer org1, which are not authorized to deploy to the CloudletPool. Please invite the developer first, or remove the developer from the Cloudlet.", err.Error())
+
+		member.Region = ""
+		_, status, err = mcClient.AddCloudletPoolMember(uri, tokenOper, &member)
+		require.NotNil(t, err)
+		require.Equal(t, "No region specified", err.Error())
+		member.Region = ctrl.Region
 
 		// add org1 to pool
 		op1 := ormapi.OrgCloudletPool{
@@ -1713,7 +1739,7 @@ func badPermTestNonExistent(t *testing.T, mcClient *mctestclient.Client, uri, to
 	neOrg := "non-existent-org"
 	badPermCreateApp(t, mcClient, uri, token, region, neOrg)
 	badPermCreateAppInst(t, mcClient, uri, token, region, neOrg, tc)
-	badPermCreateCloudlet(t, mcClient, uri, token, region, neOrg)
+	badPermCreateCloudlet(t, mcClient, uri, token, region, neOrg, tc)
 	badPermCreateClusterInst(t, mcClient, uri, token, region, neOrg, tc)
 	badPermCreateOperatorCode(t, mcClient, uri, token, region, neOrg)
 	badPermCreateAutoProvPolicy(t, mcClient, uri, token, region, neOrg)
@@ -2710,7 +2736,8 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 		ds.SetDummyObjs(ctx, testutil.Delete, tag, dcnt)
 		ds.SetDummyOrgObjs(ctx, testutil.Delete, operOrg.Name, dcnt)
 	}()
-	goodPermTestCloudlet(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, count+2)
+	goodPermTestCloudlet(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, nil, count+2)
+	goodPermTestCloudletAllianceOrg(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, count+2)
 	goodPermTestShowCloudlet(t, mcClient, uri, apiKeyLoginToken, ctrl.Region, operOrg.Name, count+2)
 	tc := edgeproto.CloudletKey{
 		Organization: operOrg.Name,
@@ -3267,7 +3294,7 @@ func TestDataConversions(t *testing.T) {
 	obj.App.Key.Organization = "someorg"
 	obj.App.Configs = []*edgeproto.ConfigFile{}
 	obj.App.AutoProvPolicies = []string{}
-	obj.App.RequiredOutboundConnections = []*edgeproto.RemoteConnection{}
+	obj.App.RequiredOutboundConnections = []edgeproto.SecurityRule{}
 	obj.App.Fields = []string{
 		edgeproto.AppFieldKeyOrganization,
 		edgeproto.AppFieldKeyName,

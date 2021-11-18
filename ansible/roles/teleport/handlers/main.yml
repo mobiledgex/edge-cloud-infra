@@ -1,0 +1,10 @@
+---
+- name: Import github auth
+  command: "tctl create -f {{ teleport_config_dir.path }}/github.yaml"
+  become: yes
+
+- name: Restart teleport
+  systemd:
+    name: teleport
+    state: restarted
+  become: yes

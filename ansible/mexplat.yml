@@ -67,6 +67,9 @@
   import_playbook: vault-setup.yml
   tags: vault-setup
 
+- name: Harden system
+  import_playbook: harden.yml
+
 - hosts: platform
   tasks:
     - import_role:
@@ -305,6 +308,9 @@
 
     - import_role:
         name: telegraf
+      vars:
+        telegraf_additional_config:
+          - input/jaeger-metrics.conf.j2
       tags:
         - monitoring
         - setup

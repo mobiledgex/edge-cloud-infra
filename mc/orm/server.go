@@ -20,8 +20,10 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/billing/chargify"
 	"github.com/mobiledgex/edge-cloud-infra/billing/fakebilling"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/mc/federation"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud/cli"
@@ -40,27 +42,31 @@ import (
 
 // Server struct is just to track sql/db so we can stop them later.
 type Server struct {
-	config       *ServerConfig
-	sql          *intprocess.Sql
-	database     *gorm.DB
-	echo         *echo.Echo
-	vault        *process.Vault
-	stopInitData bool
-	initDataDone chan error
-	initJWKDone  chan struct{}
-	notifyServer *notify.ServerMgr
-	notifyClient *notify.Client
-	sqlListener  *pq.Listener
-	ldapServer   *ldap.Server
-	done         chan struct{}
+	config          *ServerConfig
+	sql             *intprocess.Sql
+	database        *gorm.DB
+	echo            *echo.Echo
+	vault           *process.Vault
+	stopInitData    bool
+	initDataDone    chan error
+	initJWKDone     chan struct{}
+	notifyServer    *notify.ServerMgr
+	notifyClient    *notify.Client
+	sqlListener     *pq.Listener
+	ldapServer      *ldap.Server
+	done            chan struct{}
+	alertMgrStarted bool
+	federationEcho  *echo.Echo
 }
 
 type ServerConfig struct {
 	ServAddr                string
 	SqlAddr                 string
 	VaultAddr               string
+	FederationAddr          string
 	RunLocal                bool
 	InitLocal               bool
+	SqlDataDir              string
 	IgnoreEnv               bool
 	ApiTlsCertFile          string
 	ApiTlsKeyFile           string
@@ -191,10 +197,10 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 		roleID := roles.MCRoleID
 		secretID := roles.MCSecretID
-		config.VaultAddr = process.VaultAddress
+		config.VaultAddr = vaultProc.ListenAddr
 		server.vault = &vaultProc
 		auth := vault.NewAppRoleAuth(roleID, secretID)
-		config.vaultConfig = vault.NewConfig(process.VaultAddress, auth)
+		config.vaultConfig = vault.NewConfig(vaultProc.ListenAddr, auth)
 	}
 	// vaultConfig should only be set by unit tests
 	if config.vaultConfig == nil {
@@ -236,11 +242,14 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	}
 
 	if config.RunLocal {
+		if config.SqlDataDir == "" {
+			config.SqlDataDir = "./.postgres"
+		}
 		sql := intprocess.Sql{
 			Common: process.Common{
 				Name: "sql1",
 			},
-			DataDir:  "./.postgres",
+			DataDir:  config.SqlDataDir,
 			HttpAddr: config.SqlAddr,
 			Username: dbuser,
 			Dbname:   dbname,
@@ -804,6 +813,28 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/report/show", ShowReport)
 	auth.POST("/report/download", DownloadReport)
 
+	// Plan and manage federation
+	auth.POST("/federator/self/create", CreateSelfFederator)
+	auth.POST("/federator/self/update", UpdateSelfFederator)
+	auth.POST("/federator/self/delete", DeleteSelfFederator)
+	auth.POST("/federator/self/show", ShowSelfFederator)
+	auth.POST("/federator/self/zone/create", CreateSelfFederatorZone)
+	auth.POST("/federator/self/zone/delete", DeleteSelfFederatorZone)
+	auth.POST("/federator/self/zone/show", ShowSelfFederatorZone)
+	auth.POST("/federator/self/zone/share", ShareSelfFederatorZone)
+	auth.POST("/federator/self/zone/unshare", UnshareSelfFederatorZone)
+	auth.POST("/federator/partner/zone/register", RegisterPartnerFederatorZone)
+	auth.POST("/federator/partner/zone/deregister", DeregisterPartnerFederatorZone)
+	auth.POST("/federation/create", CreateFederation)
+	auth.POST("/federation/delete", DeleteFederation)
+	auth.POST("/federation/register", RegisterFederation)
+	auth.POST("/federation/deregister", DeregisterFederation)
+	auth.POST("/federation/partner/setapikey", SetPartnerFederationAPIKey)
+	auth.POST("/federation/self/generateapikey", GenerateSelfFederationAPIKey)
+	auth.POST("/federation/show", ShowFederation)
+	auth.POST("/federation/self/zone/show", ShowFederatedSelfZone)
+	auth.POST("/federation/partner/zone/show", ShowFederatedPartnerZone)
+
 	// Generate new short-lived token to authenticate websocket connections
 	// Note: Web-client should not store auth token as part of local storage,
 	//       instead browser should store it as secure cookies.
@@ -891,6 +922,34 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 	}()
 
+	if config.FederationAddr != "" {
+		// Global Operator Platform Federation
+		federationEcho := echo.New()
+		federationEcho.HideBanner = true
+		federationEcho.Binder = &CustomBinder{}
+
+		federationEcho.Use(logger, federation.AuthAPIKey)
+		server.federationEcho = federationEcho
+
+		partnerApi := federation.PartnerApi{
+			Database:  database,
+			ConnCache: connCache,
+		}
+		partnerApi.InitAPIs(federationEcho)
+
+		go func() {
+			if config.ApiTlsCertFile != "" {
+				err = federationEcho.StartTLS(config.FederationAddr, config.ApiTlsCertFile, config.ApiTlsKeyFile)
+			} else {
+				err = federationEcho.Start(config.FederationAddr)
+			}
+			if err != nil && err != http.ErrServerClosed {
+				server.Stop()
+				log.FatalLog("Failed to serve federation", "err", err)
+			}
+		}()
+	}
+
 	gitlabSync = GitlabNewSync()
 	artifactorySync = ArtifactoryNewSync()
 
@@ -903,6 +962,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	artifactorySync.Start(server.done)
 	if AlertManagerServer != nil {
 		AlertManagerServer.Start()
+		server.alertMgrStarted = true
 	}
 	sqlListener, err := initSqlListener(ctx, server.done)
 	if err != nil {
@@ -950,6 +1010,9 @@ func (s *Server) Stop() {
 	if s.echo != nil {
 		s.echo.Close()
 	}
+	if s.federationEcho != nil {
+		s.federationEcho.Close()
+	}
 	if connCache != nil {
 		connCache.Finish()
 	}
@@ -972,7 +1035,9 @@ func (s *Server) Stop() {
 		s.notifyClient.Stop()
 	}
 	if AlertManagerServer != nil {
-		AlertManagerServer.Stop()
+		if s.alertMgrStarted {
+			AlertManagerServer.Stop()
+		}
 		AlertManagerServer = nil
 	}
 	nodeMgr.Finish()
@@ -983,7 +1048,7 @@ func ShowVersion(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionView); err != nil {
 		return err
@@ -1037,7 +1102,7 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		// Set ws on echo context
-		SetWs(c, ws)
+		ormutil.SetWs(c, ws)
 
 		// call next handler
 		err = next(c)
@@ -1053,7 +1118,7 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			writeErr := writeWS(c, ws, &wsPayload)
 			if writeErr != nil {
-				ctx := GetContext(c)
+				ctx := ormutil.GetContext(c)
 				log.SpanLog(ctx, log.DebugLevelApi, "Failed to write error to websocket stream", "err", err, "writeErr", writeErr)
 			}
 		}
@@ -1073,10 +1138,10 @@ func ReadConn(c echo.Context, in interface{}) ([]byte, error) {
 	// Mark stream API
 	c.Set(StreamAPITag, true)
 
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		_, dat, err = ws.ReadMessage()
 		if err == nil {
-			LogWsRequest(c, dat)
+			ormutil.LogWsRequest(c, dat)
 		}
 	} else {
 		// This plus json.Umarshal is the equivalent of c.Bind()
@@ -1156,7 +1221,7 @@ func BindJson(js []byte, i interface{}) error {
 }
 
 func WaitForConnClose(c echo.Context, serverClosed chan bool) {
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		clientClosed := make(chan error)
 		go func() {
 			// Handling close events from client is different here
@@ -1185,13 +1250,13 @@ func WaitForConnClose(c echo.Context, serverClosed chan bool) {
 func writeWS(c echo.Context, ws *websocket.Conn, wsPayload *ormapi.WSStreamPayload) error {
 	out, err := json.Marshal(wsPayload)
 	if err == nil {
-		LogWsResponse(c, string(out))
+		ormutil.LogWsResponse(c, string(out))
 	}
 	return ws.WriteJSON(wsPayload)
 }
 
 func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		wsPayload := ormapi.WSStreamPayload{
 			Code: http.StatusOK,
 			Data: (*payload).Data,

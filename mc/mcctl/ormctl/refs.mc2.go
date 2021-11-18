@@ -99,6 +99,7 @@ func init() {
 var CloudletRefsRequiredArgs = []string{
 	"key.organization",
 	"key.name",
+	"key.federatedorganization",
 }
 var CloudletRefsOptionalArgs = []string{
 	"rootlbports:#.key",
@@ -119,6 +120,7 @@ var CloudletRefsOptionalArgs = []string{
 var CloudletRefsAliasArgs = []string{
 	"key.organization=cloudletrefs.key.organization",
 	"key.name=cloudletrefs.key.name",
+	"key.federatedorganization=cloudletrefs.key.federatedorganization",
 	"rootlbports:#.key=cloudletrefs.rootlbports:#.key",
 	"rootlbports:#.value=cloudletrefs.rootlbports:#.value",
 	"useddynamicips=cloudletrefs.useddynamicips",
@@ -137,6 +139,7 @@ var CloudletRefsAliasArgs = []string{
 var CloudletRefsComments = map[string]string{
 	"key.organization":                            "Organization of the cloudlet site",
 	"key.name":                                    "Name of the cloudlet",
+	"key.federatedorganization":                   "Federated operator organization who shared this cloudlet",
 	"useddynamicips":                              "Used dynamic IPs",
 	"usedstaticips":                               "Used static IPs",
 	"reservedautoclusterids":                      "Track reservable autoclusterinsts ids in use. This is a bitmap.",
@@ -153,39 +156,36 @@ var ClusterRefsRequiredArgs = []string{
 	"key.clusterkey.name",
 	"key.cloudletkey.organization",
 	"key.cloudletkey.name",
+	"key.cloudletkey.federatedorganization",
 	"key.organization",
 }
 var ClusterRefsOptionalArgs = []string{
-	"apps:#.organization",
-	"apps:#.name",
-	"apps:#.version",
-	"usedram",
-	"usedvcores",
-	"useddisk",
+	"apps:#.appkey.organization",
+	"apps:#.appkey.name",
+	"apps:#.appkey.version",
+	"apps:#.vclustername",
 }
 var ClusterRefsAliasArgs = []string{
 	"key.clusterkey.name=clusterrefs.key.clusterkey.name",
 	"key.cloudletkey.organization=clusterrefs.key.cloudletkey.organization",
 	"key.cloudletkey.name=clusterrefs.key.cloudletkey.name",
+	"key.cloudletkey.federatedorganization=clusterrefs.key.cloudletkey.federatedorganization",
 	"key.organization=clusterrefs.key.organization",
-	"apps:#.organization=clusterrefs.apps:#.organization",
-	"apps:#.name=clusterrefs.apps:#.name",
-	"apps:#.version=clusterrefs.apps:#.version",
-	"usedram=clusterrefs.usedram",
-	"usedvcores=clusterrefs.usedvcores",
-	"useddisk=clusterrefs.useddisk",
+	"apps:#.appkey.organization=clusterrefs.apps:#.appkey.organization",
+	"apps:#.appkey.name=clusterrefs.apps:#.appkey.name",
+	"apps:#.appkey.version=clusterrefs.apps:#.appkey.version",
+	"apps:#.vclustername=clusterrefs.apps:#.vclustername",
 }
 var ClusterRefsComments = map[string]string{
-	"key.clusterkey.name":          "Cluster name",
-	"key.cloudletkey.organization": "Organization of the cloudlet site",
-	"key.cloudletkey.name":         "Name of the cloudlet",
-	"key.organization":             "Name of Developer organization that this cluster belongs to",
-	"apps:#.organization":          "App developer organization",
-	"apps:#.name":                  "App name",
-	"apps:#.version":               "App version",
-	"usedram":                      "Used RAM in MB",
-	"usedvcores":                   "Used VCPU cores",
-	"useddisk":                     "Used disk in GB",
+	"key.clusterkey.name":                   "Cluster name",
+	"key.cloudletkey.organization":          "Organization of the cloudlet site",
+	"key.cloudletkey.name":                  "Name of the cloudlet",
+	"key.cloudletkey.federatedorganization": "Federated operator organization who shared this cloudlet",
+	"key.organization":                      "Name of Developer organization that this cluster belongs to",
+	"apps:#.appkey.organization":            "App developer organization",
+	"apps:#.appkey.name":                    "App name",
+	"apps:#.appkey.version":                 "App version",
+	"apps:#.vclustername":                   "Virtual cluster name",
 }
 var ClusterRefsSpecialArgs = map[string]string{}
 var AppInstRefsRequiredArgs = []string{
@@ -196,6 +196,8 @@ var AppInstRefsRequiredArgs = []string{
 var AppInstRefsOptionalArgs = []string{
 	"insts:#.key",
 	"insts:#.value",
+	"deleterequestedinsts:#.key",
+	"deleterequestedinsts:#.value",
 }
 var AppInstRefsAliasArgs = []string{
 	"key.organization=appinstrefs.key.organization",
@@ -203,6 +205,8 @@ var AppInstRefsAliasArgs = []string{
 	"key.version=appinstrefs.key.version",
 	"insts:#.key=appinstrefs.insts:#.key",
 	"insts:#.value=appinstrefs.insts:#.value",
+	"deleterequestedinsts:#.key=appinstrefs.deleterequestedinsts:#.key",
+	"deleterequestedinsts:#.value=appinstrefs.deleterequestedinsts:#.value",
 }
 var AppInstRefsComments = map[string]string{
 	"key.organization": "App developer organization",

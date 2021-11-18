@@ -32,7 +32,7 @@ var CreateClusterInstCmd = &ApiCommand{
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
 	Comments:             addRegionComment(ClusterInstComments),
-	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt",
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare",
 	ReqData:              &ormapi.RegionClusterInst{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/CreateClusterInst",
@@ -50,7 +50,7 @@ var DeleteClusterInstCmd = &ApiCommand{
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
 	Comments:             addRegionComment(ClusterInstComments),
-	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt",
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare",
 	ReqData:              &ormapi.RegionClusterInst{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/DeleteClusterInst",
@@ -68,7 +68,7 @@ var UpdateClusterInstCmd = &ApiCommand{
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
 	Comments:             addRegionComment(ClusterInstComments),
-	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,Flavor,NumMasters,AvailabilityZone,Reservable,SharedVolumeSize,IpAccess,Deployment,ImageName",
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,Flavor,NumMasters,AvailabilityZone,Reservable,SharedVolumeSize,IpAccess,Deployment,ImageName,Networks",
 	ReqData:              &ormapi.RegionClusterInst{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/UpdateClusterInst",
@@ -86,7 +86,7 @@ var ShowClusterInstCmd = &ApiCommand{
 	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:  &ClusterInstSpecialArgs,
 	Comments:     addRegionComment(ClusterInstComments),
-	NoConfig:     "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt",
+	NoConfig:     "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,Status,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare",
 	ReqData:      &ormapi.RegionClusterInst{},
 	ReplyData:    &edgeproto.ClusterInst{},
 	Path:         "/auth/ctrl/ShowClusterInst",
@@ -129,6 +129,7 @@ var UpdateClusterInstRequiredArgs = []string{
 	"cluster-org",
 }
 var UpdateClusterInstOptionalArgs = []string{
+	"federated-org",
 	"crmoverride",
 	"numnodes",
 	"autoscalepolicy",
@@ -140,19 +141,22 @@ var ClusterInstKeyOptionalArgs = []string{
 	"clusterkey.name",
 	"cloudletkey.organization",
 	"cloudletkey.name",
+	"cloudletkey.federatedorganization",
 	"organization",
 }
 var ClusterInstKeyAliasArgs = []string{
 	"clusterkey.name=clusterinstkey.clusterkey.name",
 	"cloudletkey.organization=clusterinstkey.cloudletkey.organization",
 	"cloudletkey.name=clusterinstkey.cloudletkey.name",
+	"cloudletkey.federatedorganization=clusterinstkey.cloudletkey.federatedorganization",
 	"organization=clusterinstkey.organization",
 }
 var ClusterInstKeyComments = map[string]string{
-	"clusterkey.name":          "Cluster name",
-	"cloudletkey.organization": "Organization of the cloudlet site",
-	"cloudletkey.name":         "Name of the cloudlet",
-	"organization":             "Name of Developer organization that this cluster belongs to",
+	"clusterkey.name":                   "Cluster name",
+	"cloudletkey.organization":          "Organization of the cloudlet site",
+	"cloudletkey.name":                  "Name of the cloudlet",
+	"cloudletkey.federatedorganization": "Federated operator organization who shared this cloudlet",
+	"organization":                      "Name of Developer organization that this cluster belongs to",
 }
 var ClusterInstKeySpecialArgs = map[string]string{}
 var ClusterInstRequiredArgs = []string{
@@ -162,6 +166,7 @@ var ClusterInstRequiredArgs = []string{
 	"cluster-org",
 }
 var ClusterInstOptionalArgs = []string{
+	"federated-org",
 	"flavor",
 	"crmoverride",
 	"ipaccess",
@@ -174,12 +179,14 @@ var ClusterInstOptionalArgs = []string{
 	"sharedvolumesize",
 	"skipcrmcleanuponfailure",
 	"multitenant",
+	"networks",
 }
 var ClusterInstAliasArgs = []string{
 	"fields=clusterinst.fields",
 	"cluster=clusterinst.key.clusterkey.name",
 	"cloudlet-org=clusterinst.key.cloudletkey.organization",
 	"cloudlet=clusterinst.key.cloudletkey.name",
+	"federated-org=clusterinst.key.cloudletkey.federatedorganization",
 	"cluster-org=clusterinst.key.organization",
 	"flavor=clusterinst.flavor.name",
 	"liveness=clusterinst.liveness",
@@ -230,12 +237,15 @@ var ClusterInstAliasArgs = []string{
 	"reservationendedat.seconds=clusterinst.reservationendedat.seconds",
 	"reservationendedat.nanos=clusterinst.reservationendedat.nanos",
 	"multitenant=clusterinst.multitenant",
+	"networks=clusterinst.networks",
+	"deleteprepare=clusterinst.deleteprepare",
 }
 var ClusterInstComments = map[string]string{
 	"fields":                                 "Fields are used for the Update API to specify which fields to apply",
 	"cluster":                                "Cluster name",
 	"cloudlet-org":                           "Organization of the cloudlet site",
 	"cloudlet":                               "Name of the cloudlet",
+	"federated-org":                          "Federated operator organization who shared this cloudlet",
 	"cluster-org":                            "Name of Developer organization that this cluster belongs to",
 	"flavor":                                 "Flavor name",
 	"liveness":                               "Liveness of instance (see Liveness), one of Unknown, Static, Dynamic, Autoprov",
@@ -272,10 +282,13 @@ var ClusterInstComments = map[string]string{
 	"resources.vms:#.containers:#.clusterip": "IP within the CNI and is applicable to kubernetes only",
 	"resources.vms:#.containers:#.restarts":  "Restart count, applicable to kubernetes only",
 	"multitenant":                            "Multi-tenant kubernetes cluster",
+	"networks":                               "networks to connect to, specify networks:empty=true to clear",
+	"deleteprepare":                          "Preparing to be deleted",
 }
 var ClusterInstSpecialArgs = map[string]string{
 	"clusterinst.errors":      "StringArray",
 	"clusterinst.fields":      "StringArray",
+	"clusterinst.networks":    "StringArray",
 	"clusterinst.status.msgs": "StringArray",
 }
 var IdleReservableClusterInstsRequiredArgs = []string{}

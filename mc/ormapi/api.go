@@ -211,10 +211,10 @@ type Config struct {
 	BillingEnable bool
 	// Toggle to enable and disable MC API rate limiting
 	DisableRateLimit bool
-	// Maximum number of PerIp rate limiters for an api
-	MaxNumPerIpRateLimiters int
-	// Maximum number of PerUser rate limiters for an api
-	MaxNumPerUserRateLimiters int
+	// Maximum number of IPs tracked per API group for rate limiting at MC
+	RateLimitMaxTrackedIps int
+	// Maximum number of users tracked per API group for rate limiting at MC
+	RateLimitMaxTrackedUsers int
 }
 
 type McRateLimitFlowSettings struct {
@@ -438,14 +438,19 @@ type RegionObjWithFields interface {
 // all data is for full create/delete
 
 type AllData struct {
-	Controllers                   []Controller          `json:"controllers,omitempty"`
-	BillingOrgs                   []BillingOrganization `json:"billingorgs,omitempty"`
-	AlertReceivers                []AlertReceiver       `json:"alertreceivers,omitempty"`
-	Orgs                          []Organization        `json:"orgs,omitempty"`
-	Roles                         []Role                `json:"roles,omitempty"`
-	CloudletPoolAccessInvitations []OrgCloudletPool     `json:"cloudletpoolaccessinvitations,omitempty"`
-	CloudletPoolAccessResponses   []OrgCloudletPool     `json:"cloudletpoolaccessresponses,omitempty"`
-	RegionData                    []RegionData          `json:"regiondata,omitempty"`
+	Controllers                   []Controller           `json:"controllers,omitempty"`
+	BillingOrgs                   []BillingOrganization  `json:"billingorgs,omitempty"`
+	AlertReceivers                []AlertReceiver        `json:"alertreceivers,omitempty"`
+	Orgs                          []Organization         `json:"orgs,omitempty"`
+	Roles                         []Role                 `json:"roles,omitempty"`
+	CloudletPoolAccessInvitations []OrgCloudletPool      `json:"cloudletpoolaccessinvitations,omitempty"`
+	CloudletPoolAccessResponses   []OrgCloudletPool      `json:"cloudletpoolaccessresponses,omitempty"`
+	RegionData                    []RegionData           `json:"regiondata,omitempty"`
+	Federators                    []Federator            `json:"federators,omitempty"`
+	FederatorZones                []FederatorZone        `json:"federatorzones,omitempty"`
+	Federations                   []Federation           `json:"federations,omitempty"`
+	FederatedSelfZones            []FederatedSelfZone    `json:"federatedselfzones,omitempty"`
+	FederatedPartnerZones         []FederatedPartnerZone `json:"federatedpartnerzones,omitempty"`
 }
 
 type RegionData struct {

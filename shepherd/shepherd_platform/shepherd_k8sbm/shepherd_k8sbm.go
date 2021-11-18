@@ -16,22 +16,19 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
+const K8sBareMetalStatsCollectionInterval = 1 * time.Minute
+
 var caches *platform.Caches
 
-// ChangeSinceLastCloudletStats means a VM appinst changed since last VM App stats collection
-var ChangeSinceLastVmAppStats bool
-
 type ShepherdPlatform struct {
-	Pf              *k8sbm.K8sBareMetalPlatform
-	collectInterval time.Duration
-	platformConfig  *platform.PlatformConfig
-	promAddr        string
-	client          ssh.Client
+	Pf             *k8sbm.K8sBareMetalPlatform
+	platformConfig *platform.PlatformConfig
+	promAddr       string
+	client         ssh.Client
 }
 
 func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig, platformCaches *platform.Caches) error {
 	s.platformConfig = pc
-	s.collectInterval = time.Minute * 5
 	return s.Pf.Init(ctx, pc, caches, nil)
 }
 
@@ -40,7 +37,7 @@ func (s *ShepherdPlatform) SetVMPool(ctx context.Context, vmPool *edgeproto.VMPo
 }
 
 func (s *ShepherdPlatform) GetMetricsCollectInterval() time.Duration {
-	return s.collectInterval
+	return K8sBareMetalStatsCollectionInterval
 }
 
 func (s *ShepherdPlatform) GetClusterIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
@@ -185,4 +182,8 @@ func (s *ShepherdPlatform) SetUsageAccessArgs(ctx context.Context, addr string, 
 	s.promAddr = addr
 	s.client = client
 	return nil
+}
+
+func (s *ShepherdPlatform) IsPlatformLocal(ctx context.Context) bool {
+	return false
 }

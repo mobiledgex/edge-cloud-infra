@@ -872,3 +872,19 @@
         ports:
           - "127.0.0.1:3000:3000"
         volumes: "{{ volumes | zip(volumes) | map('join', ':') | list }}"
+
+- hosts: teleport
+
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: teleport

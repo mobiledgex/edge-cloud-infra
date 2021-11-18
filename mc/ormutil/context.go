@@ -1,11 +1,22 @@
-package orm
+package ormutil
 
 import (
 	"context"
 
 	"github.com/gorilla/websocket"
+	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
+	"google.golang.org/grpc"
 )
+
+type RegionContext struct {
+	Region    string
+	Username  string
+	Conn      *grpc.ClientConn
+	SkipAuthz bool
+	// Need database for federation handling
+	Database *gorm.DB
+}
 
 type EchoContext struct {
 	echo.Context

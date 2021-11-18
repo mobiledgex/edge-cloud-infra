@@ -296,21 +296,33 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 
 	gwsToRemove := []string{}
 	// currrently only internal and additional networks on the LB need be removed, but this may
-	// be explanded in the future
-	if vmparams.Role == vmlayer.RoleAgent {
+	// be expanded in the future
+	switch vmparams.Role {
+	case vmlayer.RoleAgent:
 		for netname, netinfo := range netMap {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
-			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate || netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb || netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb {
+			if netinfo.NetworkType == vmlayer.NetworkTypeInternalPrivate ||
+				netinfo.NetworkType == vmlayer.NetworkTypeInternalSharedLb ||
+				netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalRootLb ||
+				netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalClusterNode {
+				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
+			}
+		}
+	case vmlayer.RoleK8sNode:
+		fallthrough
+	case vmlayer.RoleDockerNode:
+		for netname, netinfo := range netMap {
+			log.SpanLog(ctx, log.DebugLevelInfra, "Checking role and nettype for gw removal", "netname", netname, "NetworkType", netinfo.NetworkType)
+			if netinfo.NetworkType == vmlayer.NetworkTypeExternalAdditionalClusterNode {
 				gwsToRemove = append(gwsToRemove, netinfo.Gateway)
 			}
 		}
 	}
-
 	for _, gw := range gwsToRemove {
 		// Multiple GWs cause unpredictable behavior depending on the order they are processed. Since the timing
 		// may sometimes be unpredictable, remove also from the netplan file
 		log.SpanLog(ctx, log.DebugLevelInfra, "removing extra default gw from VM", "vm", vm.VM.Name, "gw", gw)
-		vmparams.CloudConfigParams.ExtraBootCommands = append(vmparams.CloudConfigParams.ExtraBootCommands, "route del default gw "+gw)
+		vmparams.CloudConfigParams.ExtraBootCommands = append(vmparams.CloudConfigParams.ExtraBootCommands, "ip route del default via "+gw)
 		netplanFile := "/etc/netplan/99-netcfg-vmware.yaml"
 		removeGwFromNetplan := fmt.Sprintf("sed -i /gateway4:.%s/d %s", gw, netplanFile)
 		vmparams.CloudConfigParams.ExtraBootCommands = append(vmparams.CloudConfigParams.ExtraBootCommands, removeGwFromNetplan)
@@ -373,6 +385,8 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 		case vmlayer.NetworkTypeExternalAdditionalPlatform:
 			fallthrough
 		case vmlayer.NetworkTypeExternalAdditionalRootLb:
+			fallthrough
+		case vmlayer.NetworkTypeExternalAdditionalClusterNode:
 			if netName == extNet {
 				ncs.PrimaryNetworkConnectionIndex = netConIdx
 			}
@@ -500,6 +514,14 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 	ports := vmgp.Ports
 	numVMs := len(vmgp.VMs)
 	netName := ports[0].SubnetId
+	// use the mapped isolated network if one exists
+	mappedIsoNet, err := v.updateIsoNamesMap(ctx, IsoMapActionRead, netName, "")
+	if err != nil {
+		return vmMap, fmt.Errorf("Error reading iso map - %v", err)
+	}
+	if mappedIsoNet != "" {
+		netName = mappedIsoNet
+	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVapp", "network", netName, "vms", numVMs, "to existing vms", numExistingVMs)
 
 	netConIdx := 0
@@ -511,13 +533,24 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 		vm := &govcd.VM{}
 		ncs := &types.NetworkConnectionSection{}
 		// check to see if this vm is already present
+		if vmparams.ExistingVm {
+			// for existing VMs just check if this is a master and get the IP
+			if vmRole == vmlayer.RoleMaster {
+				vmIp, err := v.getVmInternalIp(ctx, &vmparams, vmgp, vapp)
+				if err != nil {
+					return nil, err
+				}
+				masterIP = vmIp
+				log.SpanLog(ctx, log.DebugLevelInfra, "Got Master IP", "masterIP", masterIP)
+			}
+			continue
+		}
 		vm, err := vapp.GetVMByName(vmName, true)
 		if err != nil && vm == nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp", "vmName", vmName, "vmRole", vmRole, "vmType", vmType)
 
 			// use new regen
 			task, err := v.addNewVMRegenUuid(vapp, vmName, *tmpl, ncs, vcdClient)
-			// task, err := vapp.AddNewVM(vmparams.Name, *tmpl, ncs, true)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "create add vm failed", "err", err)
 				return nil, err
@@ -533,17 +566,15 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 				// internal error
 				return nil, err
 			}
+		} else {
+			return nil, fmt.Errorf("Found VM already in Vapp which should not exist - %s", vmName)
 		}
 
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp Octet fail", "err", err)
-			return nil, err
-		}
 		if v.Verbose {
 			log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp", "vapp", vapp.VApp.Name, "network", netName, "existingsVMs", numExistingVMs, "n", n)
 		}
 
-		log.SpanLog(ctx, log.DebugLevelInfra, "AddVmsToExstingVAppp", "vm", vmName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp", "vm", vmName)
 		ncs.PrimaryNetworkConnectionIndex = 0
 		// some unique key within the vapp
 		key := fmt.Sprintf("%s-vm-%d", vapp.VApp.Name, n+numExistingVMs)
@@ -556,10 +587,6 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 		vmIp, err := v.getVmInternalIp(ctx, &vmparams, vmgp, vapp)
 		if err != nil {
 			return nil, err
-		}
-		if vmRole == vmlayer.RoleMaster {
-			masterIP = vmIp
-			log.SpanLog(ctx, log.DebugLevelInfra, "Got Master IP", "masterIP", masterIP)
 		}
 		ncs.NetworkConnection = append(ncs.NetworkConnection,
 			&types.NetworkConnection{
@@ -583,7 +610,7 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 		}
 		err = v.updateVM(ctx, vm, &vmparams, masterIP)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "update vm failed ", "VAppName", vmgp.GroupName, "err", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "update vm failed", "VAppName", vmgp.GroupName, "err", err)
 			return nil, err
 		}
 		vmMap[vm.VM.Name] = vm
@@ -714,32 +741,29 @@ func (v *VcdPlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	numExistingVMs := len(existingVms)
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs existing vms in", "Vapp", vappName, "vms", existingVms)
 
-	newVMs := vmgp.VMs
-	numNewVMs := len(newVMs)
+	numNewVMs := len(vmgp.VMs)
+	numToAddFound := 0
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs existing vs new", "numExisting", numExistingVMs, "numNew", numNewVMs)
-
 	if numNewVMs > numExistingVMs {
-		newVMOrch := []vmlayer.VMOrchestrationParams{}
 		// Its an add of numNetVMs - numExistingVMs
 		numToAdd := numNewVMs - numExistingVMs
 		log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs add", "count", numToAdd)
 		updateCallback(edgeproto.UpdateTask, "Adding VMs to vApp")
 		// now find which one is the new guy
-		// need a map of the existing (we have that) and run our newVMs list over the map creating a new list
+		// Loop thru the orch spec and mark existing VMs
 		// of vms to create. create a new list of vmgp.VMs to pass to AddVMsToExistngVApp
-		for _, vmSpec := range newVMs {
+		for i, vmSpec := range vmgp.VMs {
 			if _, found := existingVms[vmSpec.Name]; !found {
 				log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs adding new", "vm", vmSpec.Name)
-				newVMOrch = append(newVMOrch, vmSpec)
+				numToAddFound++
 			} else {
 				log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs skip existing", "vm", vmSpec.Name)
+				vmgp.VMs[i].ExistingVm = true
 			}
 		}
-		newOrchLen := len(newVMOrch)
-		if newOrchLen != numToAdd {
-			log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs Mismatch count", "numToAdd", numToAdd, "NewOrcLen", newOrchLen)
+		if numToAddFound != numToAdd {
+			log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs Mismatch count", "numToAdd", numToAdd, "numToAddFound", numToAddFound)
 		}
-		vmgp.VMs = newVMOrch
 		newVms, err := v.AddVMsToExistingVApp(ctx, vapp, vmgp, vcdClient)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs", "VAppName", vmgp.GroupName, "error", err)
@@ -766,8 +790,8 @@ func (v *VcdPlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 	} else if numExistingVMs > numNewVMs {
 		newVmMap := make(VMMap)
 		rmcnt := 0
-		// delete whatever is in exsiting that is not in new
-		for _, newVmParams := range newVMs {
+		// delete whatever is in existing that is not in new
+		for _, newVmParams := range vmgp.VMs {
 			newVmMap[newVmParams.Name] = &govcd.VM{}
 		}
 		for _, existingVM := range existingVms {
@@ -786,13 +810,6 @@ func (v *VcdPlatform) UpdateVMs(ctx context.Context, vmgp *vmlayer.VMGroupOrches
 		if v.Verbose {
 			msg := fmt.Sprintf("Removed  %d  VMs time %s", rmcnt, cloudcommon.FormatDuration(time.Since(updateTime), 2))
 			updateCallback(edgeproto.UpdateTask, msg)
-		}
-
-	} else {
-		// ok, we're just updating some existing VMs then?
-		for _, vm := range newVMs {
-			// Trustpolicy and / or autoscale policy / skipcrmcleanupnfailre / crmoverride
-			log.SpanLog(ctx, log.DebugLevelInfra, "UpdateVMs modify existing", "vm", vm.Name)
 		}
 	}
 	return nil
@@ -863,8 +880,8 @@ func (v *VcdPlatform) DeleteVMs(ctx context.Context, vmGroupName string) error {
 		return err
 	} else {
 		if strings.Contains(err.Error(), govcd.ErrorEntityNotFound.Error()) {
-			log.SpanLog(ctx, log.DebugLevelInfra, "VApp already deleted", "vappName", vappName)
-			return nil
+			log.SpanLog(ctx, log.DebugLevelInfra, "VApp not found ", "vappName", vappName)
+			return fmt.Errorf(vmlayer.ServerDoesNotExistError)
 		} else {
 			return fmt.Errorf("Unexpected error in FindVApp - %v", err)
 		}

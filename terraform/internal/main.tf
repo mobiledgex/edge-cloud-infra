@@ -135,10 +135,10 @@ module "chef" {
 
   instance_name  = var.chef_instance_name
   environ_tag    = var.environ_tag
-  instance_size  = "n1-standard-2"
+  instance_size  = "n1-standard-4"
   zone           = var.chef_zone
   boot_image     = "ubuntu-1604-xenial-v20200407"
-  boot_disk_size = 100
+  boot_disk_size = 300
   tags           = ["mexplat-internal", "http-server", "https-server"]
   labels = {
     "owner" = "ops"
@@ -169,4 +169,62 @@ module "monitor_dns" {
   source   = "../modules/cloudflare_record"
   hostname = var.monitor_domain_name
   ip       = module.monitor.external_ip
+}
+
+module "openvas" {
+  source = "../modules/vm_gcp"
+
+  instance_name       = var.openvas_instance_name
+  environ_tag         = var.environ_tag
+  zone                = var.openvas_zone
+  boot_image          = "ubuntu-os-cloud/ubuntu-2004-focal-v20210720"
+  boot_disk_size      = 100
+  tags                = ["mexplat-internal", "http-server", "https-server"]
+  labels = {
+    "owner" = "venky"
+  }
+}
+
+module "openvas_dns" {
+  source   = "../modules/cloudflare_record"
+  hostname = var.openvas_domain_name
+  ip       = module.openvas.external_ip
+}
+
+resource "google_compute_firewall" "teleport" {
+  name = "teleport"
+  description = "Teleport bastion"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports = ["3023", "3024", "3025", "3026"]
+  }
+
+  target_tags = ["teleport"]
+}
+
+module "teleport" {
+  source = "../modules/vm_gcp"
+
+  instance_name       = var.teleport_instance_name
+  environ_tag         = var.environ_tag
+  zone                = var.teleport_zone
+  boot_image          = "ubuntu-os-cloud/ubuntu-2004-lts"
+  boot_disk_size      = 100
+  tags                = [
+    "mexplat-internal",
+    "http-server",
+    "https-server",
+    "teleport",
+  ]
+  labels = {
+    "owner" = "ops"
+  }
+}
+
+module "teleport_dns" {
+  source   = "../modules/cloudflare_record"
+  hostname = var.teleport_domain_name
+  ip       = module.teleport.external_ip
 }

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: autoprov
-        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        image: "{{ edge_cloud_image }}-autoprov:{{ edge_cloud_version }}"
         imagePullPolicy: Always
         resources:
           requests:

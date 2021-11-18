@@ -12,6 +12,7 @@ import (
 	client "github.com/influxdata/influxdb/client/v2"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -691,7 +692,7 @@ func GetUsageCommon(c echo.Context) error {
 		return err
 	}
 	rc.claims = claims
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	if strings.HasSuffix(c.Path(), "usage/app") {
 		in := ormapi.RegionAppInstUsage{}
@@ -758,10 +759,11 @@ func GetUsageCommon(c echo.Context) error {
 	} else {
 		return echo.ErrNotFound
 	}
-
-	payload := ormapi.StreamPayload{}
-	payload.Data = &[]ormapi.MetricData{*usage}
-	WriteStream(c, &payload)
-
-	return nil
+	billingusage := ormapi.AllMetrics{
+		Data: []ormapi.MetricData{},
+	}
+	if len(usage.Series[0].Values) != 0 {
+		billingusage.Data = append(billingusage.Data, *usage)
+	}
+	return ormutil.SetReply(c, &billingusage)
 }

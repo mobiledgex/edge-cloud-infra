@@ -10,7 +10,6 @@ import (
 	proto "github.com/gogo/protobuf/proto"
 	_ "github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
-	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
 	math "math"
@@ -144,6 +143,7 @@ var CreateVMPoolOptionalArgs = []string{
 	"vms:#.netinfo.externalip",
 	"vms:#.netinfo.internalip",
 	"crmoverride",
+	"deleteprepare",
 }
 var AddVMPoolMemberRequiredArgs = []string{
 	"vmpool-org",
@@ -174,6 +174,7 @@ var VMPoolOptionalArgs = []string{
 	"vms:#.netinfo.internalip",
 	"vms:#.state",
 	"crmoverride",
+	"deleteprepare",
 }
 var VMPoolAliasArgs = []string{
 	"fields=vmpool.fields",
@@ -202,6 +203,7 @@ var VMPoolAliasArgs = []string{
 	"status.msgcount=vmpool.status.msgcount",
 	"status.msgs=vmpool.status.msgs",
 	"crmoverride=vmpool.crmoverride",
+	"deleteprepare=vmpool.deleteprepare",
 }
 var VMPoolComments = map[string]string{
 	"fields":                   "Fields are used for the Update API to specify which fields to apply",
@@ -212,7 +214,7 @@ var VMPoolComments = map[string]string{
 	"vms:#.netinfo.externalip": "External IP",
 	"vms:#.netinfo.internalip": "Internal IP",
 	"vms:#.groupname":          "VM Group Name",
-	"vms:#.state":              "VM State, one of Free, InProgress, InUse, Add, Remove, Update, ForceFree",
+	"vms:#.state":              "VM State, one of ForceFree",
 	"vms:#.updatedat.seconds":  "Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.",
 	"vms:#.updatedat.nanos":    "Non-negative fractions of a second at nanosecond resolution. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be from 0 to 999,999,999 inclusive.",
 	"vms:#.internalname":       "VM Internal Name",
@@ -224,6 +226,7 @@ var VMPoolComments = map[string]string{
 	"state":                    "Current state of the VM pool, one of TrackedStateUnknown, NotPresent, CreateRequested, Creating, CreateError, Ready, UpdateRequested, Updating, UpdateError, DeleteRequested, Deleting, DeleteError, DeletePrepare, CrmInitok, CreatingDependencies, DeleteDone",
 	"errors":                   "Any errors trying to add/remove VM to/from VM Pool, specify errors:empty=true to clear",
 	"crmoverride":              "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
+	"deleteprepare":            "Preparing to be deleted",
 }
 var VMPoolSpecialArgs = map[string]string{
 	"vmpool.errors":               "StringArray",
@@ -266,7 +269,7 @@ var VMPoolMemberComments = map[string]string{
 	"vm.netinfo.externalip": "External IP",
 	"vm.netinfo.internalip": "Internal IP",
 	"vm.groupname":          "VM Group Name",
-	"vm.state":              "VM State, one of Free, InProgress, InUse, Add, Remove, Update, ForceFree",
+	"vm.state":              "VM State, one of ForceFree",
 	"vm.updatedat.seconds":  "Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.",
 	"vm.updatedat.nanos":    "Non-negative fractions of a second at nanosecond resolution. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be from 0 to 999,999,999 inclusive.",
 	"vm.internalname":       "VM Internal Name",

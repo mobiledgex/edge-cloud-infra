@@ -217,5 +217,5 @@ func (f *FederationPlatform) GetRootLBFlavor(ctx context.Context) (*edgeproto.Fl
 	return &edgeproto.Flavor{}, nil
 }
 
-func (k *FederationPlatform) BecomeActive(ctx context.Context, activeInstance string) {
+func (k *FederationPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
 }

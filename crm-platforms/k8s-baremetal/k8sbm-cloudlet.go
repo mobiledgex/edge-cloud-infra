@@ -292,6 +292,6 @@ func (k *K8sBareMetalPlatform) GetNodeInfos(ctx context.Context) ([]*edgeproto.N
 	return k8smgmt.GetNodeInfos(ctx, client, "KUBECONFIG="+k.cloudletKubeConfig)
 }
 
-func (k *K8sBareMetalPlatform) BecomeActive(ctx context.Context, activeInstance string) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "BecomeActive")
+func (k *K8sBareMetalPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged")
 }

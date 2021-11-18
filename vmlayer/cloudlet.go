@@ -837,6 +837,6 @@ func (v *VMPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletP
 	return &props, nil
 }
 
-func (v *VMPlatform) BecomeActive(ctx context.Context, activeInstance string) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "BecomeActive")
+func (v *VMPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged")
 }

@@ -115,6 +115,6 @@ func (s *EdgeboxPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.
 	return s.generic.GetRootLBClients(ctx)
 }
 
-func (s *EdgeboxPlatform) BecomeActive(ctx context.Context, activeInstance string) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "BecomeActive")
+func (s *EdgeboxPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged")
 }

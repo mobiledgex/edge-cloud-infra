@@ -55,6 +55,7 @@
     policies:
       - approle.login.v1
       - chargify.read.v1
+      - federation.write.v1
       - gcs.read.v1
       - gcp-operator-reports-bucket-access-token.read.v1
       - influxdb.read.v1

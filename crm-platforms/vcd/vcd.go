@@ -75,6 +75,7 @@ const (
 	IsoMapActionAdd    IsoMapActionType = "add"
 	IsoMapActionDelete IsoMapActionType = "delete"
 	IsoMapActionRead   IsoMapActionType = "read"
+	IsoMapActionDump   IsoMapActionType = "dump"
 )
 
 func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {

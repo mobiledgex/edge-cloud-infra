@@ -253,6 +253,7 @@ func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, accessApi pla
 		}
 
 	}
+	v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr, stage)
 	return nil
 }
 

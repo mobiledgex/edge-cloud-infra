@@ -1240,6 +1240,7 @@ func (v *VcdPlatform) GetVmHrefFromCache(ctx context.Context, vmName string) str
 }
 
 func (v *VcdPlatform) AddVmHrefToCache(ctx context.Context, vmName, href string) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddVmHrefToCache", "vmName", vmName)
 	vcdVmHrefMux.Lock()
 	defer vcdVmHrefMux.Unlock()
 	VmNameToHref[vmName] = href
@@ -1248,9 +1249,26 @@ func (v *VcdPlatform) AddVmHrefToCache(ctx context.Context, vmName, href string)
 // DeleteVmHrefFromCache delete the VM->href mapping in the cache if present, does
 // nothing otherwise
 func (v *VcdPlatform) DeleteVmHrefFromCache(ctx context.Context, vmName string) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVmHrefFromCache", "vmName", vmName)
 	vcdVmHrefMux.Lock()
 	defer vcdVmHrefMux.Unlock()
 	delete(VmNameToHref, vmName)
+}
+
+func (v *VcdPlatform) DumpVmHrefCache(ctx context.Context) string {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DumpVmHrefCache")
+	vcdVmHrefMux.Lock()
+	defer vcdVmHrefMux.Unlock()
+
+	out := fmt.Sprintf("VmNameToHref: %v", VmNameToHref)
+	return out
+}
+
+func (v *VcdPlatform) ClearVmHrefCache(ctx context.Context) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ClearVmHrefCache")
+	vcdVmHrefMux.Lock()
+	defer vcdVmHrefMux.Unlock()
+	VmNameToHref = make(map[string]string)
 }
 
 // FindVMByHrefCache returns nil if the cache is not enabled or the vm not found

@@ -575,6 +575,7 @@ func start() {
 		AppDNSRoot:     *appDNSRoot,
 		ChefServerPath: *chefServerPath,
 		AccessApi:      accessApi,
+		NodeMgr:        &nodeMgr,
 	}
 
 	caches := pf.Caches{

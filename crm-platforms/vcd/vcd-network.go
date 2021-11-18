@@ -1452,6 +1452,8 @@ func (v *VcdPlatform) updateIsoNamesMap(ctx context.Context, action IsoMapAction
 		} else {
 			return "", fmt.Errorf("invalid args for action Create")
 		}
+	} else if action == IsoMapActionDump {
+		return fmt.Sprintf("IsoNamesMap: %v", v.IsoNamesMap), nil
 	} else {
 		return "", fmt.Errorf("Unsupported action type %s encountered", action)
 	}

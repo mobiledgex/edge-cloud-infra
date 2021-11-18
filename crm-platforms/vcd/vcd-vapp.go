@@ -200,21 +200,14 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	if err != nil {
 		return fmt.Errorf("GetVdc Failed - %v", err)
 	}
-	// First, does this guy even exist?
-	// If not, ok, its deleted
-	vapp, err = v.FindVApp(ctx, vappName, vcdClient, vdc)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vapp not found", "vapp", vappName)
-		if err.Error() == vmlayer.ServerDoesNotExistError {
-			return err
+	// At this point the vapp has to exist as we have already retrieved the name from it
+
+	// cleanup VM HREF cache
+	if v.GetHrefCacheEnabled() {
+		for _, vm := range vapp.VApp.Children.VM {
+			// delete from cache
+			v.DeleteVmHrefFromCache(ctx, vm.Name)
 		}
-		if v.GetHrefCacheEnabled() {
-			for _, vm := range vapp.VApp.Children.VM {
-				// delete from cache
-				v.DeleteVmHrefFromCache(ctx, vm.Name)
-			}
-		}
-		return nil
 	}
 
 	// handle deletion of an iso orgvdcnet of the client of a shared LB

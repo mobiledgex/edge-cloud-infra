@@ -120,7 +120,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	if app.Deployment == cloudcommon.DeploymentTypeVM {
 		mapKey = new.Key.GetKeyString()
 		stats, exists := vmAppWorkerMap[mapKey]
-		myPlatform.VmAppChangedCallback(ctx)
+		myPlatform.VmAppChangedCallback(ctx, &new.Key, new.State)
 		if new.State == edgeproto.TrackedState_READY && !exists {
 			// Add/Create
 			stats := NewAppInstWorker(ctx, collectInterval, MetricSender.Update, new, myPlatform)
@@ -581,6 +581,7 @@ func start() {
 		AppDNSRoot:     *appDNSRoot,
 		ChefServerPath: *chefServerPath,
 		AccessApi:      accessApi,
+		NodeMgr:        &nodeMgr,
 	}
 
 	caches := pf.Caches{

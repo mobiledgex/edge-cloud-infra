@@ -171,7 +171,7 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	return shepherd_common.AppMetrics{}, fmt.Errorf("VMs are unsupported for bare metals k8s")
 }
 
-func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context) {
+func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context, appInstKey *edgeproto.AppInstKey, newState edgeproto.TrackedState) {
 	log.SpanLog(ctx, log.DebugLevelInfo, "VMs are unsupported for bare metal k8s")
 }
 

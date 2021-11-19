@@ -4,6 +4,10 @@ metadata:
   name: infra-{{ environ }}
 spec:
   allow:
+    logins:
+      - ubuntu
+    node_labels:
+      env: {{ environ }}
     kubernetes_groups: ["system:masters"]
     kubernetes_labels:
       env: {{ environ }}

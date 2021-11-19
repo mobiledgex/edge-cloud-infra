@@ -81,4 +81,16 @@
 - name: Apply audit-access role
   command: "tctl create -f {{ audit_role.dest }}"
   become: yes
-  when: role is changed
+  when: audit_role is changed
+
+- name: Set up Sonoral access role
+  template:
+    src: sonoral-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/sonoral-access-role.yaml"
+  become: yes
+  register: sonoral_role
+
+- name: Apply Sonoral access role
+  command: "tctl create -f {{ sonoral_role.dest }}"
+  become: yes
+  when: sonoral_role is changed

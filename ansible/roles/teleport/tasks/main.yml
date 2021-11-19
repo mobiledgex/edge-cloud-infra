@@ -81,4 +81,16 @@
 - name: Apply audit-access role
   command: "tctl create -f {{ audit_role.dest }}"
   become: yes
-  when: role is changed
+  when: audit_role is changed
+
+- name: Set up Telefonica access role
+  template:
+    src: telefonica-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/telefonica-access-role.yaml"
+  become: yes
+  register: telefonica_role
+
+- name: Apply Telefonica access role
+  command: "tctl create -f {{ telefonica_role.dest }}"
+  become: yes
+  when: telefonica_role is changed

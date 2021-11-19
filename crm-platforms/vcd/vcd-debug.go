@@ -63,15 +63,14 @@ func (v *VcdPlatform) runVcdCliCommand(ctx context.Context, req *edgeproto.Debug
 	return string(out)
 }
 
+// example usage, login, and show vapp info:
+// mcctl --addr https://console-qa.mobiledgex.net:443 debug rundebug  cmd=govcdcmd region=US cloudlet=qa2-cld1 args="/usr/bin/env LC_ALL=C.UTF-8 LANG=C.UTF-8 /home/ubuntu/venv/bin/vcd login $HOST  $ORG $USER -w -i -p $PASSWD"
+//  mcctl --addr https://console-qa.mobiledgex.net:443 --output-format=json debug rundebug  cmd=govcdcmd region=US cloudlet=qa2-cld1 args="/usr/bin/env LC_ALL=C.UTF-8 LANG=C.UTF-8 /home/ubuntu/venv/bin/vcd vapp info qa2-cld1-packet-pf-vapp" | jq -r '.[0].output'
 func (v *VcdPlatform) TimedVcdCliCommand(ctx context.Context, name string, a ...string) ([]byte, error) {
 	parmstr := strings.Join(a, " ")
 	start := time.Now()
 
-	path := "/home/ubuntu/venv/bin/"
-	envvar := "/usr/bin/env LC_ALL=C.UTF-8 LANG=C.UTF-8 "
-
-	cmd := envvar + path + name
-	log.SpanLog(ctx, log.DebugLevelInfra, "govcdcmd Command Start", "name", name, "cmd", cmd, "parms", parmstr)
+	log.SpanLog(ctx, log.DebugLevelInfra, "govcdcmd Command Start", "name", name, "parms", parmstr)
 	newSh := infracommon.Sh(v.vcdVars)
 
 	out, err := newSh.Command(name, a).CombinedOutput()

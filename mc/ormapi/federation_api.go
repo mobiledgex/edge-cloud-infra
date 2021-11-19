@@ -25,6 +25,8 @@ type Federator struct {
 	// but this can differ with what partner federator uses
 	// read only: true
 	Revision string `json:"revision"`
+	// API Key used for authentication
+	ApiKey string `json:"apikey"`
 }
 
 type Federation struct {
@@ -42,6 +44,12 @@ type Federation struct {
 	// Partner is allowed access to self federator zones as part of federation
 	// read only: true
 	PartnerRoleAccessToSelfZones bool
+	// read only: true
+	ApiKeyHash string `gorm:"not null"`
+	// read only: true
+	Salt string `gorm:"not null"`
+	// read only: true
+	Iter int `gorm:"not null"`
 }
 
 // Details of zone owned by a federator. MC defines a zone as a group of cloudlets,
@@ -99,4 +107,42 @@ type FederatedPartnerZone struct {
 	// Zone registered by self federator
 	// read only: true
 	Registered bool
+}
+
+type FederationApiKey struct {
+	ApiKey string `json:"apikey"`
+}
+
+func (f *Federator) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.OperatorId
+	tags["region"] = f.Region
+	return tags
+}
+
+func (f *Federation) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.SelfOperatorId
+	tags["federatedorg"] = f.OperatorId
+	return tags
+}
+
+func (f *FederatorZone) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.OperatorId
+	tags["region"] = f.Region
+	return tags
+}
+
+func (f *FederatedSelfZone) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.SelfOperatorId
+	return tags
+}
+
+func (f *FederatedPartnerZone) GetTags() map[string]string {
+	tags := make(map[string]string)
+	tags["org"] = f.SelfOperatorId
+	tags["federatedorg"] = f.OperatorId
+	return tags
 }

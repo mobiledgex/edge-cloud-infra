@@ -42,11 +42,15 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	return shepherd_common.AppMetrics{}, nil
 }
 
-func (s *Platform) VmAppChangedCallback(ctx context.Context) {
+func (s *Platform) VmAppChangedCallback(ctx context.Context, appInstKey *edgeproto.AppInstKey, newState edgeproto.TrackedState) {
 }
 
 func (s *Platform) GetMetricsCollectInterval() time.Duration {
 	return 0
+}
+
+func (s *Platform) SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error {
+	return nil
 }
 
 func (s *Platform) IsPlatformLocal(ctx context.Context) bool {

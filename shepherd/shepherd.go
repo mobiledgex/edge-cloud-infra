@@ -11,6 +11,7 @@ import (
 	"time"
 
 	awsec2 "github.com/mobiledgex/edge-cloud-infra/crm-platforms/aws/aws-ec2"
+	k8sbm "github.com/mobiledgex/edge-cloud-infra/crm-platforms/k8s-baremetal"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vmpool"
@@ -19,6 +20,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_k8sbm"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_xind"
 	"github.com/mobiledgex/edge-cloud-infra/version"
@@ -118,7 +120,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	if app.Deployment == cloudcommon.DeploymentTypeVM {
 		mapKey = new.Key.GetKeyString()
 		stats, exists := vmAppWorkerMap[mapKey]
-		myPlatform.VmAppChangedCallback(ctx)
+		myPlatform.VmAppChangedCallback(ctx, &new.Key, new.State)
 		if new.State == edgeproto.TrackedState_READY && !exists {
 			// Add/Create
 			stats := NewAppInstWorker(ctx, collectInterval, MetricSender.Update, new, myPlatform)
@@ -391,6 +393,10 @@ func getPlatform() (platform.Platform, error) {
 		plat = &shepherd_vmprovider.ShepherdPlatform{
 			VMPlatform: &vmPlatform,
 		}
+	case "PLATFORM_TYPE_K8S_BARE_METAL":
+		plat = &shepherd_k8sbm.ShepherdPlatform{
+			Pf: &k8sbm.K8sBareMetalPlatform{},
+		}
 	case "PLATFORM_TYPE_FAKEINFRA":
 		plat = &shepherd_fake.Platform{}
 	case "PLATFORM_TYPE_KINDINFRA":
@@ -575,6 +581,7 @@ func start() {
 		AppDNSRoot:     *appDNSRoot,
 		ChefServerPath: *chefServerPath,
 		AccessApi:      accessApi,
+		NodeMgr:        &nodeMgr,
 	}
 
 	caches := pf.Caches{

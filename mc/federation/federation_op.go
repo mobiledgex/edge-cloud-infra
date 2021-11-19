@@ -73,8 +73,8 @@ func AuthAPIKey(next echo.HandlerFunc) echo.HandlerFunc {
 				// if no api key found, return a 400 err
 				return &echo.HTTPError{
 					Code:     http.StatusBadRequest,
-					Message:  "no bearer token found",
-					Internal: fmt.Errorf("no token found for Authorization Bearer"),
+					Message:  "api key not found in bearer token or x-api-key",
+					Internal: fmt.Errorf("api key not found in bearer token or x-api-key"),
 				}
 			}
 		}

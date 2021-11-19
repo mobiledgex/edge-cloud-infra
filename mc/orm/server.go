@@ -928,9 +928,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		federationEcho.HideBanner = true
 		federationEcho.Binder = &CustomBinder{}
 
-		// RateLimit only based on IP address and not on username as there
-		// is no user associated with the federation request
-		federationEcho.Use(logger, federation.AuthAPIKey, RateLimit)
+		// RateLimit based on partner's federation ID if present or else use partner's IP
+		federationEcho.Use(logger, federation.AuthAPIKey, FederationRateLimit)
 		server.federationEcho = federationEcho
 
 		partnerApi := federation.PartnerApi{

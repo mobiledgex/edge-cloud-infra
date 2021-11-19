@@ -66,6 +66,9 @@ func AuthAPIKey(next echo.HandlerFunc) echo.HandlerFunc {
 			apiKey = auth[l+1:]
 		}
 		if apiKey == "" {
+			// Partner federator is using x-api-key for API key-based auth,
+			// which will be changed in the future to use Authorization header.
+			// So for now, we will support both.
 			auth = c.Request().Header.Get("x-api-key")
 			if len(auth) > 0 {
 				apiKey = auth
@@ -490,6 +493,11 @@ func (p *PartnerApi) FederationOperatorZoneRegister(c echo.Context) error {
 			ZoneId:            zoneId,
 			RegistrationToken: selfFed.FederationId,
 			UpperLimitQuota:   upperLimitQuota,
+			// Guaranteed resources are the resources that you can most definitely utilize
+			// from an operations standpoint, going beyond the guaranteed resources limit
+			// would likely mean some form of compromise in service uptime.
+			// In our case, upper limit quota is the guaranteed resources
+			GuaranteedResources: upperLimitQuota,
 		})
 	}
 	// Share zone details

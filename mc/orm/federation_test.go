@@ -41,7 +41,7 @@ import (
 
 var MockESUrl = "http://mock.es"
 var PartnerApiKey = "dummyKey"
-var ResourceValue = uint64(100)
+var ResourceValue = uint64(1030)
 
 type CtrlObj struct {
 	addr        string
@@ -658,8 +658,11 @@ func testPartnerFederationAPIs(t *testing.T, ctx context.Context, mcClient *mcte
 	require.Equal(t, len(opZoneRes.Zone), len(regZones))
 	for _, resZone := range opZoneRes.Zone {
 		require.Equal(t, resZone.UpperLimitQuota.CPU, int64(ResourceValue))
-		require.Equal(t, resZone.UpperLimitQuota.RAM, int64(ResourceValue))
+		require.Equal(t, resZone.UpperLimitQuota.RAM, int64(ResourceValue)/1024)
 		require.Equal(t, resZone.UpperLimitQuota.Disk, int64(ResourceValue))
+		require.Equal(t, resZone.GuaranteedResources.CPU, int64(ResourceValue))
+		require.Equal(t, resZone.GuaranteedResources.RAM, int64(ResourceValue)/1024)
+		require.Equal(t, resZone.GuaranteedResources.Disk, int64(ResourceValue))
 	}
 
 	for _, regZone := range regZones {

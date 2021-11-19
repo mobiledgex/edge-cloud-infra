@@ -638,6 +638,27 @@ func (v *VMPlatform) GetAllRootLBClients(ctx context.Context) (map[string]ssh.Cl
 	return rootlbClients, nil
 }
 
+func (v *VMPlatform) GetRootLBClientForClusterInstKey(ctx context.Context, clusterInstKey *edgeproto.ClusterInstKey) (map[string]ssh.Client, error) {
+	rootLBClients := make(map[string]ssh.Client)
+
+	var clusterInst edgeproto.ClusterInst
+	found := v.Caches.ClusterInstCache.Get(clusterInstKey, &clusterInst)
+	if !found {
+		return nil, fmt.Errorf("Unable to get clusterInst %v", clusterInstKey.GetKeyString())
+	}
+	if clusterInst.IpAccess != edgeproto.IpAccess_IP_ACCESS_DEDICATED {
+		return nil, fmt.Errorf("Cluster not dedicated %v", clusterInstKey.GetKeyString())
+	}
+	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, &clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, &clusterInst, cloudcommon.ClientTypeRootLB)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client for dedicated cluster", "key", clusterInst.Key, "error", err)
+		return nil, fmt.Errorf("Unable to get client from clusterInst %v", clusterInstKey.GetKeyString())
+	}
+	rootLBClients[lbName] = client
+	return rootLBClients, nil
+}
+
 // GetRootLBClients gets all RootLB Clients for dedicated LBs
 func (v *VMPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Client, error) {
 	if v.Caches == nil {
@@ -694,87 +715,6 @@ func (v *VMPlatform) GetRootLBClients(ctx context.Context) (map[string]ssh.Clien
 			// set client as nil and continue, caller will generate alert accordingly
 		}
 		rootLBClients[lbName] = client
-	}
-	return rootLBClients, nil
-}
-
-// GetRootLBClientsForTpe: gets all dedicated RootLB Clients corresponding to target clusterInstKey and AppKey specified in TrustPolicyException
-func (v *VMPlatform) GetRootLBClientsForTpe(ctx context.Context, tpeKey *edgeproto.TrustPolicyExceptionKey, clusterInstKey *edgeproto.ClusterInstKey) (map[string]ssh.Client, error) {
-	if v.Caches == nil {
-		return nil, fmt.Errorf("caches is nil")
-	}
-	if clusterInstKey == nil {
-		return nil, fmt.Errorf("clusterInst is nil")
-	}
-	if tpeKey == nil {
-		return nil, fmt.Errorf("trust policy exception is nil")
-	}
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetRootLBClientsForTpe", "tpeKey", tpeKey, "clusterInstKey", clusterInstKey)
-
-	rootLBClients := make(map[string]ssh.Client)
-
-	// clusterInstKey must be provided for a specific target cluster
-	cKey := edgeproto.ClusterInstKey{}
-	if cKey.Matches(clusterInstKey) {
-		// Empty clusterInstKey
-		return rootLBClients, fmt.Errorf("Empty target clusterInstKey")
-	}
-
-	var clusterInst edgeproto.ClusterInst
-	if v.Caches.ClusterInstCache.Get(clusterInstKey, &clusterInst) {
-		if clusterInst.IpAccess != edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-			return rootLBClients, fmt.Errorf("target clusterInstKey is not dedicated")
-		}
-	} else {
-		return rootLBClients, fmt.Errorf("target clusterInstKey not found")
-	}
-
-	apps := make(map[edgeproto.AppKey]struct{})
-	v.Caches.AppCache.GetAllKeys(ctx, func(k *edgeproto.AppKey, modRev int64) {
-		if tpeKey.AppKey.Matches(k) {
-			apps[*k] = struct{}{}
-			log.SpanLog(ctx, log.DebugLevelInfra, "Found AppKey", "Appkey", k)
-		}
-	})
-
-	for k := range apps {
-		var app edgeproto.App
-		if v.Caches.AppCache.Get(&k, &app) {
-			if app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType != edgeproto.AccessType_ACCESS_TYPE_DIRECT {
-				continue
-			}
-		}
-		delete(apps, k)
-	}
-
-	appInstKeys := []edgeproto.AppInstKey{}
-	v.Caches.AppInstCache.GetAllKeys(ctx, func(appInst *edgeproto.AppInstKey, modRev int64) {
-		appInstKeys = append(appInstKeys, *appInst)
-	})
-
-	virtualClusterInstKey := clusterInstKey.Virtual("")
-
-	for _, appInst := range appInstKeys {
-		if _, ok := apps[appInst.AppKey]; !ok {
-			continue
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "Found appInstKey", "appInstKey", appInst)
-
-		if !appInst.ClusterInstKey.Matches(virtualClusterInstKey) {
-			log.SpanLog(ctx, log.DebugLevelInfra, "failed to match virtualClusterInstKey", "virtualClusterInstKey", virtualClusterInstKey, "app's clusterInstKey", appInst.ClusterInstKey)
-			continue
-		}
-		lbName := cloudcommon.GetVMAppFQDN(&appInst, &appInst.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
-		client, err := v.GetSSHClientForServer(ctx, lbName, v.VMProperties.GetCloudletExternalNetwork())
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client for VM app instance", "key", appInst, "error", err)
-			client = nil
-			// set client as nil and continue, caller will generate alert accordingly
-		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Found Root lbName", "lbName", lbName)
-			rootLBClients[lbName] = client
-		}
 	}
 	return rootLBClients, nil
 }

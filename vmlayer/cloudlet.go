@@ -378,7 +378,7 @@ func (v *VMPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *edgepro
 func (v *VMPlatform) UpdateTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, clusterInstKey *edgeproto.ClusterInstKey) error {
 	log.DebugLog(log.DebugLevelInfra, "update VMPlatform TrustPolicyException", "policy", TrustPolicyException)
 
-	rootlbClients, err := v.GetRootLBClientsForTpe(ctx, &TrustPolicyException.Key, clusterInstKey)
+	rootlbClients, err := v.GetRootLBClientForClusterInstKey(ctx, clusterInstKey)
 	if err != nil {
 		return fmt.Errorf("Unable to get rootlb clients - %v", err)
 	}
@@ -389,7 +389,7 @@ func (v *VMPlatform) UpdateTrustPolicyException(ctx context.Context, TrustPolicy
 func (v *VMPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey, clusterInstKey *edgeproto.ClusterInstKey) error {
 	log.DebugLog(log.DebugLevelInfra, "Delete VMPlatform TrustPolicyException", "policyKey", TrustPolicyExceptionKey)
 
-	rootlbClients, err := v.GetRootLBClientsForTpe(ctx, TrustPolicyExceptionKey, clusterInstKey)
+	rootlbClients, err := v.GetRootLBClientForClusterInstKey(ctx, clusterInstKey)
 	if err != nil {
 		return fmt.Errorf("Unable to get rootlb clients - %v", err)
 	}
@@ -398,16 +398,6 @@ func (v *VMPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicy
 		Key: *TrustPolicyExceptionKey,
 	}
 	return v.VMProvider.ConfigureTrustPolicyExceptionSecurityRules(ctx, &TrustPolicyException, rootlbClients, ActionDelete, edgeproto.DummyUpdateCallback)
-}
-
-func (v *VMPlatform) HasTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey, clusterInst *edgeproto.ClusterInst) bool {
-	log.SpanLog(ctx, log.DebugLevelInfra, "VMPlatform HasTrustPolicyException", "policyKey", TrustPolicyExceptionKey)
-	return false
-}
-
-func (v *VMPlatform) TrustPolicyExceptionCount(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey) int {
-	log.SpanLog(ctx, log.DebugLevelInfra, "VMPlatform TrustPolicyExceptionCount", "policyKey", TrustPolicyExceptionKey)
-	return 0
 }
 
 func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {

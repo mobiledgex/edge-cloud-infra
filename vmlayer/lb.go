@@ -646,9 +646,6 @@ func (v *VMPlatform) GetRootLBClientForClusterInstKey(ctx context.Context, clust
 	if !found {
 		return nil, fmt.Errorf("Unable to get clusterInst %v", clusterInstKey.GetKeyString())
 	}
-	if clusterInst.IpAccess != edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		return nil, fmt.Errorf("Cluster not dedicated %v", clusterInstKey.GetKeyString())
-	}
 	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, &clusterInst)
 	client, err := v.GetClusterPlatformClient(ctx, &clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {

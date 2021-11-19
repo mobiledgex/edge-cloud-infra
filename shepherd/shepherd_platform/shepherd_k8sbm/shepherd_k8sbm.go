@@ -172,7 +172,6 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 }
 
 func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context, appInstKey *edgeproto.AppInstKey, newState edgeproto.TrackedState) {
-	log.SpanLog(ctx, log.DebugLevelInfo, "VMs are unsupported for bare metal k8s")
 }
 
 func (s *ShepherdPlatform) SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error {

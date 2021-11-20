@@ -391,6 +391,7 @@ regiondata:
       runtimeinfo:
         containerids:
         - appOnClusterNode0
+      uniqueid: acmeappcosomeapplication110-smallcluster-tmus-cloud-1-tmus
     - key:
         appkey:
           organization: AcmeAppCo
@@ -425,6 +426,7 @@ regiondata:
       runtimeinfo:
         containerids:
         - appOnClusterNode0
+      uniqueid: acmeappcosomeapplication110-smallcluster-tmus-cloud-2-tmus
     - key:
         appkey:
           organization: AcmeAppCo
@@ -460,6 +462,7 @@ regiondata:
         - appOnClusterNode0
       powerstate: PowerOn
       realclustername: reservable0
+      uniqueid: acmeappcosomeapplication110-autoclusteracme-tmus-cloud-2-tmus
 
     autoprovpolicies:
     - key:
@@ -884,6 +887,7 @@ regiondata:
       runtimeinfo:
         containerids:
         - appOnClusterNode0
+      uniqueid: acmeappcosomeapplication110-smallcluster-tmus-cloud-3-tmus
     - key:
         appkey:
           organization: AcmeAppCo
@@ -922,6 +926,7 @@ regiondata:
       runtimeinfo:
         containerids:
         - appOnClusterNode0
+      uniqueid: acmeappcosomeapplication110-smallcluster-tmus-cloud-4-tmus
     appinstrefs:
     - key:
         organization: AcmeAppCo

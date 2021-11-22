@@ -155,8 +155,6 @@ func UpdateConfig(c echo.Context) error {
 		return fmt.Errorf("Failed login lockout time sec 2 of %s must be greater than or equal to lockout time 1 of %s", lockoutTime2.String(), lockoutTime1.String())
 	}
 
-	// TODO need more checks for failed login
-
 	// Update RateLimitMgr settings
 	if config.DisableRateLimit != oldConfig.DisableRateLimit {
 		rateLimitMgr.UpdateDisableRateLimit(config.DisableRateLimit)

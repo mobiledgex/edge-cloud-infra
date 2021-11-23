@@ -509,7 +509,6 @@ type RegionClientApiUsageMetrics struct {
 	Region         string
 	AppInst        edgeproto.AppInstKey
 	Method         string `json:",omitempty"`
-	CellId         int    `json:",omitempty"`
 	DmeCloudlet    string `json:",omitempty"`
 	DmeCloudletOrg string `json:",omitempty"`
 	Selector       string

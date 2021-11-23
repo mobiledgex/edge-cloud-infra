@@ -1607,6 +1607,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
 	// RealClusterName: 37
+	// UniqueId: 40
 	// ```
 	// Security:
 	//   Bearer:

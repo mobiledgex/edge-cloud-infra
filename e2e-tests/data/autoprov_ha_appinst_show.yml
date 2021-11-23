@@ -36,6 +36,7 @@ regiondata:
       powerstate: PowerOn
       vmflavor: x1.small
       realclustername: Reservable2
+      uniqueid: acmeappcoautoprovha10-autocluster-autoprov-tmus-cloud-2-tmus
     - key:
         appkey:
           organization: AcmeAppCo
@@ -70,3 +71,4 @@ regiondata:
       powerstate: PowerOn
       vmflavor: x1.small
       realclustername: Reservable1
+      uniqueid: acmeappcoautoprovha10-autocluster-autoprov-tmus-cloud-1-tmus

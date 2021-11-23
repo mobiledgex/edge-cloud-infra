@@ -4,12 +4,14 @@
     url: https://deb.releases.teleport.dev/teleport-pubkey.asc
     state: present
   become: yes
+  tags: setup
 
 - name: Add teleport APT repo
   apt_repository:
     repo: deb https://deb.releases.teleport.dev/ stable main
     state: present
   become: yes
+  tags: setup
 
 - name: Install teleport
   apt:
@@ -18,6 +20,7 @@
     update_cache: yes
   become: yes
   notify: Restart teleport
+  tags: setup
 
 - name: Install config file
   template:
@@ -26,12 +29,14 @@
     mode: 0400
   become: yes
   notify: Restart teleport
+  tags: setup
 
 - name: Install systemd service
   template:
     src: teleport.service.j2
     dest: /etc/systemd/system/teleport.service
   become: yes
+  tags: setup
 
 - name: Start the teleport service
   systemd:
@@ -39,6 +44,7 @@
     enabled: yes
     state: started
   become: yes
+  tags: setup
 
 - name: Create teleport config dir
   file:
@@ -49,11 +55,13 @@
     mode: 0700
   become: yes
   register: teleport_config_dir
+  tags: config
 
 - name: Load github credentials
   import_role:
     name: load-vault-creds
     tasks_from: teleport-github
+  tags: config
 
 - name: Install github auth config
   template:
@@ -62,14 +70,16 @@
     mode: 0400
   become: yes
   notify: Import github auth
+  tags: config
 
 - name: Install infra access roles
   include_role:
     name: teleport
     tasks_from: roles
-  loop: [ "dev", "qa", "stage", "main" ]
+  loop: "{{ setups.keys() }}"
   loop_control:
     loop_var: environ
+  tags: config
 
 - name: Set up audit-access role
   template:
@@ -77,11 +87,13 @@
     dest: "{{ teleport_config_dir.path }}/audit-access-role.yaml"
   become: yes
   register: audit_role
+  tags: config
 
 - name: Apply audit-access role
   command: "tctl create -f {{ audit_role.dest }}"
   become: yes
   when: audit_role is changed
+  tags: config
 
 - name: Set up Telefonica access role
   template:
@@ -89,8 +101,35 @@
     dest: "{{ teleport_config_dir.path }}/telefonica-access-role.yaml"
   become: yes
   register: telefonica_role
+  tags: config
 
 - name: Apply Telefonica access role
   command: "tctl create -f {{ telefonica_role.dest }}"
   become: yes
   when: telefonica_role is changed
+  tags: config
+
+- name: Set up directory for vault roles
+  file:
+    path: /etc/vault_roles
+    owner: root
+    group: root
+    mode: "0600"
+    state: directory
+  become: yes
+  register: vault_roles_dir
+
+- name: Set up kubernetes config publish script
+  copy:
+    src: kubeconfigs-publish.py
+    dest: "{{ kubeconfig_publish }}"
+    mode: "0500"
+  become: yes
+
+- name: Set up kubernetes CI cert jobs
+  include_role:
+    name: teleport
+    tasks_from: kube_certs
+  loop: "{{ setups | dict2items }}"
+  loop_control:
+    loop_var: setup

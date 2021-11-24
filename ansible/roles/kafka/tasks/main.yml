@@ -16,6 +16,7 @@
     tasks_from: loadbalancer-ips
   vars:
     k8s_cluster_name: "{{ item.name }}"
+    region: "{{ item.region }}"
     resource_group: "{{ item.resource_group }}"
   loop: "{{ platform_regions }}"
 

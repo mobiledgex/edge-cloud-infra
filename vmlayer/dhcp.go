@@ -86,11 +86,12 @@ func (v *VMPlatform) StartDhcpServerForVmApp(ctx context.Context, client ssh.Cli
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to disable cert validation", "err", err)
 	} else {
-		// Remove the cert validation file as it was only required to install the DHCP server
 		defer func() {
-			err = pc.DeleteFile(client, "/etc/apt/apt.conf.d/10cert-validation")
+			// Enable cert validation
+			log.SpanLog(ctx, log.DebugLevelInfra, "Enable cert validation post installation of DHCP server")
+			err = pc.WriteFile(client, "/etc/apt/apt.conf.d/10cert-validation", `Acquire::https::Verify-Peer "true";`, "enableCertVal", pc.SudoOn)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "Failed to delete cert validation file", "err", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "Failed to enable cert validation", "err", err)
 			}
 		}()
 	}

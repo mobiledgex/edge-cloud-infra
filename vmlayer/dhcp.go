@@ -79,6 +79,22 @@ func (v *VMPlatform) StartDhcpServerForVmApp(ctx context.Context, client ssh.Cli
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "DHCP Config params set", "dhcpConfigParams", dhcpConfigParams)
 
+	// Disable cert validation to install DHCP server. This is a temporary fix for EDGECLOUD-5848.
+	// Latest VM image has this fixed already.
+	log.SpanLog(ctx, log.DebugLevelInfra, "Disable cert validation for apt installation of DHCP server")
+	err = pc.WriteFile(client, "/etc/apt/apt.conf.d/10cert-validation", `Acquire::https::Verify-Peer "false";`, "disableCertVal", pc.SudoOn)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to disable cert validation", "err", err)
+	} else {
+		// Remove the cert validation file as it was only required to install the DHCP server
+		defer func() {
+			err = pc.DeleteFile(client, "/etc/apt/apt.conf.d/10cert-validation")
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelInfra, "Failed to delete cert validation file", "err", err)
+			}
+		}()
+	}
+
 	// install DHCP on the LB
 	cmd := fmt.Sprintf("sudo apt-get install isc-dhcp-server -y")
 	if out, err := client.Output(cmd); err != nil {

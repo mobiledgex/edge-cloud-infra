@@ -85,3 +85,11 @@
       - approle.login.v1
       - "{{ region_prefix }}.pki-regional.issue.v1"
     token_type: batch
+
+- name: "Install {{ region_prefix }}.frm.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.frm.v1"
+    policies:
+      - approle.login.v1
+      - "{{ region_prefix }}.pki-regional.issue.v1"
+    token_type: batch

@@ -1577,6 +1577,7 @@ func ShowFederation(c echo.Context) error {
 	}
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
 	if err != nil {
+		return err
 	}
 	db := loggedDB(ctx)
 	outFeds := []ormapi.Federation{}

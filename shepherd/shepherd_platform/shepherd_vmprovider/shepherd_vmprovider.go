@@ -54,6 +54,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 		return err
 	}
 
+	s.VMPlatform.Caches = platformCaches
 	s.VMPlatform.VMProvider.InitData(ctx, platformCaches)
 	// Override cloudlet internal updated callback so CloudletAccessToken updates from the CRM can be stored
 	platformCaches.CloudletInternalCache.SetUpdatedCb(s.vmProviderCloudletCb)
@@ -214,7 +215,11 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	if result == vmlayer.OperationNewlyInitialized {
 		defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 	}
-	vmMetrics, err := s.VMPlatform.VMProvider.GetVMStats(ctx, key)
+	appInst := edgeproto.AppInst{}
+	if !s.VMPlatform.Caches.AppInstCache.Get(key, &appInst) {
+		return appMetrics, key.NotFoundError()
+	}
+	vmMetrics, err := s.VMPlatform.VMProvider.GetVMStats(ctx, &appInst)
 	if err != nil {
 		return appMetrics, err
 	}
@@ -222,8 +227,13 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	return appMetrics, nil
 }
 
-func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context) {
-	s.VMPlatform.VMProvider.VmAppChangedCallback(ctx)
+func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context, appInstKey *edgeproto.AppInstKey, newState edgeproto.TrackedState) {
+	s.VMPlatform.VMProvider.VmAppChangedCallback(ctx, appInstKey, newState)
+}
+
+func (s *ShepherdPlatform) SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error {
+	// Nothing to do for vmprovider
+	return nil
 }
 
 func (s *ShepherdPlatform) IsPlatformLocal(ctx context.Context) bool {

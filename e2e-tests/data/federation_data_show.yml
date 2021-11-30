@@ -74,6 +74,8 @@ regiondata:
       maxnumperipratelimiters: 10000
       resourcesnapshotthreadinterval: 10m0s
       ratelimitmaxtrackedips: 10000
+      platformhainstancepollinterval: 300ms
+      platformhainstanceactiveexpiretime: 1s
     cloudlets:
     - key:
         organization: {{partnertag}}
@@ -107,6 +109,14 @@ regiondata:
       deployment: docker
       defaultresourcealertthreshold: 80
       hostcontroller: 127.0.0.1:55081
+      resourcequotas:
+        - name: "RAM"
+          alertthreshold: 50
+        - name: "vCPUs"
+          value: 20
+          alertthreshold: 50
+        - name: "External IPs"
+          alertthreshold: 10
     cloudletinfos:
     - key:
         organization: {{partnertag}}

@@ -57,7 +57,7 @@ type VMProvider interface {
 	CreateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	UpdateVMs(ctx context.Context, vmGroupOrchestrationParams *VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback) error
 	DeleteVMs(ctx context.Context, vmGroupName string) error
-	GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*VMMetrics, error)
+	GetVMStats(ctx context.Context, appInst *edgeproto.AppInst) (*VMMetrics, error)
 	GetPlatformResourceInfo(ctx context.Context) (*PlatformResources, error)
 	VerifyVMs(ctx context.Context, vms []edgeproto.VM) error
 	CheckServerReady(ctx context.Context, client ssh.Client, serverName string) error
@@ -72,7 +72,7 @@ type VMProvider interface {
 	GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource
 	GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error
 	InternalCloudletUpdatedCallback(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal)
-	VmAppChangedCallback(ctx context.Context)
+	VmAppChangedCallback(ctx context.Context, appInstKey *edgeproto.AppInstKey, newState edgeproto.TrackedState)
 	GetGPUSetupStage(ctx context.Context) GPUSetupStage
 }
 
@@ -354,7 +354,7 @@ func (v *VMPlatform) crmUpgradeCmd(ctx context.Context, req *edgeproto.DebugRequ
 	return fmt.Sprintf("%v", results)
 }
 
-func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, platformActive bool, updateCallback edgeproto.CacheUpdateCallback) error {
 	var err error
 	log.SpanLog(ctx,
 		log.DebugLevelInfra, "Init VMPlatform",

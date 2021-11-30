@@ -1,0 +1,12 @@
+- name: Fetch frm vault role
+  set_fact:
+    frm_role: "{{ lookup('approle', frm_role_name) }}"
+  vars:
+    frm_role_name: "{{ region | lower }}.frm.v1"
+
+- name: Deploy frm service
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'deploy.yml.j2') }}"

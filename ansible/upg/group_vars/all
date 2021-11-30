@@ -17,6 +17,8 @@ vault_github_users:
     role: admin
   - userid: bibingeorge1986
     role: admin
+  - userid: dunkletx
+    role: admin
   - userid: gainsley
     role: admin
   - userid: jlmorris3827

@@ -59,6 +59,17 @@ func init() {
 			ReplyData:    &[]ormapi.Federator{},
 			Path:         "/auth/federator/self/show",
 		},
+		&ApiCommand{
+			Name:         "GenerateSelfFederatorAPIKey",
+			Use:          "generateselfapikey",
+			Short:        "Generate Self Federator API Key",
+			SpecialArgs:  &FederatorSpecialArgs,
+			RequiredArgs: "operatorid federationid",
+			Comments:     ormapi.FederatorComments,
+			ReqData:      &ormapi.Federator{},
+			ReplyData:    &ormapi.Federator{},
+			Path:         "/auth/federator/self/generateapikey",
+		},
 	}
 	AllApis.AddGroup(FederatorGroup, "Federator APIs", cmds)
 
@@ -119,10 +130,10 @@ func init() {
 			Name:         "RegisterPartnerFederatorZone",
 			Use:          "register",
 			Short:        "Register Partner Federator Zone",
-			AliasArgs:    strings.Join(FederatorZoneAliasArgs, " "),
-			RequiredArgs: strings.Join(FederatedZoneArgs, " "),
-			Comments:     aliasedComments(ormapi.FederatedPartnerZoneComments, FederatorZoneAliasArgs),
-			ReqData:      &ormapi.FederatedPartnerZone{},
+			SpecialArgs:  &FederatorZoneRegSpecialArgs,
+			RequiredArgs: strings.Join(FederatedZoneRegArgs, " "),
+			Comments:     ormapi.FederatedZoneRegRequestComments,
+			ReqData:      &ormapi.FederatedZoneRegRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/partner/zone/register",
 		},
@@ -130,10 +141,10 @@ func init() {
 			Name:         "DeRegisterPartnerFederatorZone",
 			Use:          "deregister",
 			Short:        "DeRegister Partner Federator Zone",
-			AliasArgs:    strings.Join(FederatorZoneAliasArgs, " "),
-			RequiredArgs: strings.Join(FederatedZoneArgs, " "),
-			Comments:     aliasedComments(ormapi.FederatedPartnerZoneComments, FederatorZoneAliasArgs),
-			ReqData:      &ormapi.FederatedPartnerZone{},
+			SpecialArgs:  &FederatorZoneRegSpecialArgs,
+			RequiredArgs: strings.Join(FederatedZoneRegArgs, " "),
+			Comments:     ormapi.FederatedZoneRegRequestComments,
+			ReqData:      &ormapi.FederatedZoneRegRequest{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federator/partner/zone/deregister",
 		},
@@ -171,9 +182,8 @@ func init() {
 			AliasArgs:    strings.Join(FederationAliasArgs, " "),
 			RequiredArgs: strings.Join(append(SelfFederatorArgs, FederationRequiredArgs...), " "),
 			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
-			OptionalArgs: strings.Join(FederationUpdateArgs, " "),
 			ReqData:      &ormapi.Federation{},
-			ReplyData:    &ormapi.FederationApiKey{},
+			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federation/create",
 		},
 		&ApiCommand{
@@ -198,18 +208,6 @@ func init() {
 			ReqData:      &ormapi.Federation{},
 			ReplyData:    &ormapi.Result{},
 			Path:         "/auth/federation/partner/setapikey",
-		},
-		&ApiCommand{
-			Name:         "GenerateSelfFederationAPIKey",
-			Use:          "generateselfapikey",
-			Short:        "Generate Self Federation API Key",
-			SpecialArgs:  &FederatorSpecialArgs,
-			AliasArgs:    strings.Join(FederationAliasArgs, " "),
-			RequiredArgs: strings.Join(FederationArgs, " "),
-			Comments:     aliasedComments(ormapi.FederationComments, FederationAliasArgs),
-			ReqData:      &ormapi.Federation{},
-			ReplyData:    &ormapi.FederationApiKey{},
-			Path:         "/auth/federation/self/generateapikey",
 		},
 		&ApiCommand{
 			Name:         "RegisterFederation",
@@ -273,6 +271,7 @@ var FederationRequiredArgs = []string{
 	"countrycode",
 	"federationid",
 	"federationaddr",
+	"apikey",
 }
 
 var FederationArgs = []string{
@@ -303,6 +302,9 @@ var FederationSpecialArgs = map[string]string{
 }
 var FederatorZoneSpecialArgs = map[string]string{
 	"federatorzone.cloudlets": "StringArray",
+}
+var FederatorZoneRegSpecialArgs = map[string]string{
+	"zones": "StringArray",
 }
 
 var FederatorZoneRequiredArgs = []string{
@@ -336,4 +338,10 @@ var FederatedZoneArgs = []string{
 	"zoneid",
 	"selfoperatorid",
 	"federationname",
+}
+
+var FederatedZoneRegArgs = []string{
+	"selfoperatorid",
+	"federationname",
+	"zones",
 }

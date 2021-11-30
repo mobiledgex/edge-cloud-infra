@@ -185,11 +185,11 @@ func (k *K8sBareMetalPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolic
 	return fmt.Errorf("UpdateTrustPolicy TODO")
 }
 
-func (k *K8sBareMetalPlatform) UpdateTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException) error {
+func (k *K8sBareMetalPlatform) UpdateTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, clusterInstKey *edgeproto.ClusterInstKey) error {
 	return fmt.Errorf("UpdateTrustPolicyException TODO")
 }
 
-func (k *K8sBareMetalPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey) error {
+func (k *K8sBareMetalPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey, clusterInstKey *edgeproto.ClusterInstKey) error {
 	return fmt.Errorf("DeleteTrustPolicyException TODO")
 }
 
@@ -290,4 +290,8 @@ func (k *K8sBareMetalPlatform) GetNodeInfos(ctx context.Context) ([]*edgeproto.N
 		return nil, err
 	}
 	return k8smgmt.GetNodeInfos(ctx, client, "KUBECONFIG="+k.cloudletKubeConfig)
+}
+
+func (k *K8sBareMetalPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged")
 }

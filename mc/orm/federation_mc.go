@@ -337,6 +337,9 @@ func UpdateSelfFederator(c echo.Context) error {
 	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
 		return err
 	}
+	if selfFed.OperatorId != opFed.OperatorId {
+		return fmt.Errorf("Federator with federation ID %q does not exist for operator %q", opFed.FederationId, opFed.OperatorId)
+	}
 
 	db := loggedDB(ctx)
 
@@ -428,6 +431,9 @@ func DeleteSelfFederator(c echo.Context) error {
 	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
 		return err
 	}
+	if selfFed.OperatorId != opFed.OperatorId {
+		return fmt.Errorf("Federator with federation ID %q does not exist for operator %q", opFed.FederationId, opFed.OperatorId)
+	}
 
 	db := loggedDB(ctx)
 
@@ -478,7 +484,7 @@ func ShowSelfFederator(c echo.Context) error {
 		return ormutil.BindErr(err)
 	}
 
-	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
 		return err
 	}
@@ -521,6 +527,9 @@ func GenerateSelfFederatorAPIKey(c echo.Context) error {
 	log.SetTags(span, opFed.GetTags())
 	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
 		return err
+	}
+	if selfFed.OperatorId != opFed.OperatorId {
+		return fmt.Errorf("Federator with federation ID %q does not exist for operator %q", opFed.FederationId, opFed.OperatorId)
 	}
 
 	db := loggedDB(ctx)
@@ -872,7 +881,7 @@ func ShowSelfFederatorZone(c echo.Context) error {
 	if err := c.Bind(&opZoneReq); err != nil {
 		return ormutil.BindErr(err)
 	}
-	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
 		return err
 	}
@@ -904,7 +913,7 @@ func ShowFederatedSelfZone(c echo.Context) error {
 		return ormutil.BindErr(err)
 	}
 
-	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
 		return err
 	}
@@ -935,7 +944,7 @@ func ShowFederatedPartnerZone(c echo.Context) error {
 	if err := c.Bind(&opZoneReq); err != nil {
 		return ormutil.BindErr(err)
 	}
-	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
 		return err
 	}
@@ -1575,7 +1584,7 @@ func ShowFederation(c echo.Context) error {
 	if err := c.Bind(&opFed); err != nil {
 		return ormutil.BindErr(err)
 	}
-	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionManage)
+	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
 		return err
 	}

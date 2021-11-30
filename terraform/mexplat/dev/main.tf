@@ -101,6 +101,7 @@ module "console" {
     "console-debug",
     "mc-artifactory",
     "mc-ldap-${var.environ_tag}",
+    "mc-ldap-harbor",
     "mc-notify-${var.environ_tag}",
     "jaeger",
     "alt-https",
@@ -242,3 +243,25 @@ resource "google_compute_firewall" "postgres" {
   ]
 }
 
+module "harbor" {
+  source = "../../modules/vm_gcp"
+
+  instance_name  = var.harbor_instance_name
+  environ_tag    = var.environ_tag
+  zone           = var.harbor_gcp_zone
+  boot_disk_size = 40
+  tags = [
+    "http-server",
+    "https-server",
+  ]
+  labels = {
+    "environ" = var.environ_tag
+    "owner"   = "ops"
+  }
+}
+
+module "harbor_dns" {
+  source   = "../../modules/cloudflare_record"
+  hostname = var.harbor_domain_name
+  ip       = module.harbor.external_ip
+}

@@ -132,6 +132,18 @@ variable "vault_c_domain_name" {
   default     = "vault-dev-c.mobiledgex.net"
 }
 
+variable "harbor_instance_name" {
+  default = "harbor-dev"
+}
+
+variable "harbor_gcp_zone" {
+  default = "us-west2-a"
+}
+
+variable "harbor_domain_name" {
+  default     = "harbor-dev.mobiledgex.net"
+}
+
 variable "ssh_public_key_file" {
   description = "SSH public key file for the ansible account"
   type        = string

@@ -64,6 +64,7 @@ gcp_firewall_manage_role: "vault_{{ deploy_environ }}_firewall_manage"
 gcp_role_create_role: "vault_{{ deploy_environ }}_role_create"
 gcs_gpu_drivers_bucket: "mobiledgex-{{ deploy_environ }}-gpu-drivers"
 gcs_operator_reports_bucket: "mobiledgex-{{ deploy_environ }}-operator-reports"
+gcs_harbor_bucket: "mobiledgex-{{ deploy_environ }}-harbor"
 azure_subscription_id: 902e8722-dc5f-469e-b218-da958e7e25e5
 azure_tenant_id: db34cd14-6d12-4321-a216-95ad400502dc
 azure_vault_app_client_id: removed

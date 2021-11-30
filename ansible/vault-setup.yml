@@ -180,6 +180,7 @@
         buckets:
           - "{{ gcs_gpu_drivers_bucket }}"
           - "{{ gcs_operator_reports_bucket }}"
+          - "{{ gcs_harbor_bucket }}"
 
     - name: Set up vault rolesets for bucket access
       vault_gcp_roleset:

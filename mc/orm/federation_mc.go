@@ -661,6 +661,9 @@ func DeleteFederation(c echo.Context) error {
 
 	// Delete partner federator
 	if err := db.Delete(partnerFed).Error; err != nil {
+		if strings.Contains(err.Error(), "violates foreign key constraint \"self_fk_constraint\" on table \"federated_self_zones\"") {
+			return fmt.Errorf("Please unshare self zones before deleting federation")
+		}
 		return ormutil.DbErr(err)
 	}
 

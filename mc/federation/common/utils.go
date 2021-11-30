@@ -89,3 +89,10 @@ func ValidateFederationId(fedId string) error {
 	}
 	return nil
 }
+
+func ValidateApiKey(apiKey string) error {
+	if len(apiKey) < 8 || len(apiKey) > 128 {
+		return fmt.Errorf("Invalid API key %q, valid length is 8 to 128 characters", apiKey)
+	}
+	return nil
+}

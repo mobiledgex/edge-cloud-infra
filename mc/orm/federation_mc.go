@@ -291,6 +291,10 @@ func CreateSelfFederator(c echo.Context) error {
 	db := loggedDB(ctx)
 	if opFed.FederationId == "" {
 		opFed.FederationId = uuid.New().String()
+	} else {
+		if err := fedcommon.ValidateFederationId(opFed.FederationId); err != nil {
+			return err
+		}
 	}
 	opFed.FederationAddr = serverConfig.FederationAddr
 	opFed.Revision = log.SpanTraceID(ctx)
@@ -584,6 +588,9 @@ func CreateFederation(c echo.Context) error {
 	if err := fedcommon.ValidateFederationName(opFed.Name); err != nil {
 		return err
 	}
+	if err := fedcommon.ValidateFederationId(opFed.FederationId); err != nil {
+		return err
+	}
 
 	// validate self federator
 	selfFed, err := GetSelfFederator(ctx, opFed.SelfOperatorId, opFed.SelfFederationId)
@@ -692,6 +699,10 @@ func SetPartnerFederationAPIKey(c echo.Context) error {
 
 	if opFed.ApiKey == "" {
 		return fmt.Errorf("nothing to update")
+	}
+
+	if err := fedcommon.ValidateApiKey(opFed.ApiKey); err != nil {
+		return err
 	}
 
 	// allow update of API key in case partner federator regenerates it

@@ -168,17 +168,18 @@ func fedAuthorized(ctx context.Context, username, operatorId string) error {
 	return authorized(ctx, username, operatorId, ResourceCloudlets, ActionManage, withRequiresOrg(operatorId))
 }
 
-func GetSelfFederator(ctx context.Context, federationId string) (*ormapi.Federator, error) {
+func GetSelfFederator(ctx context.Context, operatorId, federationId string) (*ormapi.Federator, error) {
 	if federationId == "" {
 		return nil, fmt.Errorf("Missing self federation ID")
 	}
 	db := loggedDB(ctx)
 	fedObj := ormapi.Federator{
 		FederationId: federationId,
+		OperatorId:   operatorId,
 	}
 	res := db.Where(&fedObj).First(&fedObj)
 	if res.RecordNotFound() {
-		return nil, fmt.Errorf("Self federator %q does not exist", federationId)
+		return nil, fmt.Errorf("Self federator with ID %q does not exist for operator %q", federationId, operatorId)
 	}
 	if res.Error != nil {
 		return nil, ormutil.DbErr(res.Error)
@@ -207,32 +208,34 @@ func GetFederationById(ctx context.Context, selfFederationId string) (bool, *orm
 	return true, &partnerFed, nil
 }
 
-func GetFederationByName(ctx context.Context, name string) (*ormapi.Federator, *ormapi.Federation, error) {
+func GetFederationByName(ctx context.Context, operatorId, name string) (*ormapi.Federator, *ormapi.Federation, error) {
 	if name == "" {
 		return nil, nil, fmt.Errorf("Missing federation name %q", name)
 	}
 
 	db := loggedDB(ctx)
 	fed := ormapi.Federation{
-		Name: name,
+		Name:           name,
+		SelfOperatorId: operatorId,
 	}
 	res := db.Where(&fed).First(&fed)
 	if !res.RecordNotFound() && res.Error != nil {
 		return nil, nil, ormutil.DbErr(res.Error)
 	}
 	if res.RecordNotFound() {
-		return nil, nil, fmt.Errorf("No partner federation exist for %q", name)
+		return nil, nil, fmt.Errorf("Federation with name %q does not exist for self operator ID %q", name, operatorId)
 	}
 
 	selfFed := ormapi.Federator{
 		FederationId: fed.SelfFederationId,
+		OperatorId:   operatorId,
 	}
 	res = db.Where(&selfFed).First(&selfFed)
 	if !res.RecordNotFound() && res.Error != nil {
 		return nil, nil, ormutil.DbErr(res.Error)
 	}
 	if res.RecordNotFound() {
-		return nil, nil, fmt.Errorf("Self federator with ID %q not found", selfFed.FederationId)
+		return nil, nil, fmt.Errorf("Self federator with ID %q does not exist for operator %q", fed.SelfFederationId, operatorId)
 	}
 
 	return &selfFed, &fed, nil
@@ -329,16 +332,13 @@ func UpdateSelfFederator(c echo.Context) error {
 	log.SetTags(span, opFed.GetTags())
 
 	// get self federator information
-	selfFed, err := GetSelfFederator(ctx, opFed.FederationId)
+	selfFed, err := GetSelfFederator(ctx, opFed.OperatorId, opFed.FederationId)
 	if err != nil {
 		return err
 	}
 	span.SetTag("region", selfFed.Region)
 	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
 		return err
-	}
-	if selfFed.OperatorId != opFed.OperatorId {
-		return fmt.Errorf("Federator with federation ID %q does not exist for operator %q", opFed.FederationId, opFed.OperatorId)
 	}
 
 	db := loggedDB(ctx)
@@ -423,16 +423,13 @@ func DeleteSelfFederator(c echo.Context) error {
 	span := log.SpanFromContext(ctx)
 	log.SetTags(span, opFed.GetTags())
 	// get federator information
-	selfFed, err := GetSelfFederator(ctx, opFed.FederationId)
+	selfFed, err := GetSelfFederator(ctx, opFed.OperatorId, opFed.FederationId)
 	if err != nil {
 		return err
 	}
 	span.SetTag("region", opFed.Region)
 	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
 		return err
-	}
-	if selfFed.OperatorId != opFed.OperatorId {
-		return fmt.Errorf("Federator with federation ID %q does not exist for operator %q", opFed.FederationId, opFed.OperatorId)
 	}
 
 	db := loggedDB(ctx)
@@ -519,7 +516,7 @@ func GenerateSelfFederatorAPIKey(c echo.Context) error {
 		return ormutil.BindErr(err)
 	}
 	// get federator information
-	selfFed, err := GetSelfFederator(ctx, opFed.FederationId)
+	selfFed, err := GetSelfFederator(ctx, opFed.OperatorId, opFed.FederationId)
 	if err != nil {
 		return err
 	}
@@ -527,9 +524,6 @@ func GenerateSelfFederatorAPIKey(c echo.Context) error {
 	log.SetTags(span, opFed.GetTags())
 	if err := fedAuthorized(ctx, claims.Username, opFed.OperatorId); err != nil {
 		return err
-	}
-	if selfFed.OperatorId != opFed.OperatorId {
-		return fmt.Errorf("Federator with federation ID %q does not exist for operator %q", opFed.FederationId, opFed.OperatorId)
 	}
 
 	db := loggedDB(ctx)
@@ -592,7 +586,7 @@ func CreateFederation(c echo.Context) error {
 	}
 
 	// validate self federator
-	selfFed, err := GetSelfFederator(ctx, opFed.SelfFederationId)
+	selfFed, err := GetSelfFederator(ctx, opFed.SelfOperatorId, opFed.SelfFederationId)
 	if err != nil {
 		return err
 	}
@@ -647,7 +641,7 @@ func DeleteFederation(c echo.Context) error {
 	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
 		return err
 	}
-	_, partnerFed, err := GetFederationByName(ctx, opFed.Name)
+	_, partnerFed, err := GetFederationByName(ctx, opFed.SelfOperatorId, opFed.Name)
 	if err != nil {
 		return err
 	}
@@ -691,7 +685,7 @@ func SetPartnerFederationAPIKey(c echo.Context) error {
 	if err := fedAuthorized(ctx, claims.Username, opFed.SelfOperatorId); err != nil {
 		return err
 	}
-	_, _, err = GetFederationByName(ctx, opFed.Name)
+	_, _, err = GetFederationByName(ctx, opFed.SelfOperatorId, opFed.Name)
 	if err != nil {
 		return err
 	}
@@ -988,7 +982,7 @@ func ShareSelfFederatorZone(c echo.Context) error {
 		return err
 	}
 
-	selfFed, partnerFed, err := GetFederationByName(ctx, shZone.FederationName)
+	selfFed, partnerFed, err := GetFederationByName(ctx, shZone.SelfOperatorId, shZone.FederationName)
 	if err != nil {
 		return err
 	}
@@ -1081,7 +1075,7 @@ func UnshareSelfFederatorZone(c echo.Context) error {
 		return err
 	}
 
-	selfFed, partnerFed, err := GetFederationByName(ctx, unshZone.FederationName)
+	selfFed, partnerFed, err := GetFederationByName(ctx, unshZone.SelfOperatorId, unshZone.FederationName)
 	if err != nil {
 		return err
 	}
@@ -1170,7 +1164,7 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 		return err
 	}
 
-	selfFed, partnerFed, err := GetFederationByName(ctx, reg.FederationName)
+	selfFed, partnerFed, err := GetFederationByName(ctx, reg.SelfOperatorId, reg.FederationName)
 	if err != nil {
 		return err
 	}
@@ -1317,7 +1311,7 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 		return err
 	}
 
-	selfFed, partnerFed, err := GetFederationByName(ctx, reg.FederationName)
+	selfFed, partnerFed, err := GetFederationByName(ctx, reg.SelfOperatorId, reg.FederationName)
 	if err != nil {
 		return err
 	}
@@ -1429,7 +1423,7 @@ func RegisterFederation(c echo.Context) error {
 		return err
 	}
 
-	selfFed, partnerFed, err := GetFederationByName(ctx, opFed.Name)
+	selfFed, partnerFed, err := GetFederationByName(ctx, opFed.SelfOperatorId, opFed.Name)
 	if err != nil {
 		return err
 	}
@@ -1510,7 +1504,7 @@ func DeregisterFederation(c echo.Context) error {
 		return err
 	}
 
-	selfFed, partnerFed, err := GetFederationByName(ctx, opFed.Name)
+	selfFed, partnerFed, err := GetFederationByName(ctx, opFed.SelfOperatorId, opFed.Name)
 	if err != nil {
 		return err
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -116,12 +117,13 @@ func StartProxyScraper(done chan bool) {
 	go ProxyScraper(done)
 }
 
-// Figure out envoy proxy container name and network type
-func getProxyContainerAndNetworkType(ctx context.Context, scrapePoint ProxyScrapePoint) (string, DockerNetworkType, error) {
+// Figure out envoy proxy container name and metrics ip
+func getProxyContainerAndMetricIp(ctx context.Context, appInst *edgeproto.AppInst, scrapePoint ProxyScrapePoint) (string, string, error) {
 	pfType := pf.GetType(*platformName)
+	metricsIp := cloudcommon.ProxyMetricsDefaultListenIP
 	log.SpanLog(ctx, log.DebugLevelMetrics, "getProxyContainerName", "type", pfType)
 	if pfType == "fake" {
-		return "fakeEnvoy", DockerNetworkHost, nil
+		return "fakeEnvoy", metricsIp, nil
 	}
 	// for baremetal k8s has a cluster prefix
 	container := ""
@@ -149,20 +151,36 @@ func getProxyContainerAndNetworkType(ctx context.Context, scrapePoint ProxyScrap
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find envoy proxy for app", "scrapepoint", scrapePoint.Key, "err", err, "resp", resp)
 		return "", "", err
 	}
-
-	log.SpanLog(ctx, log.DebugLevelMetrics, "finding network type for container", "container", container)
-
-	out, err := scrapePoint.Client.Output("docker inspect -f '{{ .NetworkSettings.Networks }}' " + container)
+	cmd := fmt.Sprintf("docker inspect -f '{{ .Config.Labels.%s }}' %s", cloudcommon.MexMetricIpLabel, container)
+	log.SpanLog(ctx, log.DebugLevelMetrics, "finding metrics ip in labels for container", "container", container, "cmd", cmd)
+	out, err := scrapePoint.Client.Output(cmd)
 	if err != nil {
-		return "", DockerNetworkHost, fmt.Errorf("Unable to find proxy docker network type - %s, %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find metrics ip label", "out", out, "err", err)
+	} else {
+		// see if it is a parsable address
+		ip := net.ParseIP(strings.TrimSpace(out))
+		if ip != nil {
+			metricsIp = out
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Found metrics ip via label", "metricsIp", metricsIp)
+			return container, metricsIp, nil
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse metrics ip label", "out", out)
+		}
+	}
+
+	// this can be an existing appInst which was created before adding the metrics IP label
+	log.SpanLog(ctx, log.DebugLevelMetrics, "did not find metrics ip from container, find container network type", "container", container)
+	out, err = scrapePoint.Client.Output("docker inspect -f '{{ .NetworkSettings.Networks }}' " + container)
+	if err != nil {
+		return "", metricsIp, fmt.Errorf("Unable to find proxy docker network type - %s, %v", out, err)
 	}
 	if strings.Contains(out, "host:") {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "docker host network", "container", container)
-		return container, DockerNetworkHost, nil
+		return container, infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts), nil
 	}
-	// all proxies are started in host mode, but existing proxies may exist running in bridge
+	// all proxies are started in host mode, but existing proxies may exist running in bridge. Use the default metrics ip
 	log.SpanLog(ctx, log.DebugLevelMetrics, "docker bridge network - legacy case", "container", container)
-	return container, DockerNetworkBridge, nil
+	return container, metricsIp, nil
 }
 
 // Init cluster client for a scrape point
@@ -187,19 +205,12 @@ func initClient(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppI
 		}
 	}
 	// Now that we have a client - figure out what container name we should ping
-	var netType DockerNetworkType
-	scrapePoint.ProxyContainer, netType, err = getProxyContainerAndNetworkType(ctx, *scrapePoint)
+	scrapePoint.ProxyContainer, scrapePoint.ListenIP, err = getProxyContainerAndMetricIp(ctx, appInst, *scrapePoint)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find envoy proxy for app", "scrapepoint", scrapePoint.Key,
 			"LastConnectAttempt", scrapePoint.LastConnectAttempt, "err", err)
 		scrapePoint.Client.StopPersistentConn()
 		return err
-	}
-	if netType == DockerNetworkHost {
-		scrapePoint.ListenIP = infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)
-	} else {
-		// legacy case
-		scrapePoint.ListenIP = cloudcommon.ProxyMetricsDefaultListenIP
 	}
 	return nil
 }

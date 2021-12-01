@@ -1,5 +1,5 @@
 {
-  "revision_id": "ef48f59339091fe3b431692e15d88f219a9eb87d54b136b6efce833812522167",
+  "revision_id": "b8a39b527683a1c28838194526dfc36abaca6176222fdc861f48e2f76ab63b94",
   "name": "docker_crm",
   "run_list": [
     "recipe[chef_client_updater::default]",
@@ -110,7 +110,7 @@
   },
   "override_attributes": {
     "main": {
-      "edgeCloudVersion": "2021-08-14-5"
+      "edgeCloudVersion": "2021-08-14-13"
     }
   },
   "solution_dependencies": {

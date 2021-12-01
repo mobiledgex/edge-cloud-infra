@@ -23,4 +23,4 @@ cookbook 'chef_client_updater', '= 3.11.0'
 default['chef_client_updater']['version'] = '17.2.29'
 
 # Set edgeCloudVersion (i.e. edge-cloud docker base image version) for all the cloudlets
-override['main']['edgeCloudVersion'] = '2021-08-14-5'
+override['main']['edgeCloudVersion'] = '2021-08-14-13'

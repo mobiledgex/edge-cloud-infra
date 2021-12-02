@@ -102,8 +102,6 @@ func CompareYamlFiles(name string, compare *util.CompareYaml) bool {
 			// ignore local hostname based data
 			copts = append(copts, cmpopts.IgnoreFields(edgeproto.CloudletInfo{}, "Controller"))
 		}
-		//copts = append(copts, edgeproto.CmpSortSlices()...)
-		//copts = append(copts, cmpopts.SortSlices(CmpSortOrgs))
 
 		y1 = a1
 		y2 = a2

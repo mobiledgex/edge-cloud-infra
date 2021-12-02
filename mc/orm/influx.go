@@ -626,22 +626,24 @@ func getFieldsSlice(selector, measurementType string) []string {
 	return fields
 }
 
-func getCloudletPlatformTypes(ctx context.Context, username, region string, key *edgeproto.CloudletKey) (map[string]struct{}, error) {
+func getCloudletPlatformTypes(ctx context.Context, username, region string, keys []edgeproto.CloudletKey) (map[string]struct{}, error) {
 	platformTypes := make(map[string]struct{})
 	rc := &ormutil.RegionContext{}
 	rc.Username = username
 	rc.Region = region
 	rc.Database = database
-	obj := edgeproto.Cloudlet{
-		Key: *key,
-	}
-	err := ctrlclient.ShowCloudletStream(ctx, rc, &obj, connCache, nil, func(res *edgeproto.Cloudlet) error {
-		pfType := pf.GetType(res.PlatformType.String())
-		platformTypes[pfType] = struct{}{}
-		return nil
-	})
-	if err != nil {
-		return nil, err
+	for ii := range keys {
+		obj := edgeproto.Cloudlet{
+			Key: keys[ii],
+		}
+		err := ctrlclient.ShowCloudletStream(ctx, rc, &obj, connCache, nil, func(res *edgeproto.Cloudlet) error {
+			pfType := pf.GetType(res.PlatformType.String())
+			platformTypes[pfType] = struct{}{}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
 	}
 	if len(platformTypes) == 0 {
 		return nil, fmt.Errorf("Cloudlet does not exist")
@@ -861,7 +863,7 @@ func GetMetricsCommon(c echo.Context) error {
 		// Platform type is required for cloudlet resource usage
 		platformTypes := make(map[string]struct{})
 		if in.Selector == "resourceusage" {
-			platformTypes, err = getCloudletPlatformTypes(ctx, claims.Username, in.Region, &in.Cloudlet)
+			platformTypes, err = getCloudletPlatformTypes(ctx, claims.Username, in.Region, []edgeproto.CloudletKey{in.Cloudlet})
 			if err != nil {
 				return err
 			}

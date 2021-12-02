@@ -329,7 +329,7 @@ func TestGetInfluxCloudletMetricsQueryCmd(t *testing.T) {
 	testSingleCloudlet.NumSamples = 0
 	testSingleCloudlet.Limit = 1
 	testSingleCloudlet.Selector = "*"
-	query = testSingleCloudlet.GetGroupQuery([]string{}, nil)
+	query = testSingleCloudlet.GetGroupQuery([]string{})
 	require.Equal(t, testSingleCloudletWildcardSelector, query)
 }
 
@@ -390,7 +390,7 @@ func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
 	testSingleCluster.NumSamples = 0
 	testSingleCluster.Limit = 1
 	testSingleCluster.Selector = "*"
-	query = testSingleCluster.GetGroupQuery([]string{"testCloudlet1"}, nil)
+	query = testSingleCluster.GetGroupQuery([]string{"testCloudlet1"})
 	require.Equal(t, testSingleClusterWildcardSelector, query)
 }
 
@@ -451,7 +451,7 @@ func TestGetInfluxAppMetricsQueryCmd(t *testing.T) {
 	testSingleApp.NumSamples = 0
 	testSingleApp.Limit = 1
 	testSingleApp.Selector = "*"
-	query = testSingleApp.GetGroupQuery([]string{"testCloudlet1"}, nil)
+	query = testSingleApp.GetGroupQuery([]string{"testCloudlet1"})
 	require.Equal(t, testSingleAppWildcardSelector, query)
 }
 

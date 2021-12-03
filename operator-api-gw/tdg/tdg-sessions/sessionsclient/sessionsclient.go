@@ -42,7 +42,7 @@ type QosSessionRequest struct {
 	NotificationAuthToken string `json:"notificationAuthToken" yaml:"notificationAuthToken"`
 }
 
-type QosSessionReSponse struct {
+type QosSessionResponse struct {
 	Duration              int64  `json:"duration" yaml:"duration"`
 	UeAddr                string `json:"ueAddr" yaml:"ueAddr"`
 	AsAddr                string `json:"asAddr" yaml:"asAddr"`
@@ -56,11 +56,6 @@ type QosSessionReSponse struct {
 	Id                    string `json:"id" yaml:"id"`
 	StartedAt             int64  `json:"startedAt" yaml:"startedAt"`
 	ExpiresAt             int64  `json:"expiresAt" yaml:"expiresAt"`
-}
-
-type QosSessionPatch struct {
-	Id  string `json:"id" yaml:"id"`
-	Qos string `json:"qos" yaml:"qos"`
 }
 
 // Build and send the request to the TDG API server
@@ -81,7 +76,7 @@ func sendRequest(method string, reqUrl string, apiKey string, body *bytes.Buffer
 		return 0, "", err
 	}
 
-	log.DebugLog(log.DebugLevelDmereq, "Sending to TDG:", "reqUrl:", reqUrl, "body:", body)
+	log.DebugLog(log.DebugLevelDmereq, "Sending to TDG:", "method", method, "reqUrl:", reqUrl, "body:", body)
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("accept", "application/json")
@@ -100,7 +95,7 @@ func sendRequest(method string, reqUrl string, apiKey string, body *bytes.Buffer
 
 	respBytes, resperr := ioutil.ReadAll(resp.Body)
 	if resperr != nil {
-		log.WarnLog("Error read response body", "resperr", resperr)
+		log.WarnLog("Error reading response body", "resperr", resperr)
 		return 0, "", resperr
 	}
 	respString := string(respBytes)
@@ -124,7 +119,7 @@ func CallTDGQosPriorityAPI(method string, qosSesUrl string, priorityType string,
 		return "", err
 	}
 
-	var qsiResp QosSessionReSponse
+	var qsiResp QosSessionResponse
 	var sessionId string
 
 	switch status {
@@ -147,6 +142,9 @@ func CallTDGQosPriorityAPI(method string, qosSesUrl string, priorityType string,
 		// "Found session 9aa00f58-38f6-4ed9-be8f-d375aad95721 already active until 2021-12-03T21:06:02Z"
 		if strings.HasPrefix(respBody, "Found session") {
 			words := strings.Split(respBody, " ")
+			if len(words) < 3 {
+				return "", fmt.Errorf(fmt.Sprintf("Could not parse response: %s", respBody))
+			}
 			sessionId = words[2]
 			url := fmt.Sprintf("%s/%s", reqUrl, sessionId)
 			status, resp, err := sendRequest(http.MethodGet, url, apiKey, nil)
@@ -164,22 +162,33 @@ func CallTDGQosPriorityAPI(method string, qosSesUrl string, priorityType string,
 					log.DebugLog(log.DebugLevelDmereq, "Requested QOS session already exists. Keeping it.", "qsiResp.Qos", qsiResp.Qos)
 					sessionId = qsiResp.Id
 				} else {
-					log.DebugLog(log.DebugLevelDmereq, "Existing QOS profile doesn't match. Updating it to ", "QOS", reqBody.Qos)
-					patchUrl := strings.Replace(reqUrl, "sessions", "qos-changed", 1)
-					patchBody := QosSessionPatch{Id: sessionId, Qos: reqBody.Qos}
-					out, err := json.Marshal(patchBody)
-					if err != nil {
-						return "", err
-					}
-					body := bytes.NewBuffer(out)
-					status, _, err := sendRequest(http.MethodPost, patchUrl, apiKey, body)
+					log.DebugLog(log.DebugLevelDmereq, "Existing QOS profile doesn't match. Deleting session.")
+					status, _, err := sendRequest(http.MethodDelete, url, apiKey, nil)
 					if err != nil {
 						return "", err
 					}
 					if status == http.StatusNoContent {
-						log.DebugLog(log.DebugLevelDmereq, "Successfully updated QOS session")
+						log.DebugLog(log.DebugLevelDmereq, "Successfully deleted QOS session")
 					} else {
-						return "", fmt.Errorf(fmt.Sprintf("Failed to update QOS session: Error code: %d", status))
+						return "", fmt.Errorf(fmt.Sprintf("Failed to deleted existing QOS session: Error code: %d", status))
+					}
+
+					// Send new request to create session with desired QOS profile.
+					// Considered recursion here, but this is a short enough code block to do it in line.
+					body := bytes.NewBuffer(out)
+					status, respBody, err = sendRequest(method, reqUrl, apiKey, body)
+					if err != nil {
+						return "", err
+					}
+					if status == http.StatusCreated {
+						log.DebugLog(log.DebugLevelDmereq, "Successfully created new session", "QOS", reqBody.Qos)
+						respBytes := []byte(respBody)
+						err = json.Unmarshal(respBytes, &qsiResp)
+						if err != nil {
+							log.WarnLog("Error unmarshalling response", "respBytes", respBytes, "err", err)
+							return "", err
+						}
+						sessionId = qsiResp.Id
 					}
 				}
 			}

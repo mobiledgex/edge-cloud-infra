@@ -495,10 +495,7 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 	}
 
 	// Set up dummy API key to be used to call the TDG QOS Priority Sessions API.
-	cwd, err := os.Getwd()
-	log.Printf("cwd=%s", cwd)
-
-	fileName := "../edge-cloud/setup-env/e2e-tests/data/tdg_qos_session_api_key.txt"
+	fileName := gopath + "/src/github.com/mobiledgex/edge-cloud/setup-env/e2e-tests/data/tdg_qos_session_api_key.txt"
 	// The vault path for "kv put" omits the /data portion.
 	// To read this key with vault.GetData(), use path=/secret/data/accounts/tdg/sessionsapi
 	path := "/secret/accounts/tdg/sessionsapi"

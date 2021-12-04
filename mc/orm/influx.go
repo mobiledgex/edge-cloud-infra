@@ -172,7 +172,11 @@ var IpUsageFields = []string{
 }
 
 var ResourceUsageFields = []string{
-	"*",
+	"vcpusUsed",
+	"ramUsed",
+	"instancesUsed",
+	"gpusUsed",
+	"externalIpsUsed",
 }
 
 var FlavorUsageFields = []string{
@@ -470,6 +474,7 @@ func Contains(slice []string, elem string) bool {
 
 // Function validates the selector passed, we support several selectors: cpu, mem, disk, net
 func validateSelectorString(selector, metricType string) error {
+	log.DebugLog(log.DebugLevelInfo, "ValidateSelector", "selector", selector, "type", metricType)
 	var validSelectors []string
 	switch metricType {
 	case APPINST:
@@ -836,16 +841,8 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		// Operator name has to be specified
-		if in.Cloudlet.Organization == "" {
-			return fmt.Errorf("Cloudlet details must be present")
-		}
 		// validate all the passed in arguments
 		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
-			return err
-		}
-
-		if err = validateSelectorString(in.Selector, CLOUDLETUSAGE); err != nil {
 			return err
 		}
 
@@ -854,6 +851,21 @@ func GetMetricsCommon(c echo.Context) error {
 		}
 		rc.region = in.Region
 		org = in.Cloudlet.Organization
+
+		log.DebugLog(log.DebugLevelInfo, "Cloudlets", "len", len(in.Cloudlets))
+		// New metrics api request
+		if len(in.Cloudlets) > 0 {
+			return GetCloudletUsageMetrics(c, &in)
+		}
+
+		// Operator name has to be specified
+		if in.Cloudlet.Organization == "" {
+			return fmt.Errorf("Cloudlet details must be present")
+		}
+
+		if err = validateSelectorString(in.Selector, CLOUDLETUSAGE); err != nil {
+			return err
+		}
 
 		// Check the operator against who is logged in
 		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {

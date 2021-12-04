@@ -20,4 +20,5 @@
 - import_role: name="dme"
 - import_role: name="cluster-svc"
 - import_role: name="autoprov"
+- import_role: name="frm"
 - import_role: name="k8s-telegraf"

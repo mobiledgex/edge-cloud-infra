@@ -2,17 +2,14 @@ package k8sbm
 
 import (
 	"context"
-	"fmt"
+	"strings"
 
-	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
-
-var LbInfoDoesNotExist string = "LB info does not exist"
-var LbConfigDir = "lbconfig"
 
 type LbInfo struct {
 	Name            string
@@ -35,24 +32,25 @@ func (k *K8sBareMetalPlatform) GetLbName(ctx context.Context, appInst *edgeproto
 
 func (k *K8sBareMetalPlatform) SetupLb(ctx context.Context, client ssh.Client, lbname string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupLb", "lbname", lbname)
-
-	if true {
-		// create dir, it may aleady exist in which case do not overwrite
-		log.SpanLog(ctx, log.DebugLevelInfra, "creating directory for LB", "LbConfigDir", LbConfigDir)
-		err := pc.CreateDir(ctx, client, LbConfigDir, pc.NoOverwrite)
-		if err != nil {
-			return fmt.Errorf("Unable to create LB Dir: %s - %v", LbConfigDir, err)
-		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "New LB, assign free IP")
-		externalIp, err := k.AssignFreeLbIp(ctx, lbname, client)
-		if err != nil {
-			return err
-		}
-		if err = k.commonPf.ActivateFQDNA(ctx, lbname, externalIp); err != nil {
+	_, err := infracommon.GetIPAddressFromNetplan(ctx, client, lbname)
+	if err != nil {
+		if strings.Contains(err.Error(), infracommon.NetplanFileNotFound) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "lb ip does not exist", "lbname", lbname)
+		} else {
+			log.SpanLog(ctx, log.DebugLevelInfra, "unexpected error getting lb ip", "lbname", lbname, "err", err)
 			return err
 		}
 	} else {
 		log.SpanLog(ctx, log.DebugLevelInfra, "lb ip already exists")
+		return nil
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "New LB, assign free IP")
+	externalIp, err := k.AssignFreeLbIp(ctx, lbname, client)
+	if err != nil {
+		return err
+	}
+	if err = k.commonPf.ActivateFQDNA(ctx, lbname, externalIp); err != nil {
+		return err
 	}
 	return nil
 }

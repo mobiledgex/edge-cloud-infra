@@ -68,7 +68,7 @@ func GenerateNetworkFileDetailsForIP(ctx context.Context, portName string, ifNam
 	return fileName, fileMatch, contents
 }
 
-// GetIpAddressFromNetplan returns the ip adde
+// GetIpAddressFromNetplan returns the ip addr
 func GetIPAddressFromNetplan(ctx context.Context, client ssh.Client, portName string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetIpAddressFromNetplan", "portName", portName)
 	fileName := GetNetplanFilename(portName)

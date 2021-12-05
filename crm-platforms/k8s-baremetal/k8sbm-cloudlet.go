@@ -215,9 +215,9 @@ func (k *K8sBareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edg
 	addr, err := infracommon.GetIPAddressFromNetplan(ctx, sshClient, sharedLbName)
 	if err != nil {
 		if strings.Contains(err.Error(), infracommon.NetplanFileNotFound) {
-			log.SpanLog(ctx, log.DebugLevelInfra, "netplan file does not exist")
+			log.SpanLog(ctx, log.DebugLevelInfra, "netplan file does not exist", "sharedLbName", sharedLbName)
 		} else {
-			return fmt.Errorf("unexpected error getting ip address from netplan - %v", err)
+			return fmt.Errorf("unexpected error getting ip address from netplan for lb: %s - %v", sharedLbName, err)
 		}
 	} else {
 		err = k.RemoveIp(ctx, sshClient, addr, externalDev, sharedLbName)

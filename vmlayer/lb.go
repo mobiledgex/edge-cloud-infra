@@ -126,8 +126,8 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		}
 		// keep going on delete
 	}
-	netplanEnabled := ServerIsNetplanEnabled(ctx, client)
-	filename, fileMatch, contents := GetNetworkFileDetailsForIP(ctx, internalPortName, internalIfname, internalIP.InternalAddr, netplanEnabled)
+	netplanEnabled := infracommon.ServerIsNetplanEnabled(ctx, client)
+	filename, fileMatch, contents := infracommon.GenerateNetworkFileDetailsForIP(ctx, internalPortName, internalIfname, internalIP.InternalAddr, 24, netplanEnabled)
 	if action.AddInterface {
 		// cleanup any interfaces files that may be sitting around with our new interface, perhaps from some old failure
 		cmd := fmt.Sprintf("grep -l ' %s ' %s", fileMatch, internalIfname)
@@ -636,6 +636,24 @@ func (v *VMPlatform) GetAllRootLBClients(ctx context.Context) (map[string]ssh.Cl
 		rootlbClients[v.VMProperties.SharedRootLBName] = sharedClient
 	}
 	return rootlbClients, nil
+}
+
+func (v *VMPlatform) GetRootLBClientForClusterInstKey(ctx context.Context, clusterInstKey *edgeproto.ClusterInstKey) (map[string]ssh.Client, error) {
+	rootLBClients := make(map[string]ssh.Client)
+
+	var clusterInst edgeproto.ClusterInst
+	found := v.Caches.ClusterInstCache.Get(clusterInstKey, &clusterInst)
+	if !found {
+		return nil, fmt.Errorf("Unable to get clusterInst %v", clusterInstKey.GetKeyString())
+	}
+	lbName := v.VMProperties.GetRootLBNameForCluster(ctx, &clusterInst)
+	client, err := v.GetClusterPlatformClient(ctx, &clusterInst, cloudcommon.ClientTypeRootLB)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to get rootLB client for dedicated cluster", "key", clusterInst.Key, "error", err)
+		return nil, fmt.Errorf("Unable to get client from clusterInst %v", clusterInstKey.GetKeyString())
+	}
+	rootLBClients[lbName] = client
+	return rootLBClients, nil
 }
 
 // GetRootLBClients gets all RootLB Clients for dedicated LBs

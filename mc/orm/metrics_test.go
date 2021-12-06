@@ -255,18 +255,18 @@ var (
 		},
 	}
 
-	testSingleCloudletUsageQueryDefTime = "SELECT last(vcpusUsed) as vcpusUsed,last(ramUsed) as ramUsed,last(instancesUsed) as instancesUsed,last(gpusUsed) as gpusUsed,last(externalIpsUsed) as externalIpsUsed " +
+	testSingleCloudletUsageQueryDefTime = "SELECT last(vcpusUsed) as vcpusUsed,last(ramUsed) as ramUsed,last(instancesUsed) as instancesUsed,last(gpusUsed) as gpusUsed,last(externalIpsUsed) as externalIpsUsed,last(floatingIpsUsed) as floatingIpsUsed " +
 		"FROM \"unittest-resource-usage\" WHERE (" +
 		testSingleCloudletFilter + ") " +
 		"AND time >= '2019-12-31T13:01:00Z' AND time <= '2020-01-01T01:01:00Z' " +
 		"group by time(7m12s),cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 100"
-	testSingleCloudletUsageQueryLastPoint = "SELECT vcpusUsed,ramUsed,instancesUsed,gpusUsed,externalIpsUsed " +
+	testSingleCloudletUsageQueryLastPoint = "SELECT vcpusUsed,ramUsed,instancesUsed,gpusUsed,externalIpsUsed,floatingIpsUsed " +
 		"FROM \"unittest-resource-usage\" WHERE (" +
 		testSingleCloudletFilter + ") " +
 		"group by cloudlet,cloudletorg fill(previous) order by time desc " +
 		"limit 1"
-	testSingleCloudletUsageWildcardSelector = "SELECT vcpusUsed,ramUsed,instancesUsed,gpusUsed,externalIpsUsed " +
+	testSingleCloudletUsageWildcardSelector = "SELECT vcpusUsed,ramUsed,instancesUsed,gpusUsed,externalIpsUsed,floatingIpsUsed " +
 		"FROM \"unittest-resource-usage\" WHERE (" +
 		testSingleCloudletFilter + ") " +
 		"group by cloudlet,cloudletorg fill(previous) order by time desc limit 1;" +

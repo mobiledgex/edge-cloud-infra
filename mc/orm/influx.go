@@ -177,6 +177,7 @@ var ResourceUsageFields = []string{
 	"instancesUsed",
 	"gpusUsed",
 	"externalIpsUsed",
+	"floatingIpsUsed",
 }
 
 var FlavorUsageFields = []string{

@@ -475,7 +475,6 @@ func Contains(slice []string, elem string) bool {
 
 // Function validates the selector passed, we support several selectors: cpu, mem, disk, net
 func validateSelectorString(selector, metricType string) error {
-	log.DebugLog(log.DebugLevelInfo, "ValidateSelector", "selector", selector, "type", metricType)
 	var validSelectors []string
 	switch metricType {
 	case APPINST:
@@ -853,7 +852,6 @@ func GetMetricsCommon(c echo.Context) error {
 		rc.region = in.Region
 		org = in.Cloudlet.Organization
 
-		log.DebugLog(log.DebugLevelInfo, "Cloudlets", "len", len(in.Cloudlets))
 		// New metrics api request
 		if len(in.Cloudlets) > 0 {
 			return GetCloudletUsageMetrics(c, &in)

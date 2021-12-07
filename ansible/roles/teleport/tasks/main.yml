@@ -83,6 +83,18 @@
   become: yes
   when: audit_role is changed
 
+- name: Set up Ops access role
+  template:
+    src: ops-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/ops-access-role.yaml"
+  become: yes
+  register: ops_role
+
+- name: Apply Ops access role
+  command: "tctl create -f {{ ops_role.dest }}"
+  become: yes
+  when: ops_role is changed
+
 - name: Set up Telefonica access role
   template:
     src: telefonica-access-role.yaml.j2

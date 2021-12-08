@@ -77,7 +77,7 @@ func newAuthzGetOrgsTpe(ctx context.Context, region, username, action string) (*
 	if err != nil {
 		return nil, err
 	}
-	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceUsers, action)
+	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceApps, action)
 	if err != nil {
 		return nil, err
 	}
@@ -105,10 +105,23 @@ func authzUpdateTrustPolicyException(ctx context.Context, region, username strin
 		return err
 	}
 
+	if authz.allowAll {
+		// admin
+		return nil
+	}
 	if _, found := authz.allowedOperOrgs[tpe.Key.CloudletPoolKey.Organization]; found {
 		// Operator
-		if err := authorized(ctx, username, tpe.Key.CloudletPoolKey.Organization, resource, action); err != nil {
-			return err
+		if tpe.State != edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_ACTIVE &&
+			tpe.State != edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_REJECTED {
+			return fmt.Errorf("User not allowed to update TrustPolicyException state to %s", tpe.State.String())
+		}
+		return nil
+	}
+	if _, found := authz.allowedDevOrgs[tpe.Key.AppKey.Organization]; found {
+		// Developer
+		if tpe.State == edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_ACTIVE ||
+			tpe.State == edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_REJECTED {
+			return fmt.Errorf("User not allowed to update TrustPolicyException state to %s", tpe.State.String())
 		}
 		return nil
 	}

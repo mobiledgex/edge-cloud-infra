@@ -41,6 +41,7 @@
     - policies/influxdb.read.v1.hcl.j2
     - policies/influxdb-internal.read.v1.hcl.j2
     - policies/kafka.read.v1.hcl.j2
+    - policies/kubeconfigs.write.v1.hcl.j2
     - policies/logins.read.v1.hcl.j2
     - policies/mcorm-jwtkeys.read.v1.hcl.j2
     - policies/mcorm-jwtkeys.write.v1.hcl.j2

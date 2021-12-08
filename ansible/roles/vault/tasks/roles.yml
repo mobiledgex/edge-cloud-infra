@@ -93,6 +93,12 @@
     policies:
       - sys-storage-raft-snapshot.read.v1
 
+- name: teleport.v1 role
+  vault_role:
+    name: teleport.v1
+    policies:
+      - kubeconfigs.write.v1
+
 - include_role:
     name: vault
     tasks_from: region-roles

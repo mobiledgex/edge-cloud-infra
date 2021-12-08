@@ -1,0 +1,6 @@
+setups:
+  dev:    [ "eu" ]
+  stage:  [ "eu", "us" ]
+  qa:     [ "eu", "us" ]
+
+kubeconfig_publish: /usr/local/bin/kubeconfigs-publish.py

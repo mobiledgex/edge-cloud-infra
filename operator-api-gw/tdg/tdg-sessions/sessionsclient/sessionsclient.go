@@ -183,6 +183,8 @@ func CallTDGQosPriorityAPI(ctx context.Context, method string, qosSesAddr string
 		}
 		sessionId = qsiResp.Id
 		log.SpanLog(ctx, log.DebugLevelDmereq, "unmarshalled response", "qsiResp:", qsiResp, "sessionId", sessionId)
+	} else if status == http.StatusOK {
+		log.SpanLog(ctx, log.DebugLevelDmereq, "200 OK received")
 	} else {
 		log.WarnLog("returning error", "received ", status)
 		return "", fmt.Errorf(fmt.Sprintf("API call received unknown status: %d", status))

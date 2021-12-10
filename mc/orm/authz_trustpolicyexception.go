@@ -25,7 +25,7 @@ func (s *AuthzOrgTpe) populate(ctx context.Context, region, username, orgfilter,
 	if err != nil {
 		return err
 	}
-	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceUsers, action)
+	authDevOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceApps, action)
 	if err != nil {
 		return err
 	}
@@ -96,11 +96,8 @@ func newAuthzGetOrgsTpe(ctx context.Context, region, username, action string) (*
 }
 
 func authzUpdateTrustPolicyException(ctx context.Context, region, username string, tpe *edgeproto.TrustPolicyException, resource, action string) error {
-	if err := tpe.Key.ValidateKey(); err != nil {
-		return err
-	}
-	authz, err := newAuthzGetOrgsTpe(ctx, region, username, action)
 
+	authz, err := newAuthzGetOrgsTpe(ctx, region, username, action)
 	if err != nil {
 		return err
 	}
@@ -109,21 +106,46 @@ func authzUpdateTrustPolicyException(ctx context.Context, region, username strin
 		// admin
 		return nil
 	}
-	if _, found := authz.allowedOperOrgs[tpe.Key.CloudletPoolKey.Organization]; found {
-		// Operator
+
+	_, isOper := authz.allowedOperOrgs[tpe.Key.CloudletPoolKey.Organization]
+	_, isDev := authz.allowedDevOrgs[tpe.Key.AppKey.Organization]
+
+	if isOper && isDev {
+		return nil
+	}
+
+	if isOper {
+		// Operator can only update state
+		for _, field := range tpe.Fields {
+			if tpe.IsKeyField(field) {
+				continue
+			}
+			if field != edgeproto.TrustPolicyExceptionFieldState {
+				return fmt.Errorf("Operator can only update state field")
+			}
+		}
 		if tpe.State != edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_ACTIVE &&
 			tpe.State != edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_REJECTED {
 			return fmt.Errorf("User not allowed to update TrustPolicyException state to %s", tpe.State.String())
 		}
 		return nil
 	}
-	if _, found := authz.allowedDevOrgs[tpe.Key.AppKey.Organization]; found {
-		// Developer
-		if tpe.State == edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_ACTIVE ||
-			tpe.State == edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_REJECTED {
-			return fmt.Errorf("User not allowed to update TrustPolicyException state to %s", tpe.State.String())
+
+	if isDev {
+		// Developer can not update state
+		for _, field := range tpe.Fields {
+			if tpe.IsKeyField(field) {
+				continue
+			}
+			if field == edgeproto.TrustPolicyExceptionFieldState {
+				if tpe.State == edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_ACTIVE ||
+					tpe.State == edgeproto.TrustPolicyExceptionState_TRUST_POLICY_EXCEPTION_STATE_REJECTED {
+					return fmt.Errorf("User not allowed to update TrustPolicyException state to %s", tpe.State.String())
+				}
+			}
 		}
 		return nil
 	}
-	return fmt.Errorf("User not allowed to update TrustPolicyException")
+
+	return echo.ErrForbidden
 }

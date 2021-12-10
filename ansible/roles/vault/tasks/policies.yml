@@ -59,6 +59,7 @@
     - policies/pki-tidy.v1.hcl.j2
     - policies/registry.read.v1.hcl.j2
     - policies/root-ca.read.v1.hcl.j2
+    - policies/sessionsapi.read.v1.hcl.j2
     - policies/ssh-ansible-user.read.v1.hcl.j2
     - policies/ssh-ansible-user.sign.v1.hcl.j2
     - policies/ssh-ansible.read.v1.hcl.j2

@@ -618,3 +618,12 @@ maildevs:
   hostname: "127.0.0.1"
   uiport: 1080
   mailport: 1025
+
+thanoss:
+- name: thanosQuery
+  hostname: "127.0.0.1"
+  region: local
+  httpaddr: "0.0.0.0"
+  httpport: 29090
+  stores:
+  - "host.docker.internal:29091"

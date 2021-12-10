@@ -82,6 +82,7 @@ type DeploymentData struct {
 	Alertmanagers       []*intprocess.Alertmanager        `yaml:"alertmanagers"`
 	Maildevs            []*intprocess.Maildev             `yaml:"maildevs"`
 	AlertmgrSidecars    []*intprocess.AlertmanagerSidecar `yaml:"alertmanagersidecars"`
+	Thanoss             []*intprocess.Thanos              `yaml:"thanoss"`
 }
 
 // a comparison and yaml friendly version of AllMetrics for e2e-tests
@@ -214,6 +215,9 @@ func GetAllProcesses() []process.Process {
 	for _, p := range Deployment.Maildevs {
 		all = append(all, p)
 	}
+	for _, p := range Deployment.Thanoss {
+		all = append(all, p)
+	}
 	return all
 }
 
@@ -293,6 +297,10 @@ func RunChefClient(apiFile string, vars map[string]string) error {
 }
 
 func StartProcesses(processName string, args []string, outputDir string) bool {
+	log.Printf("Deployment with Thanos: %d", len(Deployment.Thanoss))
+	if len(Deployment.Thanoss) > 0 {
+		log.Printf("Deployment with Thanos: %s/%v", Deployment.Thanoss[0].Name, Deployment.Thanoss[0].Stores)
+	}
 	if !setupmex.StartProcesses(processName, args, outputDir) {
 		return false
 	}
@@ -375,6 +383,11 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 		}
 	}
 	for _, p := range Deployment.Maildevs {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.Thanoss {
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
@@ -527,6 +540,10 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			errors = append(errors, err.Error())
 		}
 		err = CleanupTmpFiles(ctx)
+		if err != nil {
+			errors = append(errors, err.Error())
+		}
+		err = intprocess.StopCloudletThanos(ctx)
 		if err != nil {
 			errors = append(errors, err.Error())
 		}

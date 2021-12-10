@@ -109,3 +109,11 @@ type FRM struct {
 	Region             string
 	cmd                *exec.Cmd
 }
+
+type Thanos struct {
+	process.DockerGeneric `yaml:",inline"`
+	Region                string
+	HttpAddr              string
+	HttpPort              int
+	Stores                []string
+}

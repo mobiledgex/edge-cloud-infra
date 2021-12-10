@@ -481,6 +481,25 @@ type MetricsCommon struct {
 	Limit               int `json:",omitempty"`
 }
 
+// Prom-type data
+type PromResp struct {
+	Status string   `json:"status,omitempty"`
+	Data   PromData `json:"data,omitempty"`
+}
+type PromData struct {
+	ResType string       `json:"resultType,omitempty"`
+	Result  []PromMetric `json:"result,omitempty"`
+}
+type PromMetric struct {
+	Labels PromLabels    `json:"metric,omitempty"`
+	Values []interface{} `json:"value,omitempty"`
+}
+type PromLabels struct {
+	PodName string `json:"pod,omitempty"`
+	App     string `json:"label_mexAppName,omitempty"`
+	Version string `json:"label_mexAppVersion,omitempty"`
+}
+
 // Metrics data
 type AllMetrics struct {
 	Data []MetricData `json:"data"`
@@ -502,6 +521,14 @@ type RegionAppInstMetrics struct {
 	Selector      string
 	AppInst       edgeproto.AppInstKey   `json:",omitempty"`
 	AppInsts      []edgeproto.AppInstKey `json:",omitempty"`
+	MetricsCommon `json:",inline"`
+}
+
+type RegionCustomAppMetrics struct {
+	Region      string
+	Measurement string
+	AppInst     edgeproto.AppInstKey `json:",omitempty"`
+	//	AppInsts      []edgeproto.AppInstKey `json:",omitempty"`
 	MetricsCommon `json:",inline"`
 }
 

@@ -2569,6 +2569,22 @@ func (s *Client) ShowClientCloudletUsageMetrics(uri string, token string, in *or
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) ShowCustomAppMetrics(uri string, token string, in *ormapi.RegionCustomAppMetrics) (*ormapi.PromResp, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.PromResp
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowCustomAppMetrics")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
 // Generating group Network
 
 func (s *Client) CreateNetwork(uri string, token string, in *ormapi.RegionNetwork) ([]edgeproto.Result, int, error) {

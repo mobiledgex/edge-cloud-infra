@@ -87,12 +87,27 @@ func init() {
 		ReqData:      &ormapi.RegionClientCloudletUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
 		Path:         "/auth/metrics/clientcloudletusage",
+	}, &ApiCommand{
+		Name:         "ShowCustomAppMetrics",
+		Use:          "customapp",
+		Short:        "View Custom App metrics",
+		RequiredArgs: strings.Join(append([]string{"region"}, CustomAppMetricRequiredArgs...), " "),
+		OptionalArgs: strings.Join(AppMetricOptionalArgs, " "),
+		AliasArgs:    strings.Join(append(AppMetricAliasArgs, MetricsCommonAliasArgs...), " "),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
+		ReqData:      &ormapi.RegionCustomAppMetrics{},
+		ReplyData:    &ormapi.PromResp{},
+		Path:         "/auth/metrics/app/custom",
 	}}
 	AllApis.AddGroup(MetricsGroup, "View metrics", cmds)
 }
 
 var AppMetricRequiredArgs = []string{
 	"selector",
+}
+
+var CustomAppMetricRequiredArgs = []string{
+	"measurement",
 }
 
 var AppMetricOptionalArgs = []string{

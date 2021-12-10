@@ -39,7 +39,10 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	if err = ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback); err != nil {
 		return cloudletResourcesCreated, err
 	}
-	return cloudletResourcesCreated, CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
+	if err = CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback); err != nil {
+		return cloudletResourcesCreated, err
+	}
+	return cloudletResourcesCreated, CloudletThanosStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
 func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -69,6 +72,20 @@ func CloudletPrometheusStartup(ctx context.Context, cloudlet *edgeproto.Cloudlet
 
 	updateCallback(edgeproto.UpdateTask, "Starting Cloudlet Monitoring")
 	return intprocess.StartCloudletPrometheus(ctx, cloudlet, caches.SettingsCache.Singular())
+}
+
+// Start thanos query container
+func CloudletThanosStartup(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+	// for fakeinfra we only start the first thanos query container, since it's going to run on the same port as
+	// other cloudlet thanos query
+	log.DebugLog(log.DebugLevelInfo, "Starting Thanos....")
+	if intprocess.CloudletThanosExists(ctx) {
+		updateCallback(edgeproto.UpdateTask, "Skipping Cloudlet Monitoring for fakeinfra platform")
+		return nil
+	}
+
+	updateCallback(edgeproto.UpdateTask, "Starting Cloudlet Thanos Query")
+	return intprocess.StartCloudletThanos(ctx, cloudlet, caches.SettingsCache.Singular())
 }
 
 func ShepherdStartup(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {

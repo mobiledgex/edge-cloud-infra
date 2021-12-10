@@ -620,6 +620,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/metrics/app", GetMetricsCommon)
 
+	auth.POST("/metrics/app/custom", GetAppMetricsCustom)
+
 	// swagger:route POST /auth/metrics/cluster DeveloperMetrics ClusterMetrics
 	// Cluster related metrics.
 	// Display cluster related metrics.

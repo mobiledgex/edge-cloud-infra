@@ -768,3 +768,20 @@ func (p *FRM) StopLocal() {
 func (p *FRM) GetExeName() string { return "frm" }
 
 func (p *FRM) LookupArgs() string { return p.Name }
+func (p *Thanos) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := p.GetRunArgs()
+	args = append(args,
+		"-p", fmt.Sprintf("%d:%d", p.HttpPort, p.HttpPort),
+		"quay.io/thanos/thanos:v0.20.0",
+		"query",
+		"--http-address",
+		"0.0.0.0:"+fmt.Sprintf("%d", p.HttpPort),
+	)
+	for ii := range p.Stores {
+		args = append(args, "--store", p.Stores[ii])
+	}
+
+	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	p.SetCmd(cmd)
+	return err
+}

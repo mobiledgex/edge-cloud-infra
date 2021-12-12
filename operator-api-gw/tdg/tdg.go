@@ -132,12 +132,8 @@ func (o *OperatorApiGw) DeletePrioritySession(ctx context.Context, priorityType 
 
 func (o *OperatorApiGw) LookupQosParm(qos string) string {
 	switch qos {
-	case "QOS_LATENCY_NO_PRIORITY":
-		return "LATENCY_DEFAULT"
-	case "QOS_LATENCY_LOW":
-		return "LATENCY_LOW"
-	case "QOS_THROUGHPUT_DOWN_NO_PRIORITY":
-		return "THROUGHPUT_DEFAULT"
+	case "QOS_LOW_LATENCY":
+		return "LOW_LATENCY"
 	case "QOS_THROUGHPUT_DOWN_S":
 		return "THROUGHPUT_S"
 	case "QOS_THROUGHPUT_DOWN_M":

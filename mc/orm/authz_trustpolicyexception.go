@@ -102,11 +102,6 @@ func authzUpdateTrustPolicyException(ctx context.Context, region, username strin
 		return err
 	}
 
-	if authz.allowAll {
-		// admin
-		return nil
-	}
-
 	_, isOper := authz.allowedOperOrgs[tpe.Key.CloudletPoolKey.Organization]
 	_, isDev := authz.allowedDevOrgs[tpe.Key.AppKey.Organization]
 
@@ -114,8 +109,8 @@ func authzUpdateTrustPolicyException(ctx context.Context, region, username strin
 		return nil
 	}
 
-	if isOper {
-		// Operator can only update state
+	if isOper || authz.allowAll {
+		// Operator/Admin can only update state
 		for _, field := range tpe.Fields {
 			if tpe.IsKeyField(field) {
 				continue

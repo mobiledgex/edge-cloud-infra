@@ -1,4 +1,4 @@
-status: FindFound
+status: Found
 fqdn: smallcluster.tmus-cloud-1.tmus.mobiledgex.net
 ports:
 - proto: Tcp

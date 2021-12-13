@@ -401,6 +401,10 @@ func (v *VMPlatform) createClusterInternal(ctx context.Context, rootLBName strin
 	return v.setupClusterRootLBAndNodes(ctx, rootLBName, clusterInst, updateCallback, start, timeout, vmgp, ActionCreate)
 }
 
+func (vp *VMProperties) GetSharedCommonSubnetName() string {
+	return vp.SharedRootLBName + "-common-internal"
+}
+
 func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName string, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback, start time.Time, timeout time.Duration, vmgp *VMGroupOrchestrationParams, action ActionType) (reterr error) {
 	client, err := v.GetClusterPlatformClient(ctx, clusterInst, cloudcommon.ClientTypeRootLB)
 	if err != nil {
@@ -418,6 +422,9 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 			gw, err := v.GetSubnetGatewayFromVMGroupParms(ctx, subnetName, vmgp)
 			if err != nil {
 				return err
+			}
+			if v.VMProperties.UsesCommonSharedInternalLBNetwork {
+				subnetName = v.VMProperties.GetSharedCommonSubnetName()
 			}
 
 			attachPort := true
@@ -562,7 +569,11 @@ func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgepro
 }
 
 func (v *VMPlatform) GetClusterAccessIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
-	mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
+	subnet := GetClusterSubnetName(ctx, clusterInst)
+	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED && v.VMProperties.UsesCommonSharedInternalLBNetwork {
+		subnet = v.VMProperties.GetSharedCommonSubnetName()
+	}
+	mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), subnet, GetClusterMasterName(ctx, clusterInst))
 	if err != nil {
 		return "", err
 	}

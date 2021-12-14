@@ -138,6 +138,10 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 		return nil, fmt.Errorf("invalid CommonInternalNetworkMaskBits - %v", err)
 	}
 	ni.CommonInternalNetworkMaskBits = int(b)
+	// currently only support /16
+	if ni.CommonInternalNetworkMaskBits != 16 {
+		return nil, fmt.Errorf("CommonInternalNetworkMaskBits must be 16")
+	}
 	ni.Octets = strings.Split(ni.NetworkAddress, ".")
 	for i, it := range ni.Octets {
 		if it == "X" {

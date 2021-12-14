@@ -6,31 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/stretchr/testify/require"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
-
-// -vapp
-func TestNextIntAddr(t *testing.T) {
-	live, ctx, err := InitVcdTestEnv()
-	require.Nil(t, err, "InitVcdTestEnv")
-	defer testVcdClient.Disconnect()
-	var updateCallback edgeproto.CacheUpdateCallback
-	if live {
-		// vappName is just logging here
-		nextAddr, reuse, err := tv.GetNextInternalSubnet(ctx, *vappName, updateCallback, testVcdClient)
-		if err != nil {
-			fmt.Printf("Error getting next addr  : %s\n", err.Error())
-			return
-		}
-		// reuse true if we've reused an existing iosnet found
-		fmt.Printf("reuse: %t\n", reuse)
-		require.Equal(t, nextAddr, "10.101.2.1")
-
-	}
-}
 
 func TestGetVdcNetworks(t *testing.T) {
 	live, ctx, err := InitVcdTestEnv()

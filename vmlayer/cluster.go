@@ -248,7 +248,9 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		clusterSnName := GetClusterSubnetName(ctx, clusterInst)
 		ip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), clusterSnName, rootLBName)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
+			// this is expected if the vm provider is using a common shared network, although even if it does there
+			// can be existing legacy networks for which we will find an IP. in either case proceed
+			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "UsesCommonSharedInternalLBNetwork", v.VMProperties.UsesCommonSharedInternalLBNetwork, "err", err)
 		} else {
 			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, clusterSnName, GetPortName(rootLBName, clusterSnName), ip.InternalAddr)
 			if err != nil {
@@ -426,7 +428,6 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 			if v.VMProperties.UsesCommonSharedInternalLBNetwork {
 				subnetName = v.VMProperties.GetSharedCommonSubnetName()
 			}
-
 			attachPort := true
 			if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED && v.VMProvider.GetInternalPortPolicy() == AttachPortDuringCreate {
 				attachPort = false
@@ -569,11 +570,7 @@ func (v *VMPlatform) DeleteClusterInst(ctx context.Context, clusterInst *edgepro
 }
 
 func (v *VMPlatform) GetClusterAccessIP(ctx context.Context, clusterInst *edgeproto.ClusterInst) (string, error) {
-	subnet := GetClusterSubnetName(ctx, clusterInst)
-	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED && v.VMProperties.UsesCommonSharedInternalLBNetwork {
-		subnet = v.VMProperties.GetSharedCommonSubnetName()
-	}
-	mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), subnet, GetClusterMasterName(ctx, clusterInst))
+	mip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), GetClusterSubnetName(ctx, clusterInst), GetClusterMasterName(ctx, clusterInst))
 	if err != nil {
 		return "", err
 	}

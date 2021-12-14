@@ -223,9 +223,10 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	//   are any users of the network this will fail
 
 	// find the org vcd isolated network if one exists.  Do this before deleting VMs
-	netName, err := v.GetVappIsoNetwork(ctx, vdc, vapp)
+	internalSubnetName := v.vappNameToInternalSubnet(ctx, vapp.VApp.Name)
+	networkMetadataType, mappedNetName, err := v.GetNetworkMetadataForInternalSubnet(ctx, internalSubnetName, vcdClient, vdc)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get org VCD net", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error getting metadata", "err", err)
 	}
 
 	task, err := vapp.Undeploy()
@@ -293,46 +294,36 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 			return err
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName, "netName", netName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName, "mappedNetName", mappedNetName)
 	// check if we're using a isolated orgvdcnetwork /  sharedLB
-	if netName != "" {
+	if networkMetadataType == NetworkMetadataLegacyPerClusterIsoNet {
 		if v.GetNsxType() == NSXV {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-v removing isoNetworks if exists", "vapp", vappName, "netName", netName, "isNsxt?", vdc.IsNsxt(), "isNsxv?", vdc.IsNsxv())
-			err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, netName)
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-v removing isoNetworks if exists", "vapp", vappName, "mappedNetName", mappedNetName, "isNsxt?", vdc.IsNsxt(), "isNsxv?", vdc.IsNsxv())
+			err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, mappedNetName)
 			if err != nil {
 				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists failed for", "netName", netName, "error", err)
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists failed for", "netName", mappedNetName, "error", err)
 					return err
 				}
 			}
 		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-t marking network free", "vapp", vappName, "netName", netName)
-
-			// place the network on the free list for resue. Should be an nsx-t backed vdc
-			orgvdcnetwork, err := vdc.GetOrgVdcNetworkByName(netName, false)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetOrgVdcNetworkByName failed for", "netName", netName)
-				return err
-			}
-			v.FreeIsoNets[netName] = orgvdcnetwork
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists nsx-t, add to free list for reuse", "vapp", vappName, "netName", netName, "err", err)
-
+			// there are no non-lab NSX-T deployments using legacy ISO networks, and in any case we will not reuse them going forward
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-t no action for legacy isonet", "vapp", vappName, "mappedNetName", mappedNetName)
 		}
 
 	} else if err != nil {
-		// If GetVappIsoNetwork actually fails
 		// don't fail the delete cluster operation here, dedicated LBs don't use type 2 orgvcdnetworks.
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "netName", netName, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "mappedNetName", mappedNetName, "err", err)
 	}
 
-	if netName != "" {
+	if networkMetadataType != NetworkMetadataNone {
 		// finally, remove the IsoNamesMap entry for shared LBs.
-		key, err := v.updateIsoNamesMap(ctx, IsoMapActionDelete, "", netName)
+		err := v.DeleteMetadataForInternalSubnet(ctx, internalSubnetName, vcdClient, vdc)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp updateIsoNamesMap", "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "error deleting network metadata", "error", err)
 			return err
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp removed namemap entry ", "cidr", netName, "subnetId", key)
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp removed network metadata ", internalSubnetName, internalSubnetName)
 	}
 	return nil
 

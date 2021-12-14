@@ -18,7 +18,6 @@ func (v *VcdPlatform) initDebug(nodeMgr *node.NodeMgr, stage vmlayer.ProviderIni
 	if stage == vmlayer.ProviderInitPlatformStartCrm {
 		nodeMgr.Debug.AddDebugFunc("dumpVmHrefCache", v.showVmHrefCache)
 		nodeMgr.Debug.AddDebugFunc("clearVmHrefCache", v.clearVmHrefCache)
-		nodeMgr.Debug.AddDebugFunc("dumpIsoMapTable", v.dumpIsoMapTable)
 		nodeMgr.Debug.AddDebugFunc("govcdcmd", v.runVcdCliCommand)
 	} else if stage == vmlayer.ProviderInitPlatformStartShepherd {
 		// shepherd uses the vm href cache but not the iso map
@@ -37,13 +36,6 @@ func (v *VcdPlatform) clearVmHrefCache(ctx context.Context, req *edgeproto.Debug
 	return "VM HREF cache cleared"
 }
 
-func (v *VcdPlatform) dumpIsoMapTable(ctx context.Context, req *edgeproto.DebugRequest) string {
-	out, err := v.updateIsoNamesMap(ctx, IsoMapActionDump, "", "")
-	if err != nil {
-		return err.Error()
-	}
-	return out
-}
 func (v *VcdPlatform) runVcdCliCommand(ctx context.Context, req *edgeproto.DebugRequest) string {
 
 	if req.Args == "" {

@@ -2,7 +2,6 @@ package vcd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"unicode"
@@ -41,8 +40,6 @@ type VcdPlatform struct {
 	Creds        *VcdConfigParams
 	TestMode     bool
 	Verbose      bool
-	FreeIsoNets  NetMap
-	IsoNamesMap  map[string]string
 }
 
 var DefaultClientRefreshInterval uint64 = 7 * 60 * 60 // 7 hours
@@ -82,9 +79,6 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for Vcd", "stage", stage)
 	v.Verbose = v.GetVcdVerbose()
-	v.IsoNamesMap = make(map[string]string)
-	v.FreeIsoNets = make(NetMap)
-
 	v.InitData(ctx, caches)
 
 	err := v.SetProviderSpecificProps(ctx)
@@ -102,16 +96,10 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "mexInternalNetRange", mexInternalNetRange)
 
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider RebuildMaps", "stage", stage)
-		err := v.RebuildIsoNamesAndFreeMaps(ctx)
+		err := v.UpdateLegacyIsoNetMetaData(ctx)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider Rebuild maps failed", "error", err)
 			return err
-		}
-		if len(v.FreeIsoNets) == 0 {
-			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider FreeIsoNets empty")
-		}
-		if len(v.IsoNamesMap) == 0 {
-			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider IsoNamesMap empty")
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider DisableRuntimeLeases", "stage", stage)
 		overrideLeaseDisable := v.GetLeaseOverride()
@@ -308,7 +296,7 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*
 }
 
 func (v *VcdPlatform) GetServerDetailWithVdc(ctx context.Context, serverName string, vdc *govcd.Vdc, vcdClient *govcd.VCDClient) (*vmlayer.ServerDetail, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetail", "serverName", serverName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetailWithVdc", "serverName", serverName)
 
 	vm, err := v.FindVMByName(ctx, serverName, vcdClient, vdc)
 	if err != nil {
@@ -457,17 +445,6 @@ func (v *VcdPlatform) InternalCloudletUpdatedCallback(ctx context.Context, old *
 		// any futher API calls are blocked until a valid token is present.
 		log.SpanLog(ctx, log.DebugLevelInfra, "Empty token received from CRM")
 
-	}
-	// if we find an isoMap property use it to update the iso map cache which is a json string
-	isoMapStr, ok := new.Props[CloudletIsoNamesMap]
-	var isoMap map[string]string
-
-	if ok && isoMapStr != "" {
-		err := json.Unmarshal([]byte(isoMapStr), &isoMap)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Error in unmarshal of isoNamesMap", "isoMapStr", isoMapStr, "err", err)
-		}
-		v.replaceIsoNamesMap(ctx, isoMap)
 	}
 }
 

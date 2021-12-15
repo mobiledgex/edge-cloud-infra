@@ -66,15 +66,6 @@ type VAppMap map[string]*govcd.VApp
 type VMMap map[string]*govcd.VM
 type NetMap map[string]*govcd.OrgVDCNetwork
 
-type IsoMapActionType string
-
-const (
-	IsoMapActionAdd    IsoMapActionType = "add"
-	IsoMapActionDelete IsoMapActionType = "delete"
-	IsoMapActionRead   IsoMapActionType = "read"
-	IsoMapActionDump   IsoMapActionType = "dump"
-)
-
 func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for Vcd", "stage", stage)
@@ -322,9 +313,7 @@ func (v *VcdPlatform) GetServerDetailWithVdc(ctx context.Context, serverName str
 		return nil, err
 	}
 	detail.Addresses = addresses
-
 	return &detail, nil
-
 }
 
 func (v *VcdPlatform) GetVappToNetworkMap(ctx context.Context, vcdClient *govcd.VCDClient) (VAppMap, error) {

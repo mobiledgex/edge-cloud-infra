@@ -215,12 +215,12 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	// because it's still in use, possibly by this vapp (shared clusterInst)
 
 	// Notes on deletion order related to isolated Org VDC networks:
-	// - GetVappIsoNetwork must happen before VMs are deleted or the network will not be found
+	// - network retrieval must happen before VMs are deleted or the network will not be found
 	// - VMs are deleted next
 	// - The network must then be removed from the vApp (RemoveAllNetworks) and then the vApp is deleted. This
 	//   ensures that the vApp is not associated with the network, so it can be deleted
 	// - Deleting the network (RemoveOrgVdcNetworkIfExists) must happen last, as if there
-	//   are any users of the network this will fail
+	//   are any users of the network this will fail. This is only done for legacy iso networks (created 3.1 and prior)
 
 	// find the org vcd isolated network if one exists.  Do this before deleting VMs
 	internalSubnetName := v.vappNameToInternalSubnet(ctx, vapp.VApp.Name)
@@ -315,7 +315,6 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 		// don't fail the delete cluster operation here, dedicated LBs don't use type 2 orgvcdnetworks.
 		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "mappedNetName", mappedNetName, "err", err)
 	}
-
 	if networkMetadataType != NetworkMetadataNone {
 		// finally, remove the IsoNamesMap entry for shared LBs.
 		err := v.DeleteMetadataForInternalSubnet(ctx, internalSubnetName, vcdClient, vdc)

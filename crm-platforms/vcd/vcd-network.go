@@ -56,10 +56,11 @@ var supportedVcdNetTypes = map[vmlayer.NetworkType]bool{
 }
 
 type networkInfo struct {
-	Name        string
-	Gateway     string
-	NetworkType vmlayer.NetworkType
-	Routes      []edgeproto.Route
+	VcdNetworkName string
+	Gateway        string
+	NetworkType    vmlayer.NetworkType
+	Routes         []edgeproto.Route
+	LegacyIsoNet   bool
 }
 
 func (v *VcdPlatform) getInternalSharedCommonSubnetGW(ctx context.Context) (string, error) {
@@ -230,9 +231,9 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 				log.SpanLog(ctx, log.DebugLevelInfra, "Got external network gateway", "netName", port.NetworkName, "gw", gw)
 				if err == nil {
 					netMap[port.NetworkName] = networkInfo{
-						Name:        port.NetworkName,
-						Gateway:     gw,
-						NetworkType: port.NetType,
+						VcdNetworkName: port.NetworkName,
+						Gateway:        gw,
+						NetworkType:    port.NetType,
 					}
 				}
 			} else {
@@ -305,9 +306,9 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 			}
 			intAdded = true
 			netMap[port.SubnetId] = networkInfo{
-				Name:        port.SubnetId,
-				Gateway:     networkGW,
-				NetworkType: port.NetType,
+				VcdNetworkName: port.SubnetId,
+				Gateway:        networkGW,
+				NetworkType:    port.NetType,
 			}
 			log.SpanLog(ctx, log.DebugLevelInfra, "added internal net to map", "Name", port.SubnetId)
 		}
@@ -880,15 +881,23 @@ func (v *VcdPlatform) getSharedCommonMetadataKey(subnetName string) string {
 	return UsedCommonIpRangeTag + "-" + subnetName
 }
 
-func (v *VcdPlatform) getLegacyPerClusterMetadataKey(vappName string) string {
-	return UsedLegacyPerClusterIsoNetTag + "-" + vappName
+func (v *VcdPlatform) getLegacyPerClusterMetadataKey(subnetName string) string {
+	return UsedLegacyPerClusterIsoNetTag + "-" + subnetName
+}
+
+func (v *VcdPlatform) getSubnetFromLegacyMetadataKey(key string) (string, error) {
+	ks := strings.Split(key, UsedLegacyPerClusterIsoNetTag+"-")
+	if len(ks) != 2 {
+		return "", fmt.Errorf("invalid legacy metadata key - %s", key)
+	}
+	return ks[1], nil
 }
 
 func (v *VcdPlatform) GetNetworkMetadataForInternalSubnet(ctx context.Context, subnetName string, vcdClient *govcd.VCDClient, vdc *govcd.Vdc) (NetworkMetadataType, string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworkMetadataForInternalSubnet", "subnetName", subnetName)
 	shrName := v.getSharedVappName()
-	vappCommonMetadataKey := v.getSharedCommonMetadataKey(subnetName)
-	vappLegacyIsoMetadataKey := v.getLegacyPerClusterMetadataKey(subnetName)
+	commonMetadataKey := v.getSharedCommonMetadataKey(subnetName)
+	legacyIsoMetadataKey := v.getLegacyPerClusterMetadataKey(subnetName)
 
 	shrVapp, err := v.FindVApp(ctx, shrName, vcdClient, vdc)
 	if err != nil {
@@ -899,11 +908,11 @@ func (v *VcdPlatform) GetNetworkMetadataForInternalSubnet(ctx context.Context, s
 		return NetworkMetadataNone, "", fmt.Errorf("unable to get shared vapp metadata %s - %v", shrName, err)
 	}
 	for _, me := range meta.MetadataEntry {
-		if me.Key == vappCommonMetadataKey {
+		if me.Key == commonMetadataKey {
 			log.SpanLog(ctx, log.DebugLevelInfra, "found common ip range in metadata", "key", me.Key, "val", me.TypedValue.Value)
 			return NetworkMetadataCommonIsoNet, me.TypedValue.Value, nil
 		}
-		if me.Key == vappLegacyIsoMetadataKey {
+		if me.Key == legacyIsoMetadataKey {
 			log.SpanLog(ctx, log.DebugLevelInfra, "found legacy iso net in metadata", "key", me.Key, "val", me.TypedValue.Value)
 			return NetworkMetadataLegacyPerClusterIsoNet, me.TypedValue.Value, nil
 		}
@@ -934,6 +943,26 @@ func (v *VcdPlatform) DeleteMetadataForInternalSubnet(ctx context.Context, subne
 	return nil
 }
 
+// GetSubnetFromLegacyIsoMetadata is used only in rare cases where we need to get the subnet name back from the iso net name
+func (v *VcdPlatform) GetSubnetFromLegacyIsoMetadata(ctx context.Context, isonetName string, vcdClient *govcd.VCDClient, vdc *govcd.Vdc) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetSubnetFromLegacyIsoMetadata", "isonetName", isonetName)
+	shrName := v.getSharedVappName()
+	shrVapp, err := v.FindVApp(ctx, shrName, vcdClient, vdc)
+	if err != nil {
+		return "", fmt.Errorf("unable to find shared vapp %s - %v", shrName, err)
+	}
+	meta, err := shrVapp.GetMetadata()
+	if err != nil {
+		return "", fmt.Errorf("unable to get shared vapp metadata %s - %v", shrName, err)
+	}
+	for _, me := range meta.MetadataEntry {
+		if me.TypedValue.Value == isonetName && strings.HasPrefix(me.Key, UsedLegacyPerClusterIsoNetTag) {
+			return v.getSubnetFromLegacyMetadataKey(me.Key)
+		}
+	}
+	return "", nil
+}
+
 func (v *VcdPlatform) GetFreeSharedCommonIpRange(ctx context.Context, subnetName string, vcdClient *govcd.VCDClient, vdc *govcd.Vdc) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetFreeSharedCommonIpRange", "subnetName", subnetName)
 
@@ -945,7 +974,6 @@ func (v *VcdPlatform) GetFreeSharedCommonIpRange(ctx context.Context, subnetName
 
 	netLock.Lock()
 	defer netLock.Unlock()
-
 	meta, err := shrVapp.GetMetadata()
 	if err != nil {
 		return "", fmt.Errorf("unable to get shared vapp metadata %s - %v", shrName, err)
@@ -953,12 +981,10 @@ func (v *VcdPlatform) GetFreeSharedCommonIpRange(ctx context.Context, subnetName
 	for _, me := range meta.MetadataEntry {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Shared LB Metadata entry", "key", me.Key, "val", me.TypedValue.Value)
 	}
-
 	fixed, err := v.getInternalSharedCommonFixedPortion(ctx)
 	if err != nil {
 		return "", err
 	}
-
 	commonMetadataKey := v.getSharedCommonMetadataKey(subnetName)
 	ipRange := ""
 	for octet3 := 0; octet3 <= 255; octet3++ {

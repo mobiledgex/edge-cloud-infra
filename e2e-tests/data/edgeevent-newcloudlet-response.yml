@@ -1,6 +1,6 @@
-eventtype: EventCloudletUpdate
+eventtype: CloudletUpdate
 newcloudlet:
-  status: FindFound
+  status: Found
   fqdn: shared.tmus-cloud-2.tmus.mobiledgex.net
   ports:
   - proto: Tcp

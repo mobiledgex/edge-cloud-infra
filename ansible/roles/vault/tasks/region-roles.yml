@@ -74,6 +74,7 @@
     policies:
       - approle.login.v1
       - certs.read.v1
+      - sessionsapi.read.v1
       - "{{ region_prefix }}.dme-jwtkeys.read.v1"
       - "{{ region_prefix }}.pki-regional.issue.v1"
     token_type: batch

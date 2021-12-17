@@ -998,43 +998,35 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM, vcdClien
 		return serverIPs, fmt.Errorf(vmlayer.ServerIPNotFound)
 	}
 	vmName := vm.VM.Name
-	//parentVapp, err := vm.GetParentVApp()
 	connections := vm.VM.NetworkConnectionSection.NetworkConnection
 
 	for _, connection := range connections {
 		servIP := vmlayer.ServerIP{
 			MacAddress:   connection.MACAddress,
-			Network:      connection.Network,
 			ExternalAddr: connection.IPAddress,
 			InternalAddr: connection.IPAddress,
-			PortName:     strconv.Itoa(connection.NetworkConnectionIndex),
 		}
+		netname := connection.Network
+		portNetName := netname
 		if connection.Network != v.vmProperties.GetCloudletExternalNetwork() {
-			netname := connection.Network
-			// for nodes other than the shared lb we substitute the mex network name for the rootlb shared or iso name so
-			// we can find the VM using the mex net name
-			if vm.VM.Name != v.vmProperties.SharedRootLBName {
-				if netname == v.vmProperties.GetSharedCommonSubnetName() {
-					// this is essentially a mex internal network. the actual VCD network will still still available in the port info. Since there
-					// is only one port using the shared common subnet, the Mex network name will be unique and this is faster than metadata lookup
-					servIP.Network = v.vmProperties.GetCloudletMexNetwork()
-					log.SpanLog(ctx, log.DebugLevelInfra, "using mex internal network for shared subnet", "netname", netname, "servIP.Network", servIP.Network)
-
-				} else if strings.HasPrefix(netname, mexInternalNetRange) {
-					// A legacy iso net for which we need to map the network name back to the subnet name. We cannot use the mex network name here
-					// because it will not be unique, so we have to lookup the subnet from the metadata
-					var err error
-					servIP.Network, err = v.GetSubnetFromLegacyIsoMetadata(ctx, netname, vcdClient, vdc)
-					if err != nil {
-						return serverIPs, err
-					}
-					log.SpanLog(ctx, log.DebugLevelInfra, "using mex subnet name for legacy iso net", "netname", netname, "servIP.Network", servIP.Network)
+			// substitute the VCD network name for the mex nomenclature for if this is a shared LB connected node
+			// so that we can find it from vmlayer using the mex net name. This avoids having to lookup metadata
+			if netname == v.vmProperties.GetSharedCommonSubnetName() {
+				netname = v.vmProperties.GetCloudletMexNetwork()
+				log.SpanLog(ctx, log.DebugLevelInfra, "using mex internal network for shared subnet", "netname", netname, "connection.Network", connection.Network)
+			} else if strings.HasPrefix(netname, mexInternalNetRange) {
+				// legacy iso net case, the subnet must be remapped to the mex version. We cannot use the mex network name here because there can be multiple on the same vm
+				var err error
+				portNetName, err = v.GetSubnetFromLegacyIsoMetadata(ctx, netname, vcdClient, vdc)
+				if err != nil {
+					return serverIPs, err
 				}
+				log.SpanLog(ctx, log.DebugLevelInfra, "converting legacy iso net to mex subnet", "netname", netname, "connection.Network", connection.Network)
 			}
-			servIP.PortName = vmName + "-" + netname + "-port"
-			log.SpanLog(ctx, log.DebugLevelInfra, "GetVMAddresses", "servIP.PortName", servIP.PortName)
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMAddresses Added", "servIP.PortName", servIP.PortName)
+		servIP.Network = netname
+		servIP.PortName = vmName + "-" + portNetName + "-port"
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMAddresses Added", "vmname", vmName, "portName", servIP.PortName, "network", servIP.Network)
 		serverIPs = append(serverIPs, servIP)
 	}
 	return serverIPs, nil

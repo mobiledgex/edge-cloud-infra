@@ -19,6 +19,9 @@ func (v *VcdPlatform) initDebug(nodeMgr *node.NodeMgr, stage vmlayer.ProviderIni
 		nodeMgr.Debug.AddDebugFunc("dumpVmHrefCache", v.showVmHrefCache)
 		nodeMgr.Debug.AddDebugFunc("clearVmHrefCache", v.clearVmHrefCache)
 		nodeMgr.Debug.AddDebugFunc("govcdcmd", v.runVcdCliCommand)
+		nodeMgr.Debug.AddDebugFunc("showVapps", v.showVapps)
+		nodeMgr.Debug.AddDebugFunc("showLBMetaData", v.runVcdCliCommand)
+
 	} else if stage == vmlayer.ProviderInitPlatformStartShepherd {
 		// shepherd uses the vm href cache but not the iso map
 		nodeMgr.Debug.AddDebugFunc("dumpVmHrefCache", v.showVmHrefCache)
@@ -34,6 +37,17 @@ func (v *VcdPlatform) showVmHrefCache(ctx context.Context, req *edgeproto.DebugR
 func (v *VcdPlatform) clearVmHrefCache(ctx context.Context, req *edgeproto.DebugRequest) string {
 	v.ClearVmHrefCache(ctx)
 	return "VM HREF cache cleared"
+}
+
+func (v *VcdPlatform) showVapps(ctx context.Context, req *edgeproto.DebugRequest) string {
+	if req.Args == "" {
+		return "please specify vapp pattern to match as a regex or \"all\""
+	}
+	out, err := v.DumpVapps(ctx, req.Args)
+	if err != nil {
+		return err.Error()
+	}
+	return out
 }
 
 func (v *VcdPlatform) runVcdCliCommand(ctx context.Context, req *edgeproto.DebugRequest) string {

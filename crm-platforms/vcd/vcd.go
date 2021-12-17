@@ -327,7 +327,7 @@ func (v *VcdPlatform) GetVappToNetworkMap(ctx context.Context, vcdClient *govcd.
 
 	for _, r := range vdc.Vdc.ResourceEntities {
 		for _, res := range r.ResourceEntity {
-			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
+			if res.Type == VappResourceXmlType {
 				vapp, err := vdc.GetVAppByName(res.Name, true)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "GetVappByName", "Vapp", res.Name, "error", err)

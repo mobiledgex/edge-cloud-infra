@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -20,6 +21,8 @@ var VmHardwareVersion = 14
 
 var ResolvedStateMaxWait = 4 * 60 // 4 mins
 var ResolvedStateTickTime time.Duration = time.Second * 3
+
+const VappResourceXmlType = "application/vnd.vmware.vcloud.vApp+xml"
 
 // Compose a new vapp from the given template, using vmgrp orch params
 // Creates one or more vms.
@@ -524,4 +527,93 @@ func (v *VcdPlatform) BlockWhileStatusWithTickTime(ctx context.Context, vapp *go
 			}
 		}
 	}
+}
+func (v *VcdPlatform) DumpVapps(ctx context.Context, matchPattern string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DumpVapps", "matchPattern", matchPattern)
+
+	rc := ""
+	if matchPattern == "all" {
+		matchPattern = ".*"
+	}
+	reg, err := regexp.Compile(matchPattern)
+	if err != nil {
+		return "", fmt.Errorf("invalid regexp match pattern: %s - %v", matchPattern, err)
+	}
+	ctx, result, err := v.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		return "", err
+	}
+	if result == vmlayer.OperationNewlyInitialized {
+		defer v.InitOperationContext(ctx, vmlayer.OperationInitComplete)
+	}
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		return "", fmt.Errorf(NoVCDClientInContext)
+	}
+	vdc, err := v.GetVdc(ctx, vcdClient)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DumpVapps unable to retrieve current vdc", "err", err)
+		return "", err
+	}
+	if v.vmProperties == nil { // paranoid check because this runs in debug
+		return "", fmt.Errorf("nil vmProperties")
+	}
+	// For all vapps in vdc
+	for _, r := range vdc.Vdc.ResourceEntities {
+		for _, res := range r.ResourceEntity {
+
+			if res.Type == VappResourceXmlType {
+				if !reg.MatchString(res.Name) {
+					log.SpanLog(ctx, log.DebugLevelInfra, "vapp did not match pattern", "res.Name", res.Name)
+					continue
+				}
+				vapp, err := vdc.GetVAppByName(res.Name, false)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "GetVAppByName could not find vapp", "err", err)
+					continue
+				}
+				log.SpanLog(ctx, log.DebugLevelInfra, "found vapp", "name", res.Name)
+				rc += "VAPP: " + res.Name + "\n"
+				if vapp.VApp == nil {
+					rc += " - nil VApp\n"
+					log.SpanLog(ctx, log.DebugLevelInfra, "nil vapp", "name", res.Name)
+					continue
+				}
+				if vapp.VApp.NetworkConfigSection != nil {
+					netNames := vapp.VApp.NetworkConfigSection.NetworkNames()
+					log.SpanLog(ctx, log.DebugLevelInfra, "found vapp networks", "netNames", netNames)
+					for _, n := range netNames {
+						rc += "- Network: " + n + "\n"
+					}
+				}
+				if res.Name == v.getSharedVappName() {
+					meta, err := vapp.GetMetadata()
+					if err != nil {
+						log.SpanLog(ctx, log.DebugLevelInfra, "failed to get metadata for shared lb", "err", err)
+					} else {
+						rc += "- Shared LB Metadata:\n"
+						for _, me := range meta.MetadataEntry {
+							if me.TypedValue == nil {
+								log.SpanLog(ctx, log.DebugLevelInfra, "nil metadata value", "err", err)
+							} else {
+								rc += "    Key: " + me.Key + " Value: " + me.TypedValue.Value + "\n"
+							}
+						}
+					}
+				}
+				if vapp.VApp.Children != nil {
+					for _, vm := range vapp.VApp.Children.VM {
+						log.SpanLog(ctx, log.DebugLevelInfra, "found vm", "vapp", res.Name, "vm", vm.Name)
+						rc += fmt.Sprintf("- VM: %s Status: %s Deployed: %t\n", vm.Name, types.VAppStatuses[vm.Status], vm.Deployed)
+						if vm.NetworkConnectionSection != nil {
+							for _, nc := range vm.NetworkConnectionSection.NetworkConnection {
+								rc += "   - Net Connection: " + nc.Network + " IP: " + nc.IPAddress + "\n"
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return rc, nil
 }

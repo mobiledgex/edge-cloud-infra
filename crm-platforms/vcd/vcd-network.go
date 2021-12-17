@@ -344,7 +344,7 @@ func (v *VcdPlatform) InsertConnectionIntoNcs(ctx context.Context, ncs *types.Ne
 
 // AttachPortToServer
 func (v *VcdPlatform) AttachPortToServer(ctx context.Context, serverName, subnetName, portName, ipaddr string, action vmlayer.ActionType) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "subnetName", subnetName, "portName", portName, "ipaddr", ipaddr)
+	log.SpanLog(ctx, log.DebugLevelInfra, "AttachPortToServer", "subnetName", subnetName, "portName", portName, "ipaddr", ipaddr, "action", action)
 	commonNet := v.vmProperties.GetSharedCommonSubnetName()
 	vappName := serverName + v.GetVappServerSuffix()
 	vcdClient := v.GetVcdClientFromContext(ctx)
@@ -1256,7 +1256,7 @@ func (v *VcdPlatform) getSubnetLegacyIsoMap(ctx context.Context, vdc *govcd.Vdc,
 				// don't want this one
 				continue
 			}
-			if res.Type == "application/vnd.vmware.vcloud.vApp+xml" {
+			if res.Type == VappResourceXmlType {
 				vapp, err := vdc.GetVAppByName(res.Name, false)
 				if err != nil {
 					return nil, err

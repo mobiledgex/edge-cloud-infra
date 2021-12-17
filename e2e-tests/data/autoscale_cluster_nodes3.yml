@@ -30,15 +30,15 @@ regiondata:
           type: cluster-k8s-node
           status: ACTIVE
           infraflavor: x1.small
-        - name: smallcluster.tmus-cloud-1.tmus.fake.net
-          type: rootlb
-          status: ACTIVE
-          infraflavor: x1.small
         - name: fake-node-2-tmus-cloud-1-smallcluster-acmeappco
           type: cluster-k8s-node
           status: ACTIVE
           infraflavor: x1.small
         - name: fake-node-3-tmus-cloud-1-smallcluster-acmeappco
           type: cluster-k8s-node
+          status: ACTIVE
+          infraflavor: x1.small
+        - name: smallcluster.tmus-cloud-1.tmus.fake.net
+          type: rootlb
           status: ACTIVE
           infraflavor: x1.small

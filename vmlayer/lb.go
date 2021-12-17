@@ -153,7 +153,7 @@ func (v *VMPlatform) configureInternalInterfaceAndExternalForwarding(ctx context
 		// now bring the new internal interface up.
 		var ipcmds []string
 		maskLen := 24
-		if v.VMProperties.UsesCommonSharedInternalLBNetwork {
+		if v.VMProperties.UsesCommonSharedInternalLBNetwork && serverDetails.Name == v.VMProperties.SharedRootLBName {
 			ni, err := ParseNetSpec(ctx, v.VMProperties.GetCloudletNetworkScheme())
 			if err != nil {
 				return "", err
@@ -542,7 +542,8 @@ func (v *VMPlatform) SetupRootLB(
 			return fmt.Errorf("cannot copy resource-tracker to rootLb %v", err)
 		}
 	}
-	route, err := v.VMProperties.GetInternalNetworkRoute(ctx)
+	commonSharedAccess := rootLBName == v.VMProperties.SharedRootLBName && v.VMProperties.UsesCommonSharedInternalLBNetwork
+	route, err := v.VMProperties.GetInternalNetworkRoute(ctx, commonSharedAccess)
 	if err != nil {
 		return err
 	}

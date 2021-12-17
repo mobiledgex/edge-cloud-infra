@@ -87,6 +87,7 @@ func (v *VcdPlatform) getVmInternalIpAndNetwork(ctx context.Context, vmparams *v
 	for _, p := range vmparams.Ports {
 		if p.NetType == vmlayer.NetworkTypeInternalPrivate || p.NetType == vmlayer.NetworkTypeInternalSharedLb {
 			netName = p.SubnetId
+			vcdNetName = p.SubnetId
 			log.SpanLog(ctx, log.DebugLevelInfra, "found internal subnet", "netName", netName)
 			break
 		}
@@ -98,6 +99,7 @@ func (v *VcdPlatform) getVmInternalIpAndNetwork(ctx context.Context, vmparams *v
 	if vmgp.ConnectsToSharedRootLB {
 		// use the common shared subnet name
 		var err error
+		// override the VCD net name with the common shared net name
 		vcdNetName = v.vmProperties.GetSharedCommonSubnetName()
 		gateway, err = v.getInternalSharedCommonSubnetGW(ctx)
 		if err != nil {
@@ -112,7 +114,7 @@ func (v *VcdPlatform) getVmInternalIpAndNetwork(ctx context.Context, vmparams *v
 				return "", "", err
 			}
 			if metaType == NetworkMetadataLegacyPerClusterIsoNet {
-				// override the network name with the mapped network
+				// override the network name with the mapped ISO network
 				gateway = legacyNet
 				vcdNetName = legacyNet
 				legacyIsoNet = true
@@ -168,15 +170,21 @@ func (v *VcdPlatform) getIpFromPortParams(ctx context.Context, vmparams *vmlayer
 					if !ok {
 						return "", fmt.Errorf("cannot subnet in netmap for network %s", p.SubnetId)
 					}
-					if netMap[p.SubnetId].LegacyIsoNet {
-						ipRange = netMap[p.SubnetId].Gateway
-						log.SpanLog(ctx, log.DebugLevelInfra, "Using legacy net GW as iprange", "ipRange", ipRange)
-					} else if ipRange == "" {
-						var err error
-						ipRange, err = v.GetFreeSharedCommonIpRange(ctx, v.vappNameToInternalSubnet(ctx, vmgp.GroupName), vcdClient, vdc)
-						if err != nil {
-							return "", err
+					log.SpanLog(ctx, log.DebugLevelInfra, "FixedIPs is next available resource", "net", net)
+					if vmgp.ConnectsToSharedRootLB {
+						if netMap[p.SubnetId].LegacyIsoNet {
+							ipRange = net.Gateway
+							log.SpanLog(ctx, log.DebugLevelInfra, "Using legacy net GW as iprange", "ipRange", ipRange)
+						} else if ipRange == "" {
+							var err error
+							ipRange, err = v.GetFreeSharedCommonIpRange(ctx, v.vappNameToInternalSubnet(ctx, vmgp.GroupName), vcdClient, vdc)
+							if err != nil {
+								return "", err
+							}
 						}
+					} else {
+						log.SpanLog(ctx, log.DebugLevelInfra, "Using GW as iprange for dedicated cluster", "ipRange", ipRange)
+						ipRange = net.Gateway
 					}
 					vmIp, err := ReplaceLastOctet(ctx, ipRange, p.FixedIPs[0].LastIPOctet)
 					if err != nil {

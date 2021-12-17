@@ -314,7 +314,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 		}
 	}
 	if v.Verbose {
-		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp return", "NextCidr", InternalVappDedicatedSubnet, "NumPorts", numPorts)
+		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp return", "subnet", InternalVappDedicatedSubnet, "NumPorts", numPorts)
 	}
 	return netMap, nil
 }

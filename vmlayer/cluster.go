@@ -248,9 +248,7 @@ func (v *VMPlatform) deleteCluster(ctx context.Context, rootLBName string, clust
 		clusterSnName := GetClusterSubnetName(ctx, clusterInst)
 		ip, err := v.GetIPFromServerName(ctx, v.VMProperties.GetCloudletMexNetwork(), clusterSnName, rootLBName)
 		if err != nil {
-			// this is expected if the vm provider is using a common shared network, although even if it does there
-			// can be existing legacy networks for which we will find an IP. in either case proceed
-			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "UsesCommonSharedInternalLBNetwork", v.VMProperties.UsesCommonSharedInternalLBNetwork, "err", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "unable to get ips from server, proceed with VM deletion", "err", err)
 		} else {
 			err = v.DetachAndDisableRootLBInterface(ctx, client, rootLBName, clusterSnName, GetPortName(rootLBName, clusterSnName), ip.InternalAddr)
 			if err != nil {
@@ -426,7 +424,7 @@ func (v *VMPlatform) setupClusterRootLBAndNodes(ctx context.Context, rootLBName 
 				if err != nil {
 					return err
 				}
-				if v.VMProperties.UsesCommonSharedInternalLBNetwork {
+				if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_SHARED && v.VMProperties.UsesCommonSharedInternalLBNetwork {
 					subnetName = v.VMProperties.GetSharedCommonSubnetName()
 				}
 				attachPort := true

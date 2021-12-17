@@ -214,7 +214,9 @@ func (vp *VMProperties) AddRouteToServer(ctx context.Context, client ssh.Client,
 	return nil
 }
 
-func (v *VMProperties) GetInternalNetworkRoute(ctx context.Context) (string, error) {
+func (v *VMProperties) GetInternalNetworkRoute(ctx context.Context, commonSharedNetwork bool) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetInternalNetworkRoute", "commonSharedNetwork", commonSharedNetwork)
+
 	netSpec, err := ParseNetSpec(ctx, v.GetCloudletNetworkScheme())
 	if err != nil {
 		return "", err
@@ -223,7 +225,7 @@ func (v *VMProperties) GetInternalNetworkRoute(ctx context.Context) (string, err
 	// Only the 3rd octet is supported for delimiter so the route is always /16
 	netaddr := strings.ToUpper(netSpec.NetworkAddress)
 	netaddr = strings.Replace(netaddr, "X", "0", 1)
-	if v.UsesCommonSharedInternalLBNetwork {
+	if commonSharedNetwork {
 		netaddr = netSpec.CommonInternalNetworkAddress
 	}
 	return netaddr + "/16", nil

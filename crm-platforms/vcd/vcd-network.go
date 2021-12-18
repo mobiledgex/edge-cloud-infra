@@ -1064,7 +1064,7 @@ func (v *VcdPlatform) AddCommonSharedNetToVapp(ctx context.Context, vapp *govcd.
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddCommonSharedNetToVapp", "netName", netName)
 	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "CreateIsoVdcNetwork GetVdc failed ", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "AddCommonSharedNetToVapp GetVdc failed", "err", err)
 		return err
 	}
 	commonGw, err := v.getInternalSharedCommonSubnetGW(ctx)

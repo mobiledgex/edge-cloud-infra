@@ -86,10 +86,10 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "mexInternalNetRange", mexInternalNetRange)
 
-		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider RebuildMaps", "stage", stage)
+		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider update isonet metadata", "stage", stage)
 		err := v.UpdateLegacyIsoNetMetaData(ctx)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider Rebuild maps failed", "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider UpdateLegacyIsoNetMetaData failed", "error", err)
 			return err
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider DisableRuntimeLeases", "stage", stage)

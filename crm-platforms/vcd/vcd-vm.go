@@ -1017,7 +1017,7 @@ func (v *VcdPlatform) GetVMAddresses(ctx context.Context, vm *govcd.VM, vcdClien
 		netname := connection.Network
 		portNetName := netname
 		if connection.Network != v.vmProperties.GetCloudletExternalNetwork() {
-			// substitute the VCD network name for the mex nomenclature for if this is a shared LB connected node
+			// substitute the VCD network name for the mex nomenclature if this is a shared LB connected node
 			// so that we can find it from vmlayer using the mex net name. This avoids having to lookup metadata
 			if netname == v.vmProperties.GetSharedCommonSubnetName() {
 				netname = v.vmProperties.GetCloudletMexNetwork()

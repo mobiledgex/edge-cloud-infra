@@ -876,8 +876,16 @@ func (s *OpenstackPlatform) OSGetLimits(ctx context.Context, info *edgeproto.Clo
 // GetNumberOfFloatingIps returns allocated,used
 func (s *OpenstackPlatform) GetNumberOfFloatingIps(ctx context.Context) (int, int, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNumberOfFloatingIps")
-	net := s.VMProperties.GetCloudletExternalNetwork()
-	fipList, err := s.ListFloatingIPs(ctx, net)
+	ns := s.VMProperties.GetCloudletNetworkScheme()
+	nspec, err := vmlayer.ParseNetSpec(ctx, ns)
+	if err != nil {
+		return 0, 0, err
+	}
+	if nspec.FloatingIPExternalNet == "" {
+		log.SpanLog(ctx, log.DebugLevelInfra, "no external floating ip external network")
+		return 0, 0, nil
+	}
+	fipList, err := s.ListFloatingIPs(ctx, nspec.FloatingIPExternalNet)
 	if err != nil {
 		return 0, 0, err
 	}

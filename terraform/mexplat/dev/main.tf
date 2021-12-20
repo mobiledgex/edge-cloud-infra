@@ -150,6 +150,12 @@ module "console_vnc_dns" {
   ip       = module.console.external_ip
 }
 
+module "console_dbg_dns" {
+  source   = "../../modules/cloudflare_record"
+  hostname = var.console_dbg_domain_name
+  ip       = module.console.external_ip
+}
+
 module "notifyroot_dns" {
   source   = "../../modules/cloudflare_record"
   hostname = var.notifyroot_domain_name

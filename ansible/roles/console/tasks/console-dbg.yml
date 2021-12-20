@@ -1,0 +1,26 @@
+---
+
+- debug:
+    msg: Deploying the debug console
+
+- import_role:
+    name: web
+  vars:
+    nginx_config_template: nginx-dbg.j2
+    nginx_config_filename: console-dbg
+    server_name: "{{ console_dbg_hostname }}"
+  when: skip_console_setup is not defined or not skip_console_setup
+  tags: setup
+
+- name: Deploy debug console
+  docker_container:
+    name: "console-{{ deploy_environ }}-dbg"
+    image: "{{ console_image }}:{{ console_version }}"
+    restart_policy: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    env:
+      REACT_APP_API_ENDPOINT: "https://{{ console_dbg_hostname }}"
+      REACT_APP_API_VM_ENDPOINT: "https://{{ console_vnc_hostname }}"
+      REACT_APP_API_USE_SERVER_SUFFIX: "true"
+      REACT_APP_CAPTCHA_V2_KEY: "{{ recaptcha_site_key }}"

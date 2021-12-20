@@ -1,18 +1,39 @@
 ---
+
+- set_fact:
+    console_cert_domains: [ "{{ inventory_hostname }}", "{{ console_vnc_hostname }}" ]
+
+- set_fact:
+    console_cert_domains: "{{ console_cert_domains }} + [ '{{ console_dbg_hostname }}' ]"
+  when: console_dbg|bool
+
+- import_role:
+    name: web
+  vars:
+    nginx_config_template: nginx-main.j2
+    nginx_config_filename: default
+    cert_domains: "{{ console_cert_domains }}"
+  when: skip_console_setup is not defined or not skip_console_setup
+  tags: setup
+
 - name: Load reCAPTCHA key
   import_role:
     name: load-vault-creds
     tasks_from: recaptcha
 
-- name: Deploy the console
-  docker_container:
-    name: "console-{{ deploy_environ }}"
-    image: "{% if console_prod|bool %}{{ console_prod_image }}{% else %}{{ console_image }}{% endif %}:{{ console_version }}"
-    restart_policy: unless-stopped
-    ports:
-      - "127.0.0.1:3000:{% if console_prod|bool %}80{% else %}3000{% endif %}"
-    env:
-      REACT_APP_API_ENDPOINT: "https://{{ inventory_hostname }}"
-      REACT_APP_API_VM_ENDPOINT: "https://{{ console_vnc_hostname }}"
-      REACT_APP_API_USE_SERVER_SUFFIX: "true"
-      REACT_APP_CAPTCHA_V2_KEY: "{{ recaptcha_site_key }}"
+- name: Deploy production console
+  import_role:
+    name: console
+    tasks_from: console-prod
+
+- name: Deploy debug console
+  import_role:
+    name: console
+    tasks_from: console-dbg
+  when: console_dbg is defined and console_dbg|bool
+
+- name: Deploy MC federation proxy
+  import_role:
+    name: console
+    tasks_from: console-mc-fed
+  when: federated_mc is defined and federated_mc|bool

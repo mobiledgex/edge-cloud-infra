@@ -1,0 +1,13 @@
+---
+
+- debug:
+    msg: Deploying the master controller federation reverse proxy
+
+- import_role:
+    name: web
+  vars:
+    nginx_config_template: nginx-mc-fed.j2
+    nginx_config_filename: mc-federation
+    server_name: "{{ inventory_hostname }}"
+  when: skip_console_setup is not defined or not skip_console_setup
+  tags: setup

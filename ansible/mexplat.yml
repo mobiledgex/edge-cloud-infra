@@ -247,13 +247,6 @@
           - input/nginx.conf.j2
       tags: [ 'monitoring', 'setup' ]
     - import_role:
-        name: web
-      vars:
-        nginx_config_template: "templates/mexplat/console-nginx-config.j2"
-        cert_domains: [ "{{ inventory_hostname }}", "{{ console_vnc_hostname }}" ]
-      when: skip_console_setup is not defined or not skip_console_setup
-      tags: setup
-    - import_role:
         name: docker
       tags: setup
     - import_role:

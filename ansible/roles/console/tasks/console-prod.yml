@@ -1,0 +1,26 @@
+---
+
+- debug:
+    msg: Deploying the production console
+
+- import_role:
+    name: web
+  vars:
+    nginx_config_template: nginx-prod.j2
+    nginx_config_filename: console-prod
+    server_name: "{{ inventory_hostname }}"
+  when: skip_console_setup is not defined or not skip_console_setup
+  tags: setup
+
+- name: Deploy production console
+  docker_container:
+    name: "console-{{ deploy_environ }}"
+    image: "{{ console_prod_image }}:{{ console_version }}"
+    restart_policy: unless-stopped
+    ports:
+      - "127.0.0.1:3080:80"
+    env:
+      REACT_APP_API_ENDPOINT: "https://{{ inventory_hostname }}"
+      REACT_APP_API_VM_ENDPOINT: "https://{{ console_vnc_hostname }}"
+      REACT_APP_API_USE_SERVER_SUFFIX: "true"
+      REACT_APP_CAPTCHA_V2_KEY: "{{ recaptcha_site_key }}"

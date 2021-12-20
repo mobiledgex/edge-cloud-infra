@@ -1,3 +1,4 @@
 console_image: "{{ mex_docker_registry }}/mobiledgex/console"
 console_prod_image: "{{ console_image }}-prod"
+console_dbg_hostname: "console-{{ deploy_environ }}-dbg.{{ cloudflare_zone }}"
 slack_channel: "#web-ui"

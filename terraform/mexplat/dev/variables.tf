@@ -103,6 +103,11 @@ variable "console_vnc_domain_name" {
 	default     = "console-dev-vnc.mobiledgex.net"
 }
 
+variable "console_dbg_domain_name" {
+  description = "Debug console domain name"
+	default     = "console-dev-dbg.mobiledgex.net"
+}
+
 variable "notifyroot_domain_name" {
   description = "Notifyroot service domain name"
 	default     = "notifyroot-dev.mobiledgex.net"

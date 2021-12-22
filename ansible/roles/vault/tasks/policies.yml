@@ -12,8 +12,6 @@
     - policies/auth-approle.destroy.v1.hcl.j2
     - policies/auth-github-config.read.v1.hcl.j2
     - policies/auth-github-config.write.v1.hcl.j2
-    - policies/auth-ldap-config.read.v1.hcl.j2
-    - policies/auth-ldap-config.write.v1.hcl.j2
     - policies/aws-auth.read.v1.hcl.j2
     - policies/azure-aks-creds.read.v1.hcl.j2
     - policies/azure-auth.read.v1.hcl.j2

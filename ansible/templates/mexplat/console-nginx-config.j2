@@ -29,6 +29,10 @@ server {
 	add_header 'Feature-Policy' "microphone 'none'; camera 'none'" always;
 	add_header 'X-Permitted-Cross-Domain-Policies' 'none' always;
 
+	add_header 'Access-Control-Allow-Origin' '*' always;
+	add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+	add_header 'Access-Control-Allow-Headers' 'Authorization,DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type' always;
+
 	location / {
 
 		{% if console_prod|bool %}
@@ -67,6 +71,16 @@ server {
 	}
 
 	location ~ /(api|ws)/ {
+
+		if ($request_method = 'OPTIONS') {
+			add_header 'Access-Control-Allow-Origin' '*' always;
+			add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
+			add_header 'Access-Control-Allow-Headers' 'Authorization,DNT,X-CustomHeader,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type' always;
+			add_header 'Access-Control-Max-Age' 1728000;
+			add_header 'Content-Type' 'text/plain charset=UTF-8';
+			add_header 'Content-Length' 0;
+			return 204;
+		}
 
 		proxy_pass http://127.0.0.1:{{ mc_api_port }};
 		proxy_http_version 1.1;

@@ -245,7 +245,7 @@ func (v *VcdPlatform) getVappNetworkInfoMap(ctx context.Context, vapp *govcd.VAp
 			}
 		case vmlayer.NetworkTypeInternalPrivate:
 			netMap[port.SubnetId] = networkInfo{
-				VcdNetworkName: InternalVappDedicatedSubnet,
+				VcdNetworkName: port.SubnetId,
 				Gateway:        InternalVappDedicatedSubnet,
 				NetworkType:    port.NetType,
 			}
@@ -261,7 +261,7 @@ func (v *VcdPlatform) getVappNetworkInfoMap(ctx context.Context, vapp *govcd.VAp
 				// for the update case it is possible this is an existing vm which is connected to
 				// a legacy iso net. See if we have legacy metadata for it. This is more expensive
 				// in terms of API calls to make so only do this for the update case
-				metaType, legacyNet, err := v.GetNetworkMetadataForInternalSubnet(ctx, port.NetworkName, vcdClient, vdc)
+				metaType, legacyNet, err := v.GetNetworkMetadataForInternalSubnet(ctx, port.SubnetId, vcdClient, vdc)
 				if err != nil {
 					return nil, err
 				}
@@ -285,6 +285,22 @@ func (v *VcdPlatform) getVappNetworkInfoMap(ctx context.Context, vapp *govcd.VAp
 	return netMap, nil
 }
 
+func (v *VcdPlatform) getNetworkInfo(ctx context.Context, portSubnet, portNet string, netMap map[string]networkInfo) (*networkInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "getNetworkInfo", "portSubnet", portSubnet, "portNet", portNet, "netMap", netMap)
+
+	// first try with subnet which is more specific
+	networkInfo, ok := netMap[portSubnet]
+	if ok {
+		return &networkInfo, nil
+	}
+	// try with network
+	networkInfo, ok = netMap[portNet]
+	if ok {
+		return &networkInfo, nil
+	}
+	return nil, fmt.Errorf("could not find port network %s or subnet %s in netmap", portNet, portSubnet)
+}
+
 // AddPortsToVapp returns netinfo map
 func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp *vmlayer.VMGroupOrchestrationParams, updateCallback edgeproto.CacheUpdateCallback, vcdClient *govcd.VCDClient, vdc *govcd.Vdc) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp", "vapp", vapp.VApp.Name)
@@ -296,15 +312,18 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 	if err != nil {
 		return err
 	}
+	networksAdded := make(map[string]string)
+	// the vmgp contains ports for each VM so there can be duplicates
 	for n, port := range ports {
-		network, ok := netMap[port.SubnetId]
-		if !ok {
-			// try via network
-			network, ok = netMap[port.NetworkName]
-			if !ok {
-				log.SpanLog(ctx, log.DebugLevelInfra, "could not find port in netmap", "port", port, "netMap", netMap)
-				return fmt.Errorf("could not find port network %s or subnet %s in netmap", port.NetworkName, port.SubnetId)
-			}
+		_, alreadyAdded := networksAdded[port.NetworkName]
+		if alreadyAdded {
+			log.SpanLog(ctx, log.DebugLevelInfra, "network already added", "port.NetworkName", port.NetworkName)
+			continue
+		}
+		networksAdded[port.NetworkName] = port.NetworkName
+		network, err := v.getNetworkInfo(ctx, port.NetworkName, port.SubnetId, netMap)
+		if err != nil {
+			return err
 		}
 		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp adding port", "PortNum", n, "port", port, "network", network)
 		if network.ExternalNet {
@@ -322,7 +341,7 @@ func (v *VcdPlatform) AddPortsToVapp(ctx context.Context, vapp *govcd.VApp, vmgp
 					ipAllocation = VappNetIpAllocationDhcp
 				}
 			}
-			_, err = v.CreateInternalNetworkForNewVm(ctx, vapp, serverName, port.SubnetId, network.VcdNetworkName, vmgp.Subnets[0].DNSServers, ipAllocation)
+			_, err = v.CreateInternalNetworkForNewVm(ctx, vapp, serverName, port.SubnetId, InternalVappDedicatedSubnet, vmgp.Subnets[0].DNSServers, ipAllocation)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "create internal net failed", "err", err)
 				return err
@@ -767,6 +786,7 @@ func (v *VcdPlatform) CreateInternalNetworkForNewVm(ctx context.Context, vapp *g
 }
 
 func (v *VcdPlatform) AddVappNetwork(ctx context.Context, vapp *govcd.VApp, vcdClient *govcd.VCDClient, netName string) (*types.NetworkConfigSection, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddVappNetwork", "netName", netName)
 
 	orgNet, err := v.GetExtNetwork(ctx, vcdClient, netName)
 	if err != nil {

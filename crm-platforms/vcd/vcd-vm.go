@@ -288,15 +288,12 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 		return nil, err
 	}
 	for netConIdx, port := range vmparams.Ports {
-		netName := port.NetworkId
-		switch port.NetType {
-		case vmlayer.NetworkTypeInternalSharedLb:
-			netName = v.vmProperties.GetSharedCommonSubnetName()
-		case vmlayer.NetworkTypeInternalPrivate:
-			netName = port.SubnetId
+		network, err := v.getNetworkInfo(ctx, port.NetworkId, port.SubnetId, netMap)
+		if err != nil {
+			return nil, err
 		}
-
-		log.SpanLog(ctx, log.DebugLevelInfra, "updateNetworksForVM add connection", "net", netName, "ip", vmIp, "VM", vmparams.Name)
+		netName := network.VcdNetworkName
+		log.SpanLog(ctx, log.DebugLevelInfra, "updateNetworksForVM add connection", "net", netName, "vmIp", vmIp, "VM", vmparams.Name)
 		networkAdapterType := "VMXNET3"
 		if vmparams.Role == vmlayer.RoleVMApplication {
 			// VM apps may not have VMTools installed so use the generic E1000 adapter
@@ -310,6 +307,7 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 			if vmIp == "" {
 				return nil, fmt.Errorf("No IP found for internal net %s", netName)
 			}
+			log.SpanLog(ctx, log.DebugLevelInfra, "updateNetworksForVM adding internal connection", "vmname", vmparams.Name, "net", netName, "networkAdapterType", networkAdapterType, "vmip", vmIp, "conidx", netConIdx, "netType", port.NetType, "ncs", ncs)
 			ncs.NetworkConnection = append(ncs.NetworkConnection,
 				&types.NetworkConnection{
 					Network:                 netName,
@@ -337,7 +335,7 @@ func (v *VcdPlatform) updateNetworksForVM(ctx context.Context, vcdClient *govcd.
 					IPAddressAllocationMode: types.IPAllocationModePool,
 					NetworkAdapterType:      networkAdapterType,
 				})
-			log.SpanLog(ctx, log.DebugLevelInfra, "updateNetworksForVM adding connection", "net", netName, "ip", vmIp, "VM", vmparams.Name, "networkAdapterType", networkAdapterType, "conidx", netConIdx, "netType", port.NetType, "ncs", ncs)
+			log.SpanLog(ctx, log.DebugLevelInfra, "updateNetworksForVM adding external connection", "vmname", vmparams.Name, "net", netName, "networkAdapterType", networkAdapterType, "conidx", netConIdx, "netType", port.NetType, "ncs", ncs)
 		}
 	}
 	err = vm.UpdateNetworkConnectionSection(ncs)

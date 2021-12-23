@@ -78,6 +78,9 @@
       kubeconfig: "{{ kubeconfig_file.path }}"
       namespace: default
       definition: "{{ influxdb_config }}"
+    notify:
+      - Restart InfluxDB
+      - Wait for InfluxDB restart to complete
 
   when: influxdb_configmap.changed
 
@@ -107,6 +110,7 @@
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     definition: "{{ lookup('template', 'influxdb.yml.j2') }}"
+    wait: yes
 
 - name: Deploy InfluxDB LB
   k8s:
@@ -153,3 +157,5 @@
     kubeconfig: "{{ kubeconfig_file.path }}"
     namespace: default
     definition: "{{ lookup('template', 'influxdb-backup.yml.j2') }}"
+
+- meta: flush_handlers

@@ -22,3 +22,8 @@
 - import_role: name="autoprov"
 - import_role: name="frm"
 - import_role: name="k8s-telegraf"
+
+- name: Validate InfluxDB source IP access list
+  import_role:
+    name: influxdb
+    tasks_from: svc

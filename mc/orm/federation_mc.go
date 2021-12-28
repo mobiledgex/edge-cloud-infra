@@ -474,15 +474,27 @@ func DeleteSelfFederator(c echo.Context) error {
 	return ormutil.SetReply(c, ormutil.Msg("Deleted self federator successfully"))
 }
 
+// Fields to ignore for ShowSelfFederator/ShowFederation filtering. Names are in database format.
+var FederatorIgnoreFilterKeys = []string{
+	"salt",
+	"iter",
+	"api_key",
+	"api_key_hash",
+}
+
 func ShowSelfFederator(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	opFed := ormapi.Federator{}
-	if err := c.Bind(&opFed); err != nil {
-		return ormutil.BindErr(err)
+	filter, err := bindDbFilter(c, &ormapi.Federator{})
+	if err != nil {
+		return err
+	}
+	// prevent filtering output on sensitive data
+	for _, name := range FederatorIgnoreFilterKeys {
+		delete(filter, name)
 	}
 
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
@@ -492,7 +504,7 @@ func ShowSelfFederator(c echo.Context) error {
 
 	db := loggedDB(ctx)
 	feds := []ormapi.Federator{}
-	res := db.Where(&opFed).Find(&feds)
+	res := db.Where(filter).Find(&feds)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
@@ -885,9 +897,9 @@ func ShowSelfFederatorZone(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	opZoneReq := ormapi.FederatorZone{}
-	if err := c.Bind(&opZoneReq); err != nil {
-		return ormutil.BindErr(err)
+	filter, err := bindDbFilter(c, &ormapi.FederatorZone{})
+	if err != nil {
+		return err
 	}
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
@@ -895,7 +907,7 @@ func ShowSelfFederatorZone(c echo.Context) error {
 	}
 	db := loggedDB(ctx)
 	opZones := []ormapi.FederatorZone{}
-	res := db.Where(&opZoneReq).Find(&opZones)
+	res := db.Where(filter).Find(&opZones)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
@@ -916,18 +928,17 @@ func ShowFederatedSelfZone(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	opZoneReq := ormapi.FederatedSelfZone{}
-	if err := c.Bind(&opZoneReq); err != nil {
-		return ormutil.BindErr(err)
+	filter, err := bindDbFilter(c, &ormapi.FederatedSelfZone{})
+	if err != nil {
+		return err
 	}
-
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
 		return err
 	}
 	db := loggedDB(ctx)
 	opZones := []ormapi.FederatedSelfZone{}
-	res := db.Where(&opZoneReq).Find(&opZones)
+	res := db.Where(filter).Find(&opZones)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
@@ -948,9 +959,9 @@ func ShowFederatedPartnerZone(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	opZoneReq := ormapi.FederatedPartnerZone{}
-	if err := c.Bind(&opZoneReq); err != nil {
-		return ormutil.BindErr(err)
+	filter, err := bindDbFilter(c, &ormapi.FederatedPartnerZone{})
+	if err != nil {
+		return err
 	}
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
@@ -958,7 +969,7 @@ func ShowFederatedPartnerZone(c echo.Context) error {
 	}
 	db := loggedDB(ctx)
 	opZones := []ormapi.FederatedPartnerZone{}
-	res := db.Where(&opZoneReq).Find(&opZones)
+	res := db.Where(filter).Find(&opZones)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}
@@ -1591,9 +1602,13 @@ func ShowFederation(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	opFed := ormapi.Federation{}
-	if err := c.Bind(&opFed); err != nil {
-		return ormutil.BindErr(err)
+	filter, err := bindDbFilter(c, &ormapi.Federation{})
+	if err != nil {
+		return err
+	}
+	// prevent filtering output on sensitive data
+	for _, name := range FederatorIgnoreFilterKeys {
+		delete(filter, name)
 	}
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
@@ -1601,7 +1616,7 @@ func ShowFederation(c echo.Context) error {
 	}
 	db := loggedDB(ctx)
 	outFeds := []ormapi.Federation{}
-	res := db.Where(&opFed).Find(&outFeds)
+	res := db.Where(filter).Find(&outFeds)
 	if !res.RecordNotFound() && res.Error != nil {
 		return ormutil.DbErr(res.Error)
 	}

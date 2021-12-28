@@ -152,7 +152,7 @@ func init() {
 			Name:         "ShowFederatedSelfZone",
 			Use:          "showfederatedselfzone",
 			Short:        "Show Federated Self Zones",
-			OptionalArgs: strings.Join(FederatedZoneArgs, " "),
+			OptionalArgs: strings.Join(append(FederatedZoneArgs, FederatedZoneOptionalArgs...), " "),
 			Comments:     ormapi.FederatedSelfZoneComments,
 			ReqData:      &ormapi.FederatedSelfZone{},
 			ReplyData:    &[]ormapi.FederatedSelfZone{},
@@ -164,7 +164,7 @@ func init() {
 			Short:        "Show Federated Partner Zones",
 			SpecialArgs:  &FederatorZoneSpecialArgs,
 			AliasArgs:    strings.Join(FederatorZoneAliasArgs, " "),
-			OptionalArgs: strings.Join(FederatedZoneArgs, " "),
+			OptionalArgs: strings.Join(append(FederatedZoneArgs, FederatedZoneOptionalArgs...), " "),
 			Comments:     aliasedComments(ormapi.FederatedPartnerZoneComments, FederatorZoneAliasArgs),
 			ReqData:      &ormapi.FederatedPartnerZone{},
 			ReplyData:    &[]ormapi.FederatedPartnerZone{},
@@ -338,6 +338,10 @@ var FederatedZoneArgs = []string{
 	"zoneid",
 	"selfoperatorid",
 	"federationname",
+}
+
+var FederatedZoneOptionalArgs = []string{
+	"registered",
 }
 
 var FederatedZoneRegArgs = []string{

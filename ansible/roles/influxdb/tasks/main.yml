@@ -112,11 +112,9 @@
     definition: "{{ lookup('template', 'influxdb.yml.j2') }}"
     wait: yes
 
-- name: Deploy InfluxDB LB
-  k8s:
-    kubeconfig: "{{ kubeconfig_file.path }}"
-    namespace: default
-    definition: "{{ lookup('template', 'influxdb-svc.yml.j2') }}"
+- import_role:
+    name: influxdb
+    tasks_from: svc
 
 - k8s_info:
     kubeconfig: "{{ kubeconfig_file.path }}"

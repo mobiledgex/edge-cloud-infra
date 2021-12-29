@@ -31,3 +31,5 @@ regiondata:
       - name: External IPs
         alertthreshold: 100
       defaultresourcealertthreshold: 80
+      dnslabel: tmus-cloud-1-tmus
+      rootlbfqdn: shared.tmus-cloud-1-tmus.local.mobiledgex.net

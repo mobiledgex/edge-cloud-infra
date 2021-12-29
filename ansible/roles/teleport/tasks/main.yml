@@ -138,10 +138,17 @@
     mode: "0500"
   become: yes
 
-- name: Set up kubernetes CI cert jobs
+- name: Set up node token publish script
+  copy:
+    src: node-token-publish.py
+    dest: "{{ node_token_publish }}"
+    mode: "0500"
+  become: yes
+
+- name: Set up automation credentials publish jobs
   include_role:
     name: teleport
-    tasks_from: kube_certs
+    tasks_from: automation_creds
   loop: "{{ setups | dict2items }}"
   loop_control:
     loop_var: setup

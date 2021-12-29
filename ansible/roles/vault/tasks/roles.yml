@@ -97,6 +97,7 @@
     name: teleport.v1
     policies:
       - kubeconfigs.write.v1
+      - teleport-node-token.write.v1
 
 - include_role:
     name: vault

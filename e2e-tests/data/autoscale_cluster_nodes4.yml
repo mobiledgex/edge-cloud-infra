@@ -30,10 +30,6 @@ regiondata:
           type: cluster-k8s-node
           status: ACTIVE
           infraflavor: x1.small
-        - name: smallcluster-acmeappco.tmus-cloud-1-tmus.local.mobiledgex.net
-          type: rootlb
-          status: ACTIVE
-          infraflavor: x1.small
         - name: fake-node-2-tmus-cloud-1-smallcluster-acmeappco
           type: cluster-k8s-node
           status: ACTIVE
@@ -44,6 +40,10 @@ regiondata:
           infraflavor: x1.small
         - name: fake-node-4-tmus-cloud-1-smallcluster-acmeappco
           type: cluster-k8s-node
+          status: ACTIVE
+          infraflavor: x1.small
+        - name: smallcluster.tmus-cloud-1.tmus.fake.net
+          type: rootlb
           status: ACTIVE
           infraflavor: x1.small
       dnslabel: smallcluster-acmeappco

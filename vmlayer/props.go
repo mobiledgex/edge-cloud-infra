@@ -16,20 +16,21 @@ import (
 )
 
 type VMProperties struct {
-	CommonPf                   infracommon.CommonPlatform
-	SharedRootLBName           string
-	Domain                     VMDomain
-	PlatformSecgrpName         string
-	CloudletSecgrpName         string
-	IptablesBasedFirewall      bool
-	Upgrade                    bool
-	UseSecgrpForInternalSubnet bool
-	RequiresWhitelistOwnIp     bool
-	RunLbDhcpServerForVmApps   bool
-	AppendFlavorToVmAppImage   bool
-	ValidateExternalIPMapping  bool
-	CloudletAccessToken        string
-	NumCleanupRetries          int
+	CommonPf                          infracommon.CommonPlatform
+	SharedRootLBName                  string
+	Domain                            VMDomain
+	PlatformSecgrpName                string
+	CloudletSecgrpName                string
+	IptablesBasedFirewall             bool
+	Upgrade                           bool
+	UseSecgrpForInternalSubnet        bool
+	RequiresWhitelistOwnIp            bool
+	RunLbDhcpServerForVmApps          bool
+	AppendFlavorToVmAppImage          bool
+	ValidateExternalIPMapping         bool
+	CloudletAccessToken               string
+	NumCleanupRetries                 int
+	UsesCommonSharedInternalLBNetwork bool
 }
 
 const MEX_ROOTLB_FLAVOR_NAME = "mex-rootlb-flavor"
@@ -42,7 +43,7 @@ const MINIMUM_VCPUS uint64 = 2
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.7.0"
+var MEXInfraVersion = "4.7.1"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 

@@ -18,9 +18,6 @@ regiondata:
       deployment: kubernetes
       nummasters: 1
       numnodes: 3
-      masternodeflavor: x1.small
-      createdat:
-        seconds: 1618351730
-        nanos: 933380000
-      multitenant: true
       autoscalepolicy: defaultmtclust
+      masternodeflavor: x1.small
+      multitenant: true

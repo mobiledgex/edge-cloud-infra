@@ -187,7 +187,7 @@ func (k *K8sBareMetalPlatform) ListCloudletMgmtNodes(ctx context.Context, cluste
 	log.SpanLog(ctx, log.DebugLevelInfra, "ListCloudletMgmtNodes", "clusterInsts", clusterInsts, "vmAppInsts", vmAppInsts)
 	mgmt_nodes := []edgeproto.CloudletMgmtNode{
 		{
-			Type: "masterhost",
+			Type: "platformhost",
 			Name: k.commonPf.PlatformConfig.CloudletKey.String(),
 		},
 	}

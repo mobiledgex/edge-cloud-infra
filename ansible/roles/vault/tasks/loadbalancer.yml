@@ -9,6 +9,7 @@
       vault_url_map: "vault-{{ deploy_environ }}-url-map"
       vault_lb_name: "vault-{{ deploy_environ }}-lb"
       vault_cert_name: "vault-{{ deploy_environ }}-cert"
+      vault_ssl_policy: "vault-{{ deploy_environ }}-ssl-policy"
       vault_https_proxy: "vault-{{ deploy_environ }}-proxy"
       vault_forwarding_rule: "vault-{{ deploy_environ }}-fw-rule"
 
@@ -23,6 +24,9 @@
       name: "vault-{{ deploy_environ }}"
       description: "HA Vault external address for the {{ deploy_environ }} setup"
       ip_version: IPV4
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
     register: vault_ip
 
   - name: Set up health check
@@ -30,12 +34,18 @@
       name: "{{ vault_healthcheck }}"
       port: "{{ vault_ha_instance_port }}"
       request_path: /v1/sys/health
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
     register: health_check
 
   - name: Check backend service
     gcp_compute_backend_service_facts:
       filters:
         - "name = {{ vault_backend_service }}"
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
     register: be_get
 
   - set_fact:
@@ -52,6 +62,9 @@
         health_checks:
           - "{{ health_check.selfLink }}"
         backends: "{{ instance_groups }}"
+        project: "{{ gcp_project }}"
+        auth_kind: serviceaccount
+        service_account_file: "{{ gcp_creds_file }}"
       register: backend_srv
 
     rescue:
@@ -60,6 +73,9 @@
       gcp_compute_backend_service_facts:
         filters:
           - "name = {{ vault_backend_service }}"
+        project: "{{ gcp_project }}"
+        auth_kind: serviceaccount
+        service_account_file: "{{ gcp_creds_file }}"
       register: be_get
 
     - set_fact:
@@ -73,12 +89,18 @@
     gcp_compute_url_map:
       name: "{{ vault_url_map }}"
       default_service: "{{ backend_srv }}"
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
     register: url_map
 
   - name: Check SSL cert
     gcp_compute_ssl_certificate_facts:
       filters:
         - "name = {{ vault_cert_name }}"
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
     register: vault_cert
 
   - name: Create SSL cert
@@ -91,14 +113,31 @@
     gcp_compute_ssl_certificate_facts:
       filters:
         - "name = {{ vault_cert_name }}"
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
     register: vault_cert
+
+  - name: Create SSL policy
+    gcp_compute_ssl_policy:
+      name: "{{ vault_ssl_policy }}"
+      min_tls_version: TLS_1_2
+      profile: RESTRICTED
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
+    register: ssl_policy
 
   - name: Create HTTPS proxy
     gcp_compute_target_https_proxy:
       name: "{{ vault_https_proxy }}"
       ssl_certificates:
         - "{{ vault_cert['resources'][0] }}"
+      ssl_policy: "{{ ssl_policy }}"
       url_map: "{{ url_map }}"
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
     register: target_https_proxy
 
   - name: Create forwarding rule
@@ -108,6 +147,9 @@
       ip_protocol: TCP
       port_range: 443-443
       target: "{{ target_https_proxy.selfLink }}"
+      project: "{{ gcp_project }}"
+      auth_kind: serviceaccount
+      service_account_file: "{{ gcp_creds_file }}"
 
   - pause:
       prompt: "Set DNS \"{{ vault_ha_domain }}\" to {{ vault_ip.address }}?"
@@ -125,10 +167,5 @@
 
   run_once: true
   delegate_to: localhost
-  module_defaults:
-    group/gcp:
-      project: "{{ gcp_project }}"
-      auth_kind: serviceaccount
-      service_account_file: "{{ gcp_creds_file }}"
   tags:
     - loadbalancer

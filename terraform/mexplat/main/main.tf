@@ -47,6 +47,10 @@ module "gitlab" {
     "gitlab-registry",
     "http-server",
     "https-server",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.teleport_node.name,
   ]
   labels = {
     "environ" = var.environ_tag
@@ -66,6 +70,10 @@ module "vault_a" {
   tags = [
     "mexplat-${var.environ_tag}",
     "vault-ac",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.teleport_node.name,
     module.fw_vault_gcp.target_tag,
   ]
   labels = {
@@ -91,6 +99,10 @@ module "vault_b" {
   tags = [
     "mexplat-${var.environ_tag}",
     "vault-ac",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.teleport_node.name,
     module.fw_vault_gcp.target_tag,
   ]
   labels = {
@@ -116,6 +128,10 @@ module "vault_c" {
   tags                = [
     "mexplat-${var.environ_tag}",
     "vault-ac",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.teleport_node.name,
     "${module.fw_vault_gcp.target_tag}"
   ]
   labels              = {
@@ -145,11 +161,15 @@ module "console" {
     "https-server",
     "console-debug",
     "mc-artifactory",
-    "mc-ldap-${var.environ_tag}",
-    "mc-notify-${var.environ_tag}",
     "notifyroot",
     "alertmanager",
     "stun-turn",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.mc_ldap.name,
+    google_compute_firewall.mc_notify.name,
+    google_compute_firewall.teleport_node.name,
   ]
   labels = {
     "environ" = var.environ_tag
@@ -194,6 +214,21 @@ module "fw_vault_gcp" {
   target_tag    = "${var.environ_tag}-vault-hc-and-proxy"
 }
 
+resource "google_compute_firewall" "mc_federation" {
+  name    = "mc-federation-${var.environ_tag}"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["30001"]
+  }
+
+  target_tags = ["mc-federation-${var.environ_tag}"]
+  source_ranges = [
+    "0.0.0.0/0",
+  ]
+}
+
 resource "google_compute_firewall" "mc_ldap" {
   name    = "mc-ldap-${var.environ_tag}"
   network = "default"
@@ -219,6 +254,21 @@ resource "google_compute_firewall" "mc_notify" {
   }
 
   target_tags = ["mc-notify-${var.environ_tag}"]
+  source_ranges = [
+    "0.0.0.0/0",
+  ]
+}
+
+resource "google_compute_firewall" "teleport_node" {
+  name    = "teleport-node-${var.environ_tag}"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["3022"]
+  }
+
+  target_tags = ["teleport-node-${var.environ_tag}"]
   source_ranges = [
     "0.0.0.0/0",
   ]

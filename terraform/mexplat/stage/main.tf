@@ -50,6 +50,10 @@ module "gitlab" {
     "crm",
     "stun-turn",
     "vault-ac",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.teleport_node.name,
     module.fw_vault_gcp.target_tag,
   ]
   labels = {
@@ -70,6 +74,10 @@ module "vault_b" {
   boot_disk_size = 20
   tags = [
     "vault-ac",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.teleport_node.name,
     module.fw_vault_gcp.target_tag,
   ]
   labels = {
@@ -124,6 +132,13 @@ module "console" {
     "notifyroot",
     "alertmanager",
     "vault-ac",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.mc_federation.name,
+    google_compute_firewall.mc_ldap.name,
+    google_compute_firewall.mc_notify.name,
+    google_compute_firewall.teleport_node.name,
   ]
   labels = {
     "environ" = var.environ_tag
@@ -193,6 +208,21 @@ module "fw_vault_gcp" {
   target_tag    = "${var.environ_tag}-vault-hc-and-proxy"
 }
 
+resource "google_compute_firewall" "mc_federation" {
+  name    = "mc-federation-${var.environ_tag}"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["30001"]
+  }
+
+  target_tags = ["mc-federation-${var.environ_tag}"]
+  source_ranges = [
+    "0.0.0.0/0",
+  ]
+}
+
 resource "google_compute_firewall" "mc_ldap" {
   name    = "mc-ldap-${var.environ_tag}"
   network = "default"
@@ -238,3 +268,17 @@ resource "google_compute_firewall" "postgres" {
   ]
 }
 
+resource "google_compute_firewall" "teleport_node" {
+  name    = "teleport-node-${var.environ_tag}"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["3022"]
+  }
+
+  target_tags = ["teleport-node-${var.environ_tag}"]
+  source_ranges = [
+    "0.0.0.0/0",
+  ]
+}

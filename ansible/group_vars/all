@@ -67,3 +67,4 @@ gcs_operator_reports_bucket: "mobiledgex-{{ deploy_environ }}-operator-reports"
 azure_subscription_id: 902e8722-dc5f-469e-b218-da958e7e25e5
 azure_tenant_id: db34cd14-6d12-4321-a216-95ad400502dc
 azure_vault_app_client_id: 89c5d15b-437f-495f-a0ac-b808e3e950bd
+teleport_auth_server: teleport.mobiledgex.net

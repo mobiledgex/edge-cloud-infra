@@ -1,0 +1,48 @@
+---
+- name: Add teleport GPG key
+  apt_key:
+    url: https://deb.releases.teleport.dev/teleport-pubkey.asc
+    state: present
+  become: yes
+  tags: setup
+
+- name: Add teleport APT repo
+  apt_repository:
+    repo: deb https://deb.releases.teleport.dev/ stable main
+    state: present
+  become: yes
+  tags: setup
+
+- name: Install teleport
+  apt:
+    name: "teleport={{ teleport_version }}"
+    state: present
+    update_cache: yes
+  become: yes
+  notify: Restart teleport
+  tags: setup
+
+- name: Install config file
+  template:
+    src: "{{ teleport_config_template }}"
+    dest: "{{ teleport_config }}"
+    mode: 0400
+    force: "{{ force_config_update }}"
+  become: yes
+  notify: Restart teleport
+  tags: setup
+
+- name: Install systemd service
+  template:
+    src: teleport.service.j2
+    dest: /etc/systemd/system/teleport.service
+  become: yes
+  tags: setup
+
+- name: Start the teleport service
+  systemd:
+    name: teleport
+    enabled: yes
+    state: started
+  become: yes
+  tags: setup

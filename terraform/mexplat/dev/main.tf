@@ -52,6 +52,10 @@ module "gitlab" {
     "stun-turn",
     "vault-ac",
     "sinatra",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.teleport_node.name,
     module.fw_vault_gcp.target_tag,
   ]
   labels = {
@@ -100,15 +104,19 @@ module "console" {
     "https-server",
     "console-debug",
     "mc-artifactory",
-    "mc-federation-${var.environ_tag}",
-    "mc-ldap-${var.environ_tag}",
-    "mc-notify-${var.environ_tag}",
     "jaeger",
     "alt-https",
     "vault-ac",
     "notifyroot",
     "alertmanager",
     "vault-ac",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.mc_federation.name,
+    google_compute_firewall.mc_ldap.name,
+    google_compute_firewall.mc_notify.name,
+    google_compute_firewall.teleport_node.name,
     module.fw_vault_gcp.target_tag,
   ]
   labels = {
@@ -129,6 +137,10 @@ module "vault_b" {
   boot_disk_size = 20
   tags = [
     "vault-ac",
+    "iap-ssh",
+    "restricted-ssh",
+    "restricted-ssh-overrides",
+    google_compute_firewall.teleport_node.name,
     module.fw_vault_gcp.target_tag,
   ]
   labels = {
@@ -258,3 +270,17 @@ resource "google_compute_firewall" "postgres" {
   ]
 }
 
+resource "google_compute_firewall" "teleport_node" {
+  name    = "teleport-node-${var.environ_tag}"
+  network = "default"
+
+  allow {
+    protocol = "tcp"
+    ports    = ["3022"]
+  }
+
+  target_tags = ["teleport-node-${var.environ_tag}"]
+  source_ranges = [
+    "0.0.0.0/0",
+  ]
+}

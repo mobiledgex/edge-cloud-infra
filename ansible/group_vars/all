@@ -67,3 +67,4 @@ gcs_operator_reports_bucket: "mobiledgex-{{ deploy_environ }}-operator-reports"
 azure_subscription_id: 902e8722-dc5f-469e-b218-da958e7e25e5
 azure_tenant_id: db34cd14-6d12-4321-a216-95ad400502dc
 azure_vault_app_client_id: removed
+nginx_ssl_ciphers: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256"

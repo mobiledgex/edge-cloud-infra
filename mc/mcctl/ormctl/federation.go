@@ -58,6 +58,7 @@ func init() {
 			ReqData:      &ormapi.Federator{},
 			ReplyData:    &[]ormapi.Federator{},
 			Path:         "/auth/federator/self/show",
+			ShowFilter:   true,
 		},
 		&ApiCommand{
 			Name:         "GenerateSelfFederatorAPIKey",
@@ -105,6 +106,7 @@ func init() {
 			ReqData:      &ormapi.FederatorZone{},
 			ReplyData:    &[]ormapi.FederatorZone{},
 			Path:         "/auth/federator/self/zone/show",
+			ShowFilter:   true,
 		},
 		&ApiCommand{
 			Name:         "ShareSelfFederatorZone",
@@ -157,6 +159,7 @@ func init() {
 			ReqData:      &ormapi.FederatedSelfZone{},
 			ReplyData:    &[]ormapi.FederatedSelfZone{},
 			Path:         "/auth/federation/self/zone/show",
+			ShowFilter:   true,
 		},
 		&ApiCommand{
 			Name:         "ShowFederatedPartnerZone",
@@ -169,6 +172,7 @@ func init() {
 			ReqData:      &ormapi.FederatedPartnerZone{},
 			ReplyData:    &[]ormapi.FederatedPartnerZone{},
 			Path:         "/auth/federation/partner/zone/show",
+			ShowFilter:   true,
 		},
 	}
 	AllApis.AddGroup(FederatorZoneGroup, "Federator Zone APIs", cmds)
@@ -242,6 +246,7 @@ func init() {
 			ReqData:      &ormapi.Federation{},
 			ReplyData:    &[]ormapi.Federation{},
 			Path:         "/auth/federation/show",
+			ShowFilter:   true,
 		},
 	}
 	AllApis.AddGroup(FederationGroup, "Federation APIs", cmds)

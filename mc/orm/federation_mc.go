@@ -480,6 +480,7 @@ var FederatorIgnoreFilterKeys = []string{
 	"iter",
 	"api_key",
 	"api_key_hash",
+	"mnc", // ignore array field
 }
 
 func ShowSelfFederator(c echo.Context) error {
@@ -891,6 +892,12 @@ func DeleteSelfFederatorZone(c echo.Context) error {
 	return ormutil.SetReply(c, ormutil.Msg("Deleted federator zone successfully"))
 }
 
+// Fields to ignore for ShowSelfFederatorZone/ShowFederatedPartnerZone
+// filtering. Names are in database format.
+var FederatorZoneIgnoreFilterKeys = []string{
+	"cloudlets", // ignore array field
+}
+
 func ShowSelfFederatorZone(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
@@ -900,6 +907,10 @@ func ShowSelfFederatorZone(c echo.Context) error {
 	filter, err := bindDbFilter(c, &ormapi.FederatorZone{})
 	if err != nil {
 		return err
+	}
+	// prevent filtering output on special fields
+	for _, name := range FederatorZoneIgnoreFilterKeys {
+		delete(filter, name)
 	}
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {
@@ -962,6 +973,10 @@ func ShowFederatedPartnerZone(c echo.Context) error {
 	filter, err := bindDbFilter(c, &ormapi.FederatedPartnerZone{})
 	if err != nil {
 		return err
+	}
+	// prevent filtering output on special fields
+	for _, name := range FederatorZoneIgnoreFilterKeys {
+		delete(filter, name)
 	}
 	authz, err := newShowAuthz(ctx, "", claims.Username, ResourceCloudlets, ActionView)
 	if err != nil {

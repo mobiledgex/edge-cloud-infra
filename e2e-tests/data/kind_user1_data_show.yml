@@ -91,18 +91,18 @@ regiondata:
       osmaxvcores: 100
       osmaxvolgb: 500
       flavors:
-      - name: x1.tiny
-        vcpus: 1
-        ram: 1024
-        disk: 1
-      - name: x1.small
-        vcpus: 2
-        ram: 2048
-        disk: 2
       - name: x1.medium
         vcpus: 4
         ram: 4096
         disk: 4
+      - name: x1.small
+        vcpus: 2
+        ram: 2048
+        disk: 2
+      - name: x1.tiny
+        vcpus: 1
+        ram: 1024
+        disk: 1
       containerversion: "2019-10-24"
       controllercachereceived: true
       resourcessnapshot:

@@ -56,7 +56,6 @@ type influxQueryArgs struct {
 	GroupFields    string
 }
 
-// TODO: embed this into influxQueryArgs
 type metricsCommonQueryArgs struct {
 	StartTime      string
 	EndTime        string
@@ -303,11 +302,11 @@ func getInfluxDBAddrForRegion(ctx context.Context, region string) (string, error
 	return ctrl.InfluxDB, nil
 }
 
-func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings, error) {
+func getSettings(ctx context.Context, region string) (*edgeproto.Settings, error) {
 	// Grab settings for specified region
 	in := &edgeproto.Settings{}
 	rc := &ormutil.RegionContext{
-		Region:    idc.region,
+		Region:    region,
 		SkipAuthz: true, // this is internal call, so no auth needed
 		Database:  database,
 	}
@@ -315,7 +314,7 @@ func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings
 }
 
 // Fill in MetricsCommonQueryArgs: Depending on if the user specified "Limit", "NumSamples", "StartTime", and "EndTime", adjust the query
-func fillMetricsCommonQueryArgs(m *metricsCommonQueryArgs, tmpl *template.Template, c *ormapi.MetricsCommon, timeDefinition string, minTimeWindow time.Duration) {
+func fillMetricsCommonQueryArgs(m *metricsCommonQueryArgs, c *ormapi.MetricsCommon, timeDefinition string, minTimeWindow time.Duration) {
 	// Set one of Last or TimeDefinition
 	if c.Limit != 0 {
 		m.Limit = c.Limit
@@ -377,7 +376,7 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, cloudletList []string
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
-	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
 	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
@@ -398,7 +397,7 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, cloudletList []st
 		arg.ApiCallerOrg = obj.ClusterInst.CloudletKey.Organization
 		arg.ClusterOrg = obj.ClusterInst.Organization
 	}
-	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
 	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
@@ -410,7 +409,7 @@ func CloudletMetricsQuery(obj *ormapi.RegionCloudletMetrics) string {
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
 	}
-	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, operatorInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
 	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
@@ -422,7 +421,7 @@ func CloudletUsageMetricsQuery(obj *ormapi.RegionCloudletMetrics, platformTypes 
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
 	}
-	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, operatorInfluxDBTemplate, &obj.MetricsCommon, "", 0)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
 	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
@@ -828,7 +827,7 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
-		settings, err := getSettings(ctx, rc)
+		settings, err := getSettings(ctx, rc.region)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
 		}
@@ -905,7 +904,7 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
-		settings, err := getSettings(ctx, rc)
+		settings, err := getSettings(ctx, rc.region)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
 		}
@@ -944,7 +943,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 
-		settings, err := getSettings(ctx, rc)
+		settings, err := getSettings(ctx, rc.region)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
 		}

@@ -60,7 +60,8 @@ func validateMetricsCommon(obj *ormapi.MetricsCommon) error {
 
 	// populate one of Last or NumSamples if neither are set
 	if obj.Limit == 0 && obj.NumSamples == 0 {
-		if obj.StartTime.IsZero() && obj.EndTime.IsZero() {
+		if obj.StartTime.IsZero() && obj.EndTime.IsZero() &&
+			obj.StartAge == 0 && obj.EndAge == 0 {
 			// fallback to Limit if nothing is in MetricsCommon is set
 			obj.Limit = maxEntriesFromInfluxDb
 		} else {

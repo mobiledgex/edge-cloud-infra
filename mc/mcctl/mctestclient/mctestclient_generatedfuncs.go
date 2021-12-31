@@ -2569,15 +2569,15 @@ func (s *Client) ShowClientCloudletUsageMetrics(uri string, token string, in *or
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) ShowCustomAppMetrics(uri string, token string, in *ormapi.RegionCustomAppMetrics) (*ormapi.PromResp, int, error) {
+func (s *Client) ShowAppV2Metrics(uri string, token string, in *ormapi.RegionCustomAppMetrics) (*ormapi.AllMetrics, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
 	rundata.In = in
-	var out ormapi.PromResp
+	var out ormapi.AllMetrics
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("ShowCustomAppMetrics")
+	apiCmd := ormctl.MustGetCommand("ShowAppV2Metrics")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError

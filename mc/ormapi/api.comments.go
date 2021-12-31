@@ -77,10 +77,11 @@ var PaymentProfileDeletionComments = map[string]string{
 }
 
 var ControllerComments = map[string]string{
-	"region":     `Controller region name`,
-	"address":    `Controller API address or URL`,
-	"notifyaddr": `Controller notify address or URL`,
-	"influxdb":   `InfluxDB address`,
+	"region":        `Controller region name`,
+	"address":       `Controller API address or URL`,
+	"notifyaddr":    `Controller notify address or URL`,
+	"influxdb":      `InfluxDB address`,
+	"thanosmetrics": `Thanos Query URL`,
 }
 
 var ConfigComments = map[string]string{

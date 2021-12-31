@@ -312,7 +312,10 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--chefServerPath")
 		args = append(args, p.ChefServerPath)
 	}
-
+	if p.ThanosRecvAddr != "" {
+		args = append(args, "--thanosRecvAddr")
+		args = append(args, p.ThanosRecvAddr)
+	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
 	if options.Debug != "" {
@@ -768,18 +771,43 @@ func (p *FRM) StopLocal() {
 func (p *FRM) GetExeName() string { return "frm" }
 
 func (p *FRM) LookupArgs() string { return p.Name }
-func (p *Thanos) StartLocal(logfile string, opts ...process.StartOp) error {
+
+func (p *ThanosQuery) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := p.GetRunArgs()
 	args = append(args,
 		"-p", fmt.Sprintf("%d:%d", p.HttpPort, p.HttpPort),
 		"quay.io/thanos/thanos:v0.20.0",
 		"query",
 		"--http-address",
-		"0.0.0.0:"+fmt.Sprintf("%d", p.HttpPort),
+		fmt.Sprintf("%s:%d", "0.0.0.0", p.HttpPort),
 	)
 	for ii := range p.Stores {
 		args = append(args, "--store", p.Stores[ii])
 	}
+
+	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	p.SetCmd(cmd)
+	return err
+}
+
+//TODO - do we really need http addr?
+func (p *ThanosReceive) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := p.GetRunArgs()
+	args = append(args,
+		"-p", fmt.Sprintf("%d:%d", p.HttpPort, p.HttpPort),
+		"-p", fmt.Sprintf("%d:%d", p.GrpcPort, p.GrpcPort),
+		"-p", fmt.Sprintf("%d:%d", p.RemoteWritePort, p.RemoteWritePort),
+		"quay.io/thanos/thanos:v0.20.0",
+		"receive",
+		"--label",
+		fmt.Sprintf("region=\"%s\"", p.Region),
+		"--http-address",
+		fmt.Sprintf("%s:%d", "0.0.0.0", p.HttpPort),
+		"--grpc-address",
+		fmt.Sprintf("%s:%d", "0.0.0.0", p.GrpcPort),
+		"--remote-write.address",
+		fmt.Sprintf("%s:%d", "0.0.0.0", p.RemoteWritePort),
+	)
 
 	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
 	p.SetCmd(cmd)

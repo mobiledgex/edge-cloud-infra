@@ -42,7 +42,8 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	if err = CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback); err != nil {
 		return cloudletResourcesCreated, err
 	}
-	return cloudletResourcesCreated, CloudletThanosStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
+	return cloudletResourcesCreated, nil
+	//return cloudletResourcesCreated, CloudletThanosStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
 func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -71,7 +72,7 @@ func CloudletPrometheusStartup(ctx context.Context, cloudlet *edgeproto.Cloudlet
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Starting Cloudlet Monitoring")
-	return intprocess.StartCloudletPrometheus(ctx, cloudlet, caches.SettingsCache.Singular())
+	return intprocess.StartCloudletPrometheus(ctx, pfConfig.ThanosRecvAddr, cloudlet, caches.SettingsCache.Singular())
 }
 
 // Start thanos query container
@@ -125,8 +126,13 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 
 		args := []string{
 			"--sockfile", envoySock,
-			"--cluster", clusterInst.Key.ClusterKey.Name,
+			//	"--cluster", clusterInst.Key.ClusterKey.Name,
 		}
+		for _, port := range appInst.MappedPorts {
+			args = append(args, "--port")
+			args = append(args, fmt.Sprintf("%d", port.InternalPort))
+		}
+
 		log.SpanLog(ctx, log.DebugLevelInfra, "start fake_envoy_exporter", "AppInst", appInst.Key)
 		cmd, err := process.StartLocal(name, "fake_envoy_exporter", args, nil, envoyLog)
 		if err != nil {

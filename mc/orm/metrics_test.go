@@ -348,7 +348,7 @@ func TestGetInfluxCloudletUsageMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef := getTimeDefinition(testSingleCloudletUsage.GetMetricsCommon(), 0)
 	args := getMetricsTemplateArgs(&testSingleCloudletUsage, timeDef, "resourceusage", nil)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testSingleCloudletUsage.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testSingleCloudletUsage.MetricsCommon, timeDef, 0)
 	query := getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testSingleCloudletUsageQueryDefTime, query)
 	// Single Cloudlet, just one last data points
@@ -361,7 +361,7 @@ func TestGetInfluxCloudletUsageMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testSingleCloudletUsage.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testSingleCloudletUsage, timeDef, "resourceusage", nil)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testSingleCloudletUsage.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testSingleCloudletUsage.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testSingleCloudletUsageQueryLastPoint, query)
 	// Multiple Cloudlets, default time interval
@@ -374,7 +374,7 @@ func TestGetInfluxCloudletUsageMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testCloudletsUsage.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testCloudletsUsage, timeDef, "flavorusage", nil)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testCloudletsUsage.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testCloudletsUsage.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testCloudletsUsageQueryDefTime, query)
 	// Multiple Cloudlets, just one last data points
@@ -387,7 +387,7 @@ func TestGetInfluxCloudletUsageMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testCloudletsUsage.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testCloudletsUsage, timeDef, "flavorusage", nil)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testCloudletsUsage.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testCloudletsUsage.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testCloudletsUsageQueryLastPoint, query)
 	// Test wildcard selector, single cloudlet
@@ -409,7 +409,7 @@ func TestGetInfluxCloudletMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef := getTimeDefinition(testSingleCloudlet.GetMetricsCommon(), 0)
 	args := getMetricsTemplateArgs(&testSingleCloudlet, timeDef, "utilization", nil)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testSingleCloudlet.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testSingleCloudlet.MetricsCommon, timeDef, 0)
 	query := getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testSingleCloudletQueryDefTime, query)
 	// Single Cloudlet, just one last data points
@@ -422,7 +422,7 @@ func TestGetInfluxCloudletMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testSingleCloudlet.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testSingleCloudlet, timeDef, "utilization", nil)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testSingleCloudlet.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testSingleCloudlet.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testSingleCloudletQueryLastPoint, query)
 	// Multiple Cloudlets, default time interval
@@ -435,7 +435,7 @@ func TestGetInfluxCloudletMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testCloudlets.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testCloudlets, timeDef, "network", nil)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testCloudlets.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testCloudlets.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testCloudletsQueryDefTime, query)
 	// Multiple Cloudlets, just one last data points
@@ -448,7 +448,7 @@ func TestGetInfluxCloudletMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testCloudlets.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testCloudlets, timeDef, "network", nil)
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testCloudlets.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testCloudlets.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testCloudletsQueryLastPoint, query)
 	// Test wildcard selector, single cloudlet
@@ -470,7 +470,7 @@ func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef := getTimeDefinition(testSingleCluster.GetMetricsCommon(), 0)
 	args := getMetricsTemplateArgs(&testSingleCluster, timeDef, "cpu", getCloudletsFromClusterInsts(testSingleCluster.RegionClusterInstMetrics))
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testSingleCluster.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testSingleCluster.MetricsCommon, timeDef, 0)
 	query := getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testSingleClusterQueryDefTime, query)
 	// Single Cluster, just one last data points
@@ -483,7 +483,7 @@ func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testSingleCluster.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testSingleCluster, timeDef, "cpu", getCloudletsFromClusterInsts(testSingleCluster.RegionClusterInstMetrics))
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testSingleCluster.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testSingleCluster.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testSingleClusterQueryLastPoint, query)
 	// Multiple Clusters, default time interval
@@ -496,7 +496,7 @@ func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testClusters.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testClusters, timeDef, "network", getCloudletsFromClusterInsts(testClusters.RegionClusterInstMetrics))
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testClusters.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testClusters.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testClustersQueryDefTime, query)
 	// Multiple Clusters, just one last data points
@@ -509,7 +509,7 @@ func TestGetInfluxClusterMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testClusters.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testClusters, timeDef, "network", getCloudletsFromClusterInsts(testClusters.RegionClusterInstMetrics))
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testClusters.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testClusters.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testClustersQueryLastPoint, query)
 	// Wildcard check
@@ -531,7 +531,7 @@ func TestGetInfluxAppMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef := getTimeDefinition(testSingleApp.GetMetricsCommon(), 0)
 	args := getMetricsTemplateArgs(&testSingleApp, timeDef, "cpu", getCloudletsFromAppInsts(testSingleApp.RegionAppInstMetrics))
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testSingleApp.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testSingleApp.MetricsCommon, timeDef, 0)
 	query := getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testSingleAppQueryDefTime, query)
 	// Single App, just one last data points
@@ -544,7 +544,7 @@ func TestGetInfluxAppMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testSingleApp.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testSingleApp, timeDef, "cpu", getCloudletsFromAppInsts(testSingleApp.RegionAppInstMetrics))
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testSingleApp.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testSingleApp.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testSingleAppQueryLastPoint, query)
 	// Multiple Apps, default time interval
@@ -557,7 +557,7 @@ func TestGetInfluxAppMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testApps.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testApps, timeDef, "network", getCloudletsFromAppInsts(testApps.RegionAppInstMetrics))
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testApps.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testApps.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testAppsQueryDefTime, query)
 	// Multiple Apps, just one last data points
@@ -570,7 +570,7 @@ func TestGetInfluxAppMetricsQueryCmd(t *testing.T) {
 	require.Nil(t, err)
 	timeDef = getTimeDefinition(testApps.GetMetricsCommon(), 0)
 	args = getMetricsTemplateArgs(&testApps, timeDef, "network", getCloudletsFromAppInsts(testApps.RegionAppInstMetrics))
-	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, metricsGroupQueryTemplate, &testApps.MetricsCommon, timeDef, 0)
+	fillMetricsCommonQueryArgs(&args.metricsCommonQueryArgs, &testApps.MetricsCommon, timeDef, 0)
 	query = getInfluxMetricsQueryCmd(&args, metricsGroupQueryTemplate)
 	require.Equal(t, testAppsQueryLastPoint, query)
 	// Wildcard check

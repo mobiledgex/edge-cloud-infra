@@ -82,7 +82,8 @@ type DeploymentData struct {
 	Alertmanagers       []*intprocess.Alertmanager        `yaml:"alertmanagers"`
 	Maildevs            []*intprocess.Maildev             `yaml:"maildevs"`
 	AlertmgrSidecars    []*intprocess.AlertmanagerSidecar `yaml:"alertmanagersidecars"`
-	Thanoss             []*intprocess.Thanos              `yaml:"thanoss"`
+	ThanosQueries       []*intprocess.ThanosQuery         `yaml:"thanosqueries"`
+	ThanosReceives      []*intprocess.ThanosReceive       `yaml:"thanosreceives"`
 }
 
 // a comparison and yaml friendly version of AllMetrics for e2e-tests
@@ -215,7 +216,10 @@ func GetAllProcesses() []process.Process {
 	for _, p := range Deployment.Maildevs {
 		all = append(all, p)
 	}
-	for _, p := range Deployment.Thanoss {
+	for _, p := range Deployment.ThanosQueries {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.ThanosReceives {
 		all = append(all, p)
 	}
 	return all
@@ -297,9 +301,9 @@ func RunChefClient(apiFile string, vars map[string]string) error {
 }
 
 func StartProcesses(processName string, args []string, outputDir string) bool {
-	log.Printf("Deployment with Thanos: %d", len(Deployment.Thanoss))
-	if len(Deployment.Thanoss) > 0 {
-		log.Printf("Deployment with Thanos: %s/%v", Deployment.Thanoss[0].Name, Deployment.Thanoss[0].Stores)
+	log.Printf("Deployment with Thanos: %d", len(Deployment.ThanosQueries))
+	if len(Deployment.ThanosQueries) > 0 {
+		log.Printf("Deployment with Thanos: %s/%v", Deployment.ThanosQueries[0].Name, Deployment.ThanosQueries[0].Stores)
 	}
 	if !setupmex.StartProcesses(processName, args, outputDir) {
 		return false
@@ -387,7 +391,12 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 			return false
 		}
 	}
-	for _, p := range Deployment.Thanoss {
+	for _, p := range Deployment.ThanosQueries {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.ThanosReceives {
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}

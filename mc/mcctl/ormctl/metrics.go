@@ -88,26 +88,59 @@ func init() {
 		ReplyData:    &ormapi.AllMetrics{},
 		Path:         "/auth/metrics/clientcloudletusage",
 	}, &ApiCommand{
-		Name:         "ShowCustomAppMetrics",
-		Use:          "customapp",
-		Short:        "View Custom App metrics",
-		RequiredArgs: strings.Join(append([]string{"region"}, CustomAppMetricRequiredArgs...), " "),
-		OptionalArgs: strings.Join(AppMetricOptionalArgs, " "),
+		Name:         "ShowAppV2Metrics",
+		Use:          "appv2",
+		Short:        "View App metrics(v2 format)",
+		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricV2RequiredArgs...), " "),
+		OptionalArgs: strings.Join(append(MetricV2CommonArgs, AppMetricV2OptionalArgs...), " "),
 		AliasArgs:    strings.Join(append(AppMetricAliasArgs, MetricsCommonAliasArgs...), " "),
-		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricV2Comments),
 		ReqData:      &ormapi.RegionCustomAppMetrics{},
-		ReplyData:    &ormapi.PromResp{},
-		Path:         "/auth/metrics/app/custom",
+		ReplyData:    &ormapi.AllMetrics{},
+		Path:         "/auth/metrics/app/v2",
 	}}
 	AllApis.AddGroup(MetricsGroup, "View metrics", cmds)
 }
 
-var AppMetricRequiredArgs = []string{
-	"selector",
+var AppMetricV2OptionalArgs = []string{
+	"appname",
+	"app-org",
+	"appvers",
+	"cluster",
+	"cluster-org",
+	"cloudlet",
+	"cloudlet-org",
+	"port",
+	"aggr-function",
 }
 
-var CustomAppMetricRequiredArgs = []string{
+var AppMetricV2Comments = map[string]string{
+	"app-org":       "Organization or Company name of the App(Deprecated)",
+	"appname":       "App name(Deprecated)",
+	"appvers":       "App version(Deprecated)",
+	"cluster":       "Cluster name(Deprecated)",
+	"cloudlet-org":  "Company or Organization name of the cloudlet(Deprecated)",
+	"cloudlet":      "Name of the cloudlet(Deprecated)",
+	"cluster-org":   "Organization or Company Name that a Cluster is used by(Deprecated)",
+	"measurement":   "Measurement to view. Available measurements: \"connections\"",
+	"port":          "Port for which to show the data(valid for \"connections\" measurement)",
+	"aggr-function": "Aggregate function. \"sum\" - will add all connections together across all ports",
+}
+
+var AppMetricV2RequiredArgs = []string{
 	"measurement",
+}
+
+var MetricV2CommonArgs = []string{
+	"numsamples",
+	"starttime",
+	"endtime",
+	"startage",
+	"endage",
+}
+
+var AppMetricRequiredArgs = []string{
+	"selector",
 }
 
 var AppMetricOptionalArgs = []string{
@@ -142,6 +175,7 @@ var AppMetricAliasArgs = []string{
 	"appinsts:#.cluster-org=appinsts:#.clusterinstkey.organization",
 	"appinsts:#.cloudlet-org=appinsts:#.clusterinstkey.cloudletkey.organization",
 	"appinsts:#.cloudlet=appinsts:#.clusterinstkey.cloudletkey.name",
+	"aggr-function=aggrfunction",
 }
 
 var AppMetricComments = map[string]string{

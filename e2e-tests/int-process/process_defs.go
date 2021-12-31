@@ -50,6 +50,7 @@ type Shepherd struct {
 	Region             string
 	AppDNSRoot         string
 	ChefServerPath     string
+	ThanosRecvAddr     string
 }
 type AutoProv struct {
 	process.Common     `yaml:",inline"`
@@ -110,10 +111,17 @@ type FRM struct {
 	cmd                *exec.Cmd
 }
 
-type Thanos struct {
+type ThanosQuery struct {
 	process.DockerGeneric `yaml:",inline"`
 	Region                string
-	HttpAddr              string
 	HttpPort              int
 	Stores                []string
+}
+
+type ThanosReceive struct {
+	process.DockerGeneric `yaml:",inline"`
+	Region                string
+	GrpcPort              int
+	HttpPort              int
+	RemoteWritePort       int
 }

@@ -223,6 +223,10 @@ func TestController(t *testing.T) {
 	}))
 	defer influxServer.Close()
 
+	// run a dummy http server to mimic thanos
+	thanosQuery := StartUnitTestThanosQueryResponder()
+	defer thanosQuery.Close()
+
 	// run dummy controller - this always returns success
 	// to all APIs directed to it, and does not actually
 	// create or delete objects. We are mocking it out
@@ -259,11 +263,11 @@ func TestController(t *testing.T) {
 	require.Nil(t, err, "server online")
 
 	for _, clientRun := range getUnitTestClientRuns() {
-		testControllerClientRun(t, ctx, clientRun, uri, addr, ctrlAddr, ctrlAddr2, influxServer, ds, &sds, de)
+		testControllerClientRun(t, ctx, clientRun, uri, addr, ctrlAddr, ctrlAddr2, influxServer, thanosQuery, ds, &sds, de)
 	}
 }
 
-func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, uri, addr, ctrlAddr, ctrlAddr2 string, influxServer *httptest.Server, ds *testutil.DummyServer, sds *StreamDummyServer, de *nodetest.DummyEventsES) {
+func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctestclient.ClientRun, uri, addr, ctrlAddr, ctrlAddr2 string, influxServer *httptest.Server, thanosQuery *httptest.Server, ds *testutil.DummyServer, sds *StreamDummyServer, de *nodetest.DummyEventsES) {
 	mcClient := mctestclient.NewClient(clientRun)
 
 	// login as super user
@@ -284,9 +288,10 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(ctrls))
 	ctrl := ormapi.Controller{
-		Region:   "USA",
-		Address:  ctrlAddr,
-		InfluxDB: influxServer.URL,
+		Region:        "USA",
+		Address:       ctrlAddr,
+		InfluxDB:      influxServer.URL,
+		ThanosMetrics: thanosQuery.URL,
 	}
 	// create controller
 	status, err = mcClient.CreateController(uri, token, &ctrl)
@@ -388,6 +393,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	badPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org1, nil)
 	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	badPermTestEvents(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermTestCustomMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	badPermTestAlertReceivers(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	// add new users to orgs
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperContributor", dev3.Name, Success)
@@ -700,6 +706,8 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	goodPermTestMetrics(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
 	goodPermTestEvents(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
 	testInvalidOrgForCloudletUsage(t, mcClient, uri, tokenAd, ctrl.Region, org1)
+	goodPermTestCustomMetrics(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
+	adminPermTestCustomMetrics(t, mcClient, uri, tokenAd, ctrl.Region, org3)
 
 	// test users with different roles
 	goodPermTestCloudlet(t, mcClient, uri, tokenOper3, ctrl.Region, org3, nil, ccount)

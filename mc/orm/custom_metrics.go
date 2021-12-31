@@ -2,13 +2,15 @@ package orm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"net/http"
-	"net/url"
+	"math"
+	"strconv"
 	"strings"
 	"time"
+
+	prom_api "github.com/prometheus/client_golang/api"
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+	"github.com/prometheus/common/model"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
@@ -19,15 +21,32 @@ import (
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
-func GetAppMetricsCustom(c echo.Context) error {
-	var cmd string
+var (
+	RegionThanosQueryPort = 29090
 
+	// Anonymous appinst, just to get a list of tags
+	validAppinstTags = map[string]struct{}{
+		"app":         {},
+		"apporg":      {},
+		"appver":      {},
+		"cluster":     {},
+		"clusterorg":  {},
+		"cloudlet":    {},
+		"cloudletorg": {},
+		"port":        {},
+		"region":      {},
+	}
+
+	AggrFuncLabelSet = []string{"app", "appver", "apporg", "cluster", "clusterorg", "cloudlet", "cloudletorg"}
+)
+
+func GetAppMetricsV2(c echo.Context) error {
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
 	ctx := ormutil.GetContext(c)
-	if !strings.HasSuffix(c.Path(), "metrics/app/custom") {
+	if !strings.HasSuffix(c.Path(), "metrics/app/v2") {
 		return fmt.Errorf("Unsupported path")
 	}
 	in := ormapi.RegionCustomAppMetrics{}
@@ -47,42 +66,178 @@ func GetAppMetricsCustom(c echo.Context) error {
 		return err
 	}
 
-	if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+	// Validate measurements and other parameters
+	if err = validateAppMetricArgs(ctx, claims.Username, &in); err != nil {
 		return err
 	}
-	cmd = getPromAppQuery(&in, cloudletList)
-	resp, err := thanosProxy(ctx, in.Region, cmd)
+
+	settings, err := getSettings(ctx, in.Region)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", in.Region, err.Error())
+	}
+	timeRange := getPromTimeRange(&in, settings)
+
+	query := getPromAppQuery(&in, cloudletList)
+	resp, err := thanosProxy(ctx, in.Measurement, in.Region, query, timeRange)
 	if err != nil {
 		return err
 	}
 	return ormutil.SetReply(c, resp)
 }
 
-// TODO - how to deal with orgs, validation of input - if custom metric, need to make sure no `{`, or `}`
-func getPromAppQuery(obj *ormapi.RegionCustomAppMetrics, cloudletList []string) string {
-	var labelFilters []string
-	if obj.AppInst.AppKey.Name != "" {
-		labelFilters = append(labelFilters, `label_mexAppName="`+util.DNSSanitize(obj.AppInst.AppKey.Name)+`"`)
+func validateAppMetricArgs(ctx context.Context, username string, obj *ormapi.RegionCustomAppMetrics) error {
+	if obj == nil {
+		return fmt.Errorf("Invalid Region App metrics object")
 	}
-	if obj.AppInst.AppKey.Version != "" {
-		labelFilters = append(labelFilters, `label_mexAppVersion="`+util.DNSSanitize(obj.AppInst.AppKey.Version)+`"`)
+
+	if obj.Measurement == "" {
+		return fmt.Errorf("Measurement is required")
 	}
-	labelFilter := "{" + strings.Join(labelFilters, ",") + "}"
+
+	if obj.Region == "" {
+		return fmt.Errorf("Region is required")
+	}
+
+	emptyMetrics := ormapi.MetricsCommon{}
+	// We don't need to validate timestamps if it's empty, as for prom query we have a
+	// slightly different logic for handling empty timestamps - return just the last element
+	if obj.MetricsCommon != emptyMetrics {
+		if err := validateMetricsCommon(&obj.MetricsCommon); err != nil {
+			return err
+		}
+	}
 
 	switch obj.Measurement {
-	case "cpu":
-		return url.QueryEscape(promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQCpuPod))
-	case "mem":
-		return url.QueryEscape(promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQMemPercentPod))
-	case "disk":
-		return url.QueryEscape(promutils.GetPromQueryWithK8sLabels(labelFilter, promutils.PromQDiskPercentPod))
+	case "connections":
+		// only "sum" is supported currently
+		if obj.AggrFunction != "" && obj.AggrFunction != "sum" {
+			return fmt.Errorf("Only \"sum\" aggregation function is supported")
+		}
+		// validate port is an int
+		if obj.Port != "" {
+			if _, err := strconv.ParseUint(obj.Port, 10, 64); err != nil {
+				return fmt.Errorf("Port number must be an interger")
+			}
+		}
+	default:
+		// free-form queries are only allowed for admin for now
+		if !isAdmin(ctx, username) {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Only admin is allowed to run free-form queries", "query", obj.Measurement)
+			return echo.ErrForbidden
+		}
+		// for free form metrics, only measurements should be allowed
+		if obj.Port != "" {
+			return fmt.Errorf("Only \"connections\" measurement supports specifying port")
+		}
+		if obj.AggrFunction != "" {
+			return fmt.Errorf("Only \"connections\" measurement supports aggregate function")
+		}
 	}
-	return url.QueryEscape(promutils.GetPromQueryWithK8sLabels(labelFilter, obj.Measurement))
+	return nil
 }
 
-// We could use grpc interface instead of http one
-func thanosProxy(ctx context.Context, region, query string) (*ormapi.PromResp, error) {
-	log.SpanLog(ctx, log.DebugLevelApi, "start Thanos api", "region", region)
+func getPromLabelsFromAppInstKey(appInstKey *edgeproto.AppInstKey) []string {
+	labelFilters := []string{}
+	if appInstKey == nil {
+		return labelFilters
+	}
+	if appInstKey.AppKey.Name != "" {
+		labelFilters = append(labelFilters, `app="`+appInstKey.AppKey.Name+`"`)
+	}
+	if appInstKey.AppKey.Organization != "" {
+		labelFilters = append(labelFilters, `apporg="`+appInstKey.AppKey.Organization+`"`)
+	}
+	if appInstKey.AppKey.Version != "" {
+		labelFilters = append(labelFilters, `appver="`+appInstKey.AppKey.Version+`"`)
+	}
+	if appInstKey.ClusterInstKey.ClusterKey.Name != "" {
+		labelFilters = append(labelFilters, `cluster="`+appInstKey.ClusterInstKey.ClusterKey.Name+`"`)
+	}
+	if appInstKey.ClusterInstKey.Organization != "" {
+		labelFilters = append(labelFilters, `clusterorg="`+appInstKey.ClusterInstKey.Organization+`"`)
+	}
+	if appInstKey.ClusterInstKey.CloudletKey.Name != "" {
+		labelFilters = append(labelFilters, `cloudlet="`+appInstKey.ClusterInstKey.CloudletKey.Name+`"`)
+	}
+	if appInstKey.ClusterInstKey.CloudletKey.Organization != "" {
+		labelFilters = append(labelFilters, `cloudletorg="`+appInstKey.ClusterInstKey.CloudletKey.Organization+`"`)
+	}
+	return labelFilters
+}
+
+func getPromTimeRange(obj *ormapi.RegionCustomAppMetrics, settings *edgeproto.Settings) *v1.Range {
+	emptyMetrics := ormapi.MetricsCommon{}
+	if obj.MetricsCommon == emptyMetrics {
+		return nil
+	}
+
+	// call validation to be sure the required fields are populated
+	if err := validateMetricsCommon(&obj.MetricsCommon); err != nil {
+		return nil
+	}
+
+	minTimeDef := DefaultAppInstTimeWindow
+	if settings != nil {
+		minTimeDef = time.Duration(settings.DmeApiMetricsCollectionInterval)
+	}
+	timeDef := getTimeDefinitionDuration(&obj.MetricsCommon, minTimeDef)
+	return &v1.Range{
+		Start: obj.StartTime,
+		End:   obj.EndTime,
+		Step:  timeDef,
+	}
+}
+
+// Generate expression with an aggregate function wrapping it
+func wrapExpressionWithAggrFunc(query, aggrFunc string) string {
+	return aggrFunc + " by(" +
+		strings.Join(AggrFuncLabelSet, ",") + ")(" +
+		query + ")"
+}
+
+// TODO - validation of input: if custom metric, need to make sure no `{`, or `}`
+//  for now allow freeform metrics only for admin users
+func getPromAppQuery(obj *ormapi.RegionCustomAppMetrics, cloudletList []string) string {
+	var query string
+	labelFilters := getPromLabelsFromAppInstKey(&obj.AppInst)
+	if obj.Port != "" {
+		labelFilters = append(labelFilters, `port="`+obj.Port+`"`)
+	}
+	labelFilter := strings.Join(labelFilters, ",")
+
+	switch obj.Measurement {
+	case "connections":
+		query = promutils.PromQConnections + "{" + labelFilter + "}"
+		// add aggregation function here
+		if obj.AggrFunction != "" {
+			query = wrapExpressionWithAggrFunc(query, obj.AggrFunction)
+		}
+	default:
+		// Free form string - experimental(admin-only)
+		// find all filters and splice in the appInst details
+		queries := strings.Split(obj.Measurement, "{")
+		if len(queries) == 1 {
+			return obj.Measurement + "{" + labelFilter + "}"
+		}
+		// for each sub-query splice in the org filter
+		for ii := range queries {
+			queries[ii] = queries[ii] + "{" + labelFilter
+		}
+		query = strings.Join(queries, "")
+	}
+	return query
+}
+
+// Dispatch prometheus query to a regional thanos collector
+// Use prometheus client library to get a generic response and
+// build AllMetrics type from model.Value interface
+func thanosProxy(ctx context.Context, measurement, region, query string, timeRange *v1.Range) (*ormapi.AllMetrics, error) {
+	var err error
+	var warnings v1.Warnings
+	var result model.Value
+	var metricData ormapi.AllMetrics
+
+	log.SpanLog(ctx, log.DebugLevelApi, "start Thanos api", "region", region, "query", query, "range", timeRange)
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish Thanos api")
 
 	addr, err := GetThanosUrl(ctx, region)
@@ -90,39 +245,151 @@ func thanosProxy(ctx context.Context, region, query string) (*ormapi.PromResp, e
 		return nil, err
 	}
 
-	thanosClient := http.Client{
-		Timeout: time.Second * 2,
-	}
-	url := "http://" + addr + "/api/v1/query?query=" + query
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	client, err := prom_api.NewClient(prom_api.Config{
+		Address: addr,
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("Unable to build a thanos request - %s", err.Error())
+		return nil, err
 	}
 
-	res, getErr := thanosClient.Do(req)
-	if getErr != nil {
-		return nil, fmt.Errorf("Unable to run a thanos query - %s", err.Error())
-	}
-	if res.Body != nil {
-		defer res.Body.Close()
-	}
+	v1api := v1.NewAPI(client)
+	thCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	body, readErr := ioutil.ReadAll(res.Body)
-	if readErr != nil {
-		return nil, fmt.Errorf("Unable to decode result - %s", err.Error())
-	}
-	log.DebugLog(log.DebugLevelInfo, "XXX Thanos result.", "query", url, "bodyStr", string(body), "body", body)
-	var promResponse ormapi.PromResp
-	err = json.Unmarshal(body, &promResponse)
-	if err != nil {
-		log.DebugLog(log.DebugLevelInfo, "Unable to decode byte str", "bodyStr", string(body), "body", body, "err", err)
-		return nil, fmt.Errorf("Unable to decode metrics data - %s", err.Error())
+	if timeRange == nil {
+		result, warnings, err = v1api.Query(thCtx, query, time.Now())
 	} else {
-		log.DebugLog(log.DebugLevelInfo, "PromData", "result", promResponse)
+		result, warnings, err = v1api.QueryRange(thCtx, query, *timeRange)
 	}
-	return &promResponse, nil
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Error querying Prometheus", "err", err, "query", query, "range", timeRange)
+		return nil, err
+	}
+	if len(warnings) > 0 {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Got warnings querying prometheus", "warnings", warnings)
+	}
+
+	switch result.Type() {
+	case model.ValMatrix:
+		data, err := parsePrometheusMatrix(result, measurement)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Error parsing matrix", "err", err, "result", result.String())
+			return nil, err
+		}
+		if data != nil {
+			metricData.Data = append(metricData.Data, *data)
+		}
+	case model.ValVector:
+		data, err := parsePrometheusVector(result, measurement)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfo, "Error parsing vector", "err", err, "result", result.String())
+			return nil, err
+		}
+		if data != nil {
+			metricData.Data = append(metricData.Data, *data)
+		}
+	default:
+		return nil, fmt.Errorf("Unsupported result format: %s", result.Type().String())
+	}
+	return &metricData, nil
 }
 
+// For now Thanos URL is the same as influxDB, just different port
 func GetThanosUrl(ctx context.Context, region string) (string, error) {
-	return "127.0.0.1:29090", nil
+	ctrl, err := getControllerObj(ctx, region)
+	if err != nil {
+		return "", err
+	}
+	if ctrl.ThanosMetrics != "" {
+		return ctrl.ThanosMetrics, nil
+	}
+	if ctrl.InfluxDB == "" {
+		return "", fmt.Errorf("No monitoring DB address is configured for the region")
+	}
+	// Change the port to Thanos Query port
+	portIndex := strings.LastIndex(ctrl.InfluxDB, ":")
+	return fmt.Sprintf("%s:%d", ctrl.InfluxDB[:portIndex], RegionThanosQueryPort), nil
+}
+
+// Convert matrix type prometheus response into ormapi.MetricData struct
+func parsePrometheusMatrix(value model.Value, measurement string) (*ormapi.MetricData, error) {
+	data, ok := value.(model.Matrix)
+	if !ok {
+		return nil, fmt.Errorf("Unsupported result format: %s", value.Type().String())
+	}
+
+	if data.Len() == 0 {
+		return nil, nil
+	}
+
+	metricData := ormapi.MetricData{
+		Series: []ormapi.MetricSeries{},
+	}
+	for _, stream := range data {
+		series := ormapi.MetricSeries{
+			Name:   measurement,
+			Tags:   map[string]string{},
+			Values: make([][]interface{}, 0),
+		}
+
+		for k, v := range stream.Metric {
+			if _, found := validAppinstTags[string(k)]; found {
+				series.Tags[string(k)] = string(v)
+			}
+		}
+
+		for _, v := range stream.Values {
+			// validate the values
+			if math.IsNaN(float64(v.Value)) {
+				continue
+			}
+			tuple := []interface{}{
+				float64(v.Value),
+				float64(v.Timestamp.Unix() * 1000), // Timestamp truncates milliseconds
+			}
+			series.Values = append(series.Values, tuple)
+		}
+		metricData.Series = append(metricData.Series, series)
+	}
+	return &metricData, nil
+}
+
+// Convert vector type prometheus response into ormapi.MetricData struct
+func parsePrometheusVector(value model.Value, measurement string) (*ormapi.MetricData, error) {
+	data, ok := value.(model.Vector)
+	if !ok {
+		return nil, fmt.Errorf("Unsupported result format: %s", value.Type().String())
+	}
+
+	if data.Len() == 0 {
+		return nil, nil
+	}
+
+	metricData := ormapi.MetricData{
+		Series: []ormapi.MetricSeries{},
+	}
+	for _, sample := range data {
+		series := ormapi.MetricSeries{
+			Name:   measurement,
+			Tags:   map[string]string{},
+			Values: make([][]interface{}, 0),
+		}
+
+		for k, v := range sample.Metric {
+			if _, found := validAppinstTags[string(k)]; found {
+				series.Tags[string(k)] = string(v)
+			}
+		}
+		if math.IsNaN(float64(sample.Value)) {
+			continue
+		}
+		tuple := []interface{}{
+			float64(sample.Value),
+			float64(sample.Timestamp.Unix() * 1000), // Timestamp truncates milliseconds
+		}
+		series.Values = append(series.Values, tuple)
+		metricData.Series = append(metricData.Series, series)
+	}
+	return &metricData, nil
 }

@@ -400,3 +400,47 @@ func adminPermTestCustomMetrics(t *testing.T, mcClient *mctestclient.Client, uri
 	require.NotNil(t, err)
 	require.Equal(t, "Only \"connections\" measurement supports aggregate function", err.Error())
 }
+
+func TestGetPromAppQuery(t *testing.T) {
+	// simple query test
+	arg := ormapi.RegionCustomAppMetrics{}
+	arg.AppInst.AppKey.Organization = "testorg"
+	arg.Measurement = "connections"
+	require.Equal(t, `envoy_cluster_upstream_cx_active{apporg="testorg"}`, getPromAppQuery(&arg, []string{}), "Connections with only org sepcified")
+
+	// test with all fields
+	arg = ormapi.RegionCustomAppMetrics{
+		AppInst: edgeproto.AppInstKey{
+			AppKey: edgeproto.AppKey{
+				Name:         "testapp",
+				Organization: "testorg",
+				Version:      "1.0",
+			},
+			ClusterInstKey: edgeproto.VirtualClusterInstKey{
+				Organization: "testorg",
+				ClusterKey: edgeproto.ClusterKey{
+					Name: "testcluster",
+				},
+				CloudletKey: edgeproto.CloudletKey{
+					Name:         "testcloudlet",
+					Organization: "testoperator",
+				},
+			},
+		},
+		Measurement: "connections",
+	}
+	expectedQuery := `envoy_cluster_upstream_cx_active{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator"}`
+	require.Equal(t, expectedQuery, getPromAppQuery(&arg, []string{}), "Connections a full app definition")
+
+	// Add port to above
+	arg.Port = "1234"
+	expectedQuery = `envoy_cluster_upstream_cx_active{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator",port="1234"}`
+	require.Equal(t, expectedQuery, getPromAppQuery(&arg, []string{}), "Connections with port")
+	arg.Port = ""
+
+	// Test sum aggr func
+	arg.AggrFunction = "sum"
+	expectedQuery = `sum by(app,appver,apporg,cluster,clusterorg,cloudlet,cloudletorg)(envoy_cluster_upstream_cx_active{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator"})`
+	require.Equal(t, expectedQuery, getPromAppQuery(&arg, []string{}), "Connections aggregated for all ports")
+
+}

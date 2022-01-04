@@ -140,11 +140,11 @@ spec:
     # containerd and docker are supported.
     containerRuntime: docker
   # KubeVirt configuration, uncomment this section if you want to install kubevirt to the cluster
-  # kubevirt:
+  kubevirt:
   #   # if useEmulation is enabled, hardware accelerator (i.e relies on cpu feature like vmx or svm)
   #   # will not be attempted. QEMU will be used for software emulation.
   #   # useEmulation must be specified for KubeVirt installation
-  #   useEmulation: false
+    useEmulation: false
   # Authentication; uncomment this section if you wish to enable authentication to the cluster with OpenID Connect.
   # authentication:
   #   oidc:

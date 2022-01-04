@@ -25,12 +25,12 @@ regiondata:
         organization: AcmeAppCo
         name: someapplication1
         version: "1.0"
-      imagepath: pinkstone/public:latest
+      imagepath: docker.mobiledgex.net/mobiledgex/mobiledgex_public/mobiledgexsdkdemo
       imagetype: Docker
       deployment: "kubernetes"
       defaultflavor:
         name: x1.tiny
-      accessports: "tcp:5656"
+      accessports: "tcp:7777"
       androidpackagename: com.acme.someapplication1
       allowserverless: true
       serverlessconfig:

@@ -552,10 +552,6 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		if err != nil {
 			errors = append(errors, err.Error())
 		}
-		err = intprocess.StopCloudletThanos(ctx)
-		if err != nil {
-			errors = append(errors, err.Error())
-		}
 		err = intprocess.StopFakeEnvoyExporters(ctx)
 		if err != nil {
 			errors = append(errors, err.Error())

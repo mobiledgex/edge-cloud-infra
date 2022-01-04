@@ -39,10 +39,7 @@ func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloud
 	if err = fakeinfra.ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback); err != nil {
 		return cloudletResourcesCreated, err
 	}
-	if err = fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback); err != nil {
-		return cloudletResourcesCreated, err
-	}
-	return cloudletResourcesCreated, fakeinfra.CloudletThanosStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
+	return cloudletResourcesCreated, fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
 func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {

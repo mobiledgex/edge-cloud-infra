@@ -66,9 +66,9 @@ regiondata:
         organization: AcmeAppCo
         name: someapplication1
         version: "1.0"
-      imagepath: pinkstone/public:latest
+      imagepath: docker.mobiledgex.net/mobiledgex/mobiledgex_public/mobiledgexsdkdemo
       imagetype: Docker
-      accessports: tcp:5656
+      accessports: tcp:7777
       defaultflavor:
         name: x1.tiny
       deployment: kubernetes
@@ -82,10 +82,10 @@ regiondata:
         spec:
           type: LoadBalancer
           ports:
-          - name: tcp5656
+          - name: tcp7777
             protocol: TCP
             port: 5656
-            targetPort: 5656
+            targetPort: 7777
           selector:
             run: someapplication11.0
         ---
@@ -108,10 +108,10 @@ regiondata:
               - name: docker.mobiledgex.net
               containers:
               - name: someapplication110
-                image: pinkstone/public:latest
+                image: docker.mobiledgex.net/mobiledgex/mobiledgex_public/mobiledgexsdkdemo
                 imagePullPolicy: Always
                 ports:
-                - containerPort: 5656
+                - containerPort: 7777
                   protocol: TCP
       deploymentgenerator: kubernetes-basic
       androidpackagename: com.acme.someapplication1
@@ -144,8 +144,8 @@ regiondata:
       liveness: Static
       mappedports:
       - proto: Tcp
-        internalport: 5656
-        publicport: 5656
+        internalport: 7777
+        publicport: 7777
       flavor:
         name: x1.tiny
       state: Ready

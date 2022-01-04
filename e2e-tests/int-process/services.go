@@ -26,12 +26,6 @@ const (
 	PrometheusImageVersion = "v2.19.2"
 	PrometheusRulesPrefix  = "rulefile_"
 	CloudletPrometheusPort = "9092"
-
-	ThanosContainer        = "cloudletThanosQuery"
-	ThanosImagePath        = "quay.io/thanos/thanos"
-	ThanosImageVersion     = "v0.20.0"
-	CloudletThanosGrpcPort = "29091"
-	CloudletThanosHttpPort = "29092"
 )
 
 var prometheusConfig = `global:
@@ -302,75 +296,6 @@ func StopCloudletPrometheus(ctx context.Context) error {
 
 func CloudletPrometheusExists(ctx context.Context) bool {
 	cmd := exec.Command("docker", "logs", PrometheusContainer)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &out
-	err := cmd.Run()
-	if err != nil && strings.Contains(out.String(), "No such container") {
-		return false
-	}
-	return true
-}
-
-// command line options for prometheus container
-func GetCloudletThanosCmdArgs() []string {
-	return []string{
-		"query",
-		"--grpc-address",
-		"0.0.0.0:" + CloudletThanosGrpcPort,
-		"--http-address",
-		"0.0.0.0:" + CloudletThanosHttpPort,
-		"--store",
-		"host.docker.internal:10901", // TODO - should be a file, not address
-	}
-}
-
-// base docker run args
-func GetCloudletThanosDockerArgs(cloudlet *edgeproto.Cloudlet) []string {
-
-	// label with a cloudlet name and org
-	cloudletName := util.DockerSanitize(cloudlet.Key.Name)
-	cloudletOrg := util.DockerSanitize(cloudlet.Key.Organization)
-
-	return []string{
-		"--label", "cloudlet=" + cloudletName,
-		"--label", "cloudletorg=" + cloudletOrg,
-		"--publish", CloudletThanosGrpcPort + ":" + CloudletThanosGrpcPort, // container interface
-		"--publish", CloudletThanosHttpPort + ":" + CloudletThanosHttpPort, // container interface
-	}
-}
-
-// Starts thanos query container and connects it to the default ports
-func StartCloudletThanos(ctx context.Context, cloudlet *edgeproto.Cloudlet, settings *edgeproto.Settings) error {
-	args := GetCloudletThanosDockerArgs(cloudlet)
-	cmdOpts := GetCloudletThanosCmdArgs()
-
-	// local container specific options
-	args = append([]string{"run", "--rm"}, args...)
-	if runtime.GOOS != "darwin" {
-		// For Linux, "host.docker.internal" host name doesn't work from inside docker container
-		// Use "--add-host" to add this mapping, only works if Docker version >= 20.04
-		args = append(args, "--add-host", "host.docker.internal:host-gateway")
-	}
-	// set name and image path
-	thImage := ThanosImagePath + ":" + ThanosImageVersion
-	args = append(args, []string{"--name", ThanosContainer, thImage}...)
-	args = append(args, cmdOpts...)
-	_, err := process.StartLocal(ThanosContainer, "docker", args, nil, "/tmp/cloudlet_thanos.log")
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func StopCloudletThanos(ctx context.Context) error {
-	cmd := exec.Command("docker", "kill", ThanosContainer)
-	cmd.Run()
-	return nil
-}
-
-func CloudletThanosExists(ctx context.Context) bool {
-	cmd := exec.Command("docker", "logs", ThanosContainer)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &out

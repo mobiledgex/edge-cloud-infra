@@ -38,9 +38,9 @@ regiondata:
         organization: DevOrg
         name: DevOrg SDK Demo
         version: "1.0"
-      imagepath: pinkstone/public:latest
+      imagepath: docker.mobiledgex.net/mobiledgex/mobiledgex_public/mobiledgexsdkdemo
       imagetype: Docker
-      accessports: tcp:5656
+      accessports: tcp:7777
       defaultflavor:
         name: x1.small
       deployment: kubernetes

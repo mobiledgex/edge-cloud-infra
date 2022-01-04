@@ -58,6 +58,7 @@ cffi==1.14.5
 chardet==4.0.0
 colorama==0.4.4
 cryptography==3.4.7
+dnspython==2.1.0
 google-auth==1.32.1
 humanfriendly==8.2
 idna==2.10

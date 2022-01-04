@@ -443,4 +443,25 @@ func TestGetPromAppQuery(t *testing.T) {
 	expectedQuery = `sum by(app,appver,apporg,cluster,clusterorg,cloudlet,cloudletorg)(envoy_cluster_upstream_cx_active{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator"})`
 	require.Equal(t, expectedQuery, getPromAppQuery(&arg, []string{}), "Connections aggregated for all ports")
 
+	// Test free form query - simple
+	arg.AggrFunction = ""
+	arg.Port = ""
+	arg.Measurement = `simple_query`
+	expectedQuery = `simple_query{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator"}`
+	require.Equal(t, expectedQuery, getPromAppQuery(&arg, []string{}), "Simple free-form query")
+
+	// Test free form query - single filter
+	arg.AggrFunction = ""
+	arg.Port = ""
+	arg.Measurement = `simple_query{instance="testinstance"}`
+	expectedQuery = `simple_query{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator",instance="testinstance"}`
+	require.Equal(t, expectedQuery, getPromAppQuery(&arg, []string{}), "Simple free-form query")
+
+	// Test nested `{` `}` to prevent getting unintended results
+	arg.AggrFunction = ""
+	arg.Port = ""
+	arg.Measurement = `complex_query{instance="testinstance"} * on (kube_label) group_right(testlabel)(label_set{instance="testinstance"})`
+	expectedQuery = `complex_query{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator",instance="testinstance"} * on (kube_label) group_right(testlabel)(label_set{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator",instance="testinstance"})`
+	require.Equal(t, expectedQuery, getPromAppQuery(&arg, []string{}), "Complex query with several nested filters")
+
 }

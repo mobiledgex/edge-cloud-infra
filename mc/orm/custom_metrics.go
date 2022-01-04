@@ -195,8 +195,7 @@ func wrapExpressionWithAggrFunc(query, aggrFunc string) string {
 		query + ")"
 }
 
-// TODO - validation of input: if custom metric, need to make sure no `{`, or `}`
-//  for now allow freeform metrics only for admin users
+// for now allow freeform metrics only for admin users
 func getPromAppQuery(obj *ormapi.RegionCustomAppMetrics, cloudletList []string) string {
 	var query string
 	labelFilters := getPromLabelsFromAppInstKey(&obj.AppInst)
@@ -219,9 +218,13 @@ func getPromAppQuery(obj *ormapi.RegionCustomAppMetrics, cloudletList []string) 
 		if len(queries) == 1 {
 			return obj.Measurement + "{" + labelFilter + "}"
 		}
-		// for each sub-query splice in the org filter
+		// for each sub-query splice in the org filter for all the intermediate filters
 		for ii := range queries {
-			queries[ii] = queries[ii] + "{" + labelFilter
+			// for last one - don't do anything
+			if ii == len(queries)-1 {
+				break
+			}
+			queries[ii] = queries[ii] + "{" + labelFilter + ","
 		}
 		query = strings.Join(queries, "")
 	}

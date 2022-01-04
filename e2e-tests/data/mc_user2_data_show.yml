@@ -3,10 +3,12 @@ controllers:
   address: 127.0.0.1:55001
   notifyaddr: 127.0.0.1:37001
   influxdb: http://127.0.0.1:8086
+  dnsregion: local
 - region: locala
   address: 127.0.0.1:55011
   notifyaddr: 127.0.0.1:37011
   influxdb: http://127.0.0.1:8087
+  dnsregion: locala
 billingorgs:
 - name: AcmeAppCo
   type: self
@@ -156,10 +158,12 @@ regiondata:
           type: cluster-k8s-node
           status: ACTIVE
           infraflavor: x1.small
-        - name: smallcluster.tmus-cloud-1.tmus.fake.net
+        - name: smallcluster-acmeappco.tmus-cloud-1-tmus.local.mobiledgex.net
           type: rootlb
           status: ACTIVE
           infraflavor: x1.small
+      dnslabel: smallcluster-acmeappco
+      fqdn: smallcluster-acmeappco.tmus-cloud-1-tmus.local.mobiledgex.net
     - key:
         clusterkey:
           name: SmallCluster
@@ -187,6 +191,8 @@ regiondata:
           type: cluster-k8s-node
           status: ACTIVE
           infraflavor: x1.small
+      dnslabel: smallcluster-acmeappco
+      fqdn: smallcluster-acmeappco.tmus-cloud-2-tmus.local.mobiledgex.net
     apps:
     - key:
         organization: AcmeAppCo
@@ -416,7 +422,7 @@ regiondata:
       cloudletloc:
         latitude: 31
         longitude: -91
-      uri: smallcluster.tmus-cloud-1.tmus.mobiledgex.net
+      uri: smallcluster-acmeappco.tmus-cloud-1-tmus.local.mobiledgex.net
       liveness: Static
       mappedports:
       - proto: Tcp
@@ -438,6 +444,7 @@ regiondata:
       powerstate: PowerOn
       vmflavor: x1.small
       uniqueid: acmeappcosomeapplication110-smallcluster-tmus-cloud-1-tmus
+      dnslabel: someapplication110-acmeappco
     - key:
         appkey:
           organization: AcmeAppCo
@@ -453,7 +460,7 @@ regiondata:
       cloudletloc:
         latitude: 35
         longitude: -95
-      uri: shared.tmus-cloud-2.tmus.mobiledgex.net
+      uri: shared.tmus-cloud-2-tmus.local.mobiledgex.net
       liveness: Static
       mappedports:
       - proto: Tcp
@@ -475,6 +482,7 @@ regiondata:
       powerstate: PowerOn
       vmflavor: x1.small
       uniqueid: acmeappcosomeapplication110-smallcluster-tmus-cloud-2-tmus
+      dnslabel: someapplication110-acmeappco
     - key:
         appkey:
           organization: AcmeAppCo
@@ -490,7 +498,7 @@ regiondata:
       cloudletloc:
         latitude: 35
         longitude: -95
-      uri: shared.tmus-cloud-2.tmus.mobiledgex.net
+      uri: shared.tmus-cloud-2-tmus.local.mobiledgex.net
       liveness: Static
       mappedports:
       - proto: Tcp
@@ -513,6 +521,7 @@ regiondata:
       vmflavor: x1.small
       realclustername: reservable0
       uniqueid: acmeappcosomeapplication110-autoclusteracme-tmus-cloud-2-tmus
+      dnslabel: someapplication110-acmeappco1
     appinstrefs:
     - key:
         organization: AcmeAppCo
@@ -672,10 +681,12 @@ regiondata:
           type: cluster-k8s-node
           status: ACTIVE
           infraflavor: x1.small
-        - name: smallcluster.tmus-cloud-3.tmus.fake.net
+        - name: smallcluster-acmeappco.tmus-cloud-3-tmus.locala.mobiledgex.net
           type: rootlb
           status: ACTIVE
           infraflavor: x1.small
+      dnslabel: smallcluster-acmeappco
+      fqdn: smallcluster-acmeappco.tmus-cloud-3-tmus.locala.mobiledgex.net
     - key:
         clusterkey:
           name: SmallCluster
@@ -703,6 +714,8 @@ regiondata:
           type: cluster-k8s-node
           status: ACTIVE
           infraflavor: x1.small
+      dnslabel: smallcluster-acmeappco
+      fqdn: smallcluster-acmeappco.tmus-cloud-4-tmus.locala.mobiledgex.net
     apps:
     - key:
         organization: AcmeAppCo
@@ -919,7 +932,7 @@ regiondata:
       cloudletloc:
         latitude: 32
         longitude: -92
-      uri: smallcluster.tmus-cloud-3.tmus.mobiledgex.net
+      uri: smallcluster-acmeappco.tmus-cloud-3-tmus.locala.mobiledgex.net
       liveness: Static
       mappedports:
       - proto: Tcp
@@ -941,6 +954,7 @@ regiondata:
       powerstate: PowerOn
       vmflavor: x1.small
       uniqueid: acmeappcosomeapplication110-smallcluster-tmus-cloud-3-tmus
+      dnslabel: someapplication110-acmeappco
     - key:
         appkey:
           organization: AcmeAppCo
@@ -956,7 +970,7 @@ regiondata:
       cloudletloc:
         latitude: 36
         longitude: -96
-      uri: shared.tmus-cloud-4.tmus.mobiledgex.net
+      uri: shared.tmus-cloud-4-tmus.locala.mobiledgex.net
       liveness: Static
       mappedports:
       - proto: Tcp
@@ -978,6 +992,7 @@ regiondata:
       powerstate: PowerOn
       vmflavor: x1.small
       uniqueid: acmeappcosomeapplication110-smallcluster-tmus-cloud-4-tmus
+      dnslabel: someapplication110-acmeappco
     appinstrefs:
     - key:
         organization: AcmeAppCo

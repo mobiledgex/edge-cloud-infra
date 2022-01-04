@@ -12,3 +12,7 @@ spec:
     targetPort: 8086
   selector:
     k8s-app: influxdb
+  loadBalancerSourceRanges:
+  {% for lb_source_ip in mexplat_k8s_source_ips | sort %}
+  - {{ lb_source_ip }}/32
+  {% endfor %}

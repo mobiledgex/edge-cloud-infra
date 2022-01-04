@@ -1,0 +1,6 @@
+---
+- name: Restart InfluxDB
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} rollout restart deployment monitoring-influxdb"
+
+- name: Wait for InfluxDB restart to complete
+  command: "kubectl --kubeconfig {{ kubeconfig_file.path }} rollout status deployment/monitoring-influxdb --timeout=4m"

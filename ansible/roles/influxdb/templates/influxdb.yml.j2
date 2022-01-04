@@ -11,6 +11,9 @@ spec:
     matchLabels:
       task: monitoring
       k8s-app: influxdb
+  strategy:
+    type: Recreate
+    rollingUpdate: null
   template:
     metadata:
       labels:

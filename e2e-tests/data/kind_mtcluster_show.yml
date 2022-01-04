@@ -18,6 +18,7 @@ regiondata:
       deployment: kubernetes
       nummasters: 1
       numnodes: 3
-      autoscalepolicy: defaultmtclust
       masternodeflavor: x1.small
       multitenant: true
+      dnslabel: defaultmtclust-mobiledgex
+      fqdn: defaultmtclust-mobiledgex.kind-cloud-1-tmus.local.mobiledgex.net

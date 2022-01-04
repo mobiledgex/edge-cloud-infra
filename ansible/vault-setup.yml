@@ -354,102 +354,13 @@
         loop_var: user
       tags: setup
 
-    - name: Enable LDAP auth
+    - name: Disable LDAP auth
       vault_api:
         api: sys/auth/ldap
-        method: POST
-        data:
-          type: ldap
-          description: Log in with MC LDAP
+        method: DELETE
         success_code: 204
       when:
-        - "'ldap/' not in auth_methods.meta.response"
-      tags: setup
-
-    - name: Check LDAP mount defaults
-      vault_api:
-        api: sys/mounts/auth/ldap/tune
-      register: result
-      changed_when: no
-      tags: setup
-
-    - name: Tune LDAP mount defaults
-      vault_api:
-        api: sys/mounts/auth/ldap/tune
-        method: POST
-        data:
-          default_lease_ttl: "{{ ldap_token_ttl }}"
-          max_lease_ttl: "{{ ldap_token_ttl }}"
-          token_type: batch
-        success_code: 204
-      when: ("meta" not in result) or
-            (result.meta.response.data.default_lease_ttl != ldap_token_ttl) or
-            (result.meta.response.data.max_lease_ttl != ldap_token_ttl) or
-            (result.meta.response.data.token_type != "batch")
-
-    - name: Check LDAP auth config
-      vault_api:
-        api: auth/ldap/config
-      register: result
-      changed_when: no
-      ignore_errors: yes
-      tags: setup
-
-    - set_fact:
-        ldap_url: "ldaps://{{ console_vm_hostname }}:{{ mc_ldap_port }}"
-        ldap_userdn: "ou=users"
-        ldap_groupdn: "ou=orgs"
-        ldap_userattr: cn
-        ldap_groupattr: memberOf
-        ldap_starttls: false
-
-    - block:
-      - name: Get mex CA cert
-        set_fact:
-          vault_lookup: "{{ lookup('vault', ca_path) }}"
-        vars:
-          ca_path: "{{ vault_mex_ca_cert_path }}:ca"
-      rescue:
-        - pause:
-            prompt: "Please add the mex CA cert to the path: {{ vault_mex_ca_cert_path }}"
-        - name: Get mex CA cert
-          set_fact:
-            vault_lookup: "{{ lookup('vault', ca_path) }}"
-          vars:
-            ca_path: "{{ vault_mex_ca_cert_path }}:ca"
-
-    - set_fact:
-        mex_ca_cert: "{{ vault_lookup.ca.data.pem }}"
-
-    - name: Configure LDAP auth
-      vault_api:
-        api: auth/ldap/config
-        method: POST
-        data:
-          url: "{{ ldap_url }}"
-          userdn: "{{ ldap_userdn }}"
-          groupdn: "{{ ldap_groupdn }}"
-          userattr: "{{ ldap_userattr }}"
-          groupattr: "{{ ldap_groupattr }}"
-          certificate: "{{ mex_ca_cert }}"
-          starttls: "{{ ldap_starttls }}"
-        success_code: 204
-      when: ("meta" not in result) or
-            (result.meta.response.data.url != ldap_url) or
-            (result.meta.response.data.userdn != ldap_userdn) or
-            (result.meta.response.data.groupdn != ldap_groupdn) or
-            (result.meta.response.data.userattr != ldap_userattr) or
-            (result.meta.response.data.groupattr != ldap_groupattr) or
-            (result.meta.response.data.certificate != mex_ca_cert) or
-            (result.meta.response.data.starttls != ldap_starttls)
-      tags: setup
-
-    - include_role:
-        name: vault
-        tasks_from: ldap-groups
-      loop: "{{ vault_ldap_groups }}"
-      loop_control:
-        loop_var: group
+        - "'ldap/' in auth_methods.meta.response"
       tags: setup
 
     - import_role:

@@ -874,6 +874,10 @@
         volumes: "{{ volumes | zip(volumes) | map('join', ':') | list }}"
 
 - hosts: teleport
+  vars_prompt:
+    - name: ansible_become_pass
+      prompt: Sudo password for ansible account
+      private: yes
 
   tasks:
     - import_role:

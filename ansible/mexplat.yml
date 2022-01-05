@@ -145,6 +145,9 @@
     - import_role:
         name: vault
         tasks_from: vault-ssh
+    - import_role:
+        name: teleport
+        tasks_from: node
     - name: Update Gitlab GPG key
       apt_key:
         url: https://packages.gitlab.com/gpg.key
@@ -166,6 +169,9 @@
         name: vault
         tasks_from: vault-ssh
     - import_role:
+        name: teleport
+        tasks_from: node
+    - import_role:
         name: load-vault-creds
         tasks_from: mc
     - import_role:
@@ -185,6 +191,9 @@
         name: vault
         tasks_from: load-token
       delegate_to: localhost
+    - import_role:
+        name: teleport
+        tasks_from: node
     - import_role:
         name: telegraf
       tags: monitoring
@@ -208,6 +217,9 @@
         name: vault
         tasks_from: vault-ssh
     - import_role:
+        name: teleport
+        tasks_from: node
+    - import_role:
         name: telegraf
       tags: monitoring
     - import_role:
@@ -218,6 +230,9 @@
     - import_role:
         name: vault
         tasks_from: vault-ssh
+    - import_role:
+        name: teleport
+        tasks_from: node
     - import_role:
         name: docker
       tags: setup
@@ -234,6 +249,9 @@
         name: vault
         tasks_from: load-token
       delegate_to: localhost
+    - import_role:
+        name: teleport
+        tasks_from: node
     - name: Install kafkacat
       apt:
         name: kafkacat
@@ -273,6 +291,9 @@
         tasks_from: load-token
       delegate_to: localhost
     - import_role:
+        name: teleport
+        tasks_from: node
+    - import_role:
         name: telegraf
       tags: [ 'monitoring', 'setup' ]
     - import_role:
@@ -307,6 +328,10 @@
         tasks_from: vault-ssh
 
     - import_role:
+        name: teleport
+        tasks_from: node
+
+    - import_role:
         name: telegraf
       vars:
         telegraf_additional_config:
@@ -329,6 +354,10 @@
         tasks_from: vault-ssh
 
     - import_role:
+        name: teleport
+        tasks_from: node
+
+    - import_role:
         name: telegraf
       tags:
         - monitoring
@@ -343,6 +372,10 @@
         name: vault
         tasks_from: vault-ssh
       tags: setup
+
+    - import_role:
+        name: teleport
+        tasks_from: node
 
     - import_role:
         name: telegraf

@@ -38,6 +38,15 @@ def vault_upload_api(vault_config):
         if r.status_code != requests.codes.ok:
             raise Exception(f"Failed to upload kubeconfig: {r.status_code} {r.text}")
 
+        # Clean out older versions of the kubeconfigs
+        rv = requests.post(f"{vault_addr}/v1/secret/metadata/ansible/common/kubeconfigs/{setup}",
+                          headers={"X-Vault-Token": token},
+                          json={
+                              "max_versions": 4,
+                          })
+        if rv.status_code != requests.codes.no_content:
+            logging.warning(f"Failed to set max_versions for {setup} kubeconfig: {rv.status_code} {rv.text}")
+
         return r.json()
 
     return post

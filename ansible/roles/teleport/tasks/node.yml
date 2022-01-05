@@ -1,0 +1,13 @@
+---
+- name: Load teleport auth token
+  import_role:
+    name: load-vault-creds
+    tasks_from: teleport-node-token
+
+- name: Install teleport
+  import_role:
+    name: teleport
+    tasks_from: install
+  vars:
+    teleport_config_template: teleport-node.yaml.j2
+    force_config_update: no

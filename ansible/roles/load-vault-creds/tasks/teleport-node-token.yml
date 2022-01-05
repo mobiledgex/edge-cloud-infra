@@ -1,0 +1,9 @@
+- name: "Retrieve teleport node token from vault"
+  set_fact:
+    vault_lookup: "{{ lookup('vault', teleport_token_path) }}"
+  vars:
+    teleport_token_path: "secret/ansible/common/teleport-node-token"
+
+- set_fact:
+    teleport_node_token: "{{ vault_lookup.teleport_node_token.data.value }}"
+    teleport_ca_pin: "{{ vault_lookup.teleport_node_token.data.ca_pin }}"

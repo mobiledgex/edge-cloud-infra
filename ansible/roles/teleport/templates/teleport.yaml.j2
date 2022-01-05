@@ -11,6 +11,7 @@ teleport:
 auth_service:
   enabled: "yes"
   listen_addr: 0.0.0.0:3025
+  public_addr: {{ inventory_hostname }}:3025
   cluster_name: {{ inventory_hostname }}
   authentication:
     type: github

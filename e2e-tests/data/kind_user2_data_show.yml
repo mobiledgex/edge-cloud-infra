@@ -84,7 +84,7 @@ regiondata:
           ports:
           - name: tcp7777
             protocol: TCP
-            port: 5656
+            port: 7777
             targetPort: 7777
           selector:
             run: someapplication11.0

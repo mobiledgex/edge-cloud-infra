@@ -116,12 +116,12 @@ var AppMetricV2OptionalArgs = []string{
 
 var AppMetricV2Comments = map[string]string{
 	"app-org":       "Organization or Company name of the App(Deprecated)",
-	"appname":       "App name(Deprecated)",
-	"appvers":       "App version(Deprecated)",
-	"cluster":       "Cluster name(Deprecated)",
-	"cloudlet-org":  "Company or Organization name of the cloudlet(Deprecated)",
-	"cloudlet":      "Name of the cloudlet(Deprecated)",
-	"cluster-org":   "Organization or Company Name that a Cluster is used by(Deprecated)",
+	"appname":       "App name",
+	"appvers":       "App version",
+	"cluster":       "Cluster name",
+	"cloudlet-org":  "Company or Organization name of the cloudlet",
+	"cloudlet":      "Name of the cloudlet",
+	"cluster-org":   "Organization or Company Name that a Cluster is used by",
 	"measurement":   "Measurement to view. Available measurements: \"connections\"",
 	"port":          "Port for which to show the data(valid for \"connections\" measurement)",
 	"aggr-function": "Aggregate function. \"sum\" - will add all connections together across all ports",

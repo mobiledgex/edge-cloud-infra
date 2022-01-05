@@ -116,7 +116,7 @@ func validateAppMetricArgs(ctx context.Context, username string, obj *ormapi.Reg
 		// validate port is an int
 		if obj.Port != "" {
 			if _, err := strconv.ParseUint(obj.Port, 10, 64); err != nil {
-				return fmt.Errorf("Port number must be an interger")
+				return fmt.Errorf("Port must be an interger - %s", obj.Port)
 			}
 		}
 	default:

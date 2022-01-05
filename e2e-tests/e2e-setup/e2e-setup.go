@@ -301,10 +301,6 @@ func RunChefClient(apiFile string, vars map[string]string) error {
 }
 
 func StartProcesses(processName string, args []string, outputDir string) bool {
-	log.Printf("Deployment with Thanos: %d", len(Deployment.ThanosQueries))
-	if len(Deployment.ThanosQueries) > 0 {
-		log.Printf("Deployment with Thanos: %s/%v", Deployment.ThanosQueries[0].Name, Deployment.ThanosQueries[0].Stores)
-	}
 	if !setupmex.StartProcesses(processName, args, outputDir) {
 		return false
 	}

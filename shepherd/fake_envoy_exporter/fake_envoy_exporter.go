@@ -66,6 +66,9 @@ func run(ch chan bool) {
 		}
 		replaceTags["envoy_cluster_name"] = backendPorts
 	} else {
+		if *cluster == "" {
+			baselog.Fatal("cluster required if ports are not specified")
+		}
 		replaceTags["envoy_cluster_name"] = []string{`"` + *cluster + `"`}
 	}
 	stats = parseSampleStats(sampleOutput, replaceTags)

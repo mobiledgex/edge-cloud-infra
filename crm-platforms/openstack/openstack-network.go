@@ -154,7 +154,6 @@ func (o *OpenstackPlatform) ValidateAdditionalNetworks(ctx context.Context, addi
 				return fmt.Errorf("specified network %s must be an openstack subnet name", n)
 			}
 			subnetName = subnets[0].Name
-
 		}
 		subnet, err := o.GetSubnetDetail(ctx, subnetName)
 		if err != nil {

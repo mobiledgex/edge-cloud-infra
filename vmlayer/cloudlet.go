@@ -837,6 +837,82 @@ func (v *VMPlatform) GetCloudletProps(ctx context.Context) (*edgeproto.CloudletP
 	return &props, nil
 }
 
+func (v *VMPlatform) transientStateToErrorState(ctx context.Context, state edgeproto.TrackedState) (edgeproto.TrackedState, bool, bool) {
+	errorState := edgeproto.TrackedState_TRACKED_STATE_UNKNOWN
+	generateError := false
+	needsCleanup := false
+
+	switch state {
+	case edgeproto.TrackedState_READY:
+		return errorState, generateError, needsCleanup
+	case edgeproto.TrackedState_CREATE_REQUESTED:
+		errorState = edgeproto.TrackedState_CREATE_ERROR
+	case edgeproto.TrackedState_CREATING:
+		errorState = edgeproto.TrackedState_CREATE_ERROR
+		needsCleanup = true
+	case edgeproto.TrackedState_UPDATE_REQUESTED:
+		errorState = edgeproto.TrackedState_UPDATE_ERROR
+	case edgeproto.TrackedState_UPDATING:
+		errorState = edgeproto.TrackedState_UPDATE_ERROR
+		needsCleanup = true
+	case edgeproto.TrackedState_DELETE_REQUESTED:
+		errorState = edgeproto.TrackedState_DELETE_ERROR
+	case edgeproto.TrackedState_DELETING:
+		errorState = edgeproto.TrackedState_DELETE_ERROR
+		needsCleanup = true
+	}
+	return errorState, generateError, needsCleanup
+}
+
 func (v *VMPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged")
+	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged", "platformActive", platformActive)
+	if !platformActive {
+		return
+	}
+	// fail all pending activities
+	clusterInstKeys := []edgeproto.ClusterInstKey{}
+	clusterInstsToCleanup := make(map[edgeproto.ClusterInstKey]edgeproto.TrackedState)
+
+	v.Caches.ClusterInstCache.GetAllKeys(ctx, func(k *edgeproto.ClusterInstKey, modRev int64) {
+		clusterInstKeys = append(clusterInstKeys, *k)
+	})
+	for _, k := range clusterInstKeys {
+		var clusterInst edgeproto.ClusterInst
+		if v.Caches.ClusterInstCache.Get(&k, &clusterInst) {
+			errorState, generateError, needsCleanup := v.transientStateToErrorState(ctx, clusterInst.State)
+			immediateErrorState := edgeproto.TrackedState_TRACKED_STATE_UNKNOWN
+			if generateError {
+				if needsCleanup {
+					// cleanup and then error
+					clusterInstsToCleanup[k] = errorState
+				} else {
+					// send an error right away
+					v.Caches.ClusterInstInfoCache.SetError(ctx, &k, immediateErrorState, "CRM switched over while Cluster Instance in transient state")
+				}
+			}
+		}
+	}
+
+	// cleanup need to be done in the background because ActiveChanged is called from the haManager thread
+	go func() {
+		ctx, _, err := v.VMProvider.InitOperationContext(ctx, OperationInitStart)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "failed to init context for cleanup", "err", err)
+			return
+		}
+		for k, e := range clusterInstsToCleanup {
+			var clusterInst edgeproto.ClusterInst
+			if v.Caches.ClusterInstCache.Get(&k, &clusterInst) {
+				log.SpanLog(ctx, log.DebugLevelInfra, "cleaning up cluster", "key", k)
+				lbName := v.VMProperties.GetRootLBNameForCluster(ctx, &clusterInst)
+				err := v.deleteCluster(ctx, lbName, &clusterInst, edgeproto.DummyUpdateCallback)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "error cleaning up cluster", "key", k, "error", err)
+					v.Caches.ClusterInstInfoCache.SetError(ctx, &k, e, "CRM switched over while Cluster Instance in transient state, cleanup failed")
+				} else {
+					v.Caches.ClusterInstInfoCache.SetError(ctx, &k, e, "CRM switched over while Cluster Instance in transient state, cleanup ok")
+				}
+			}
+		}
+	}()
 }

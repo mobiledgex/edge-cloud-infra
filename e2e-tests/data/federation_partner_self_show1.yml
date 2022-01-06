@@ -1,0 +1,53 @@
+federations:
+- name: partner1-PA-enterprise-SA-fed
+  selffederationid: partner1-PA-enterprise-SA
+  selfoperatorid: partner1
+  federator:
+    federationid: enterprise-SA-partner1-PA
+    operatorid: enterprise
+    countrycode: SA
+    federationaddr: 127.0.0.1:9801
+    mcc: "456"
+    mnc:
+    - "444"
+    - "555"
+    - "666"
+- name: partner1-PA-enterprise-SB-fed
+  selffederationid: partner1-PA-enterprise-SB
+  selfoperatorid: partner1
+  federator:
+    federationid: enterprise-SB-partner1-PA
+    operatorid: enterprise
+    countrycode: SB
+    federationaddr: 127.0.0.1:9801
+    mcc: "789"
+    mnc:
+    - "777"
+    - "888"
+    - "999"
+- name: partner1-PA-tmus-SA-fed
+  selffederationid: partner1-PA-tmus-SA
+  selfoperatorid: partner1
+  federator:
+    federationid: tmus-SA-partner1-PA
+    operatorid: tmus
+    countrycode: SA
+    federationaddr: 127.0.0.1:9801
+    mcc: "456"
+    mnc:
+    - "444"
+    - "555"
+    - "666"
+- name: partner1-PA-tmus-SB-fed
+  selffederationid: partner1-PA-tmus-SB
+  selfoperatorid: partner1
+  federator:
+    federationid: tmus-SB-partner1-PA
+    operatorid: tmus
+    countrycode: SB
+    federationaddr: 127.0.0.1:9801
+    mcc: "456"
+    mnc:
+    - "444"
+    - "555"
+    - "666"

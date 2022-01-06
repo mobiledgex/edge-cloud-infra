@@ -196,9 +196,14 @@ type Controller struct {
 	// InfluxDB address
 	InfluxDB string `gorm:"type:text"`
 	// Thanos Query URL
-	ThanosMetrics string    `gorm:"type:text"`
-	CreatedAt     time.Time `json:",omitempty"`
-	UpdatedAt     time.Time `json:",omitempty"`
+	ThanosMetrics string `gorm:"type:text"`
+	// Unique DNS label for the region
+	// read only: true
+	DnsRegion string `gorm:"unique;not null"`
+	// read only: true
+	CreatedAt time.Time `json:",omitempty"`
+	// read only: true
+	UpdatedAt time.Time `json:",omitempty"`
 }
 
 type Config struct {

@@ -315,6 +315,7 @@ dmes:
     LOCAPI_PASSWD: eC2835!
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
+    E2ETEST_NORANDOM: true
 
 - name: dme2
   apiaddr: "0.0.0.0:50052"
@@ -333,6 +334,7 @@ dmes:
     LOCAPI_PASSWD: eC2835!
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
+    E2ETEST_NORANDOM: true
 
 - name: dmea1
   apiaddr: "0.0.0.0:50061"
@@ -352,6 +354,7 @@ dmes:
     LOCAPI_PASSWD: eC2835!
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
+    E2ETEST_NORANDOM: true
 
 - name: dmea2
   apiaddr: "0.0.0.0:50062"
@@ -371,6 +374,7 @@ dmes:
     LOCAPI_PASSWD: eC2835!
     ES_SERVER_URLS: https://localhost:9201
     E2ETEST_TLS: true
+    E2ETEST_NORANDOM: true
 
 mcs:
 - name: mc1

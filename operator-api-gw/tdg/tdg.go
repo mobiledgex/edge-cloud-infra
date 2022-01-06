@@ -103,8 +103,8 @@ func (*OperatorApiGw) GetVersionProperties() map[string]string {
 	return version.InfraBuildProps("TDGOperator")
 }
 
-func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, priorityType string, ueAddr string, asAddr string, asPort string, protocol string, qos string, duration int64) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CreatePrioritySession", "priorityType", priorityType, "qos", qos)
+func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, ueAddr string, asAddr string, asPort string, protocol string, qos string, duration int64) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CreatePrioritySession", "qos", qos)
 	// Only retrieve this from the vault if we don't already have it.
 	if qosSessionsApiKey == "" {
 		var err error
@@ -117,27 +117,25 @@ func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, priorityType 
 		}
 	}
 	reqBody := sessionsclient.QosSessionRequest{UeAddr: ueAddr, AsAddr: asAddr, AsPorts: asPort, ProtocolIn: protocol, ProtocolOut: protocol, Qos: qos, Duration: duration}
-	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, http.MethodPost, o.Servers.QosSesAddr, priorityType, qosSessionsApiKey, reqBody)
+	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, qos, http.MethodPost, o.Servers.QosSesAddr, qosSessionsApiKey, reqBody)
 	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id", id, "err", err)
 	return id, err
 }
 
-func (o *OperatorApiGw) DeletePrioritySession(ctx context.Context, priorityType string, sessionId string) error {
+func (o *OperatorApiGw) DeletePrioritySession(ctx context.Context, sessionId string, qos string) error {
 	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG DeletePrioritySession", "sessionId", sessionId)
 	sesInfo := sessionsclient.QosSessionRequest{UeAddr: "", AsAddr: "", Qos: "", NotificationUrl: ""}
-	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, http.MethodDelete, o.Servers.QosSesAddr, priorityType, qosSessionsApiKey, sesInfo)
+	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, qos, http.MethodDelete, o.Servers.QosSesAddr, qosSessionsApiKey, sesInfo)
 	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id", id, "err", err)
 	return err
 }
 
 func (o *OperatorApiGw) LookupQosParm(qos string) string {
 	switch qos {
-	case "QOS_LATENCY_NO_PRIORITY":
-		return "LATENCY_DEFAULT"
-	case "QOS_LATENCY_LOW":
-		return "LATENCY_LOW"
-	case "QOS_THROUGHPUT_DOWN_NO_PRIORITY":
-		return "THROUGHPUT_DEFAULT"
+	case "QOS_NO_PRIORITY":
+		return "QOS_NO_PRIORITY"
+	case "QOS_LOW_LATENCY":
+		return "LOW_LATENCY"
 	case "QOS_THROUGHPUT_DOWN_S":
 		return "THROUGHPUT_S"
 	case "QOS_THROUGHPUT_DOWN_M":

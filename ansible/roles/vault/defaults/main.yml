@@ -68,7 +68,6 @@ vault_user_roles:
     - auth-approle.write.v1
     - auth-approle.destroy.v1
     - auth-github-config.read.v1
-    - auth-ldap-config.read.v1
     - certs.read.v1
     - cloudlets.write.v1
 

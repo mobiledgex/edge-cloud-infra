@@ -4,3 +4,4 @@ setups:
   qa:     [ "eu", "us" ]
 
 kubeconfig_publish: /usr/local/bin/kubeconfigs-publish.py
+node_token_publish: /usr/local/bin/node-token-publish.py

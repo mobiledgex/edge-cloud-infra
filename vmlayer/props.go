@@ -11,26 +11,26 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 type VMProperties struct {
-	CommonPf                   infracommon.CommonPlatform
-	SharedRootLBName           string
-	Domain                     VMDomain
-	PlatformSecgrpName         string
-	CloudletSecgrpName         string
-	IptablesBasedFirewall      bool
-	Upgrade                    bool
-	UseSecgrpForInternalSubnet bool
-	RequiresWhitelistOwnIp     bool
-	RunLbDhcpServerForVmApps   bool
-	AppendFlavorToVmAppImage   bool
-	ValidateExternalIPMapping  bool
-	CloudletAccessToken        string
-	NumCleanupRetries          int
+	CommonPf                          infracommon.CommonPlatform
+	SharedRootLBName                  string
+	Domain                            VMDomain
+	PlatformSecgrpName                string
+	CloudletSecgrpName                string
+	IptablesBasedFirewall             bool
+	Upgrade                           bool
+	UseSecgrpForInternalSubnet        bool
+	RequiresWhitelistOwnIp            bool
+	RunLbDhcpServerForVmApps          bool
+	AppendFlavorToVmAppImage          bool
+	ValidateExternalIPMapping         bool
+	CloudletAccessToken               string
+	NumCleanupRetries                 int
+	UsesCommonSharedInternalLBNetwork bool
 }
 
 const MEX_ROOTLB_FLAVOR_NAME = "mex-rootlb-flavor"
@@ -43,7 +43,7 @@ const MINIMUM_VCPUS uint64 = 2
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.7.0"
+var MEXInfraVersion = "4.7.1"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -343,7 +343,7 @@ func (vp *VMProperties) GetSubnetDNS() string {
 func (vp *VMProperties) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
 	lbName := vp.SharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		lbName = cloudcommon.GetDedicatedLBFQDN(vp.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, vp.CommonPf.PlatformConfig.AppDNSRoot)
+		lbName = clusterInst.Fqdn
 	}
 	return lbName
 }

@@ -3,10 +3,12 @@ controllers:
   address: 127.0.0.1:55001
   notifyaddr: 127.0.0.1:37001
   influxdb: http://127.0.0.1:8086
+  dnsregion: local
 - region: locala
   address: 127.0.0.1:55011
   notifyaddr: 127.0.0.1:37011
   influxdb: http://127.0.0.1:8087
+  dnsregion: locala
 billingorgs:
 - name: user3org
   type: self
@@ -71,6 +73,7 @@ regiondata:
       ipsupport: Dynamic
       numdynamicips: 254
       state: Ready
+      trustpolicystate: NotPresent
     - key:
         organization: gcp
         name: gcp-cloud-5
@@ -80,6 +83,7 @@ regiondata:
       ipsupport: Dynamic
       numdynamicips: 254
       state: Ready
+      trustpolicystate: NotPresent
     - key:
         organization: tmus
         name: tmus-cloud-1
@@ -90,6 +94,7 @@ regiondata:
       numdynamicips: 254
       state: Ready
       platformtype: Fakeinfra
+      trustpolicystate: NotPresent
     - key:
         organization: tmus
         name: tmus-cloud-2
@@ -99,6 +104,7 @@ regiondata:
       ipsupport: Dynamic
       numdynamicips: 254
       state: Ready
+      trustpolicystate: NotPresent
 - region: locala
   appdata:
     flavors:
@@ -127,6 +133,7 @@ regiondata:
       ipsupport: Dynamic
       numdynamicips: 254
       state: Ready
+      trustpolicystate: NotPresent
     - key:
         organization: tmus
         name: tmus-cloud-4
@@ -136,3 +143,4 @@ regiondata:
       ipsupport: Dynamic
       numdynamicips: 254
       state: Ready
+      trustpolicystate: NotPresent

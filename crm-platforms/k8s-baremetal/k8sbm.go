@@ -95,7 +95,7 @@ func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platfor
 		return err
 	}
 	k.externalIps = externalIps
-	k.sharedLBName = k.GetSharedLBName(ctx, platformConfig.CloudletKey)
+	k.sharedLBName = platformConfig.RootLBFQDN
 	k.cloudletKubeConfig = k.GetCloudletKubeConfig(platformConfig.CloudletKey)
 
 	if !platformConfig.TestMode {
@@ -174,7 +174,7 @@ func (k *K8sBareMetalPlatform) GetNodePlatformClient(ctx context.Context, node *
 	}
 	nodeName := node.Name
 	if nodeName == "" && node.Type == cloudcommon.CloudletNodeSharedRootLB {
-		nodeName = k.GetSharedLBName(ctx, k.commonPf.PlatformConfig.CloudletKey)
+		nodeName = k.commonPf.PlatformConfig.RootLBFQDN
 	}
 	if nodeName == "" {
 		return nil, fmt.Errorf("cannot GetNodePlatformClient, must specify node name")
@@ -183,9 +183,15 @@ func (k *K8sBareMetalPlatform) GetNodePlatformClient(ctx context.Context, node *
 	return k.commonPf.GetSSHClientFromIPAddr(ctx, controlIp, ops...)
 }
 
-// TODO
 func (k *K8sBareMetalPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst, vmAppInsts []edgeproto.AppInst) ([]edgeproto.CloudletMgmtNode, error) {
-	return []edgeproto.CloudletMgmtNode{}, nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "ListCloudletMgmtNodes", "clusterInsts", clusterInsts, "vmAppInsts", vmAppInsts)
+	mgmt_nodes := []edgeproto.CloudletMgmtNode{
+		{
+			Type: "platformhost",
+			Name: k.commonPf.PlatformConfig.CloudletKey.Name,
+		},
+	}
+	return mgmt_nodes, nil
 }
 
 func (k *K8sBareMetalPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst) (string, error) {

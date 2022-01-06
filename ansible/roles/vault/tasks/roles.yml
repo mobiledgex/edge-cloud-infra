@@ -11,7 +11,6 @@
       - auth-approle.write.v1
       - auth-approle.destroy.v1
       - auth-github-config.read.v1
-      - auth-ldap-config.read.v1
       - azure-aks-creds.read.v1
       - azure-config.read.v1
       - azure-roles.read.v1
@@ -98,6 +97,7 @@
     name: teleport.v1
     policies:
       - kubeconfigs.write.v1
+      - teleport-node-token.write.v1
 
 - include_role:
     name: vault

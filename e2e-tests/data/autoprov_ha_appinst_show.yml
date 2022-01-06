@@ -17,7 +17,7 @@ regiondata:
       cloudletloc:
         latitude: 31
         longitude: -91
-      uri: shared.tmus-cloud-1.tmus.mobiledgex.net
+      uri: shared.tmus-cloud-1-tmus.local.mobiledgex.net
       liveness: Autoprov
       mappedports:
       - proto: Tcp
@@ -29,14 +29,12 @@ regiondata:
       runtimeinfo:
         containerids:
         - appOnClusterNode0
-      createdat:
-        seconds: 1636137799
-        nanos: 376944000
       healthcheck: Ok
       powerstate: PowerOn
       vmflavor: x1.small
       realclustername: Reservable1
       uniqueid: acmeappcoautoprovha10-autocluster-autoprov-tmus-cloud-1-tmus
+      dnslabel: autoprovha10-acmeappco
     - key:
         appkey:
           organization: AcmeAppCo
@@ -52,7 +50,7 @@ regiondata:
       cloudletloc:
         latitude: 35
         longitude: -95
-      uri: shared.tmus-cloud-2.tmus.mobiledgex.net
+      uri: shared.tmus-cloud-2-tmus.local.mobiledgex.net
       liveness: Autoprov
       mappedports:
       - proto: Tcp
@@ -64,11 +62,9 @@ regiondata:
       runtimeinfo:
         containerids:
         - appOnClusterNode0
-      createdat:
-        seconds: 1636137799
-        nanos: 404193000
       healthcheck: Ok
       powerstate: PowerOn
       vmflavor: x1.small
       realclustername: Reservable2
       uniqueid: acmeappcoautoprovha10-autocluster-autoprov-tmus-cloud-2-tmus
+      dnslabel: autoprovha10-acmeappco

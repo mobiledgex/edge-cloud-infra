@@ -687,6 +687,43 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	permTestVMPool(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
 	permTestTrustPolicy(t, mcClient, uri, tokenOper, tokenOper2, ctrl.Region, org3, org4, dcnt)
 
+	{
+		// TrustPolicyException authz tests good/bad perm, Create/Update/Show/Delete TPE
+		region := ctrl.Region
+
+		badPermTestTrustPolicyException(t, mcClient, uri, tokenDev, region, org2)
+		badPermTestTrustPolicyException(t, mcClient, uri, tokenDev2, region, org1)
+		badPermTestShowTrustPolicyException(t, mcClient, uri, tokenDev, region, org2)
+		badPermTestShowTrustPolicyException(t, mcClient, uri, tokenDev2, region, org1)
+
+		token := tokenDev2
+		org := org2
+
+		in := &edgeproto.TrustPolicyException{}
+		in.Key.AppKey.Organization = org
+		_, status, err := ormtestutil.TestCreateTrustPolicyException(mcClient, uri, token, region, in)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+
+		in = &edgeproto.TrustPolicyException{}
+		in.Key.AppKey.Organization = org
+		in.OutboundSecurityRules = []edgeproto.SecurityRule{}
+		in.Fields = []string{
+			edgeproto.TrustPolicyExceptionFieldOutboundSecurityRules,
+			edgeproto.TrustPolicyExceptionFieldKeyAppKeyOrganization,
+		}
+		_, status, err = ormtestutil.TestUpdateTrustPolicyException(mcClient, uri, token, region, in)
+		require.Nil(t, err)
+		require.Equal(t, http.StatusOK, status)
+
+		goodPermTestShowTrustPolicyException(t, mcClient, uri, token, region, org, 1)
+		goodPermDeleteTrustPolicyException(t, mcClient, uri, token, region, org)
+		goodPermTestShowTrustPolicyException(t, mcClient, uri, token, region, org, 0)
+		badRegionCreateTrustPolicyException(t, mcClient, uri, token, org)
+		badRegionUpdateTrustPolicyException(t, mcClient, uri, token, org)
+		badRegionDeleteTrustPolicyException(t, mcClient, uri, token, org)
+	}
+
 	// test developers can modify their own objs but not each other's
 	// tests also that developers can create AppInsts/ClusterInsts on tc3.
 	permTestApp(t, mcClient, uri, tokenDev, tokenDev2, ctrl.Region,
@@ -2852,6 +2889,16 @@ type User struct {
 	Iter     int    `gorm:"not null"`
 }
 
+// Used to test addition of new DnsRegion unique not null column
+type Controller struct {
+	Region     string    `gorm:"primary_key"`
+	Address    string    `gorm:"unique;not null"`
+	NotifyAddr string    `gorm:"type:text"`
+	InfluxDB   string    `gorm:"type:text"`
+	CreatedAt  time.Time `json:",omitempty"`
+	UpdatedAt  time.Time `json:",omitempty"`
+}
+
 func TestUpgrade(t *testing.T) {
 	log.SetDebugLevel(log.DebugLevelApi)
 	log.InitTracer(nil)
@@ -2913,14 +2960,20 @@ func TestUpgrade(t *testing.T) {
 	database = initdb
 
 	db := loggedDB(ctx)
-	err = db.AutoMigrate(&ormapi.Organization{}, &ormapi.Controller{}, &OrgCloudletPool{}, &User{}).Error
+	err = db.AutoMigrate(&ormapi.Organization{}, &Controller{}, &OrgCloudletPool{}, &User{}).Error
 	require.Nil(t, err)
 	// add old data
-	ctrl := ormapi.Controller{
+	ctrl := Controller{
 		Region:  "USA",
 		Address: ctrlAddr,
 	}
 	err = db.Create(&ctrl).Error
+	require.Nil(t, err)
+	ctrl2 := Controller{
+		Region:  "EU",
+		Address: "127.0.0.1:9999", // not used
+	}
+	err = db.Create(&ctrl2).Error
 	require.Nil(t, err)
 
 	addOld := addOldTestOrgCloudletPool
@@ -3074,6 +3127,19 @@ func TestUpgrade(t *testing.T) {
 
 	// check that users don't have any null values anymore
 	require.Equal(t, 0, getUsersNullCount(t, ctx))
+
+	// check upgraded controllers
+	checkCtrls := []ormapi.Controller{}
+	err = db.Find(&checkCtrls).Error
+	require.Nil(t, err)
+	for _, checkCtrl := range checkCtrls {
+		if checkCtrl.Region == ctrl.Region {
+			require.Equal(t, "usa", checkCtrl.DnsRegion)
+		} else if checkCtrl.Region == ctrl2.Region {
+			require.Equal(t, "eu", checkCtrl.DnsRegion)
+		}
+	}
+	require.Equal(t, 2, len(checkCtrls))
 }
 
 func getUsersNullCount(t *testing.T, ctx context.Context) int {

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -105,9 +106,27 @@ func sendRequest(ctx context.Context, method string, reqUrl string, apiKey strin
 	return resp.StatusCode, respString, nil
 }
 
+func buildQosUrl(ctx context.Context, profileName string, qosSesAddr string) (string, error) {
+	var priorityType string
+	if profileName == "LOW_LATENCY" { // LOW_LATENCY is the only valid latency profile.
+		priorityType = "latency"
+	} else if strings.HasPrefix(profileName, "THROUGHPUT") {
+		priorityType = "throughput"
+	} else {
+		log.SpanLog(ctx, log.DebugLevelDmereq, "Received invalid value", "profileName", profileName)
+		return "", errors.New("Received invalid profileName" + profileName)
+	}
+	url := fmt.Sprintf("https://%s/5g-%s/sessions", qosSesAddr, priorityType) // Inserts either "latency" or "throughput".
+	log.SpanLog(ctx, log.DebugLevelDmereq, "buildQosUrl", "url", url)
+	return url, nil
+}
+
 // CallTDGQosPriorityAPI REST API client for the TDG implementation of QOS session priority API
-func CallTDGQosPriorityAPI(ctx context.Context, method string, qosSesAddr string, priorityType string, apiKey string, reqBody QosSessionRequest) (string, error) {
-	reqUrl := fmt.Sprintf("https://%s/5g-%s/sessions", qosSesAddr, priorityType) // Inserts either "latency" or "throughput".
+func CallTDGQosPriorityAPI(ctx context.Context, qos string, method string, qosSesAddr string, apiKey string, reqBody QosSessionRequest) (string, error) {
+	reqUrl, err := buildQosUrl(ctx, qos, qosSesAddr)
+	if err != nil {
+		return "", err
+	}
 	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CallTDGQosPriorityAPI", "qosSesAddr", qosSesAddr, "reqUrl", reqUrl, "reqBody", reqBody)
 	out, err := json.Marshal(reqBody)
 	if err != nil {
@@ -151,6 +170,12 @@ func CallTDGQosPriorityAPI(ctx context.Context, method string, qosSesAddr string
 					sessionId = qsiResp.Id
 				} else {
 					log.SpanLog(ctx, log.DebugLevelDmereq, "Existing QOS profile doesn't match. Deleting session.")
+					oldQos := qsiResp.Qos
+					url, err := buildQosUrl(ctx, oldQos, qosSesAddr)
+					url = fmt.Sprintf("%s/%s", url, sessionId)
+					if err != nil {
+						return "", err
+					}
 					status, _, err := sendRequest(ctx, http.MethodDelete, url, apiKey, nil)
 					if err != nil {
 						return "", err

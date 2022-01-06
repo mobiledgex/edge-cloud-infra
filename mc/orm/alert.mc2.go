@@ -914,6 +914,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// SecondaryCrmAccessPublicKey: 51
 	// SecondaryCrmAccessKeyUpgradeRequired: 52
 	// SecondaryNotifySrvAddr: 53
+	// DnsLabel: 54
+	// RootLbFqdn: 55
 	// ```
 	// Security:
 	//   Bearer:
@@ -1366,6 +1368,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// MultiTenant: 32
 	// Networks: 33
 	// DeletePrepare: 34
+	// DnsLabel: 35
+	// Fqdn: 36
 	// ```
 	// Security:
 	//   Bearer:
@@ -1699,7 +1703,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigsKind: 27.1
 	// ConfigsConfig: 27.2
 	// HealthCheck: 29
-	// PrivacyPolicy: 30
 	// PowerState: 31
 	// ExternalVolumeSize: 32
 	// AvailabilityZone: 33
@@ -1714,6 +1717,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// InternalPortToLbIpValue: 38.2
 	// DedicatedIp: 39
 	// UniqueId: 40
+	// DnsLabel: 41
 	// ```
 	// Security:
 	//   Bearer:

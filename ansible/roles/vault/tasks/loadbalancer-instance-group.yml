@@ -7,6 +7,9 @@
     filters:
       - "labels.environ = {{ deploy_environ }}"
       - "labels.vault = true"
+    project: "{{ gcp_project }}"
+    auth_kind: serviceaccount
+    service_account_file: "{{ gcp_creds_file }}"
   register: result
 
 - set_fact:
@@ -21,6 +24,9 @@
     named_ports:
       - name: http
         port: "{{ vault_ha_instance_port }}"
+    project: "{{ gcp_project }}"
+    auth_kind: serviceaccount
+    service_account_file: "{{ gcp_creds_file }}"
   register: instance_group
 
 - set_fact:

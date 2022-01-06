@@ -54,7 +54,7 @@ require (
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/shirou/gopsutil v2.20.4+incompatible
 	github.com/spf13/cobra v0.0.5
-	github.com/stretchr/testify v1.6.1
+	github.com/stretchr/testify v1.7.0
 	github.com/test-go/testify v1.1.4
 	github.com/tmc/scp v0.0.0-20170824174625-f7b48647feef
 	github.com/trustelem/zxcvbn v1.0.1
@@ -181,7 +181,7 @@ replace github.com/spf13/cobra => github.com/spf13/cobra v0.0.5
 
 replace github.com/spf13/pflag => github.com/spf13/pflag v1.0.5
 
-replace github.com/stretchr/testify => github.com/stretchr/testify v1.6.1
+replace github.com/stretchr/testify => github.com/stretchr/testify v1.7.0
 
 replace github.com/tmc/grpc-websocket-proxy => github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5
 
@@ -312,3 +312,13 @@ replace golang.org/x/time => golang.org/x/time v0.0.0-20200630173020-3af7569d3a1
 replace github.com/davecgh/go-spew => github.com/davecgh/go-spew v1.1.1
 
 replace github.com/go-redis/redis => github.com/go-redis/redis v6.15.9+incompatible
+
+replace github.com/alicebob/gopher-json => github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a
+
+replace github.com/alicebob/miniredis => github.com/alicebob/miniredis v2.5.0+incompatible
+
+replace github.com/alicebob/miniredis/v2 => github.com/alicebob/miniredis/v2 v2.17.0
+
+replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.8
+
+replace github.com/yuin/gopher-lua => github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9

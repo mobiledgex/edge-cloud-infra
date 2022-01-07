@@ -31,7 +31,7 @@ func GetApiKeyFromVault(ctx context.Context, vaultConfig *vault.Config) (string,
 }
 
 // From https://staging-portal.hubraum.opsfactory.dev/de/products/617bd0928431ba00019948f4/summary
-type QosSessionRequest struct {
+type QosSessionCommon struct {
 	Duration              int64  `json:"duration" yaml:"duration"`
 	UeAddr                string `json:"ueAddr" yaml:"ueAddr"`
 	AsAddr                string `json:"asAddr" yaml:"asAddr"`
@@ -40,24 +40,19 @@ type QosSessionRequest struct {
 	ProtocolIn            string `json:"protocolIn" yaml:"protocolIn"`
 	ProtocolOut           string `json:"protocolOut" yaml:"protocolOut"`
 	Qos                   string `json:"qos" yaml:"qos"`
-	NotificationUrl       string `json:"notificationUrl" yaml:"notificationUrl"`
+	NotificationUri       string `json:"notificationUri" yaml:"notificationUri"`
 	NotificationAuthToken string `json:"notificationAuthToken" yaml:"notificationAuthToken"`
 }
 
+type QosSessionRequest struct {
+	QosSessionCommon
+}
+
 type QosSessionResponse struct {
-	Duration              int64  `json:"duration" yaml:"duration"`
-	UeAddr                string `json:"ueAddr" yaml:"ueAddr"`
-	AsAddr                string `json:"asAddr" yaml:"asAddr"`
-	UePorts               string `json:"uePorts" yaml:"uePorts"`
-	AsPorts               string `json:"asPorts" yaml:"asPorts"`
-	ProtocolIn            string `json:"protocolIn" yaml:"protocolIn"`
-	ProtocolOut           string `json:"protocolOut" yaml:"protocolOut"`
-	Qos                   string `json:"qos" yaml:"qos"`
-	NotificationUrl       string `json:"notificationUrl" yaml:"notificationUrl"`
-	NotificationAuthToken string `json:"notificationAuthToken" yaml:"notificationAuthToken"`
-	Id                    string `json:"id" yaml:"id"`
-	StartedAt             int64  `json:"startedAt" yaml:"startedAt"`
-	ExpiresAt             int64  `json:"expiresAt" yaml:"expiresAt"`
+	QosSessionCommon
+	Id        string `json:"id" yaml:"id"`
+	StartedAt int64  `json:"startedAt" yaml:"startedAt"`
+	ExpiresAt int64  `json:"expiresAt" yaml:"expiresAt"`
 }
 
 // Build and send the request to the TDG API server
@@ -122,7 +117,8 @@ func buildQosUrl(ctx context.Context, profileName string, qosSesAddr string) (st
 }
 
 // CallTDGQosPriorityAPI REST API client for the TDG implementation of QOS session priority API
-func CallTDGQosPriorityAPI(ctx context.Context, qos string, method string, qosSesAddr string, apiKey string, reqBody QosSessionRequest) (string, error) {
+func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qosSesAddr string, apiKey string, reqBody QosSessionRequest) (string, error) {
+	qos := reqBody.Qos
 	reqUrl, err := buildQosUrl(ctx, qos, qosSesAddr)
 	if err != nil {
 		return "", err
@@ -134,6 +130,10 @@ func CallTDGQosPriorityAPI(ctx context.Context, qos string, method string, qosSe
 	}
 	body := bytes.NewBuffer(out)
 
+	// For DELETE, we need to add the session ID to the URL
+	if method == http.MethodDelete {
+		reqUrl += "/" + sesId
+	}
 	status, respBody, err := sendRequest(ctx, method, reqUrl, apiKey, body)
 	if err != nil {
 		return "", err
@@ -210,6 +210,8 @@ func CallTDGQosPriorityAPI(ctx context.Context, qos string, method string, qosSe
 		log.SpanLog(ctx, log.DebugLevelDmereq, "unmarshalled response", "qsiResp:", qsiResp, "sessionId", sessionId)
 	} else if status == http.StatusOK {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "200 OK received")
+	} else if status == http.StatusNoContent {
+		log.SpanLog(ctx, log.DebugLevelDmereq, "204 No Content received (session deleted)")
 	} else {
 		log.WarnLog("returning error", "received ", status)
 		return "", fmt.Errorf(fmt.Sprintf("API call received unknown status: %d", status))

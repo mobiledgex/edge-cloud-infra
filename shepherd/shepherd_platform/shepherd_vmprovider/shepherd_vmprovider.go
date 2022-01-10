@@ -33,7 +33,6 @@ type ShepherdPlatform struct {
 	appDNSRoot      string
 }
 
-// getPlatformActiveFromCloudletInfo returns found, active, error
 func (s *ShepherdPlatform) setPlatformActiveFromCloudletInfo(ctx context.Context, cloudletInternal *edgeproto.CloudletInternal) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getPlatformActiveFromCloudletInfo", "cloudletInternal", cloudletInternal)
 	activeStr, ok := cloudletInternal.Props[vmlayer.CloudletPlatformActive]

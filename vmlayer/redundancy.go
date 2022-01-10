@@ -143,7 +143,7 @@ func (v *VMPlatform) handleTransientAppInsts(ctx context.Context) {
 			log.SpanLog(ctx, log.DebugLevelInfra, "cleaning up appinst", "key", k)
 			err := v.cleanupAppInst(ctx, &clusterInst, &app, &appInst, edgeproto.DummyUpdateCallback)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "error cleaning up cluster", "key", k, "error", err)
+				log.SpanLog(ctx, log.DebugLevelInfra, "error cleaning up appinst", "key", k, "error", err)
 				v.Caches.AppInstInfoCache.SetError(ctx, &k, e, "CRM switched over while App Instance in transient state, cleanup failed")
 			} else {
 				v.Caches.AppInstInfoCache.SetError(ctx, &k, e, "CRM switched over while App Instance in transient state")

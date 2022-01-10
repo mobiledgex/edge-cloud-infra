@@ -50,7 +50,6 @@ func (s *ShepherdPlatform) setPlatformActiveFromCloudletInfo(ctx context.Context
 		shepherd_common.ShepherdPlatformActive = active
 	}
 	return nil
-
 }
 
 func (s *ShepherdPlatform) vmProviderCloudletCb(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
@@ -132,7 +131,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 
 	var cloudletInternal edgeproto.CloudletInternal
 	if !platformCaches.CloudletInternalCache.Get(pc.CloudletKey, &cloudletInternal) {
-		log.SpanLog(ctx, log.DebugLevelInfra, "cloudletInternal not found")
+		log.SpanLog(ctx, log.DebugLevelInfra, "cloudletInternal not found", "key", pc.CloudletKey)
 	} else {
 		err = s.setPlatformActiveFromCloudletInfo(ctx, &cloudletInternal)
 		if err != nil {
@@ -222,7 +221,7 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 
 	cloudletMetric := shepherd_common.CloudletMetrics{}
 	if !shepherd_common.ShepherdPlatformActive {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "skipping GetPlatformStats for inactive unit")
+		log.SpanLog(ctx, log.DebugLevelMetrics, "skipping GetPlatformStats for inactive platform")
 		return cloudletMetric, nil
 	}
 	var result vmlayer.OperationInitResult
@@ -246,7 +245,7 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	var err error
 	appMetrics := shepherd_common.AppMetrics{}
 	if !shepherd_common.ShepherdPlatformActive {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "skipping GetVmStats for inactive unit")
+		log.SpanLog(ctx, log.DebugLevelMetrics, "skipping GetVmStats for inactive platform")
 		return appMetrics, nil
 	}
 	var result vmlayer.OperationInitResult

@@ -502,6 +502,20 @@ gitlab_rails['smtp_tls'] = false
 # gitlab_rails['smtp_ca_path'] = "/etc/ssl/certs"
 # gitlab_rails['smtp_ca_file'] = "/etc/ssl/certs/ca-certificates.crt"
 
+# https://docs.gitlab.com/omnibus/settings/configuration.html#content-security-policy
+gitlab_rails['content_security_policy'] = {
+    enabled: true,
+    report_only: false,
+    directives: {
+      default_src: "'self'",
+      script_src: "'self' 'unsafe-inline' 'unsafe-eval' https://www.recaptcha.net https://apis.google.com",
+      frame_ancestors: "'self'",
+      frame_src: "'self' https://www.recaptcha.net/ https://content.googleapis.com https://content-compute.googleapis.com https://content-cloudbilling.googleapis.com https://content-cloudresourcemanager.googleapis.com",
+      img_src: "* data: blob:",
+      style_src: "'self' 'unsafe-inline'"
+    }
+}
+
 ################################################################################
 ## Container Registry settings
 ##! Docs: https://docs.gitlab.com/ce/administration/container_registry.html

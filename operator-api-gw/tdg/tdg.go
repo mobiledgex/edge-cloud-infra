@@ -116,16 +116,23 @@ func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, ueAddr string
 			return "", status.Errorf(codes.Unauthenticated, "missing qosSessionsApiKey")
 		}
 	}
-	reqBody := sessionsclient.QosSessionRequest{UeAddr: ueAddr, AsAddr: asAddr, AsPorts: asPort, ProtocolIn: protocol, ProtocolOut: protocol, Qos: qos, Duration: duration}
-	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, qos, http.MethodPost, o.Servers.QosSesAddr, qosSessionsApiKey, reqBody)
+	reqBody := sessionsclient.QosSessionRequest{}
+	reqBody.UeAddr = ueAddr
+	reqBody.AsAddr = asAddr
+	reqBody.AsPorts = asPort
+	reqBody.ProtocolIn = protocol
+	reqBody.ProtocolOut = protocol
+	reqBody.Qos = qos
+	reqBody.Duration = duration
+	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, "", http.MethodPost, o.Servers.QosSesAddr, qosSessionsApiKey, reqBody)
 	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id", id, "err", err)
 	return id, err
 }
 
 func (o *OperatorApiGw) DeletePrioritySession(ctx context.Context, sessionId string, qos string) error {
 	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG DeletePrioritySession", "sessionId", sessionId)
-	sesInfo := sessionsclient.QosSessionRequest{UeAddr: "", AsAddr: "", Qos: "", NotificationUrl: ""}
-	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, qos, http.MethodDelete, o.Servers.QosSesAddr, qosSessionsApiKey, sesInfo)
+	sesInfo := sessionsclient.QosSessionRequest{} // Blank struct
+	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, sessionId, http.MethodDelete, o.Servers.QosSesAddr, qosSessionsApiKey, sesInfo)
 	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id", id, "err", err)
 	return err
 }

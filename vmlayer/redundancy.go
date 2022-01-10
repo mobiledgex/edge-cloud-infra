@@ -2,6 +2,7 @@ package vmlayer
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -156,6 +157,15 @@ func (v *VMPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged", "platformActive", platformActive)
 	if !platformActive {
 		return
+	}
+	var cloudletInternal edgeproto.CloudletInternal
+	if !v.Caches.CloudletInternalCache.Get(v.VMProperties.CommonPf.PlatformConfig.CloudletKey, &cloudletInternal) {
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error: unable to find cloudlet key in cache", "platformActive", platformActive)
+	} else {
+		// inform Shepherd via the internal cache of the new active state
+		log.SpanLog(ctx, log.DebugLevelInfra, "Updating cloudlet internal cache", "platformActive", platformActive)
+		cloudletInternal.Props[CloudletPlatformActive] = fmt.Sprintf("%t", platformActive)
+		v.Caches.CloudletInternalCache.Update(ctx, &cloudletInternal, 0)
 	}
 	// cleanups need to happen in background as ActiveChanged is run via the HA Manager thread and cannot take too much time
 	go v.handleTransientClusterInsts(ctx)

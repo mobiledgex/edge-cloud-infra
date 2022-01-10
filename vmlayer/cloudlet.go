@@ -28,6 +28,7 @@ const (
 
 var CloudletAccessToken = "CloudletAccessToken"
 var CloudletNetworkNamesMap = "CloudletNetworkNamesMap"
+var CloudletPlatformActive = "CloudletPlatformActive"
 
 func (v *VMPlatform) IsCloudletServicesLocal() bool {
 	return false

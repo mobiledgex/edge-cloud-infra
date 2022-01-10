@@ -396,6 +396,9 @@ func ProxyScraper(done chan bool) {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
 		case <-time.After(rootLbScrapeInterval):
+			if !shepherd_common.ShepherdPlatformActive {
+				return
+			}
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				if !clientReady(v) {

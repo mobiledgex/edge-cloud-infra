@@ -156,6 +156,8 @@ func (v *VMPlatform) handleTransientAppInsts(ctx context.Context) {
 func (v *VMPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged", "platformActive", platformActive)
 	if !platformActive {
+		// unexpected
+		log.SpanLog(ctx, log.DebugLevelInfra, "platform unexpectedly transitioned to inactive")
 		return
 	}
 	var cloudletInternal edgeproto.CloudletInternal

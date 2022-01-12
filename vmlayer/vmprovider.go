@@ -371,7 +371,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		Key:   *platformConfig.CloudletKey,
 		Props: make(map[string]string),
 	}
-	cloudletInternal.Props[CloudletPlatformActive] = fmt.Sprintf("%t", haMgr.PlatformInstanceActive)
+	cloudletInternal.Props[infracommon.CloudletPlatformActive] = fmt.Sprintf("%t", haMgr.PlatformInstanceActive)
 	caches.CloudletInternalCache.Update(ctx, &cloudletInternal, 0)
 	v.Caches = caches
 	v.VMProperties.Domain = VMDomainCompute

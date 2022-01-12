@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
@@ -35,7 +36,7 @@ type ShepherdPlatform struct {
 
 func (s *ShepherdPlatform) setPlatformActiveFromCloudletInfo(ctx context.Context, cloudletInternal *edgeproto.CloudletInternal) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getPlatformActiveFromCloudletInfo", "cloudletInternal", cloudletInternal)
-	activeStr, ok := cloudletInternal.Props[vmlayer.CloudletPlatformActive]
+	activeStr, ok := cloudletInternal.Props[infracommon.CloudletPlatformActive]
 	if !ok {
 		return nil
 	}

@@ -19,4 +19,4 @@ jobs:
         run: >-
           curl --fail --header "Authorization: Bearer ${{ secrets.ARTIFACTORY_UPLOAD_TOKEN }}"
           --upload-file THIRD-PARTY-NOTICES
-          https://artifactory.mobiledgex.net:443/artifactory/downloads/FOO.txt
+          https://artifactory.mobiledgex.net/artifactory/downloads/THIRD-PARTY-NOTICES

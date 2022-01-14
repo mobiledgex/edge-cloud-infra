@@ -1,0 +1,22 @@
+name: Upload third party notices list to Artifactory
+on:
+  push:
+    paths:
+      - THIRD-PARTY-NOTICES
+
+jobs:
+
+  push-third-party-notices:
+    name: Upload third party notices
+    runs-on: ubuntu-latest
+
+    steps:
+      -
+        name: Checkout repo
+        uses: actions/checkout@v2
+      -
+        name: Upload file
+        run: >-
+          curl --fail --header "Authorization: Bearer ${{ secrets.ARTIFACTORY_UPLOAD_TOKEN }}"
+          --upload-file THIRD-PARTY-NOTICES
+          https://artifactory.mobiledgex.net:443/artifactory/downloads/FOO.txt

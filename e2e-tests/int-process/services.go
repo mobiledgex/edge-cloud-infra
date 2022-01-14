@@ -45,10 +45,10 @@ scrape_configs:
       replacement: '${1}'
     - regex: 'instance|envoy_cluster_name'
       action: labeldrop
-{{if .RemoteWriteAddr}}
+{{- if .RemoteWriteAddr}}
 remote_write:
 - url: http://{{.RemoteWriteAddr}}/api/v1/receive
-{{end}}
+{{- end}}
 `
 
 type prometheusConfigArgs struct {

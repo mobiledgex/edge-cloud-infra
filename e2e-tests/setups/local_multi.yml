@@ -630,7 +630,6 @@ thanosqueries:
   region: local
   httpport: 29090
   stores:
-  - "host.docker.internal:29091"
   # below store is to connect thanos receives defined below
   - "host.docker.internal:10907"
 

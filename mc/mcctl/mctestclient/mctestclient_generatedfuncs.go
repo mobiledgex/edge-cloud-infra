@@ -1618,6 +1618,17 @@ func (s *Client) CreateController(uri string, token string, in *ormapi.Controlle
 	return rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) UpdateController(uri string, token string, in *cli.MapData) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("UpdateController")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
 func (s *Client) DeleteController(uri string, token string, in *ormapi.Controller) (int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri

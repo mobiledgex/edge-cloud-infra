@@ -21,9 +21,11 @@ import (
 	"github.com/mobiledgex/edge-cloud/util"
 )
 
-var (
-	RegionThanosQueryPort = 29090
+const (
+	CustomMetricMeasurementName = "custom_metric"
+)
 
+var (
 	// Anonymous appinst, just to get a list of tags
 	validAppinstTags = map[string]struct{}{
 		"app":         {},
@@ -37,7 +39,7 @@ var (
 		"region":      {},
 	}
 
-	AggrFuncLabelSet = []string{"app", "appver", "apporg", "cluster", "clusterorg", "cloudlet", "cloudletorg"}
+	AggrFuncLabelSet = []string{"app", "appver", "apporg", "cluster", "clusterorg", "cloudlet", "cloudletorg", "region"}
 )
 
 func GetAppMetricsV2(c echo.Context) error {
@@ -78,16 +80,36 @@ func GetAppMetricsV2(c echo.Context) error {
 	timeRange := getPromTimeRange(&in, settings)
 
 	query := getPromAppQuery(&in, cloudletList)
-	resp, err := thanosProxy(ctx, in.Measurement, in.Region, query, timeRange)
+	metric := getMetricName(&in)
+	resp, err := thanosProxy(ctx, metric, in.Region, query, timeRange)
 	if err != nil {
 		return err
 	}
 	return ormutil.SetReply(c, resp)
 }
 
+// if this is one of the pre-built named queries
+func isNamedQuery(measurement string) bool {
+	switch measurement {
+	case "connections":
+		return true
+	default:
+		return false
+	}
+}
+
+// How to call the metric in the returned data
+func getMetricName(obj *ormapi.RegionCustomAppMetrics) string {
+	if isNamedQuery(obj.Measurement) {
+		return obj.Measurement
+	}
+	// "custom_metric" for free form query
+	return CustomMetricMeasurementName
+}
+
 func validateAppMetricArgs(ctx context.Context, username string, obj *ormapi.RegionCustomAppMetrics) error {
 	if obj == nil {
-		return fmt.Errorf("Invalid Region App metrics object")
+		return fmt.Errorf("Invalid region app metrics object")
 	}
 
 	if obj.Measurement == "" {
@@ -102,7 +124,7 @@ func validateAppMetricArgs(ctx context.Context, username string, obj *ormapi.Reg
 	// We don't need to validate timestamps if it's empty, as for prom query we have a
 	// slightly different logic for handling empty timestamps - return just the last element
 	if obj.MetricsCommon != emptyMetrics {
-		if err := validateMetricsCommon(&obj.MetricsCommon); err != nil {
+		if err := validateAndResolvePrometheusMetricsCommon(&obj.MetricsCommon); err != nil {
 			return err
 		}
 	}
@@ -172,7 +194,7 @@ func getPromTimeRange(obj *ormapi.RegionCustomAppMetrics, settings *edgeproto.Se
 	}
 
 	// call validation to be sure the required fields are populated
-	if err := validateMetricsCommon(&obj.MetricsCommon); err != nil {
+	if err := validateAndResolvePrometheusMetricsCommon(&obj.MetricsCommon); err != nil {
 		return nil
 	}
 
@@ -307,12 +329,7 @@ func GetThanosUrl(ctx context.Context, region string) (string, error) {
 	if ctrl.ThanosMetrics != "" {
 		return ctrl.ThanosMetrics, nil
 	}
-	if ctrl.InfluxDB == "" {
-		return "", fmt.Errorf("No monitoring DB address is configured for the region")
-	}
-	// Change the port to Thanos Query port
-	portIndex := strings.LastIndex(ctrl.InfluxDB, ":")
-	return fmt.Sprintf("%s:%d", ctrl.InfluxDB[:portIndex], RegionThanosQueryPort), nil
+	return "", fmt.Errorf("No monitoring DB address is configured for the region")
 }
 
 // Convert matrix type prometheus response into ormapi.MetricData struct

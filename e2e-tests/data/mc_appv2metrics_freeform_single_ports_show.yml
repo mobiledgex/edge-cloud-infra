@@ -1,0 +1,13 @@
+- name: custom_metric
+  tags:
+    app: someapplication1
+    apporg: AcmeAppCo
+    appver: "1.0"
+    cloudlet: tmus-cloud-1
+    cloudletorg: tmus
+    cluster: SmallCluster
+    clusterorg: AcmeAppCo
+    port: "80"
+    region: local
+  values:
+    custom_metric: 50

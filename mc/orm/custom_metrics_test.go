@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	testSumByExpr     = "sum by(app,appver,apporg,cluster,clusterorg,cloudlet,cloudletorg)(envoy_cluster_upstream_cx_active)"
+	testSumByExpr     = "sum by(app,appver,apporg,cluster,clusterorg,cloudlet,cloudletorg,region)(envoy_cluster_upstream_cx_active)"
 	testPromTimeRange = v1.Range{
 		Start: (time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)).Add(-1 * FallbackTimeRange),
 		End:   time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC),
@@ -288,7 +288,7 @@ func TestValidateAppMetricArgs(t *testing.T) {
 	// nill check
 	err := validateAppMetricArgs(ctx, "testuser", nil)
 	require.NotNil(t, err, "nil args should trigger an error")
-	require.Contains(t, err.Error(), "Invalid Region App metrics object")
+	require.Contains(t, err.Error(), "Invalid region app metrics object")
 	// Note - other validations are done as part of goodPermTestCustomMetrics
 }
 
@@ -368,7 +368,7 @@ func goodPermTestCustomMetrics(t *testing.T, mcClient *mctestclient.Client, uri,
 	arg.Port = "abc"
 	list, status, err = testPermShowAppCustomMetrics(mcClient, uri, devToken, region, devOrg, "connections", &arg)
 	require.NotNil(t, err)
-	require.Equal(t, "Port number must be an interger", err.Error())
+	require.Contains(t, err.Error(), "Port must be an interger")
 	arg.Port = "234"
 	list, status, err = testPermShowAppCustomMetrics(mcClient, uri, devToken, region, devOrg, "connections", &arg)
 	require.Nil(t, err)
@@ -440,7 +440,7 @@ func TestGetPromAppQuery(t *testing.T) {
 
 	// Test sum aggr func
 	arg.AggrFunction = "sum"
-	expectedQuery = `sum by(app,appver,apporg,cluster,clusterorg,cloudlet,cloudletorg)(envoy_cluster_upstream_cx_active{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator"})`
+	expectedQuery = `sum by(app,appver,apporg,cluster,clusterorg,cloudlet,cloudletorg,region)(envoy_cluster_upstream_cx_active{app="testapp",apporg="testorg",appver="1.0",cluster="testcluster",clusterorg="testorg",cloudlet="testcloudlet",cloudletorg="testoperator"})`
 	require.Equal(t, expectedQuery, getPromAppQuery(&arg, []string{}), "Connections aggregated for all ports")
 
 	// Test free form query - simple

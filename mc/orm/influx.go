@@ -711,7 +711,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
 
@@ -742,7 +742,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
 
@@ -774,7 +774,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
 
@@ -824,7 +824,7 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateMethodString(&in); err != nil {
 			return err
 		}
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
 		settings, err := getSettings(ctx, rc.region)
@@ -845,7 +845,7 @@ func GetMetricsCommon(c echo.Context) error {
 			return err
 		}
 
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
 		rc.region = in.Region
@@ -901,7 +901,7 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateClientAppUsageMetricReq(&in, in.Selector); err != nil {
 			return err
 		}
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
 		settings, err := getSettings(ctx, rc.region)
@@ -935,7 +935,7 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateClientCloudletUsageMetricReq(&in, in.Selector); err != nil {
 			return err
 		}
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
 		// Check the operator against who is logged in

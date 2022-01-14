@@ -288,10 +288,9 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 0, len(ctrls))
 	ctrl := ormapi.Controller{
-		Region:        "USA",
-		Address:       ctrlAddr,
-		InfluxDB:      influxServer.URL,
-		ThanosMetrics: thanosQuery.URL,
+		Region:   "USA",
+		Address:  ctrlAddr,
+		InfluxDB: influxServer.URL,
 	}
 	// create controller
 	status, err = mcClient.CreateController(uri, token, &ctrl)
@@ -303,6 +302,50 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	require.Equal(t, 1, len(ctrls))
 	require.Equal(t, ctrl.Region, ctrls[0].Region)
 	require.Equal(t, ctrl.Address, ctrls[0].Address)
+
+	// update controller tests
+	dat := cli.MapData{
+		Namespace: cli.StructNamespace,
+		Data: map[string]interface{}{
+			"Region": "",
+		},
+	}
+	status, err = mcClient.UpdateController(uri, token, &dat)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Controller Region not specified")
+	require.Equal(t, http.StatusBadRequest, status)
+
+	dat = cli.MapData{
+		Namespace: cli.StructNamespace,
+		Data: map[string]interface{}{
+			"Region":  "USA",
+			"Address": "",
+		},
+	}
+	status, err = mcClient.UpdateController(uri, token, &dat)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Controller Address not specified")
+	require.Equal(t, http.StatusBadRequest, status)
+
+	dat = cli.MapData{
+		Namespace: cli.StructNamespace,
+		Data: map[string]interface{}{
+			"Region":        "USA",
+			"Address":       ctrlAddr,
+			"ThanosMetrics": thanosQuery.URL,
+		},
+	}
+	status, err = mcClient.UpdateController(uri, token, &dat)
+	require.Nil(t, err, "update controller")
+	require.Equal(t, http.StatusOK, status)
+	ctrls, status, err = mcClient.ShowController(uri, token, ClientNoShowFilter)
+	require.Nil(t, err, "show controllers")
+	require.Equal(t, http.StatusOK, status)
+	require.Equal(t, 1, len(ctrls))
+	require.Equal(t, ctrl.Region, ctrls[0].Region)
+	require.Equal(t, ctrl.Address, ctrls[0].Address)
+	require.Equal(t, thanosQuery.URL, ctrls[0].ThanosMetrics)
+
 	// test show controller filtering
 	showController := &cli.MapData{
 		Namespace: cli.StructNamespace,
@@ -2891,12 +2934,13 @@ type User struct {
 
 // Used to test addition of new DnsRegion unique not null column
 type Controller struct {
-	Region     string    `gorm:"primary_key"`
-	Address    string    `gorm:"unique;not null"`
-	NotifyAddr string    `gorm:"type:text"`
-	InfluxDB   string    `gorm:"type:text"`
-	CreatedAt  time.Time `json:",omitempty"`
-	UpdatedAt  time.Time `json:",omitempty"`
+	Region        string    `gorm:"primary_key"`
+	Address       string    `gorm:"unique;not null"`
+	NotifyAddr    string    `gorm:"type:text"`
+	InfluxDB      string    `gorm:"type:text"`
+	ThanosMetrics string    `gorm:"type:text"`
+	CreatedAt     time.Time `json:",omitempty"`
+	UpdatedAt     time.Time `json:",omitempty"`
 }
 
 func TestUpgrade(t *testing.T) {

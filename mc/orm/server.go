@@ -569,6 +569,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/billingorg/deletepaymentprofile", DeletePaymentInfo)
 
 	auth.POST("/controller/create", CreateController)
+	auth.POST("/controller/update", UpdateController)
 	auth.POST("/controller/delete", DeleteController)
 	auth.POST("/controller/show", ShowController)
 	auth.POST("/gitlab/resync", GitlabResync)

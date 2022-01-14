@@ -1,6 +1,8 @@
 name: Upload third party notices list to Artifactory
 on:
   push:
+    branches:
+      - master
     paths:
       - THIRD-PARTY-NOTICES
 

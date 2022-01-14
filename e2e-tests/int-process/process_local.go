@@ -779,7 +779,7 @@ func (p *ThanosQuery) StartLocal(logfile string, opts ...process.StartOp) error 
 		"quay.io/thanos/thanos:v0.20.0",
 		"query",
 		"--http-address",
-		fmt.Sprintf("%s:%d", "0.0.0.0", p.HttpPort),
+		fmt.Sprintf(":%d", p.HttpPort),
 	)
 	for ii := range p.Stores {
 		args = append(args, "--store", p.Stores[ii])
@@ -790,23 +790,19 @@ func (p *ThanosQuery) StartLocal(logfile string, opts ...process.StartOp) error 
 	return err
 }
 
-//TODO - do we really need http addr?
 func (p *ThanosReceive) StartLocal(logfile string, opts ...process.StartOp) error {
 	args := p.GetRunArgs()
 	args = append(args,
-		"-p", fmt.Sprintf("%d:%d", p.HttpPort, p.HttpPort),
 		"-p", fmt.Sprintf("%d:%d", p.GrpcPort, p.GrpcPort),
 		"-p", fmt.Sprintf("%d:%d", p.RemoteWritePort, p.RemoteWritePort),
 		"quay.io/thanos/thanos:v0.20.0",
 		"receive",
 		"--label",
 		fmt.Sprintf("region=\"%s\"", p.Region),
-		"--http-address",
-		fmt.Sprintf("%s:%d", "0.0.0.0", p.HttpPort),
 		"--grpc-address",
-		fmt.Sprintf("%s:%d", "0.0.0.0", p.GrpcPort),
+		fmt.Sprintf(":%d", p.GrpcPort),
 		"--remote-write.address",
-		fmt.Sprintf("%s:%d", "0.0.0.0", p.RemoteWritePort),
+		fmt.Sprintf(":%d", p.RemoteWritePort),
 	)
 
 	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)

@@ -163,6 +163,7 @@ func (v *VMPlatform) SetupPlatformVM(ctx context.Context, accessApi platform.Acc
 			WithSkipSubnetGateway(true),
 			WithSkipInfraSpecificCheck(skipInfraSpecificCheck),
 			WithInitOrchestrator(true),
+			WithAntiAffinity(cloudlet.PlatformHighAvailability),
 		)
 	}
 	if err != nil {

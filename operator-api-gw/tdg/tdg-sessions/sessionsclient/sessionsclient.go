@@ -57,6 +57,8 @@ type QosSessionResponse struct {
 
 // Build and send the request to the TDG API server
 func sendRequest(ctx context.Context, method string, reqUrl string, apiKey string, body *bytes.Buffer) (int, string, error) {
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Sending to TDG:", "method", method, "reqUrl:", reqUrl, "body:", body)
+
 	var req *http.Request
 	var err error
 
@@ -72,8 +74,6 @@ func sendRequest(ctx context.Context, method string, reqUrl string, apiKey strin
 		log.WarnLog("error in http.NewRequest", "err", err)
 		return 0, "", err
 	}
-
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Sending to TDG:", "method", method, "reqUrl:", reqUrl, "body:", body)
 
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("accept", "application/json")
@@ -111,7 +111,7 @@ func buildQosUrl(ctx context.Context, profileName string, qosSesAddr string) (st
 		log.SpanLog(ctx, log.DebugLevelDmereq, "Received invalid value", "profileName", profileName)
 		return "", errors.New("Received invalid profileName" + profileName)
 	}
-	url := fmt.Sprintf("https://%s/5g-%s/sessions", qosSesAddr, priorityType) // Inserts either "latency" or "throughput".
+	url := fmt.Sprintf("%s/5g-%s/sessions/", qosSesAddr, priorityType) // Inserts either "latency" or "throughput".
 	log.SpanLog(ctx, log.DebugLevelDmereq, "buildQosUrl", "url", url)
 	return url, nil
 }
@@ -132,7 +132,7 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 
 	// For DELETE, we need to add the session ID to the URL
 	if method == http.MethodDelete {
-		reqUrl += "/" + sesId
+		reqUrl += sesId
 	}
 	status, respBody, err := sendRequest(ctx, method, reqUrl, apiKey, body)
 	if err != nil {
@@ -172,11 +172,11 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 					log.SpanLog(ctx, log.DebugLevelDmereq, "Existing QOS profile doesn't match. Deleting session.")
 					oldQos := qsiResp.Qos
 					url, err := buildQosUrl(ctx, oldQos, qosSesAddr)
-					url = fmt.Sprintf("%s/%s", url, sessionId)
+					url = fmt.Sprintf("%s%s", url, sessionId)
 					if err != nil {
 						return "", err
 					}
-					status, _, err := sendRequest(ctx, http.MethodDelete, url, apiKey, nil)
+					status, _, err = sendRequest(ctx, http.MethodDelete, url, apiKey, nil)
 					if err != nil {
 						return "", err
 					}
@@ -189,6 +189,8 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 					// Send new request to create session with desired QOS profile.
 					body := bytes.NewBuffer(out)
 					status, respBody, err = sendRequest(ctx, method, reqUrl, apiKey, body)
+					log.SpanLog(ctx, log.DebugLevelDmereq, "Result of re-send", "respBody", respBody)
+
 					if err != nil {
 						return "", err
 					}
@@ -200,6 +202,7 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 	// This value of 'status' can be from the initial call, or from the delete/retry attempt.
 	if status == http.StatusCreated {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "201 Session Created received")
+		log.SpanLog(ctx, log.DebugLevelDmereq, "StatusCreated", "respBody", respBody)
 		respBytes := []byte(respBody)
 		err = json.Unmarshal(respBytes, &qsiResp)
 		if err != nil {

@@ -1,0 +1,22 @@
+---
+- name: Add trivy GPG key
+  apt_key:
+    url: https://aquasecurity.github.io/trivy-repo/deb/public.key
+    state: present
+  become: yes
+  tags: setup
+
+- name: Add trivy APT repo
+  apt_repository:
+    repo: "deb https://aquasecurity.github.io/trivy-repo/deb {{ ansible_distribution_release }} main"
+    state: present
+  become: yes
+  tags: setup
+
+- name: Install trivy
+  apt:
+    name: "trivy={{ trivy_version }}"
+    state: present
+    update_cache: yes
+  become: yes
+  tags: setup

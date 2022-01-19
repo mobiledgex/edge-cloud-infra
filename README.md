@@ -13,17 +13,17 @@ In order to separate out platform support which is intended to be closed-source 
 ### VM-Based:
 
 - Openstack
-- VSphere
+- VMWare VSphere
 - VMWare Cloud Director (VCD)
 - VMPool (a bunch of VMs)
 - Amazon Web Services (AWS) EC2
-- Microsoft Azure
 
 ### Kubernetes Based:
 
 - Amazon Web Services (AWS) EKS
 - Google Cloud Platform (GCP) GKE
 - K8S Bare Metal (primarily but not limited to Google Anthos)
+- Microsoft Azure Kubernetes Service
 
 ## Additional Edge-Cloud Services
 

@@ -23,7 +23,7 @@ In order to separate out platform support which is intended to be closed-source 
 - Amazon Web Services (AWS) EKS
 - Google Cloud Platform (GCP) GKE
 - K8S Bare Metal (primarily but not limited to Google Anthos)
-- Microsoft Azure Kubernetes Service
+- Microsoft Azure Kubernetes Service (AKS)
 
 ## Additional Edge-Cloud Services
 

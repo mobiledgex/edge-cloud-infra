@@ -836,6 +836,8 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 				newPorts = append(newPorts, internalPort)
 			}
 
+		case cloudcommon.VMTypePlatformClusterMaster:
+			fallthrough
 		case cloudcommon.VMTypeClusterMaster:
 			role = RoleMaster
 			if vm.ConnectToSubnet != "" {
@@ -868,11 +870,15 @@ func (v *VMPlatform) getVMGroupOrchestrationParamsFromGroupSpec(ctx context.Cont
 			}
 		case cloudcommon.VMTypeClusterDockerNode:
 			fallthrough
+		case cloudcommon.VMTypePlatformClusterPrimaryNode:
+			fallthrough
+		case cloudcommon.VMTypePlatformClusterSecondaryNode:
+			fallthrough
 		case cloudcommon.VMTypeClusterK8sNode:
-			if vm.Type == cloudcommon.VMTypeClusterK8sNode {
-				role = RoleK8sNode
-			} else {
+			if vm.Type == cloudcommon.VMTypeClusterDockerNode {
 				role = RoleDockerNode
+			} else {
+				role = RoleK8sNode
 			}
 			if vm.ConnectToSubnet != "" {
 				// connect via internal network to LB

@@ -29,6 +29,6 @@ In order to separate out platform support which is intended to be closed-source 
 
 - The **Master Controller** provides user management, RBAC, and region management. The Controller's APIs are exposed with authorization based on permissions by organization, and support for multiple regions.
 
-- **Shepherd** deploys alongside the CRM on cloudlet infrastructure for advanced metrics and alerts.
+- **Shepherd** deploys alongside the CRM (Cloudlet Resource Manager) on cloudlet infrastructure for advanced metrics and alerts.
 
 - The **AutoProv** service monitors auto-provision policies and automatically deploys and undeploys application instances based on client demand.

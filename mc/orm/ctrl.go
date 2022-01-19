@@ -182,27 +182,6 @@ func getControllerObj(ctx context.Context, region string) (*ormapi.Controller, e
 	return &ctrl, nil
 }
 
-func copyUpdatedControllerFields(oldCtrl, newCtrl *ormapi.Controller) *ormapi.Controller {
-	ctrl := ormapi.Controller{}
-	ctrl = *oldCtrl
-	if newCtrl.Address != "" {
-		ctrl.Address = newCtrl.Address
-	}
-	if newCtrl.NotifyAddr != "" {
-		ctrl.NotifyAddr = newCtrl.NotifyAddr
-	}
-	if newCtrl.InfluxDB != "" {
-		ctrl.InfluxDB = newCtrl.InfluxDB
-	}
-	if newCtrl.ThanosMetrics != "" {
-		ctrl.ThanosMetrics = newCtrl.ThanosMetrics
-	}
-	if newCtrl.DnsRegion != "" {
-		ctrl.DnsRegion = newCtrl.DnsRegion
-	}
-	return &ctrl
-}
-
 func validateControllerObj(ctrl *ormapi.Controller) error {
 	if ctrl.Region == "" {
 		return fmt.Errorf("Controller Region not specified")

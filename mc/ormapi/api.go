@@ -509,6 +509,7 @@ type MetricSeries struct {
 type RegionAppInstMetrics struct {
 	// Region name
 	Region        string
+	// Comma separated list of metrics to view. Available metrics: utilization, network, ipusage
 	Selector      string
 	AppInst       edgeproto.AppInstKey   `json:",omitempty"`
 	AppInsts      []edgeproto.AppInstKey `json:",omitempty"`
@@ -520,6 +521,7 @@ type RegionClusterInstMetrics struct {
 	Region        string
 	ClusterInst   edgeproto.ClusterInstKey   `json:",omitempty"`
 	ClusterInsts  []edgeproto.ClusterInstKey `json:",omitempty"`
+	// Comma separated list of metrics to view. Available metrics: utilization, network, ipusage
 	Selector      string
 	MetricsCommon `json:",inline"`
 }

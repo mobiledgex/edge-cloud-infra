@@ -28,3 +28,6 @@ monitor.mobiledgex.net
 
 [teleport]
 teleport.mobiledgex.net
+
+[trivy]
+trivy.mobiledgex.net

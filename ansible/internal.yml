@@ -892,3 +892,24 @@
 
     - import_role:
         name: teleport
+
+- hosts: trivy
+  tasks:
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      vars:
+        docker_skip_registry_login: true
+      tags: setup
+
+    - import_role:
+        name: trivy

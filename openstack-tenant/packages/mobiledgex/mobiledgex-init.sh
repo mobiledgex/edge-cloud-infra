@@ -36,7 +36,6 @@ ip route | log
 MCONF=/mnt/mobiledgex-config
 METADIR="$MCONF/openstack/latest"
 METADATA="$METADIR/meta_data.json"
-NETDATA="$METADIR/network_data.json"
 VMWARE_CLOUDINIT=/etc/cloud/cloud.cfg.d/99-DataSourceVMwareGuestInfo.cfg
 
 # Main
@@ -103,30 +102,14 @@ set_metadata_param() {
 	set_param "$METADATA" "$@"
 }
 
-# Set variable based on JSON path in network data file
-set_network_param() {
-	set_param "$NETDATA" "$@"
-}
 
 set_metadata_param HOSTNAME .name
 set_metadata_param UPDATE .meta.update
 set_metadata_param SKIPINIT .meta.skipinit
-set_metadata_param INTERFACE .meta.interface
 set_metadata_param ROLE .meta.role
 set_metadata_param SKIPK8S .meta.skipk8s
 set_metadata_param MASTERADDR .meta.k8smaster
 set_metadata_param UPDATEHOSTNAME .meta.updatehostname
-
-set_network_param IPADDR '.networks[0].ip_address'
-set_network_param NETMASK '.networks[0].netmask'
-set_network_param NETTYPE '.networks[0].type'
-
-if [[ -z "$INTERFACE" ]]; then
-	INTERFACE=$( ls -d /sys/class/net/*/device 2>/dev/null \
-			| head -n 1 \
-			| cut -d/ -f5 )
-	[[ -z "$INTERFACE" ]] && INTERFACE=ens3
-fi
 
 echo 127.0.0.1 `hostname` >> /etc/hosts
 [[ "$UPDATEHOSTNAME" == yes ]] && sed -i "s|^\(127\.0\.1\.1 \).*|\1${HOSTNAME}|" /etc/hosts
@@ -160,7 +143,7 @@ else
 	log "K8s init for role $ROLE"
 	case "$ROLE" in
 	k8s-master)
-		sh -x /etc/mobiledgex/install-k8s-master.sh "$INTERFACE" "$MASTERADDR" "$IPADDR" | log
+		sh -x /etc/mobiledgex/install-k8s-master.sh $MASTERADDR  | log
 		if [[ "${PIPESTATUS[0]}" != 0 ]]; then
 			log "K8s master init failed"
 			exit 2
@@ -169,7 +152,7 @@ else
 		systemctl start k8s-join
 		;;
 	k8s-node)
-		sh -x /etc/mobiledgex/install-k8s-node.sh "$INTERFACE" "$MASTERADDR" "$IPADDR" | log
+		sh -x /etc/mobiledgex/install-k8s-node.sh $MASTERADDR | log
 		if [[ "${PIPESTATUS[0]}" != 0 ]]; then
 			log "K8s node init failed"
 			exit 2

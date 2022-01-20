@@ -96,7 +96,7 @@ func sendRequest(ctx context.Context, method string, reqUrl string, apiKey strin
 		return 0, "", resperr
 	}
 	respString := string(respBytes)
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Received response", "respString", respString)
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Converted response to string")
 
 	return resp.StatusCode, respString, nil
 }
@@ -189,7 +189,7 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 					// Send new request to create session with desired QOS profile.
 					body := bytes.NewBuffer(out)
 					status, respBody, err = sendRequest(ctx, method, reqUrl, apiKey, body)
-					log.SpanLog(ctx, log.DebugLevelDmereq, "Result of re-send", "respBody", respBody)
+					log.SpanLog(ctx, log.DebugLevelDmereq, "Result of re-send received")
 
 					if err != nil {
 						return "", err
@@ -202,7 +202,6 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 	// This value of 'status' can be from the initial call, or from the delete/retry attempt.
 	if status == http.StatusCreated {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "201 Session Created received")
-		log.SpanLog(ctx, log.DebugLevelDmereq, "StatusCreated", "respBody", respBody)
 		respBytes := []byte(respBody)
 		err = json.Unmarshal(respBytes, &qsiResp)
 		if err != nil {
@@ -210,7 +209,7 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 			return "", err
 		}
 		sessionId = qsiResp.Id
-		log.SpanLog(ctx, log.DebugLevelDmereq, "unmarshalled response", "qsiResp:", qsiResp, "sessionId", sessionId)
+		log.SpanLog(ctx, log.DebugLevelDmereq, "response unmarshalled successfully")
 	} else if status == http.StatusOK {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "200 OK received")
 	} else if status == http.StatusNoContent {

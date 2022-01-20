@@ -215,6 +215,9 @@ func GetAllProcesses() []process.Process {
 	for _, p := range Deployment.Maildevs {
 		all = append(all, p)
 	}
+	for _, p := range Deployment.Qossessims {
+		all = append(all, p)
+	}
 	return all
 }
 

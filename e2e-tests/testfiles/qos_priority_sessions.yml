@@ -3,9 +3,13 @@ description: executes matching engine request for find_cloudlet, then verifies t
 
 tests:
 
-- name: Add and show provisioning
-  apifile: "{{datadir}}/appdata.yml"
+- name: Add qosapplication app and appinst
+  apifile: "{{datadir2}}/qos_appdata_add.yml"
   actions: [ctrlapi-create,ctrlapi-show]
+  compareyaml:
+    yaml1: "{{outputdir}}/show-commands.yml"
+    yaml2: "{{datadir2}}/qos_appdata_show.yml"
+    filetype: appdata
 
 - name: Verify qos_profile_name is included in response
   apifile: "{{datadir2}}/find_cloudlet_qos_request.yml"
@@ -43,10 +47,10 @@ tests:
     yaml2: "{{datadir2}}/find_cloudlet_qos_response_no_user_ip.yml"
     filetype: findcloudlet
 
-- name: delete provisioning, verify it is empty
-  apifile: "{{datadir}}/appdata.yml"
+- name: Remove qosapplication app and appinst
+  apifile: "{{datadir2}}/qos_appdata_remove.yml"
   actions: [ctrlapi-delete,ctrlapi-show]
   compareyaml:
     yaml1: "{{outputdir}}/show-commands.yml"
-    yaml2: "{{datadir}}/appdata_empty.yml"
+    yaml2: "{{datadir2}}/qos_appdata_empty.yml"
     filetype: appdata

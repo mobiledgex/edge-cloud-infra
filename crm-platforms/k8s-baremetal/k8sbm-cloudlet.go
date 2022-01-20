@@ -91,7 +91,7 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 	}
 	chefApi := chefmgmt.ChefApiAccess{}
 
-	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, "platform", &chefApi)
+	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, "platform", &chefApi, nil)
 	if err != nil {
 		return cloudletResourcesCreated, err
 	}

@@ -92,6 +92,11 @@ type ChefApiAccess struct {
 	ApiGateway  string
 }
 
+type ChefNodeInfo struct {
+	NodeName string
+	NodeType string
+}
+
 const (
 	ResourceDockerRegistry  = "docker_registry"
 	ResourceDockerImage     = "docker_image"
@@ -506,7 +511,7 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 	return chefAttributes, nil
 }
 
-func GetChefPlatformAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, serverType string, apiAccess *ChefApiAccess) (map[string]interface{}, error) {
+func GetChefPlatformAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, serverType string, apiAccess *ChefApiAccess, nodes []ChefNodeInfo) (map[string]interface{}, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetChefPlatformAttributes", "region", pfConfig.Region, "cloudletKey", cloudlet.Key, "PhysicalName", cloudlet.PhysicalName)
 
 	chefAttributes, err := GetChefCloudletAttributes(ctx, cloudlet, pfConfig, serverType)
@@ -533,6 +538,9 @@ func GetChefPlatformAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 		if apiAccess.ApiGateway != "" {
 			chefAttributes["infraApiGw"] = apiAccess.ApiGateway
 		}
+	}
+	for _, node := range nodes {
+		chefAttributes[node.NodeType] = node.NodeName
 	}
 	return chefAttributes, nil
 }

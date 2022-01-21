@@ -122,8 +122,21 @@ func handleSession(w http.ResponseWriter, r *http.Request, priorityType string) 
 			return
 		}
 		log.Printf("unmarshalled body: %v\n", req)
-		if req.UeAddr == "" || req.AsAddr == "" || req.UePorts == "" || req.AsPorts == "" || req.Qos == "" {
-			msg := fmt.Sprintf("400 - missing field in body: %+v\n", string(reqb))
+		var missing string
+		if req.UeAddr == "" {
+			missing += "UeAddr "
+		}
+		if req.AsAddr == "" {
+			missing += "AsAddr "
+		}
+		if req.AsPorts == "" {
+			missing += "AsPorts "
+		}
+		if req.Qos == "" {
+			missing += "Qos "
+		}
+		if len(missing) > 0 {
+			msg := fmt.Sprintf("400 - missing field(s) %s in body: %+v\n", missing, string(reqb))
 			log.Print(msg)
 			http.Error(w, msg, 400)
 			return
@@ -155,6 +168,7 @@ func handleSession(w http.ResponseWriter, r *http.Request, priorityType string) 
 			req.Duration = 86400
 		}
 		sesId := uuid.New().String()
+		log.Printf("Generated new sesId: %s", sesId)
 		var resp sesclient.QosSessionResponse
 		// Copy common fields from req to resp.
 		resp.QosSessionCommon = req.QosSessionCommon

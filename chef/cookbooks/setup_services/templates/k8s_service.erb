@@ -1,23 +1,45 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: crm-services
+  name: platform-<%= @harole %>
   labels:
-    app: crm-services
+    app: platform-<%= @harole %>
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: crm-services
+      app: platform-<%= @harole %>
   template:
     metadata:
       labels:
-        app: crm-services
+        app: platform-<%= @harole %>
     spec:
+       nodeSelector:
+         harole: <%= @harole %> 
+       volumes:
+       <% @hostvols.each do |vol, vol_attrs| %>
+       - name: <%= vol_attrs[:name] %>
+         hostPath: 
+            path: <%= vol_attrs[:hostPath] %>
+       <% end %>
+       <% @configmaps.each do|cm, cm_attrs| %>
+       - name: <%= cm_attrs[:name] %>
+         configMap:
+           name: <%= cm_attrs[:configMap] %>
+           items: 
+            - key: <%= cm_attrs[:key] %>
+              path: <%= cm_attrs[:path] %>
+       <% end %>
+       dnsConfig:
+         nameservers:
+          - 1.1.1.1
+          - 1.0.0.1
+       imagePullSecrets:
+        - name: mexreg-secret
        containers:
        <% @services.each do |service, service_attrs| %>
        - name: <%= service %>
-         image: <%= node['edgeCloudImage'] %>:<%= node['edgeCloudVersion'] %>
+         image: <%= service_attrs[:image] %>
          imagePullPolicy: Always
          resources:
            requests:
@@ -36,9 +58,9 @@ spec:
           - name: "<%= key %>"
             value: "<%= val %>"
          <% end %>
+         volumeMounts:
+         <% service_attrs[:volumeMounts].each do |vol, vol_attrs| %>
+            - name: <%= vol_attrs[:name] %> 
+              mountPath: <%= vol_attrs[:mountPath] %>
+         <% end %>
        <% end %>
-       dnsConfig:
-         nameservers:
-          - 1.1.1.1
-       imagePullSecrets:
-        - name: mexreg-secret

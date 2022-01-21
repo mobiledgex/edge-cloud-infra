@@ -125,7 +125,7 @@ func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, ueAddr string
 	reqBody.Qos = qos
 	reqBody.Duration = duration
 	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, "", http.MethodPost, o.Servers.QosSesAddr, qosSessionsApiKey, reqBody)
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id", id, "err", err)
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id received", (len(id) > 0), "err", err)
 	return id, err
 }
 
@@ -133,7 +133,7 @@ func (o *OperatorApiGw) DeletePrioritySession(ctx context.Context, sessionId str
 	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG DeletePrioritySession", "sessionId", sessionId)
 	sesInfo := sessionsclient.QosSessionRequest{} // Blank struct
 	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, sessionId, http.MethodDelete, o.Servers.QosSesAddr, qosSessionsApiKey, sesInfo)
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id", id, "err", err)
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id received", (len(id) > 0), "err", err)
 	return err
 }
 

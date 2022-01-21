@@ -164,6 +164,7 @@ type BillingOrganization struct {
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
+	// Delete of this billing organization is in progress
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
 }
@@ -328,8 +329,10 @@ type Role struct {
 }
 
 type OrgCloudlet struct {
+	// Region
 	Region string `json:"region,omitempty"`
-	Org    string `form:"org" json:"org"`
+	// Org that has permissions for cloudlets
+	Org string `form:"org" json:"org"`
 }
 
 type ShowUser struct {
@@ -392,6 +395,7 @@ type AuditResponse struct {
 // verification email. It contains the information need to send
 // some kind of email to the user.
 type EmailRequest struct {
+	// User's email address
 	// read only: true
 	Email string `form:"email" json:"email"`
 	// read only: true

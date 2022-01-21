@@ -50,19 +50,20 @@ var InvoiceRequestComments = map[string]string{
 }
 
 var BillingOrganizationComments = map[string]string{
-	"name":       `BillingOrganization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
-	"type":       `Organization type: "parent" or "self"`,
-	"firstname":  `Billing info first name`,
-	"lastname":   `Billing info last name`,
-	"email":      `Organization email`,
-	"address":    `Organization address`,
-	"address2":   `Organization address2`,
-	"city":       `Organization city`,
-	"country":    `Organization country`,
-	"state":      `Organization state`,
-	"postalcode": `Organization postal code`,
-	"phone":      `Organization phone number`,
-	"children":   `Children belonging to this BillingOrganization`,
+	"name":             `BillingOrganization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
+	"type":             `Organization type: "parent" or "self"`,
+	"firstname":        `Billing info first name`,
+	"lastname":         `Billing info last name`,
+	"email":            `Organization email`,
+	"address":          `Organization address`,
+	"address2":         `Organization address2`,
+	"city":             `Organization city`,
+	"country":          `Organization country`,
+	"state":            `Organization state`,
+	"postalcode":       `Organization postal code`,
+	"phone":            `Organization phone number`,
+	"children":         `Children belonging to this BillingOrganization`,
+	"deleteinprogress": `Delete of this billing organization is in progress`,
 }
 
 var AccountInfoComments = map[string]string{
@@ -81,7 +82,7 @@ var ControllerComments = map[string]string{
 	"address":    `Controller API address or URL`,
 	"notifyaddr": `Controller notify address or URL`,
 	"influxdb":   `InfluxDB address`,
-	"dnsregion":  `DNS segment id for the region`,
+	"dnsregion":  `Unique DNS label for the region`,
 }
 
 var ConfigComments = map[string]string{
@@ -140,6 +141,11 @@ var RoleComments = map[string]string{
 	"role":     `Role which defines the set of permissions`,
 }
 
+var OrgCloudletComments = map[string]string{
+	"region": `Region`,
+	"org":    `Org that has permissions for cloudlets`,
+}
+
 var ShowUserComments = map[string]string{
 	"user.name":            `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
 	"user.email":           `User email`,
@@ -178,6 +184,7 @@ var CreateUserComments = map[string]string{
 }
 
 var EmailRequestComments = map[string]string{
+	"email":       `User's email address`,
 	"callbackurl": `Callback URL to verify user email`,
 }
 

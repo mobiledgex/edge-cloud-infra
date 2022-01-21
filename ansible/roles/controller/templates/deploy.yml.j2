@@ -45,6 +45,8 @@ spec:
          - "0.0.0.0:41001"
          - "--etcdUrls"  
          - "{{ etcd_cluster_client }}:2379"
+         - "--redisStandaloneAddr"
+         - "{{ redis_endpoint }}"
          - "--edgeTurnAddr"
          - "{{ edgeturn_fqdn }}:6080"
          - "--vaultAddr"

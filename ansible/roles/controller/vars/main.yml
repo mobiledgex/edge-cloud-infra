@@ -1,1 +1,2 @@
 etcd_backup_file: /var/tmp/etcd-snapshot.db
+redis_endpoint: "redis:6379"

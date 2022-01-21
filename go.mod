@@ -313,12 +313,8 @@ replace github.com/davecgh/go-spew => github.com/davecgh/go-spew v1.1.1
 
 replace github.com/go-redis/redis => github.com/go-redis/redis v6.15.9+incompatible
 
-replace github.com/alicebob/gopher-json => github.com/alicebob/gopher-json v0.0.0-20200520072559-a9ecdc9d1d3a
+replace github.com/agnivade/levenshtein => github.com/agnivade/levenshtein v1.0.1
 
-replace github.com/alicebob/miniredis => github.com/alicebob/miniredis v2.5.0+incompatible
+replace github.com/test-go/testify => github.com/test-go/testify v1.1.4
 
-replace github.com/alicebob/miniredis/v2 => github.com/alicebob/miniredis/v2 v2.17.0
-
-replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.8
-
-replace github.com/yuin/gopher-lua => github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9
+replace golang.org/x/tools => golang.org/x/tools v0.0.0-20200603131246-cc40288be839

@@ -318,3 +318,11 @@ replace github.com/agnivade/levenshtein => github.com/agnivade/levenshtein v1.0.
 replace github.com/test-go/testify => github.com/test-go/testify v1.1.4
 
 replace golang.org/x/tools => golang.org/x/tools v0.0.0-20200603131246-cc40288be839
+
+replace github.com/Bose/minisentinel => github.com/Bose/minisentinel v0.0.0-20200130220412-917c5a9223bb
+
+replace github.com/alicebob/miniredis/v2 => github.com/alicebob/miniredis/v2 v2.18.0
+
+replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.8
+
+replace github.com/yuin/gopher-lua => github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9

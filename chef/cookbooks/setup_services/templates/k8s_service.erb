@@ -14,8 +14,10 @@ spec:
       labels:
         app: platform-<%= @harole %>
     spec:
+       <% if @harole != "simplex" %>
        nodeSelector:
          harole: <%= @harole %> 
+       <% end %>
        volumes:
        <% @hostvols.each do |vol, vol_attrs| %>
        - name: <%= vol_attrs[:name] %>
@@ -44,23 +46,29 @@ spec:
          resources:
            requests:
              cpu: 10m
+         <% unless service_attrs[:cmd].nil? %>
          command:
-         <% cmdArgs = service_attrs[:cmd].split(" ")
-              cmd = cmdArgs.shift() %>
-          - <%= cmd %>
+           - <%= service_attrs[:cmd] %>
+         <% end %>
+         <% unless service_attrs[:cmdargs].nil? %> 
          args:
-         <% cmdArgs.each do |args| %>
-          - <%= args %>
+         <% service_attrs[:cmdargs].each do|arg| %>
+          - <%= arg %>
+         <% end %>
          <% end %>
          env:
+         <% unless service_attrs[:env].nil? %>
          <% service_attrs[:env].each do |envVar|
               key, val = envVar.split('=') %>
           - name: "<%= key %>"
             value: "<%= val %>"
          <% end %>
+         <% end %>
+         <% unless service_attrs[:volumeMounts].nil? %>
          volumeMounts:
          <% service_attrs[:volumeMounts].each do |vol, vol_attrs| %>
             - name: <%= vol_attrs[:name] %> 
               mountPath: <%= vol_attrs[:mountPath] %>
+         <% end %>
          <% end %>
        <% end %>

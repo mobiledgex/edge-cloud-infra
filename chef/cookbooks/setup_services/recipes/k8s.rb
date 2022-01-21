@@ -57,37 +57,75 @@ execute('Setup docker registry secrets') do
   ignore_failure true
 end
 
-crm_cmd = crmserver_cmd
-shp_cmd = shepherd_cmd
-prom_cmd = cloudlet_prometheus_cmd
+# start redis on master if HA enabled
+template '/home/ubuntu/k8s-deployment-redis-master.yaml' do
+  source 'k8s_service.erb'
+  variables(
+     harole: 'master',
+     services: {
+          redis: {
+              image: node['redisImage'] + ':' + node['redisVersion'],
+              serviceName: node['redisServiceName'],
+              port: node['redisPort'],
+          },
+     },
+     hostvols: {},
+     configmaps: {}
+   )
+  only_if node['redisPort']
+end
+
+svc_vars = get_services_vars
+hostvol_vars = get_hostvols_vars
+configmap_vars = get_configmap_vars
+
+# start processes only any node if no HA enabled
+template '/home/ubuntu/k8s-deployment.yaml' do
+  source 'k8s_service.erb'
+  variables(
+     harole: 'simplex',
+     services: svc_vars,
+     hostvols: hostvol_vars,
+     configmaps: configmap_vars
+   )
+  not_if node['redisPort']
+end
+
+# start primary platform if HA enabled
 template '/home/ubuntu/k8s-deployment-primary.yaml' do
   source 'k8s_service.erb'
   variables(
      harole: 'primary',
-     services: {
-       crmserver: { cmd: crm_cmd,
-                    env: node['crmserver']['env'],
-                    image: node['edgeCloudImage'] + ':' + node['edgeCloudVersion'],
-                    volumeMounts: { accesskey_vol: { name: 'accesskey-vol', mountPath: '/accesskey' } },
-       },
-       shepherd: { cmd: shp_cmd,
-                   env: node['shepherd']['env'],
-                   image: node['edgeCloudImage'] + ':' + node['edgeCloudVersion'],
-                   volumeMounts: { accesskey_vol: { name: 'accesskey-vol', mountPath: '/accesskey' } },
-       },
-       cloudletprometheus: { cmd: prom_cmd,
-                             env: node['cloudletPrometheus']['env'],
-                             image: 'docker.mobiledgex.net/mobiledgex/mobiledgex_public/' + node['prometheusImage'] + ':' + node['prometheusVersion'],
-                             volumeMounts: { prom_vol: { name: 'prom-config', mountPath: '/etc/prometheus' } },
-        },
-     },
-     hostvols: { accesskey_vol: { name: 'accesskey-vol', hostPath: '/root/accesskey' } },
-     configmaps: { prom_config: { name: 'prom-config', configMap: 'prom-cm', key: 'prometheus.yml', path: 'prometheus.yml' } }
+     services: svc_vars,
+     hostvols: hostvol_vars,
+     configmaps: configmap_vars
    )
+  only_if node['redisPort']
 end
 
-execute('Setup kube pods') do
+# start secondary platform if HA enabled
+template '/home/ubuntu/k8s-deployment-secondary.yaml' do
+  source 'k8s_service.erb'
+  variables(
+     harole: 'secondary',
+     services: svc_vars,
+     hostvols: hostvol_vars,
+     configmaps: configmap_vars
+   )
+  only_if node['redisPort']
+end
+
+execute('Setup kube pods primary') do
   action 'run'
-  command 'kubectl apply -f /tmp/k8s-deployment.yaml --kubeconfig=/home/ubuntu/.kube/config'
+  command 'kubectl apply -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+  returns 0
+end
+
+execute('Wait for primary deployment to come up') do
+  Chef::Log.info("Wait for K8s cluster to come up, there should be #{node['k8sNodeCount']} number of nodes")
+  action 'run'
+  retries 30
+  retry_delay 6
+  command "kubectl get nodes --kubeconfig=/home/ubuntu/.kube/config| grep ' Ready' | wc -l | grep -w #{node['k8sNodeCount']}"
   returns 0
 end

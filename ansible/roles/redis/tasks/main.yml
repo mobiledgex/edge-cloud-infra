@@ -8,6 +8,7 @@
   kubernetes.core.helm:
     name: redis
     namespace: default
+    kubeconfig: "{{ kubeconfig_file.path }}"
     chart_ref: bitnami/redis
     chart_version: "{{ redis_chart_version }}"
     values: "{{ lookup('template', 'redis.yaml.j2') | from_yaml }}"

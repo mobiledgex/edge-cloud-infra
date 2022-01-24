@@ -125,3 +125,9 @@ type ThanosReceive struct {
 	HttpPort              int
 	RemoteWritePort       int
 }
+
+type QosSesSrvSim struct {
+	process.Common `yaml:",inline"`
+	Port           int
+	cmd            *exec.Cmd
+}

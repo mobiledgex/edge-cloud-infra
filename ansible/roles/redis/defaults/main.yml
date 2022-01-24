@@ -1,0 +1,3 @@
+redis_chart_version: 16.1.0
+redis_volume_size: 8Gi
+redis_volume_storage_class: ""

@@ -809,3 +809,21 @@ func (p *ThanosReceive) StartLocal(logfile string, opts ...process.StartOp) erro
 	p.SetCmd(cmd)
 	return err
 }
+
+//DT QOS Sessions API server simulator
+func (p *QosSesSrvSim) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := []string{"-port", fmt.Sprintf("%d", p.Port)}
+	var err error
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	return err
+}
+
+func (p *QosSesSrvSim) StopLocal() {
+	process.StopLocal(p.cmd)
+}
+
+func (p *QosSesSrvSim) GetExeName() string { return "sessions-srv-sim" }
+
+func (p *QosSesSrvSim) LookupArgs() string {
+	return fmt.Sprintf("-port %d", p.Port)
+}

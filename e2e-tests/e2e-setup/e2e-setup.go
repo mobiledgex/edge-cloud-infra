@@ -84,6 +84,7 @@ type DeploymentData struct {
 	AlertmgrSidecars    []*intprocess.AlertmanagerSidecar `yaml:"alertmanagersidecars"`
 	ThanosQueries       []*intprocess.ThanosQuery         `yaml:"thanosqueries"`
 	ThanosReceives      []*intprocess.ThanosReceive       `yaml:"thanosreceives"`
+	Qossessims          []*intprocess.QosSesSrvSim        `yaml:"qossessims"`
 }
 
 // a comparison and yaml friendly version of AllMetrics for e2e-tests
@@ -220,6 +221,9 @@ func GetAllProcesses() []process.Process {
 		all = append(all, p)
 	}
 	for _, p := range Deployment.ThanosReceives {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.Qossessims {
 		all = append(all, p)
 	}
 	return all
@@ -393,6 +397,11 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 		}
 	}
 	for _, p := range Deployment.ThanosReceives {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.Qossessims {
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}

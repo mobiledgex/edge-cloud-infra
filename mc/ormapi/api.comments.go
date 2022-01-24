@@ -63,7 +63,7 @@ var BillingOrganizationComments = map[string]string{
 	"postalcode":       `Organization postal code`,
 	"phone":            `Organization phone number`,
 	"children":         `Children belonging to this BillingOrganization`,
-	"deleteinprogress": `Delete of this billing organization is in progress`,
+	"deleteinprogress": `Delete of this BillingOrganization is in progress`,
 }
 
 var AccountInfoComments = map[string]string{

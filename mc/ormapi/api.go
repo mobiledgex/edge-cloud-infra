@@ -164,7 +164,7 @@ type BillingOrganization struct {
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
-	// Delete of this billing organization is in progress
+	// Delete of this BillingOrganization is in progress
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
 }

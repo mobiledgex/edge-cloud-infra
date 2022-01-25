@@ -1,18 +1,42 @@
+<% unless @headlessSvcs.nil? %>
+<% @headlessSvcs.each do|svc, svc_attrs| %>
+apiVersion: v1
+kind: Service
+metadata:
+  name: <%= svc_attrs[:serviceName] %>
+  labels:
+    app: <%= svc_attrs[:appSelector] %>
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  <% svc_attrs[:ports].each do|port, port_attrs| %>
+  - name:  <%= port_attrs[:protocol].downcase %>-<%= port_attrs[:portNum] %> 
+    protocol: <%= port_attrs[:protocol] %>
+    port: <%= port_attrs[:portNum] %>
+    targetPort: <%= port_attrs[:portNum] %>
+  <% end %>
+  selector:
+    app: <%= svc_attrs[:appSelector] %>
+---
+<% end %>
+<% end %>
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: platform-<%= @harole %>
+  name: <%= @deploymentName %>
   labels:
-    app: platform-<%= @harole %>
+    app: <%= @deploymentName %>
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: platform-<%= @harole %>
+      app: <%= @deploymentName %>
   template:
     metadata:
       labels:
-        app: platform-<%= @harole %>
+        app: <%= @deploymentName %>
     spec:
        <% if @harole != "simplex" %>
        nodeSelector:

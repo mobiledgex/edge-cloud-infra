@@ -58,21 +58,48 @@ execute('Setup docker registry secrets') do
 end
 
 # start redis on master if HA enabled
-template '/home/ubuntu/k8s-deployment-redis-master.yaml' do
+template '/home/ubuntu/k8s-deployment-redis.yaml' do
   source 'k8s_service.erb'
   variables(
      harole: 'master',
+     deploymentName: 'redis',
+     headlessSvcs: {
+          redis: {
+              serviceName: node['redisServiceName'],
+              ports: { redisServicePort: { protocol: 'TCP', portNum: node['redisServicePort'] } },
+              appSelector: 'redis',
+          },
+     },
      services: {
           redis: {
               image: node['redisImage'] + ':' + node['redisVersion'],
               serviceName: node['redisServiceName'],
-              port: node['redisPort'],
+              port: node['redisServicePort'],
+              env: [ 'ALLOW_EMPTY_PASSWORD=yes' ],
           },
      },
      hostvols: {},
      configmaps: {}
    )
-  only_if node['redisPort']
+  only_if { node.attribute?(:redisServicePort) }
+end
+
+execute('Setup redis deployment') do
+  action 'run'
+  command 'kubectl apply -f /home/ubuntu/k8s-deployment-redis.yaml --kubeconfig=/home/ubuntu/.kube/config'
+  returns 0
+  only_if { node.attribute?(:redisServicePort) }
+
+end
+
+execute('Wait for redis deployment to come up') do
+  Chef::Log.info('Wait for redis deployment to come up')
+  action 'run'
+  retries 10
+  retry_delay 6
+  command "kubectl get deployment redis --kubeconfig=/home/ubuntu/.kube/config| grep '1/1'"
+  returns 0
+  only_if { node.attribute?(:redisServicePort) }
 end
 
 svc_vars = get_services_vars
@@ -84,11 +111,29 @@ template '/home/ubuntu/k8s-deployment.yaml' do
   source 'k8s_service.erb'
   variables(
      harole: 'simplex',
+     deploymentName: 'platform-simplex',
      services: svc_vars,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )
-  not_if node['redisPort']
+  not_if { node.attribute?(:redisServicePort) }
+end
+
+execute('Setup simplex deployment') do
+  action 'run'
+  command 'kubectl apply -f /home/ubuntu/k8s-deployment.yaml --kubeconfig=/home/ubuntu/.kube/config'
+  returns 0
+  not_if { node.attribute?(:redisServicePort) }
+end
+
+execute('Wait for simplex platform deployment to come up') do
+  Chef::Log.info('Wait for simplex platform deployment to come up')
+  action 'run'
+  retries 30
+  retry_delay 6
+  command "kubectl get deployment platform-simplex --kubeconfig=/home/ubuntu/.kube/config| grep '1/1'"
+  returns 0
+  not_if { node.attribute?(:redisServicePort) }
 end
 
 # start primary platform if HA enabled
@@ -96,11 +141,29 @@ template '/home/ubuntu/k8s-deployment-primary.yaml' do
   source 'k8s_service.erb'
   variables(
      harole: 'primary',
+     deploymentName: 'platform-primary',
      services: svc_vars,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )
-  only_if node['redisPort']
+  only_if { node.attribute?(:redisServicePort) }
+end
+
+execute('Setup platform primary deployment') do
+  action 'run'
+  command 'kubectl apply -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+  returns 0
+  only_if { node.attribute?(:redisServicePort) }
+end
+
+execute('Wait for primary platform deployment to come up') do
+  Chef::Log.info('Wait for primary platform deployment to come up')
+  action 'run'
+  retries 30
+  retry_delay 6
+  command "kubectl get deployment platform-primary --kubeconfig=/home/ubuntu/.kube/config| grep '1/1'"
+  returns 0
+  only_if { node.attribute?(:redisServicePort) }
 end
 
 # start secondary platform if HA enabled
@@ -108,24 +171,27 @@ template '/home/ubuntu/k8s-deployment-secondary.yaml' do
   source 'k8s_service.erb'
   variables(
      harole: 'secondary',
+     deploymentName: 'platform-secondary',
      services: svc_vars,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )
-  only_if node['redisPort']
+  only_if { node.attribute?(:redisServicePort) }
 end
 
-execute('Setup kube pods primary') do
+execute('Setup platform secondary deployment') do
   action 'run'
-  command 'kubectl apply -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+  command 'kubectl apply -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config'
   returns 0
+  only_if { node.attribute?(:redisServicePort) }
 end
 
-execute('Wait for primary deployment to come up') do
+execute('Wait for secondary deployment to come up') do
   Chef::Log.info("Wait for K8s cluster to come up, there should be #{node['k8sNodeCount']} number of nodes")
   action 'run'
   retries 30
   retry_delay 6
-  command "kubectl get nodes --kubeconfig=/home/ubuntu/.kube/config| grep ' Ready' | wc -l | grep -w #{node['k8sNodeCount']}"
+  command "kubectl get deployment platform-secondary --kubeconfig=/home/ubuntu/.kube/config| grep '1/1'"
   returns 0
+  only_if { node.attribute?(:redisServicePort) }
 end

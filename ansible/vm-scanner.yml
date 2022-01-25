@@ -1,0 +1,40 @@
+---
+- hosts: localhost
+  gather_facts: no
+  vars:
+    security_group_name: vm-scanner-sg
+    access_remote_ip: 34.72.87.153
+
+  tasks:
+    - name: "Create security group: {{ security_group_name }}"
+      openstack.cloud.security_group:
+        name: "{{ security_group_name }}"
+        description: "Security group for VM image scanning"
+        state: present
+
+    - name: "Create security group rules for remote IP: {{ access_remote_ip }}"
+      openstack.cloud.security_group_rule:
+        security_group: "{{ security_group_name }}"
+        protocol: "{{ item.proto }}"
+        port_range_min: "{{ item.port_min }}"
+        port_range_max: "{{ item.port_max }}"
+        direction: "{{ item.dir }}"
+        remote_ip_prefix: "{{ access_remote_ip }}/32"
+      loop:
+        - {"dir": "egress",  "proto": "tcp",  "port_min":  1, "port_max": 65525}
+        - {"dir": "egress",  "proto": "udp",  "port_min":  1, "port_max": 65525}
+        - {"dir": "egress",  "proto": "icmp", "port_min": -1, "port_max":    -1}
+        - {"dir": "ingress", "proto": "tcp",  "port_min":  1, "port_max": 65525}
+        - {"dir": "ingress", "proto": "udp",  "port_min":  1, "port_max": 65525}
+        - {"dir": "ingress", "proto": "icmp", "port_min": -1, "port_max":    -1}
+      register: sg_rules
+
+    - name: Remove default egress rules
+      openstack.cloud.security_group_rule:
+        security_group: "{{ security_group_name }}"
+        direction: egress
+        ethertype: "{{ item }}"
+        state: absent
+      loop:
+        - IPv4
+        - IPv6

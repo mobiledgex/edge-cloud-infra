@@ -28,6 +28,7 @@ metadata:
   name: <%= @deploymentName %>
   labels:
     app: <%= @deploymentName %>
+    version: <%= @version %>
 spec:
   replicas: 1
   selector:
@@ -37,6 +38,7 @@ spec:
     metadata:
       labels:
         app: <%= @deploymentName %>
+        version: <%= @version %>
     spec:
        <% if @harole != "simplex" %>
        nodeSelector:

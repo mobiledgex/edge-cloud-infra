@@ -90,9 +90,13 @@ class Chef
       extract_cmd('cloudletPrometheus', argsmap, true, true)
     end
 
-    def get_crm_args
+    def get_crm_args(harole)
       crmargs = crmserver_cmd.split(' ')
       crmargs.shift()
+      if harole != ''
+        crmargs.append('--HARole')
+        crmargs.append(harole)
+      end
       crmargs
     end
 
@@ -106,10 +110,10 @@ class Chef
       cloudlet_prometheus_cmd.split(' ')
     end
 
-    def get_services_vars
+    def get_services_vars(harole)
       {
         crmserver: { cmd: 'crmserver',
-                     cmdargs: get_crm_args,
+                     cmdargs: get_crm_args(harole),
                      env: node['crmserver']['env'],
                      image: node['edgeCloudImage'] + ':' + node['edgeCloudVersion'],
                      volumeMounts: { accesskey_vol: { name: 'accesskey-vol', mountPath: '/root/accesskey' },

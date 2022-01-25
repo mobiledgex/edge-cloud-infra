@@ -2,7 +2,7 @@ execute('Wait for K8s cluster to come up') do
   Chef::Log.info("Wait for K8s cluster to come up, there should be #{node['k8sNodeCount']} number of nodes")
   action 'run'
   retries 30
-  retry_delay 6
+  retry_delay 10
   command "kubectl get nodes --kubeconfig=/home/ubuntu/.kube/config| grep ' Ready' | wc -l | grep -w #{node['k8sNodeCount']}"
   returns 0
 end
@@ -63,6 +63,7 @@ template '/home/ubuntu/k8s-deployment-redis.yaml' do
   variables(
      harole: 'master',
      deploymentName: 'redis',
+     version: node['redisVersion'],
      headlessSvcs: {
           redis: {
               serviceName: node['redisServiceName'],
@@ -89,22 +90,40 @@ execute('Setup redis deployment') do
   command 'kubectl apply -f /home/ubuntu/k8s-deployment-redis.yaml --kubeconfig=/home/ubuntu/.kube/config'
   returns 0
   only_if { node.attribute?(:redisServicePort) }
-
 end
 
 execute('Wait for redis deployment to come up') do
   Chef::Log.info('Wait for redis deployment to come up')
   action 'run'
-  retries 10
+  retries 20
   retry_delay 6
-  command "kubectl get deployment redis --kubeconfig=/home/ubuntu/.kube/config| grep '1/1'"
+  command 'kubectl get pods -l app=redis -l version=' + node['redisVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
   returns 0
   only_if { node.attribute?(:redisServicePort) }
 end
 
-svc_vars = get_services_vars
+svc_vars_primary = get_services_vars('primary')
+svc_vars_secondary = get_services_vars('secondary')
 hostvol_vars = get_hostvols_vars
 configmap_vars = get_configmap_vars
+
+cookbook_file '/home/ubuntu/prometheus.yml' do
+  source 'prometheus.yml'
+  mode '0644'
+  action :create_if_missing
+  force_unlink true
+  notifies :run, 'execute[create-prometheus-configmap]', :immediately
+end
+
+execute('create-prometheus-configmap') do
+  Chef::Log.info('create prometheus configmap')
+  action :nothing
+  command 'kubectl create configmap prom-cm --from-file prometheus.yml=/home/ubuntu/prometheus.yml --kubeconfig=/home/ubuntu/.kube/config'
+  retries 2
+  retry_delay 2
+  returns 0
+  ignore_failure true
+end
 
 # start processes only any node if no HA enabled
 template '/home/ubuntu/k8s-deployment.yaml' do
@@ -112,7 +131,8 @@ template '/home/ubuntu/k8s-deployment.yaml' do
   variables(
      harole: 'simplex',
      deploymentName: 'platform-simplex',
-     services: svc_vars,
+     version: node['edgeCloudVersion'],
+     services: svc_vars_primary,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )
@@ -126,72 +146,101 @@ execute('Setup simplex deployment') do
   not_if { node.attribute?(:redisServicePort) }
 end
 
-execute('Wait for simplex platform deployment to come up') do
-  Chef::Log.info('Wait for simplex platform deployment to come up')
+execute('Wait for simplex platform pod to come up') do
+  Chef::Log.info('Wait for simplex platform pod to come up')
   action 'run'
   retries 30
-  retry_delay 6
-  command "kubectl get deployment platform-simplex --kubeconfig=/home/ubuntu/.kube/config| grep '1/1'"
+  retry_delay 10 
+  command 'kubectl get pods -l app=platform-simplex -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
   returns 0
   not_if { node.attribute?(:redisServicePort) }
 end
 
-# start primary platform if HA enabled
+# update primary and secondary manifests. Redeploy primary and then secondary if there are changes
+
 template '/home/ubuntu/k8s-deployment-primary.yaml' do
   source 'k8s_service.erb'
   variables(
      harole: 'primary',
      deploymentName: 'platform-primary',
-     services: svc_vars,
+     version: node['edgeCloudVersion'],
+     services: svc_vars_primary,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )
   only_if { node.attribute?(:redisServicePort) }
 end
 
-execute('Setup platform primary deployment') do
-  action 'run'
-  command 'kubectl apply -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config'
-  returns 0
-  only_if { node.attribute?(:redisServicePort) }
-end
-
-execute('Wait for primary platform deployment to come up') do
-  Chef::Log.info('Wait for primary platform deployment to come up')
-  action 'run'
-  retries 30
-  retry_delay 6
-  command "kubectl get deployment platform-primary --kubeconfig=/home/ubuntu/.kube/config| grep '1/1'"
-  returns 0
-  only_if { node.attribute?(:redisServicePort) }
-end
-
-# start secondary platform if HA enabled
 template '/home/ubuntu/k8s-deployment-secondary.yaml' do
   source 'k8s_service.erb'
   variables(
      harole: 'secondary',
      deploymentName: 'platform-secondary',
-     services: svc_vars,
+     version: node['edgeCloudVersion'],
+     services: svc_vars_secondary,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )
+  notifies :run, 'execute[delete-primary]', :immediately
   only_if { node.attribute?(:redisServicePort) }
 end
 
-execute('Setup platform secondary deployment') do
-  action 'run'
-  command 'kubectl apply -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+# to affect a switchover, delete the primary deployment and re-create
+execute('delete-primary') do
+  action :nothing
+  command 'kubectl delete -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config||true'
   returns 0
+  notifies :run, 'execute[create-primary]', :immediately
   only_if { node.attribute?(:redisServicePort) }
 end
 
-execute('Wait for secondary deployment to come up') do
-  Chef::Log.info("Wait for K8s cluster to come up, there should be #{node['k8sNodeCount']} number of nodes")
-  action 'run'
+execute('create-primary') do
+  action :nothing
+  command 'kubectl create -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+  returns 0
+  notifies :run, 'execute[wait-primary]', :immediately
+  only_if { node.attribute?(:redisServicePort) }
+end
+
+execute('wait-primary') do
+  Chef::Log.info('Wait for primary platform pod to come up')
+  action :nothing
   retries 30
-  retry_delay 6
-  command "kubectl get deployment platform-secondary --kubeconfig=/home/ubuntu/.kube/config| grep '1/1'"
+  retry_delay 10
+  command 'kubectl get pods -l app=platform-primary -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
+  returns 0
+  notifies :sleep, 'chef_sleep[sleep-after-primary]', :immediately
+  only_if { node.attribute?(:redisServicePort) }
+end
+
+chef_sleep('sleep-after-primary') do
+  seconds      60
+  action       :nothing
+  notifies :run, 'execute[delete-secondary]', :immediately
+end
+
+execute('delete-secondary') do
+  action :nothing
+  command 'kubectl delete -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config||true'
+  returns 0
+  notifies :run, 'execute[create-secondary]', :immediately
+  only_if { node.attribute?(:redisServicePort) }
+end
+
+execute('create-secondary') do
+  action :nothing
+  command 'kubectl create -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+  returns 0
+  notifies :run, 'execute[wait-secondary]', :immediately
+  only_if { node.attribute?(:redisServicePort) }
+end
+
+execute('wait-secondary') do
+  Chef::Log.info('Wait for seconday platform pod to come up')
+  action :nothing
+  retries 30
+  retry_delay 10 
+  command 'kubectl get pods -l app=platform-secondary -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
   returns 0
   only_if { node.attribute?(:redisServicePort) }
 end

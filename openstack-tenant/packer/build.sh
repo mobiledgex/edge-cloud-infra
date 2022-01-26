@@ -7,7 +7,7 @@ OUTPUT_IMAGE_NAME='mobiledgex'
 CHEF_RECIPE="$( dirname $0 )/../../chef/cookbooks/upgrade_mobiledgex_package/recipes/default.rb"
 CHEF_UPDATE_GUIDE="https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/329384023/How+to+create+a+new+MobiledgeX+OS+base+image#chef"
 
-APT_REPO="https://apt.mobiledgex.net/cirrus/2021-10-05"
+APT_REPO="https://apt.mobiledgex.net/cirrus/2022-01-26"
 
 : ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64-2021-10-05}
 : ${VAULT:=vault-main.mobiledgex.net}

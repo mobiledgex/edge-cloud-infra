@@ -48,7 +48,7 @@ class Chef
         'accessKeyFile' => true,
         'accessApiAddr' => true,
         'cacheDir' => true,
-        'redisAddr' => true,
+        'redisStandaloneAddr' => true,
       }
       extract_cmd('crmserver', argsmap, false, false)
     end

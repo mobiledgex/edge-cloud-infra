@@ -129,7 +129,7 @@ regiondata:
       minnodes: 1
       maxnodes: 5
       stabilizationwindowsec: 2
-      targetactiveconnections: 100
+      targetactiveconnections: 200
     clusterinsts:
     - key:
         clusterkey:

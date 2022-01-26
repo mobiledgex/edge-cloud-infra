@@ -191,7 +191,7 @@ func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) erro
 
 func StopFakeEnvoyExporters(ctx context.Context) error {
 	c := make(chan string)
-	go process.KillProcessesByName("fake_envoy_exporter", time.Second, "--cluster", c)
+	go process.KillProcessesByName("fake_envoy_exporter", time.Second, "--port", c)
 	log.SpanLog(ctx, log.DebugLevelInfra, "stopped fake_envoy_exporter", "msg", <-c)
 	return nil
 }

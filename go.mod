@@ -5,6 +5,7 @@ go 1.15
 require (
 	cloud.google.com/go v0.39.0
 	github.com/AsGz/geo v0.0.0-20170331085501-324ae0e80045
+	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d // indirect
 	github.com/asaskevich/govalidator v0.0.0-20200428143746-21a406dcc535
 	github.com/atlassian/go-artifactory/v2 v2.3.0
@@ -94,7 +95,7 @@ replace github.com/NYTimes/gziphandler => github.com/NYTimes/gziphandler v1.1.1
 
 replace github.com/Nvveen/Gotty => github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5
 
-replace github.com/OneOfOne/xxhash => github.com/OneOfOne/xxhash v1.2.5
+replace github.com/OneOfOne/xxhash => github.com/OneOfOne/xxhash v1.2.8
 
 replace github.com/SAP/go-hdb => github.com/SAP/go-hdb v0.14.1
 
@@ -105,8 +106,6 @@ replace github.com/armon/go-radix => github.com/armon/go-radix v1.0.0
 replace github.com/bitly/go-hostpool => github.com/bitly/go-hostpool v0.0.0-20171023180738-a3a6125de932
 
 replace github.com/bmizerany/assert => github.com/bmizerany/assert v0.0.0-20160611221934-b7ed37b82869
-
-replace github.com/cespare/xxhash => github.com/cespare/xxhash v1.1.0
 
 replace github.com/codeskyblue/go-sh => github.com/codeskyblue/go-sh v0.0.0-20170112005953-b097669b1569
 
@@ -327,3 +326,5 @@ replace github.com/alicebob/miniredis/v2 => github.com/alicebob/miniredis/v2 v2.
 replace github.com/gomodule/redigo => github.com/gomodule/redigo v1.8.8
 
 replace github.com/yuin/gopher-lua => github.com/yuin/gopher-lua v0.0.0-20210529063254-f4c35e4016d9
+
+replace github.com/cespare/xxhash/v2 => github.com/cespare/xxhash/v2 v2.1.2

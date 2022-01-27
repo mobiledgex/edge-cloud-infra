@@ -38,7 +38,6 @@ type Validator struct {
 	descMissing map[string]struct{}
 	apiCommands map[string]*ormctl.ApiCommand // key is path
 	sw          *spec.Swagger
-	modified    bool
 }
 
 func NewValidator() *Validator {

@@ -41,11 +41,6 @@ type Validator struct {
 	modified    bool
 }
 
-type DescMissing struct {
-	Type string
-	Name string
-}
-
 func NewValidator() *Validator {
 	v := Validator{}
 	v.descMissing = make(map[string]struct{})
@@ -122,7 +117,6 @@ func (s *Validator) validateSchema(api *ormctl.ApiCommand, noconfig map[string]s
 		// remove noconfig fields from API spec
 		hierName := strings.Join(append(parents, name), ".")
 		if _, found := noconfig[hierName]; found {
-			fmt.Printf("  deleting %T.%s\n", api.ReqData, hierName)
 			delete(schema.Properties, propName)
 			continue
 		}

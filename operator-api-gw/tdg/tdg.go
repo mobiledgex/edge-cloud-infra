@@ -103,53 +103,50 @@ func (*OperatorApiGw) GetVersionProperties() map[string]string {
 	return version.InfraBuildProps("TDGOperator")
 }
 
-func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, ueAddr string, asAddr string, asPort string, protocol string, qos string, duration int64) (string, error) {
-	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CreatePrioritySession", "qos", qos)
+func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, req *dme.QosPrioritySessionCreateRequest) (*dme.QosPrioritySessionReply, error) {
+	var reply *dme.QosPrioritySessionReply
+	var err error
+	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CreatePrioritySession", "req", req)
 	// Only retrieve this from the vault if we don't already have it.
 	if qosSessionsApiKey == "" {
-		var err error
 		qosSessionsApiKey, err = sessionsclient.GetApiKeyFromVault(ctx, o.vaultConfig)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelDmereq, "GetApiKeyFromVault failed. QOS priority session creation not supported.", "err", err)
 		}
 		if qosSessionsApiKey == "" {
-			return "", status.Errorf(codes.Unauthenticated, "missing qosSessionsApiKey")
+			return nil, status.Errorf(codes.Unauthenticated, "missing qosSessionsApiKey")
 		}
 	}
+	// build a request and send it in CallTDGQosPriorityAPI()
 	reqBody := sessionsclient.QosSessionRequest{}
-	reqBody.UeAddr = ueAddr
-	reqBody.AsAddr = asAddr
-	reqBody.AsPorts = asPort
-	reqBody.ProtocolIn = protocol
-	reqBody.ProtocolOut = protocol
-	reqBody.Qos = qos
-	reqBody.Duration = duration
-	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, "", http.MethodPost, o.Servers.QosSesAddr, qosSessionsApiKey, reqBody)
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id received", (len(id) > 0), "err", err)
-	return id, err
+	reqBody.UeAddr = req.IpUserEquipment
+	reqBody.AsAddr = req.IpApplicationServer
+	reqBody.UePorts = req.PortUserEquipment
+	reqBody.AsPorts = req.PortApplicationServer
+	reqBody.ProtocolIn = req.ProtocolIn.String()
+	reqBody.ProtocolOut = req.ProtocolOut.String()
+	reqBody.Qos = req.Profile.String()
+	reqBody.Duration = int64(req.SessionDuration)
+	reply, err = sessionsclient.CallTDGQosPriorityAPI(ctx, "", http.MethodPost, o.Servers.QosSesAddr, qosSessionsApiKey, reqBody)
+	return reply, err
 }
 
-func (o *OperatorApiGw) DeletePrioritySession(ctx context.Context, sessionId string, qos string) error {
+func (o *OperatorApiGw) DeletePrioritySession(ctx context.Context, req *dme.QosPrioritySessionDeleteRequest) (*dme.QosPrioritySessionDeleteReply, error) {
+	sesInfo := sessionsclient.QosSessionRequest{}
+	// Only the Qos (profile name) field is needed for delete.
+	sesInfo.Qos = req.Profile.String()
+	sessionId := req.SessionId
 	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG DeletePrioritySession", "sessionId", sessionId)
-	sesInfo := sessionsclient.QosSessionRequest{} // Blank struct
-	id, err := sessionsclient.CallTDGQosPriorityAPI(ctx, sessionId, http.MethodDelete, o.Servers.QosSesAddr, qosSessionsApiKey, sesInfo)
-	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "id received", (len(id) > 0), "err", err)
-	return err
-}
-
-func (o *OperatorApiGw) LookupQosParm(qos string) string {
-	switch qos {
-	case "QOS_NO_PRIORITY":
-		return "QOS_NO_PRIORITY"
-	case "QOS_LOW_LATENCY":
-		return "LOW_LATENCY"
-	case "QOS_THROUGHPUT_DOWN_S":
-		return "THROUGHPUT_S"
-	case "QOS_THROUGHPUT_DOWN_M":
-		return "THROUGHPUT_M"
-	case "QOS_THROUGHPUT_DOWN_L":
-		return "THROUGHPUT_L"
-	default:
-		return ""
+	// Get a generic QosPrioritySessionReply, then build a QosPrioritySessionDeleteReply based on the httpStatus.
+	reply, err := sessionsclient.CallTDGQosPriorityAPI(ctx, sessionId, http.MethodDelete, o.Servers.QosSesAddr, qosSessionsApiKey, sesInfo)
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "reply", reply, "err", err)
+	deleteReply := new(dme.QosPrioritySessionDeleteReply)
+	if reply.HttpStatus == http.StatusNotFound {
+		deleteReply.Status = dme.QosPrioritySessionDeleteReply_QDEL_NOT_FOUND
+	} else if reply.HttpStatus == http.StatusNoContent {
+		deleteReply.Status = dme.QosPrioritySessionDeleteReply_QDEL_DELETED
+	} else {
+		deleteReply.Status = dme.QosPrioritySessionDeleteReply_QDEL_UNKNOWN
 	}
+	return deleteReply, err
 }

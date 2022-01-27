@@ -22,4 +22,4 @@ cloudletlocation:
   latitude: 35
   longitude: -95
 tags:
-  qos_profile_name: LOW_LATENCY
+  qos_profile_name: QOS_LOW_LATENCY

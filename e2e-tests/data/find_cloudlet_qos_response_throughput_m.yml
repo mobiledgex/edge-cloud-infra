@@ -22,4 +22,4 @@ cloudletlocation:
   latitude: 35
   longitude: -95
 tags:
-  qos_profile_name: THROUGHPUT_M
+  qos_profile_name: QOS_THROUGHPUT_DOWN_M

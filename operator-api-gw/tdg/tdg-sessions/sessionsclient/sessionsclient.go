@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 )
@@ -109,24 +110,31 @@ func buildQosUrl(ctx context.Context, profileName string, qosSesAddr string) (st
 		priorityType = "throughput"
 	} else {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "Received invalid value", "profileName", profileName)
-		return "", errors.New("Received invalid profileName" + profileName)
+		return "", errors.New("Received invalid profileName " + profileName)
 	}
 	url := fmt.Sprintf("%s/5g-%s/sessions/", qosSesAddr, priorityType) // Inserts either "latency" or "throughput".
 	log.SpanLog(ctx, log.DebugLevelDmereq, "buildQosUrl", "url", url)
 	return url, nil
 }
 
-// CallTDGQosPriorityAPI REST API client for the TDG implementation of QOS session priority API
-func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qosSesAddr string, apiKey string, reqBody QosSessionRequest) (string, error) {
-	qos := reqBody.Qos
+// CallTDGQosPriorityAPI REST API client for the TDG implementation of QOS session priority API.
+// If a matching session ((IPs, Ports, Protcol) is found, and the requested profile is also the same,
+// that session is kept unchanged.
+// If a matching session ((IPs, Ports, Protcol) is found, and the requested profile is different,
+// the existing session is deleted, and a new session is created with the requested profile name.
+func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qosSesAddr string, apiKey string, reqBody QosSessionRequest) (*dme.QosPrioritySessionReply, error) {
+	reply := new(dme.QosPrioritySessionReply)
+	qos := QosProtoToTdg(reqBody.Qos)
 	reqUrl, err := buildQosUrl(ctx, qos, qosSesAddr)
-	if err != nil {
-		return "", err
-	}
+	log.SpanLog(ctx, log.DebugLevelDmereq, "Converting QOS Profile name from proto to TDG", "old", reqBody.Qos, "new", qos)
+	reqBody.Qos = qos
 	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CallTDGQosPriorityAPI", "qosSesAddr", qosSesAddr, "reqUrl", reqUrl, "reqBody", reqBody)
+	if err != nil {
+		return nil, err
+	}
 	out, err := json.Marshal(reqBody)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	body := bytes.NewBuffer(out)
 
@@ -136,11 +144,10 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 	}
 	status, respBody, err := sendRequest(ctx, method, reqUrl, apiKey, body)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	var qsiResp QosSessionResponse
-	var sessionId string
 
 	if status == http.StatusConflict {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "409 Conflict received")
@@ -150,40 +157,39 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 		if strings.HasPrefix(respBody, "Found session") {
 			words := strings.Split(respBody, " ")
 			if len(words) < 3 {
-				return "", fmt.Errorf(fmt.Sprintf("Could not parse response: %s", respBody))
+				return nil, fmt.Errorf(fmt.Sprintf("Could not parse response: %s", respBody))
 			}
-			sessionId = words[2]
+			sessionId := words[2]
 			url := fmt.Sprintf("%s/%s", reqUrl, sessionId)
 			status, respBody, err = sendRequest(ctx, http.MethodGet, url, apiKey, nil)
 			if err != nil {
-				return "", err
+				return nil, err
 			}
 			if status == http.StatusOK {
 				respBytes := []byte(respBody)
 				err = json.Unmarshal(respBytes, &qsiResp)
 				if err != nil {
 					log.WarnLog("Error unmarshalling response", "respBytes", respBytes, "err", err)
-					return "", err
+					return nil, err
 				}
 				if qsiResp.Qos == reqBody.Qos {
 					log.SpanLog(ctx, log.DebugLevelDmereq, "Requested QOS session already exists. Keeping it.", "qsiResp.Qos", qsiResp.Qos)
-					sessionId = qsiResp.Id
 				} else {
 					log.SpanLog(ctx, log.DebugLevelDmereq, "Existing QOS profile doesn't match. Deleting session.")
 					oldQos := qsiResp.Qos
 					url, err := buildQosUrl(ctx, oldQos, qosSesAddr)
 					url = fmt.Sprintf("%s%s", url, sessionId)
 					if err != nil {
-						return "", err
+						return nil, err
 					}
 					status, _, err = sendRequest(ctx, http.MethodDelete, url, apiKey, nil)
 					if err != nil {
-						return "", err
+						return nil, err
 					}
 					if status == http.StatusNoContent {
 						log.SpanLog(ctx, log.DebugLevelDmereq, "Successfully deleted QOS session")
 					} else {
-						return "", fmt.Errorf(fmt.Sprintf("Failed to delete existing QOS session: Error code: %d", status))
+						return nil, fmt.Errorf(fmt.Sprintf("Failed to delete existing QOS session: Error code: %d", status))
 					}
 
 					// Send new request to create session with desired QOS profile.
@@ -192,7 +198,7 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 					log.SpanLog(ctx, log.DebugLevelDmereq, "Result of re-send received")
 
 					if err != nil {
-						return "", err
+						return nil, err
 					}
 				}
 			}
@@ -200,24 +206,70 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 	}
 
 	// This value of 'status' can be from the initial call, or from the delete/retry attempt.
-	if status == http.StatusCreated {
-		log.SpanLog(ctx, log.DebugLevelDmereq, "201 Session Created received")
+	if status == http.StatusCreated || status == http.StatusOK {
+		if status == http.StatusCreated {
+			log.SpanLog(ctx, log.DebugLevelDmereq, "201 Session Created received")
+		} else {
+			log.SpanLog(ctx, log.DebugLevelDmereq, "200 OK received")
+		}
 		respBytes := []byte(respBody)
 		err = json.Unmarshal(respBytes, &qsiResp)
 		if err != nil {
 			log.WarnLog("Error unmarshalling response", "respBytes", respBytes, "err", err)
-			return "", err
+			return nil, err
 		}
-		sessionId = qsiResp.Id
-		log.SpanLog(ctx, log.DebugLevelDmereq, "response unmarshalled successfully")
-	} else if status == http.StatusOK {
-		log.SpanLog(ctx, log.DebugLevelDmereq, "200 OK received")
+		reply.Profile, err = dme.ParseQosSessionProfile(QosTdgToProto(qsiResp.Qos))
+		if err != nil {
+			log.WarnLog("Failed to ParseQosSessionProfile", "qsiResp.Qos", qsiResp.Qos, "QosTdgToProto(qsiResp.Qos)", QosTdgToProto(qsiResp.Qos), "err", err)
+			return nil, err
+		}
+		reply.SessionDuration = uint32(qsiResp.Duration)
+		reply.SessionId = qsiResp.Id
+		reply.StartedAt = uint32(qsiResp.StartedAt)
+		reply.ExpiresAt = uint32(qsiResp.ExpiresAt)
 	} else if status == http.StatusNoContent {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "204 No Content received (session deleted)")
+	} else if status == http.StatusNotFound {
+		log.SpanLog(ctx, log.DebugLevelDmereq, "404 Session not found")
 	} else {
 		log.WarnLog("returning error", "received ", status)
-		return "", fmt.Errorf(fmt.Sprintf("API call received unknown status: %d", status))
+		return nil, fmt.Errorf(fmt.Sprintf("API call received unknown status: %d", status))
 	}
 
-	return sessionId, nil
+	reply.HttpStatus = uint32(status)
+	return reply, nil
+}
+
+// Convert from the QOS profile names defined in the proto to those used by DTG.
+func QosProtoToTdg(qosProto string) string {
+	switch qosProto {
+	case "QOS_NO_PRIORITY":
+		return "QOS_NO_PRIORITY"
+	case "QOS_LOW_LATENCY":
+		return "LOW_LATENCY"
+	case "QOS_THROUGHPUT_DOWN_S":
+		return "THROUGHPUT_S"
+	case "QOS_THROUGHPUT_DOWN_M":
+		return "THROUGHPUT_M"
+	case "QOS_THROUGHPUT_DOWN_L":
+		return "THROUGHPUT_L"
+	default:
+		return ""
+	}
+}
+
+// Convert from TDG's QOS profile names to those defined in the proto.
+func QosTdgToProto(qosTdg string) string {
+	switch qosTdg {
+	case "LOW_LATENCY":
+		return "QOS_LOW_LATENCY"
+	case "THROUGHPUT_S":
+		return "QOS_THROUGHPUT_DOWN_S"
+	case "THROUGHPUT_M":
+		return "QOS_THROUGHPUT_DOWN_M"
+	case "THROUGHPUT_L":
+		return "QOS_THROUGHPUT_DOWN_L"
+	default:
+		return ""
+	}
 }

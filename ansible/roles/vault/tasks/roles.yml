@@ -25,6 +25,7 @@
       - influxdb.read.v1
       - influxdb-internal.read.v1
       - mexenv.read.v1
+      - noreplyemail.read.v1
       - pki-global-config.read.v1
       - pki-global-roles.read.v1
       - pki-regional-cloudlet-config.read.v1
@@ -44,7 +45,8 @@
       - sys-plugins-catalog.read.v1
       - sys-plugins-certs-config.read.v1
       - sys-policies.read.v1
-      - noreplyemail.read.v1
+      - transit-etcd-backup.encrypt.v1
+      - transit-keys.list.v1
     token_type: batch
     token_ttl: 5400   # seconds = 90 minutes
 

@@ -50,19 +50,20 @@ var InvoiceRequestComments = map[string]string{
 }
 
 var BillingOrganizationComments = map[string]string{
-	"name":       `BillingOrganization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
-	"type":       `Organization type: "parent" or "self"`,
-	"firstname":  `Billing info first name`,
-	"lastname":   `Billing info last name`,
-	"email":      `Organization email`,
-	"address":    `Organization address`,
-	"address2":   `Organization address2`,
-	"city":       `Organization city`,
-	"country":    `Organization country`,
-	"state":      `Organization state`,
-	"postalcode": `Organization postal code`,
-	"phone":      `Organization phone number`,
-	"children":   `Children belonging to this BillingOrganization`,
+	"name":             `BillingOrganization name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
+	"type":             `Organization type: "parent" or "self"`,
+	"firstname":        `Billing info first name`,
+	"lastname":         `Billing info last name`,
+	"email":            `Organization email`,
+	"address":          `Organization address`,
+	"address2":         `Organization address2`,
+	"city":             `Organization city`,
+	"country":          `Organization country`,
+	"state":            `Organization state`,
+	"postalcode":       `Organization postal code`,
+	"phone":            `Organization phone number`,
+	"children":         `Children belonging to this BillingOrganization`,
+	"deleteinprogress": `Delete of this BillingOrganization is in progress`,
 }
 
 var AccountInfoComments = map[string]string{
@@ -77,11 +78,12 @@ var PaymentProfileDeletionComments = map[string]string{
 }
 
 var ControllerComments = map[string]string{
-	"region":     `Controller region name`,
-	"address":    `Controller API address or URL`,
-	"notifyaddr": `Controller notify address or URL`,
-	"influxdb":   `InfluxDB address`,
-	"dnsregion":  `DNS segment id for the region`,
+	"region":        `Controller region name`,
+	"address":       `Controller API address or URL`,
+	"notifyaddr":    `Controller notify address or URL`,
+	"influxdb":      `InfluxDB address`,
+	"thanosmetrics": `Thanos Query URL`,
+	"dnsregion":     `Unique DNS label for the region`,
 }
 
 var ConfigComments = map[string]string{
@@ -140,6 +142,11 @@ var RoleComments = map[string]string{
 	"role":     `Role which defines the set of permissions`,
 }
 
+var OrgCloudletComments = map[string]string{
+	"region": `Region name`,
+	"org":    `Org that has permissions for cloudlets`,
+}
+
 var ShowUserComments = map[string]string{
 	"user.name":            `User name. Can only contain letters, digits, underscore, period, hyphen. It cannot have leading or trailing spaces or period. It cannot start with hyphen`,
 	"user.email":           `User email`,
@@ -178,6 +185,7 @@ var CreateUserComments = map[string]string{
 }
 
 var EmailRequestComments = map[string]string{
+	"email":       `User's email address`,
 	"callbackurl": `Callback URL to verify user email`,
 }
 
@@ -188,6 +196,117 @@ var PasswordResetComments = map[string]string{
 
 var TokenComments = map[string]string{
 	"token": `Authentication token`,
+}
+
+var RegionDataComments = map[string]string{
+	"region": `Region name`,
+}
+
+var MetricsCommonComments = map[string]string{
+	"numsamples": `Display X samples spaced out evenly over start and end times`,
+	"limit":      `Display the last X metrics`,
+}
+
+var RegionAppInstMetricsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+	"selector":                 `Comma separated list of metrics to view. Available metrics: utilization, network, ipusage`,
+}
+
+var RegionCustomAppMetricsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+}
+
+var RegionClusterInstMetricsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+	"selector":                 `Comma separated list of metrics to view. Available metrics: utilization, network, ipusage`,
+}
+
+var RegionCloudletMetricsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+	"selector":                 `Comma separated list of metrics to view. Available metrics: utilization, network, ipusage`,
+}
+
+var RegionClientApiUsageMetricsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+	"method":                   `API call method, one of: FindCloudlet, PlatformFindCloudlet, RegisterClient, VerifyLocation`,
+	"dmecloudlet":              `Cloudlet name where DME is running`,
+	"dmecloudletorg":           `Operator organization where DME is running`,
+	"selector":                 `Comma separated list of metrics to view. Available metrics: utilization, network, ipusage`,
+}
+
+var RegionClientAppUsageMetricsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+	"selector":                 `Comma separated list of metrics to view. Available metrics: utilization, network, ipusage`,
+	"devicecarrier":            `Device carrier. Can be used for selectors: latency, deviceinfo`,
+	"datanetworktype":          `Data network type used by client device. Can be used for selectors: latency`,
+	"devicemodel":              `Device model. Can be used for selectors: deviceinfo`,
+	"deviceos":                 `Device operating system. Can be used for selectors: deviceinfo`,
+	"locationtile":             `Provides the range of GPS coordinates for the location tile/square. Format is: 'LocationUnderLongitude,LocationUnderLatitude_LocationOverLongitude,LocationOverLatitude_LocationTileLength'. LocationUnder are the GPS coordinates of the corner closest to (0,0) of the location tile. LocationOver are the GPS coordinates of the corner farthest from (0,0) of the location tile. LocationTileLength is the length (in kilometers) of one side of the location tile square`,
+}
+
+var RegionClientCloudletUsageMetricsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+	"selector":                 `Comma separated list of metrics to view. Available metrics: utilization, network, ipusage`,
+	"devicecarrier":            `Device carrier. Can be used for selectors: latency, deviceinfo`,
+	"datanetworktype":          `Data network type used by client device. Can be used for selectors: latency`,
+	"devicemodel":              `Device model. Can be used for selectors: deviceinfo`,
+	"deviceos":                 `Device operating system. Can be used for selectors: deviceinfo`,
+	"locationtile":             `Provides the range of GPS coordinates for the location tile/square. Format is: 'LocationUnderLongitude,LocationUnderLatitude_LocationOverLongitude,LocationOverLatitude_LocationTileLength'. LocationUnder are the GPS coordinates of the corner closest to (0,0) of the location tile. LocationOver are the GPS coordinates of the corner farthest from (0,0) of the location tile. LocationTileLength is the length (in kilometers) of one side of the location tile square`,
+}
+
+var RegionAppInstEventsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+}
+
+var RegionClusterInstEventsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+}
+
+var RegionCloudletEventsComments = map[string]string{
+	"metricscommon.numsamples": `Display X samples spaced out evenly over start and end times`,
+	"metricscommon.limit":      `Display the last X metrics`,
+	"region":                   `Region name`,
+}
+
+var RegionAppInstUsageComments = map[string]string{
+	"region":    `Region name`,
+	"starttime": `Time to start displaying stats from`,
+	"endtime":   `Time up to which to display stats`,
+	"vmonly":    `Show only VM-based apps`,
+}
+
+var RegionClusterInstUsageComments = map[string]string{
+	"region":    `Region name`,
+	"starttime": `Time to start displaying stats from`,
+	"endtime":   `Time up to which to display stats`,
+}
+
+var RegionCloudletPoolUsageComments = map[string]string{
+	"region":         `Region name`,
+	"starttime":      `Time to start displaying stats from`,
+	"endtime":        `Time up to which to display stats`,
+	"showvmappsonly": `Show only VM-based apps`,
+}
+
+var RegionCloudletPoolUsageRegisterComments = map[string]string{
+	"region": `Region name`,
 }
 
 var AlertReceiverComments = map[string]string{

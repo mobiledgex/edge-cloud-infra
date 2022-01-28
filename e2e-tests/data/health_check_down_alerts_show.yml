@@ -7,6 +7,7 @@
     cloudletorg: tmus
     cluster: SmallCluster
     clusterorg: AcmeAppCo
+    port: "80"
     region: local
     scope: Application
     status: "2"

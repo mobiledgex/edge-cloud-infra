@@ -493,7 +493,6 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 				return nil, err
 			}
 			if cloudlet.PlatformHighAvailability {
-				serviceCmdArgs = append(serviceCmdArgs)
 				serviceCmdArgs = append(serviceCmdArgs, "--redisStandaloneAddr", rediscache.RedisCloudletStandaloneAddr)
 			}
 			cloudlet.ContainerVersion = containerVersion

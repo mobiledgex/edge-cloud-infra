@@ -103,7 +103,7 @@ platform_k8s('deploy simplex platform') do
   not_if 'kubectl diff -f /home/ubuntu/k8s-deployment.yaml --kubeconfig=/home/ubuntu/.kube/config'
 end
 
-# deploy the platform in H/A mode if redis is disabled and the current state of either primary or secondary is different than the template
+# deploy the platform in H/A mode if redis is enabled and the current state of either primary or secondary is different than the template
 platform_k8s('deploy HA platform') do
   action :deploy_ha_platform
   only_if { node.attribute?(:redisServiceName) }

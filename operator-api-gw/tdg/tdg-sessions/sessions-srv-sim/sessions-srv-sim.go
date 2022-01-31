@@ -167,6 +167,12 @@ func handleSession(w http.ResponseWriter, r *http.Request, priorityType string) 
 		if req.Duration == 0 {
 			req.Duration = 86400
 		}
+		if req.Duration > 86400 {
+			msg := fmt.Sprintf("400 - Invalid Duration value: %+v\n", req.Duration)
+			log.Print(msg)
+			http.Error(w, msg, 400)
+			return
+		}
 		sesId := uuid.New().String()
 		log.Printf("Generated new sesId: %s", sesId)
 		var resp sesclient.QosSessionResponse
@@ -175,6 +181,7 @@ func handleSession(w http.ResponseWriter, r *http.Request, priorityType string) 
 		resp.Id = sesId
 		resp.StartedAt = time.Now().Unix()
 		resp.ExpiresAt = resp.StartedAt + req.Duration
+		log.Printf("resp.StartedAt + req.Duration = resp.ExpiresAt -- %d + %d = %d", resp.StartedAt, req.Duration, resp.ExpiresAt)
 		conflict, reason := checkConflict(resp)
 		if conflict {
 			w.WriteHeader(http.StatusConflict) //409

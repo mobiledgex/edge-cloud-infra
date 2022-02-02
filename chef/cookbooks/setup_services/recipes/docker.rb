@@ -106,10 +106,13 @@ docker_container "shepherd" do
   command cmd
 end
 
-cookbook_file '/tmp/prometheus.yml' do
-  source 'prometheus.yml'
+template '/tmp/prometheus.yml' do
+  source 'prometheus.erb'
+  variables (
+    :remote_write_addr => get_thanos_remote_write_addr()
+  )
   mode '0644'
-  action :create_if_missing
+  action :create
   force_unlink true
   notifies :restart, 'docker_container[cloudletPrometheus]', :delayed
 end

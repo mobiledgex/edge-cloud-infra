@@ -93,5 +93,15 @@ class Chef
       cmd = extract_cmd("cloudletPrometheus", argsmap, true, true)
       cmd
     end
+
+    def get_thanos_remote_write_addr()
+      region = node.normal['crmserver']['args']['region'].downcase
+      deploymentTag = node.normal['crmserver']['args']['deploymentTag'].downcase
+      if deployTag == "main"
+        cmd = "thanos-" + region + ".mobiledgex.net"
+      else
+        cmd = "thanos-" + deploymentTag + "-" + region + ".mobiledgex.net"
+      cmd
+    end
   end
 end

@@ -1,0 +1,41 @@
+- name: Compute thanos FQDN
+  set_fact:
+    thanos_fqdn: "{{ thanos_hostname_prefix }}-{{ region | lower }}.{{ cloudflare_zone }}"
+
+- name: Deploy thanos
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'deploy.yml.j2') }}"
+
+- name: Deploy thanos services
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'svc.yml.j2') }}"
+
+- name: Load cloudflare creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: cloudflare
+
+- name: Update thanos DNS
+  cloudflare_dns:
+    zone: "{{ cloudflare_zone }}"
+    record: "{{ thanos_fqdn }}"
+    value: "{{ ingress_ip }}"
+    type: A
+    state: present
+    solo: true
+    account_email: "{{ cloudflare_account_email }}"
+    account_api_token: "{{ cloudflare_account_api_token }}"
+
+# TODO
+#- name: Set up ingress
+#  k8s:
+#    kubeconfig: "{{ kubeconfig_file.path }}"
+#    namespace: default
+#    state: present
+#    definition: "{{ lookup('template', 'ingress.yml.j2') }}"

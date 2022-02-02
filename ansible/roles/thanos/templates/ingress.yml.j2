@@ -1,0 +1,24 @@
+TODO
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: thanosquery-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "1800"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "1800"
+    nginx.ingress.kubernetes.io/server-snippet: |
+      server_tokens off;
+    cert-manager.io/cluster-issuer: "letsencrypt-dns01"
+spec:
+  tls:
+  - hosts:
+      - "{{ thanos_fqdn }}"
+    secretName: edgeturn-tls
+  rules:
+  - host: "{{ thanos_fqdn }}"
+    http:
+      paths:
+      - backend:
+          serviceName: edgeturn
+          servicePort: 443

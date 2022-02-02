@@ -75,6 +75,9 @@
     - policies/sys-policies.write.v1.hcl.j2
     - policies/sys-storage-raft-snapshot.read.v1.hcl.j2
     - policies/teleport-node-token.write.v1.hcl.j2
+    - policies/transit-etcd-backup.decrypt.v1.hcl.j2
+    - policies/transit-etcd-backup.encrypt.v1.hcl.j2
+    - policies/transit-keys.list.v1.hcl.j2
     - policies/ui-access.v1.hcl.j2
 
 - include_role:

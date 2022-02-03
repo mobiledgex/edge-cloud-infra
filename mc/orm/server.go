@@ -441,7 +441,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   404: notFound
 	auth.POST("/role/adduser", AddUserRole)
 	// swagger:route POST /auth/role/removeuser Role RemoveUserRole
-	// Remove User Role.
+	// Remove User Role
 	// Remove the role for the organization from the user.
 	// Security:
 	//   Bearer:

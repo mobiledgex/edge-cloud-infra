@@ -347,7 +347,7 @@ func UpdateSelfFederator(c echo.Context) error {
 			MNC:              selfFed.MNC,
 			LocatorEndPoint:  selfFed.LocatorEndPoint,
 		}
-		err = fedClient.SendRequest(ctx, "PUT", partnerFed.FederationAddr, partnerFed.Name, NoApiKey, federation.OperatorPartnerAPI, &opConf, nil)
+		err = fedClient.SendRequest(ctx, "PUT", partnerFed.FederationAddr, partnerFed.Name, federation.APIKeyFromVault, federation.OperatorPartnerAPI, &opConf, nil)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "Failed to update partner federator", "federation name", partnerFed.Name, "error", err)
 			errOut = fmt.Sprintf(". But failed to update partner federation %q, err: %v", partnerFed.Name, err)
@@ -994,7 +994,7 @@ func ShareSelfFederatorZone(c echo.Context) error {
 				EdgeCount:   len(existingZone.Cloudlets),
 			},
 		}
-		err = fedClient.SendRequest(ctx, "POST", partnerFed.FederationAddr, partnerFed.Name, NoApiKey, federation.OperatorNotifyZoneAPI, &opZoneShare, nil)
+		err = fedClient.SendRequest(ctx, "POST", partnerFed.FederationAddr, partnerFed.Name, federation.APIKeyFromVault, federation.OperatorNotifyZoneAPI, &opZoneShare, nil)
 		if err != nil {
 			return err
 		}
@@ -1090,7 +1090,7 @@ func UnshareSelfFederatorZone(c echo.Context) error {
 			Country:          selfFed.CountryCode,
 			Zone:             existingZone.ZoneId,
 		}
-		err = fedClient.SendRequest(ctx, "DELETE", partnerFed.FederationAddr, partnerFed.Name, NoApiKey, federation.OperatorNotifyZoneAPI, &opZoneUnShare, nil)
+		err = fedClient.SendRequest(ctx, "DELETE", partnerFed.FederationAddr, partnerFed.Name, federation.APIKeyFromVault, federation.OperatorNotifyZoneAPI, &opZoneUnShare, nil)
 		if err != nil {
 			return err
 		}
@@ -1180,7 +1180,7 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 		Zones:            reg.Zones,
 	}
 	opZoneRes := federation.OperatorZoneRegisterResponse{}
-	err = fedClient.SendRequest(ctx, "POST", partnerFed.FederationAddr, partnerFed.Name, NoApiKey, federation.OperatorZoneAPI, &opZoneReg, &opZoneRes)
+	err = fedClient.SendRequest(ctx, "POST", partnerFed.FederationAddr, partnerFed.Name, federation.APIKeyFromVault, federation.OperatorZoneAPI, &opZoneReg, &opZoneRes)
 	if err != nil {
 		return err
 	}
@@ -1227,6 +1227,13 @@ func RegisterPartnerFederatorZone(c echo.Context) error {
 			PlatformType: edgeproto.PlatformType_PLATFORM_TYPE_FEDERATION,
 			// TODO: This should be removed as a required field
 			NumDynamicIps: int32(10),
+			FederationConfig: edgeproto.FederationConfig{
+				FederationName:        partnerFed.Name,
+				PartnerFederationAddr: partnerFed.FederationAddr,
+				SelfFederationId:      selfFed.FederationId,
+				PartnerFederationId:   partnerFed.FederationId,
+				ZoneCountryCode:       existingZone.CountryCode,
+			},
 		}
 		if zoneReg.UpperLimitQuota.CPU > 0 {
 			fedCloudlet.ResourceQuotas = append(fedCloudlet.ResourceQuotas, edgeproto.ResourceQuota{
@@ -1353,7 +1360,7 @@ func DeregisterPartnerFederatorZone(c echo.Context) error {
 		Country:          selfFed.CountryCode,
 		Zones:            reg.Zones,
 	}
-	err = fedClient.SendRequest(ctx, "DELETE", partnerFed.FederationAddr, partnerFed.Name, NoApiKey, federation.OperatorZoneAPI, &opZoneReg, nil)
+	err = fedClient.SendRequest(ctx, "DELETE", partnerFed.FederationAddr, partnerFed.Name, federation.APIKeyFromVault, federation.OperatorZoneAPI, &opZoneReg, nil)
 	if err != nil {
 		return err
 	}
@@ -1412,7 +1419,7 @@ func RegisterFederation(c echo.Context) error {
 		CountryCode:      selfFed.CountryCode,
 	}
 	opRegRes := federation.OperatorRegistrationResponse{}
-	err = fedClient.SendRequest(ctx, "POST", partnerFed.FederationAddr, partnerFed.Name, NoApiKey, federation.OperatorPartnerAPI, &opRegReq, &opRegRes)
+	err = fedClient.SendRequest(ctx, "POST", partnerFed.FederationAddr, partnerFed.Name, federation.APIKeyFromVault, federation.OperatorPartnerAPI, &opRegReq, &opRegRes)
 	if err != nil {
 		return err
 	}
@@ -1509,7 +1516,7 @@ func DeregisterFederation(c echo.Context) error {
 		Operator:         selfFed.OperatorId,
 		Country:          selfFed.CountryCode,
 	}
-	err = fedClient.SendRequest(ctx, "DELETE", partnerFed.FederationAddr, partnerFed.Name, NoApiKey, federation.OperatorPartnerAPI, &opFedReq, nil)
+	err = fedClient.SendRequest(ctx, "DELETE", partnerFed.FederationAddr, partnerFed.Name, federation.APIKeyFromVault, federation.OperatorPartnerAPI, &opFedReq, nil)
 	if err != nil {
 		return err
 	}

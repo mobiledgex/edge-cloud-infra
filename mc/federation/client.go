@@ -11,6 +11,10 @@ import (
 	"github.com/mobiledgex/edge-cloud/tls"
 )
 
+const (
+	APIKeyFromVault string = ""
+)
+
 type FederationClient struct {
 	AccessApi platform.AccessApi
 	UnitTest  bool
@@ -26,7 +30,7 @@ func (c *FederationClient) SendRequest(ctx context.Context, method, fedAddr, fed
 	if fedAddr == "" {
 		return fmt.Errorf("Missing partner federation address")
 	}
-	if apiKey == "" {
+	if apiKey == APIKeyFromVault {
 		// fetch partner API key from vault
 		if fedName == "" {
 			return fmt.Errorf("Missing partner federation name")

@@ -2,8 +2,11 @@ package federation
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/mc/federation"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/redundancy"
@@ -15,7 +18,14 @@ import (
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
-type FederationPlatform struct{}
+const (
+	AppOnboardingTimeout = 20 * time.Minute
+)
+
+type FederationPlatform struct {
+	fedClient *federation.FederationClient
+	config    *edgeproto.FederationConfig
+}
 
 // GetVersionProperties returns properties related to the platform version
 func (f *FederationPlatform) GetVersionProperties() map[string]string {
@@ -29,6 +39,12 @@ func (f *FederationPlatform) GetFeatures() *platform.Features {
 
 // Init is called once during CRM startup.
 func (f *FederationPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
+	client, err := federation.NewClient(platformConfig.AccessApi)
+	if err != nil {
+		return err
+	}
+	f.fedClient = client
+	f.config = platformConfig.FederationConfig
 	return nil
 }
 
@@ -88,13 +104,208 @@ func (f *FederationPlatform) GetClusterInfraResources(ctx context.Context, clust
 	return &edgeproto.InfraResources{}, nil
 }
 
-// Create an AppInst on a Cluster
+// Create an appInst on a cluster
 func (f *FederationPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
+	if app.Deployment != cloudcommon.DeploymentTypeKubernetes {
+		return fmt.Errorf("Only kubernetes based applications are supported on federation cloudlets")
+	}
+	revision := log.SpanTraceID(ctx)
+	appRegion := federation.AppRegion{
+		Country:  f.config.ZoneCountryCode,
+		Zone:     appInst.Key.ClusterInstKey.CloudletKey.Name,
+		Operator: appInst.Key.ClusterInstKey.CloudletKey.FederatedOrganization,
+	}
+	appId := appInst.UniqueId
+
+	// TODO These are hardcoded for now as the partner operator has not implemented
+	//      the required functionality for this
+	artifactId := "ART-001"
+	resourceProfileId := "T3.Micro"
+
+	exposedIntfs := []federation.AppExposedInterface{}
+	for _, port := range appInst.MappedPorts {
+		proto, err := edgeproto.L4ProtoStr(port.Proto)
+		if err != nil {
+			return err
+		}
+		portStart := port.InternalPort
+		portEnd := port.EndPort
+		if portEnd == 0 {
+			portEnd = portStart
+		}
+		for portVal := portStart; portVal <= portEnd; portVal++ {
+			intf := federation.AppExposedInterface{
+				InterfaceType: federation.AppInterfaceType_NETWORK,
+				Port:          fmt.Sprintf("%d", portVal),
+				Protocol:      strings.ToUpper(proto),
+				Visibility:    federation.AppInterfaceVisibility_EXTERNAL,
+			}
+			exposedIntfs = append(exposedIntfs, intf)
+		}
+	}
+
+	// App Onboarding
+	updateCallback(edgeproto.UpdateTask, "Initiate application onboarding")
+	appObReq := federation.AppOnboardingRequest{
+		RequestId:           revision,
+		LeadOperatorId:      appInst.Key.ClusterInstKey.CloudletKey.Organization,
+		LeadFederationId:    f.config.SelfFederationId,
+		PartnerFederationId: f.config.PartnerFederationId,
+		AppId:               appId,
+		AppType:             federation.AppType_SERVER,
+		ArtifactId:          artifactId,
+		AppName:             app.Key.Name,
+		Provisioning:        federation.AppProvisioningState_ENABLED,
+		Regions:             []federation.AppRegion{appRegion},
+		Specification: federation.AppSpec{
+			ComponentDetails: []federation.AppComponentDetail{
+				federation.AppComponentDetail{
+					Components: []federation.AppComponent{
+						federation.AppComponent{
+							VirtualizationMode: federation.VirtualizationType_KUBERNETES,
+							ComponentSource: federation.AppComponentSource{
+								Repo:        app.ImagePath,
+								CodeArchive: "true",
+								Path:        app.ImagePath,
+							},
+							ExposedInterfaces: exposedIntfs,
+							ComputeResourceRequirements: federation.AppComputeResourceRequirement{
+								ResourceProfileId: resourceProfileId,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	appObResp := federation.AppOnboardingResponse{}
+	err := f.fedClient.SendRequest(ctx, "POST",
+		f.config.PartnerFederationAddr, f.config.FederationName,
+		federation.APIKeyFromVault, federation.OperatorAppOnboardingAPI,
+		&appObReq, &appObResp)
+	if err != nil {
+		return err
+	}
+
+	// Wait for app to be onboarded
+	updateCallback(edgeproto.UpdateTask, "Waiting for application to be onboarded")
+	start := time.Now()
+	appObStatusReq := federation.AppOnboardingStatusRequest{
+		RequestId:           revision,
+		AppId:               appId,
+		Operator:            appInst.Key.ClusterInstKey.CloudletKey.FederatedOrganization,
+		Country:             f.config.ZoneCountryCode,
+		LeadFederationId:    f.config.SelfFederationId,
+		PartnerFederationId: f.config.PartnerFederationId,
+	}
+	for {
+		time.Sleep(10 * time.Second)
+
+		// Fetch onboarding status
+		appObStatusResp := federation.AppOnboardingStatusResponse{}
+		err = f.fedClient.SendRequest(ctx, "GET",
+			f.config.PartnerFederationAddr, f.config.FederationName,
+			federation.APIKeyFromVault, federation.OperatorAppOnboardingAPI,
+			&appObStatusReq, &appObStatusResp)
+		if err != nil {
+			return err
+		}
+
+		switch appObStatusResp.OnboardStatus[0].Status {
+		case federation.OnboardingState_ONBOARDED:
+			log.SpanLog(ctx, log.DebugLevelInfra, "App onboarded successfully", "appId", appId)
+			break
+		case federation.OnboardingState_PENDING:
+			elapsed := time.Since(start)
+			if elapsed >= AppOnboardingTimeout {
+				// this should not happen and indicates that onboarding is stuck for some reason
+				log.SpanLog(ctx, log.DebugLevelInfra, "App onboarding taking too long", "appId", appId, "elasped time", elapsed)
+				return fmt.Errorf("App onboarding taking too long")
+			}
+			continue
+		case federation.OnboardingState_FAILED:
+			log.SpanLog(ctx, log.DebugLevelInfra, "App onboarding failed", "appId", appId)
+			return fmt.Errorf("App onboarding failed")
+		default:
+			log.SpanLog(ctx, log.DebugLevelInfra, "Unexpected app onboarding status", "appId", appId, "status", appObStatusResp.OnboardStatus[0].Status)
+			return fmt.Errorf("App onboarding unexpected status: %s", appObStatusResp.OnboardStatus[0].Status)
+		}
+		break
+	}
+
+	// App provisioning
+	updateCallback(edgeproto.UpdateTask, "Initiate application provisioning")
+	appProvReq := federation.AppProvisionRequest{
+		RequestId:           revision,
+		LeadFederationId:    f.config.SelfFederationId,
+		PartnerFederationId: f.config.PartnerFederationId,
+		AppProvData: federation.AppProvisionData{
+			AppId:   appId,
+			Version: app.Key.Version,
+			Region:  appRegion,
+		},
+	}
+	err = f.fedClient.SendRequest(ctx, "POST",
+		f.config.PartnerFederationAddr, f.config.FederationName,
+		federation.APIKeyFromVault, federation.OperatorAppProvisionAPI,
+		&appProvReq, nil)
+	if err != nil {
+		return err
+	}
+
+	// TODO Wait for app provision status to be ready
+	updateCallback(edgeproto.UpdateTask, "Wait for application to be provisioned")
 	return nil
 }
 
 // Delete an AppInst on a Cluster
 func (f *FederationPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	revision := log.SpanTraceID(ctx)
+	appId := appInst.UniqueId
+	appRegion := federation.AppRegion{
+		Country:  f.config.ZoneCountryCode,
+		Zone:     appInst.Key.ClusterInstKey.CloudletKey.Name,
+		Operator: appInst.Key.ClusterInstKey.CloudletKey.FederatedOrganization,
+	}
+	// App deboarding
+	updateCallback(edgeproto.UpdateTask, "Initiate application deboarding")
+	appDelReq := federation.AppDeboardingRequest{
+		RequestId:           revision,
+		AppId:               appId,
+		Version:             app.Key.Version,
+		LeadOperatorId:      appInst.Key.ClusterInstKey.CloudletKey.FederatedOrganization,
+		LeadOperatorCountry: f.config.ZoneCountryCode,
+		LeadFederationId:    f.config.SelfFederationId,
+		PartnerFederationId: f.config.PartnerFederationId,
+		Zone:                appInst.Key.ClusterInstKey.CloudletKey.Name,
+	}
+	err := f.fedClient.SendRequest(ctx, "DELETE",
+		f.config.PartnerFederationAddr, f.config.FederationName,
+		federation.APIKeyFromVault, federation.OperatorAppOnboardingAPI,
+		&appDelReq, nil)
+	if err != nil {
+		return err
+	}
+
+	// App deprovisioning
+	updateCallback(edgeproto.UpdateTask, "Initiate application deprovisioning")
+	appDeprovReq := federation.AppDeprovisionRequest{
+		RequestId:           revision,
+		LeadFederationId:    f.config.SelfFederationId,
+		PartnerFederationId: f.config.PartnerFederationId,
+		AppDeprovData: federation.AppDeprovisionData{
+			AppId:   appId,
+			Version: app.Key.Version,
+			Region:  appRegion,
+		},
+	}
+	err = f.fedClient.SendRequest(ctx, "DELETE",
+		f.config.PartnerFederationAddr, f.config.FederationName,
+		federation.APIKeyFromVault, federation.OperatorAppProvisionAPI,
+		&appDeprovReq, nil)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

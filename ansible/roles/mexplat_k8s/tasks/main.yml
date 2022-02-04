@@ -23,7 +23,7 @@
 - import_role: name="autoprov"
 - import_role: name="frm"
 - import_role: name="k8s-telegraf"
-- import_rolr: name="thanos"
+- import_role: name="thanos"
 
 - name: Validate InfluxDB source IP access list
   import_role:

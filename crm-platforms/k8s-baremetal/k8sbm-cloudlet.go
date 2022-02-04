@@ -104,8 +104,8 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 
 		return cloudletResourcesCreated, fmt.Errorf("Chef client is not initialized")
 	}
-
-	chefPolicy := chefmgmt.ChefPolicyDocker
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with clientCrmAccessPrivateKey: %s", pfConfig.CrmAccessPrivateKey))
+	chefPolicy := chefmgmt.ChefPolicyK8s
 	if cloudlet.Deployment == cloudcommon.DeploymentTypeKubernetes {
 		chefPolicy = chefmgmt.ChefPolicyK8s
 	}

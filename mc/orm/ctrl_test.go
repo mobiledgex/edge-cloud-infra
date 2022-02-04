@@ -3661,7 +3661,7 @@ func getTestJsonInputData() []testJsonError {
 		Desc:        "parse time.Time",
 		InputObj:    &ormapi.RegionClientApiUsageMetrics{},
 		InputJson:   `{"AppInst":{"cluster_inst_key":{"cloudlet_key":{"name":"cloudlet1625766808-699615","organization":"tmus"}}},"starttime":"x","Region":"US","Selector":"api"}`,
-		ExpectedErr: `Invalid JSON data: Unmarshal time "x" failed, valid values are RFC3339 format, i.e. "2006-01-02T15:04:05Z07:00"`,
+		ExpectedErr: `Invalid JSON data: Unmarshal time "x" failed, valid values are RFC3339 format, i.e. "2006-01-02T15:04:05Z"`,
 	}, {
 		Desc:        "parse bad syntax",
 		InputObj:    &ormapi.RegionCloudlet{},
@@ -3771,7 +3771,7 @@ func TestMcctlParseErrors(t *testing.T) {
 	}
 	out, err = mcctlTest()
 	require.NotNil(t, err)
-	require.Equal(t, "Error: parsing arg \"endtime=x\" failed: unable to parse \"x\" as time: invalid format, valid values are RFC3339 format, i.e. \"2006-01-02T15:04:05Z07:00\"\n", out)
+	require.Equal(t, "Error: parsing arg \"endtime=x\" failed: unable to parse \"x\" as time: invalid format, valid values are RFC3339 format, i.e. \"2006-01-02T15:04:05Z\"\n", out)
 
 	// test int failure
 	args = []string{

@@ -12,6 +12,8 @@
 
 - import_role: name="k8s"
 - import_role: name="cert-manager"
+- import_role: name="controller"
+- import_role: name="thanos"
 - import_role: name="etcd"
 - import_role: name="redis"
 - import_role: name="ingress"

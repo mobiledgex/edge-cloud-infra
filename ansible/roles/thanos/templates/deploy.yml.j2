@@ -18,6 +18,15 @@ spec:
       - name: thanosquery
         image: "quay.io/thanos/thanos:v0.20.0"
         imagePullPolicy: Always
+        args:
+        - query
+        - --http-address=:{{ thanos_query_port }}
+        - --store={{ thanos_hostname_prefix }}:{{ thanos_recv_grpc_port }}
+        ports:
+        - name: http
+          containerPort: {{ thanos_query_port }}
+        - name: grpc
+          containerPort: {{ thanos_recv_grpc_port }}
         resources:
           requests:
             cpu: "50m"
@@ -25,12 +34,6 @@ spec:
           limits:
             cpu: "100m"
             memory: "200Mi"
-        command:
-         - "query"
-         - "--http-address"
-         - ":{{ thanos_query_port }}"
-         - "--store"
-         - "{{ thanos_hostname_prefix }}:{{ thanos_recv_grpc_port }}"
         env:
 ---
 apiVersion: apps/v1
@@ -53,6 +56,16 @@ spec:
       - name: thanosrecv
         image: "quay.io/thanos/thanos:v0.20.0"
         imagePullPolicy: Always
+        args:
+        - receive
+        - --label=region="{{ region }}"
+        - --grpc-address=:{{ thanos_recv_grpc_port }}
+        - --remote-write.address=:{{ thanos_recv_remote_write_port }}
+        ports:
+        - name: remote-write
+          containerPort: {{ thanos_recv_remote_write_port }}
+        - name: grpc
+          containerPort: {{ thanos_recv_grpc_port }}
         resources:
           requests:
             cpu: "50m"
@@ -60,12 +73,4 @@ spec:
           limits:
             cpu: "100m"
             memory: "200Mi"
-        command:
-         - "receive"
-         - "--label"
-         - "region={{ region }}"
-         - "--grpc-address"
-         - ":{{ thanos_recv_grpc_port }}"
-         - "--remote-write.address"
-         - ":{{ thanos_recv_remote_write_port }}"
         env:

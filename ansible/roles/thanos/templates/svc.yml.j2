@@ -7,10 +7,10 @@ metadata:
   namespace: default
 spec:
   ports:
-   - port: 29090
+   - port: {{ thanos_query_port }}
      name: http
      protocol: TCP
-     targetPort: 29090
+     targetPort: {{ thanos_query_port }}
   selector:
     app: thanosquery
 ---
@@ -23,13 +23,13 @@ metadata:
   namespace: default
 spec:
   ports:
-   - port: 10907
+   - port: {{ thanos_recv_grpc_port }}
      name: grpc
      protocol: TCP
-     targetPort: 10907
-   - port: 10908
+     targetPort: {{ thanos_recv_grpc_port }}
+   - port: {{ thanos_recv_remote_write_port }}
      name: remotewrite
      protocol: TCP
-     targetPort: 10908
+     targetPort: {{ thanos_recv_remote_write_port }}
   selector:
     app: thanosrecv

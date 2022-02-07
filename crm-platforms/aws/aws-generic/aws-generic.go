@@ -38,6 +38,51 @@ type AWSFlavor struct {
 	DiskGb   uint
 }
 
+type AWSClusterMetadata struct {
+	Name   string
+	Region string
+}
+
+type AWSCluster struct {
+	Metadata AWSClusterMetadata
+}
+
+type AWSClusterNodeGroup struct {
+	StackName       string
+	Cluster         string
+	Name            string
+	Status          string
+	MaxSize         int
+	MinSize         int
+	DesiredCapacity int
+	InstanceType    string
+}
+
+type AWSServiceQuota struct {
+	Adjustable bool
+	Name       string
+	Value      float64
+	Code       string
+}
+
+type ELBListener struct {
+	Protocol         string
+	LoadBalancerPort int
+	InstanceProtocol string
+	InstancePort     int
+}
+
+type AWSELBDescription struct {
+	LoadBalancerName     string
+	DNSName              string
+	Scheme               string
+	ListenerDescriptions []ELBListener
+}
+
+type AWSELB struct {
+	LoadBalancerDescriptions []AWSELBDescription
+}
+
 type AwsGenericPlatform struct {
 	Properties *infracommon.InfraProperties
 	// AccountAccessVars are fixed for the account credentials used to access the APIs
@@ -147,4 +192,47 @@ func (a *AwsGenericPlatform) GatherCloudletInfo(ctx context.Context, flavorMatch
 		}
 	}
 	return nil
+}
+
+func (a *AwsGenericPlatform) GetServiceQuotas(ctx context.Context, svcCode string) ([]AWSServiceQuota, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetServiceQuotas (AWS)", "svc code", svcCode)
+	query := "Quotas[*].{Adjustable:Adjustable,Name:QuotaName,Value:Value,Code:QuotaCode}"
+	out, err := a.TimedAwsCommand(ctx, AwsCredentialsAccount, "aws", "service-quotas", "list-aws-default-service-quotas",
+		"--query", query,
+		"--region", a.GetAwsRegion(),
+		"--service-code", svcCode,
+		"--output", "json")
+	if err != nil {
+		err = fmt.Errorf("Failed to get service quotas for %s from AWS, %s, %s", svcCode, out, err.Error())
+		return nil, err
+	}
+	jbytes := []byte(out)
+
+	var svcQuotas []AWSServiceQuota
+	err = json.Unmarshal(jbytes, &svcQuotas)
+	if err != nil {
+		err = fmt.Errorf("Failed to unmarshal service quotas, %s, %v", out, err)
+		return nil, err
+	}
+	return svcQuotas, nil
+}
+
+func (a *AwsGenericPlatform) GetAWSELBs(ctx context.Context) (*AWSELB, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetAWSELBs")
+	out, err := a.TimedAwsCommand(ctx, AwsCredentialsAccount, "aws", "elb", "describe-load-balancers",
+		"--region", a.GetAwsRegion(),
+		"--output", "json")
+	if err != nil {
+		err = fmt.Errorf("Failed to get elb from AWS, %s, %s", out, err.Error())
+		return nil, err
+	}
+	jbytes := []byte(out)
+
+	var awsELB AWSELB
+	err = json.Unmarshal(jbytes, &awsELB)
+	if err != nil {
+		err = fmt.Errorf("Failed to unmarshal elb from AWS, %s, %v", out, err)
+		return nil, err
+	}
+	return &awsELB, nil
 }

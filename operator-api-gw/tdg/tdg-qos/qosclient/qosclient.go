@@ -87,10 +87,10 @@ func GetQOSPositionFromApiGW(serverUrl string, mreq *dme.QosPositionRequest, qos
 	}
 	if mreq.BandSelection != nil {
 		request.Bandselection = new(tdgproto.BandSelection)
-		request.Bandselection.RAT2G = mreq.BandSelection.Rat_2G
-		request.Bandselection.RAT3G = mreq.BandSelection.Rat_3G
-		request.Bandselection.RAT4G = mreq.BandSelection.Rat_4G
-		request.Bandselection.RAT5G = mreq.BandSelection.Rat_5G
+		request.Bandselection.RAT2G = mreq.BandSelection.Rat2G
+		request.Bandselection.RAT3G = mreq.BandSelection.Rat3G
+		request.Bandselection.RAT4G = mreq.BandSelection.Rat4G
+		request.Bandselection.RAT5G = mreq.BandSelection.Rat5G
 	}
 	request.Ltecategory = mreq.LteCategory
 	request.Requestid = nextRequestId

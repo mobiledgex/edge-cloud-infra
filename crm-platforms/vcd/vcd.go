@@ -112,11 +112,12 @@ func (v *VcdPlatform) InitData(ctx context.Context, caches *platform.Caches) {
 
 func (o *VcdPlatform) GetFeatures() *platform.Features {
 	return &platform.Features{
-		SupportsMultiTenantCluster: true,
-		SupportsSharedVolume:       true,
-		SupportsTrustPolicy:        true,
-		SupportsImageTypeOVF:       true,
-		SupportsAdditionalNetworks: true,
+		SupportsMultiTenantCluster:            true,
+		SupportsSharedVolume:                  true,
+		SupportsTrustPolicy:                   true,
+		SupportsImageTypeOVF:                  true,
+		SupportsAdditionalNetworks:            true,
+		SupportsPlatformHighAvailabilityOnK8s: true,
 	}
 }
 

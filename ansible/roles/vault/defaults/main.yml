@@ -61,6 +61,9 @@ vault_user_roles:
     - gcp-bucket-create-key.read.v1
     - gcp-firewall-manage-key.read.v1
     - gcp-role-create-key.read.v1
+    - transit-etcd-backup.decrypt.v1
+    - transit-etcd-backup.encrypt.v1
+    - transit-keys.list.v1
 
   editor: &vault_user_role_editor
     - *vault_user_role_deployer

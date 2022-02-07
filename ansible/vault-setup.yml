@@ -73,6 +73,32 @@
       when: '"totp/" not in secret_engines.meta.response'
       notify: Vault TOTP setup prompt
 
+    - name: Enable the transit secrets engine
+      vault_api:
+        api: sys/mounts/transit
+        method: POST
+        data:
+          type: transit
+        success_code: 204
+      when: '"transit/" not in secret_engines.meta.response'
+
+    - name: Fetch list of transit keys
+      vault_api:
+        api: transit/keys
+        method: LIST
+        success_code: [200, 404]
+      register: keys_resp
+
+    - set_fact:
+        transit_engine_keys: "{{ keys_resp.meta.response.data['keys'] | default([]) }}"
+
+    - name: Create etcd-backup transit key
+      vault_api:
+        api: transit/keys/etcd-backup
+        method: POST
+        success_code: 204
+      when: '"etcd-backup" not in transit_engine_keys'
+
     - name: Enable the GCP secrets engine
       vault_api:
         api: sys/mounts/gcp

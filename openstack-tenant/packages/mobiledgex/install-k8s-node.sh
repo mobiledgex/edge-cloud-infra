@@ -8,7 +8,18 @@ if [ $# -lt 1 ]; then
 	exit 1
 fi
 MASTERIP=$1
-echo "Master IP $MASTERIP"
+HOSTNAME=`hostname`
+# replace 127.0.0.1 with the internal IP address in /etc/hosts. This is needed
+# if there are multiple networks on the node. To find the IP address derive from 
+# the master which we get from metadata
+echo "Master IP $MASTERIP HostName $HOSTNAME"
+SUBNET=`echo $MASTERIP|awk -F"." '{print $1 "." $2 "." $3}'`
+echo "subnet $SUBNET"
+
+MYIP=`ip addr show |grep $SUBNET|awk '{print $2}'|awk -F"/" '{print $1}'`
+echo "My IP $MYIP"
+sed -i s/"127.0.0.1 $HOSTNAME"/"$MYIP $HOSTNAME"/g /etc/hosts 
+echo "replaced localhost with $MYIP in /etc/hosts"
 
 systemctl is-active --quiet kubelet
 if [ $? -ne 0 ]; then

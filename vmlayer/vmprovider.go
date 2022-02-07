@@ -153,6 +153,8 @@ const (
 	ProviderInitCreateCloudletDirect     ProviderInitStage = "CreateCloudletDirect"
 	ProviderInitCreateCloudletRestricted ProviderInitStage = "CreateCloudletRestricted"
 	ProviderInitPlatformStartCrm         ProviderInitStage = "PlatformStartCrm"
+	ProviderInitPlatformStartCrmStandby  ProviderInitStage = "ProviderInitPlatformStartCrmStandby"
+	ProviderInitPlatformCrmBecomeActive  ProviderInitStage = "ProviderInitPlatformCrmBecomeActive"
 	ProviderInitPlatformStartShepherd    ProviderInitStage = "PlatformStartShepherd"
 	ProviderInitDeleteCloudlet           ProviderInitStage = "DeleteCloudlet"
 	ProviderInitGetVmSpec                ProviderInitStage = "GetVmSpec"
@@ -411,6 +413,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	}
 
 	// wait for either this instance to be active or the cloudlet to become ready
+	standbyInitDone := false
 	for {
 		if haMgr.PlatformInstanceActive {
 			log.SpanLog(ctx, log.DebugLevelInfra, "platform instance is active, continue init")
@@ -421,15 +424,27 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		if !cloudletFound {
 			return fmt.Errorf("unable to find cloudlet from cache")
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "unit is standby, waiting for cloudlet to be active", "state", cloudlet.State)
-		if cloudlet.State == edgeproto.TrackedState_READY {
-			log.SpanLog(ctx, log.DebugLevelInfra, "cloudlet active, skipping rest of init for standby CRM")
+		log.SpanLog(ctx, log.DebugLevelInfra, "unit is standby, waiting for cloudlet to be active", "state", cloudlet.State, "standbyInitDone", standbyInitDone)
+		if cloudlet.State == edgeproto.TrackedState_READY && standbyInitDone {
+			log.SpanLog(ctx, log.DebugLevelInfra, "cloudlet ready, standby init done")
 			return nil
+		}
+		if !standbyInitDone {
+			log.SpanLog(ctx, log.DebugLevelInfra, "doing init for standby CRM")
+			// do the tasks for standby init. In the unlikely event that this unit gains activity in the meantime,
+			// initTasksCrmActiveOrStandby will be called which is fine
+			err = v.initTasksCrmActiveOrStandby(ctx, caches, ProviderInitPlatformStartCrmStandby, updateCallback)
+			if err != nil {
+				return err
+			}
+			standbyInitDone = true
 		}
 		time.Sleep(time.Second * 5)
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider for active CRM")
-	if err := v.VMProvider.InitProvider(ctx, caches, ProviderInitPlatformStartCrm, updateCallback); err != nil {
+
+	// at this point we are the active CRM
+	err = v.initTasksCrmActiveOrStandby(ctx, caches, ProviderInitPlatformStartCrm, updateCallback)
+	if err != nil {
 		return err
 	}
 
@@ -441,6 +456,7 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 	if result == OperationNewlyInitialized {
 		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 	}
+
 	if err := v.ConfigureCloudletSecurityRules(ctx, ActionCreate); err != nil {
 		if v.VMProperties.IptablesBasedFirewall {
 			// iptables based security rules can fail on one clusterInst LB, but we cannot treat
@@ -450,14 +466,6 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 			return err
 		}
 	}
-	// Set debug command to start crm upgrade
-	v.initDebug(v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
-
-	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)
-	if err != nil {
-		return err
-	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "got flavor list", "flavorList", v.FlavorList)
 
 	tags := GetChefRootLBTags(platformConfig)
 	err = v.CreateRootLB(ctx, v.VMProperties.SharedRootLBName, v.VMProperties.CommonPf.PlatformConfig.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.CloudletVMImagePath, v.VMProperties.CommonPf.PlatformConfig.VMImageVersion, ActionCreate, tags, updateCallback)
@@ -513,6 +521,25 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 		return err
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "ok, SetupRootLB")
+	return nil
+}
+
+// initTasksCrmActiveOrStandby does init functions that are the same for active and standby CRM on startup
+func (v *VMPlatform) initTasksCrmActiveOrStandby(ctx context.Context, caches *platform.Caches, initStage ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "initTasksCrmActiveOrStandby", "initStage", initStage)
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider", "initStage", initStage)
+	var err error
+	if err = v.VMProvider.InitProvider(ctx, caches, initStage, updateCallback); err != nil {
+		return err
+	}
+	v.initDebug(v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
+
+	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList failed", "err", err)
+		return err
+	}
 	return nil
 }
 

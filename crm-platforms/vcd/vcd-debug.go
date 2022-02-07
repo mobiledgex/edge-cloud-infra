@@ -15,7 +15,7 @@ import (
 )
 
 func (v *VcdPlatform) initDebug(nodeMgr *node.NodeMgr, stage vmlayer.ProviderInitStage) {
-	if stage == vmlayer.ProviderInitPlatformStartCrm {
+	if stage == vmlayer.ProviderInitPlatformStartCrm || stage == vmlayer.ProviderInitPlatformStartCrmStandby {
 		nodeMgr.Debug.AddDebugFunc("dumpVmHrefCache", v.showVmHrefCache)
 		nodeMgr.Debug.AddDebugFunc("clearVmHrefCache", v.clearVmHrefCache)
 		nodeMgr.Debug.AddDebugFunc("govcdcmd", v.runVcdCliCommand)

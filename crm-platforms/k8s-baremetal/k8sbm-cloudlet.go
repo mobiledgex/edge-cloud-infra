@@ -111,39 +111,48 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 	}
 	clientName := k.GetChefClientName(&cloudlet.Key)
 	chefParams := k.GetChefParams(clientName, "", chefPolicy, chefAttributes)
-	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
+		sshClient, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
+		if err != nil {
+			return cloudletResourcesCreated, fmt.Errorf("Failed to get ssh client to control host: %v", err)
+		}
+		if pfConfig.CrmAccessPrivateKey != "" {
+			err = pc.WriteFile(sshClient, " /root/accesskey/accesskey.pem", pfConfig.CrmAccessPrivateKey, "accesskey", pc.SudoOn)
+			if err != nil {
+				return cloudletResourcesCreated, fmt.Errorf("Write access key fail: %v", err)
+			}
+		}
+		// once we get here, we require cleanup on failure because we have accessed the control node
+		cloudletResourcesCreated = true
+
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating Chef Client %s with cloudlet attributes", clientName))
+		clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
+		if err != nil {
+			return cloudletResourcesCreated, err
+		}
+		// Store client key in cloudlet obj
+		cloudlet.ChefClientKey = make(map[string]string)
+		cloudlet.ChefClientKey[clientName] = clientKey
+
+		// install chef
+		err = k.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
+		if err != nil {
+			return cloudletResourcesCreated, err
+		}
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess with client %s", clientName))
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess api access key  %s", pfConfig.CrmAccessPrivateKey))
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess with chef key %s", clientKey))
+
+		return cloudletResourcesCreated, chefmgmt.GetChefRunStatus(ctx, k.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
+
+	} else if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
+		// need chef and access keys for op to install, maybe via  a k8s manifest file, or just a bash script to copy them in place.
+		// we assume chef-client has been installed along with the client.pem using knife boostrap so all we need here is the access key.
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with client %s", clientName))
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access api access key  %s", pfConfig.CrmAccessPrivateKey))
 		//return cloudletResourcesCreated, fmt.Errorf("Restricted access not yet supported on BareMetal")
 	}
-
-	sshClient, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
-	if err != nil {
-		return cloudletResourcesCreated, fmt.Errorf("Failed to get ssh client to control host: %v", err)
-	}
-	if pfConfig.CrmAccessPrivateKey != "" {
-		err = pc.WriteFile(sshClient, " /root/accesskey/accesskey.pem", pfConfig.CrmAccessPrivateKey, "accesskey", pc.SudoOn)
-		if err != nil {
-			return cloudletResourcesCreated, fmt.Errorf("Write access key fail: %v", err)
-		}
-	}
-	// once we get here, we require cleanup on failure because we have accessed the control node
-	cloudletResourcesCreated = true
-
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating Chef Client %s with cloudlet attributes", clientName))
-	clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
-	if err != nil {
-		return cloudletResourcesCreated, err
-	}
-	// Store client key in cloudlet obj
-	cloudlet.ChefClientKey = make(map[string]string)
-	cloudlet.ChefClientKey[clientName] = clientKey
-
-	// install chef
-	err = k.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
-	if err != nil {
-		return cloudletResourcesCreated, err
-	}
-	return cloudletResourcesCreated, chefmgmt.GetChefRunStatus(ctx, k.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
+	return true, nil
 }
 
 func (k *K8sBareMetalPlatform) SetupChefOnServer(ctx context.Context, sshClient ssh.Client, clientName string, cloudlet *edgeproto.Cloudlet, chefParams *chefmgmt.ServerChefParams) error {

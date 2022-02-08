@@ -117,7 +117,7 @@ func (a *AwsGenericPlatform) TimedAwsCommand(ctx context.Context, credType AwsCr
 }
 
 func (a *AwsGenericPlatform) GetFlavorList(ctx context.Context, flavorMatchPattern string) ([]*edgeproto.FlavorInfo, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList")
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList", "match pattern", flavorMatchPattern)
 	var info edgeproto.CloudletInfo
 	err := a.GatherCloudletInfo(ctx, flavorMatchPattern, &info)
 	if err != nil {

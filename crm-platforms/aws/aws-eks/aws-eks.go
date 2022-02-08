@@ -20,9 +20,9 @@ const (
 	AWSServiceCodeELB = "elasticloadbalancing"
 
 	// Codes used to identify service quota for AWS resources
-	AWSServiceQuotaClusters          = "L-1194D53C"
-	AWSServiceQuotaNodesPerNodeGroup = "L-BD136A63"
-	AWSServiceQuotaAppLBPerRegion    = "L-53DA6B97"
+	AWSServiceQuotaClusters           = "L-1194D53C"
+	AWSServiceQuotaNodesPerNodeGroup  = "L-BD136A63"
+	AWSServiceQuotaNetworkLBPerRegion = "L-69A177A2"
 )
 
 type AwsEksPlatform struct {
@@ -30,9 +30,9 @@ type AwsEksPlatform struct {
 }
 
 type AwsEksResources struct {
-	K8sClustersUsed        uint64
-	K8sNodesPerClusterUsed uint64
-	AppLBsUsed             uint64
+	K8sClustersUsed           uint64
+	MaxK8sNodesPerClusterUsed uint64
+	NetworkLBsUsed            uint64
 }
 
 func (o *AwsEksPlatform) GetFeatures() *platform.Features {
@@ -45,7 +45,7 @@ func (o *AwsEksPlatform) GetFeatures() *platform.Features {
 }
 
 func (a *AwsEksPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
-	return a.awsGenPf.GatherCloudletInfo(ctx, "", info)
+	return a.awsGenPf.GatherCloudletInfo(ctx, a.awsGenPf.GetAwsFlavorMatchPattern(), info)
 }
 
 // CreateClusterPrerequisites does nothing for now, but for outpost may need to create a vpc
@@ -91,10 +91,6 @@ func (a *AwsEksPlatform) GetCredentials(ctx context.Context, clusterName string)
 func (a *AwsEksPlatform) SetProperties(props *infracommon.InfraProperties) error {
 	a.awsGenPf = &awsgen.AwsGenericPlatform{Properties: props}
 	return nil
-}
-
-func (a *AwsEksPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.FlavorInfo, error) {
-	return a.awsGenPf.GetFlavorList(ctx, "")
 }
 
 func (a *AwsEksPlatform) GetProviderSpecificProps(ctx context.Context) (map[string]*edgeproto.PropertyInfo, error) {
@@ -157,7 +153,7 @@ func (a *AwsEksPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]e
 	}
 	clusterListMax := uint64(0)
 	clusterNodesMax := uint64(0)
-	appLBMax := uint64(0)
+	networkLBMax := uint64(0)
 	for _, eksSvcQuota := range eksSvcQuotas {
 		switch eksSvcQuota.Code {
 		case AWSServiceQuotaClusters:
@@ -168,8 +164,8 @@ func (a *AwsEksPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]e
 	}
 	for _, elbSvcQuota := range elbSvcQuotas {
 		switch elbSvcQuota.Code {
-		case AWSServiceQuotaAppLBPerRegion:
-			appLBMax = uint64(elbSvcQuota.Value)
+		case AWSServiceQuotaNetworkLBPerRegion:
+			networkLBMax = uint64(elbSvcQuota.Value)
 		}
 	}
 	resInfo := []edgeproto.InfraResource{
@@ -179,13 +175,15 @@ func (a *AwsEksPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]e
 			InfraMaxValue: clusterListMax,
 		},
 		edgeproto.InfraResource{
-			Name:          cloudcommon.ResourceK8sNodesPerCluster,
+			Name: cloudcommon.ResourceMaxK8sNodesPerCluster,
+			// We don't care about infra's max k8s nodes cluster deployed,
+			// hence we don't fetch its value here
 			InfraMaxValue: clusterNodesMax,
 		},
 		edgeproto.InfraResource{
-			Name:          cloudcommon.ResourceAppLBs,
+			Name:          cloudcommon.ResourceNetworkLBs,
 			Value:         uint64(len(awsELB.LoadBalancerDescriptions)),
-			InfraMaxValue: appLBMax,
+			InfraMaxValue: networkLBMax,
 		},
 	}
 	return resInfo, nil
@@ -199,12 +197,12 @@ func (a *AwsEksPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*ed
 				Description: cloudcommon.ResourceQuotaDesc[cloudcommon.ResourceK8sClusters],
 			},
 			edgeproto.InfraResource{
-				Name:        cloudcommon.ResourceK8sNodesPerCluster,
-				Description: cloudcommon.ResourceQuotaDesc[cloudcommon.ResourceK8sNodesPerCluster],
+				Name:        cloudcommon.ResourceMaxK8sNodesPerCluster,
+				Description: cloudcommon.ResourceQuotaDesc[cloudcommon.ResourceMaxK8sNodesPerCluster],
 			},
 			edgeproto.InfraResource{
-				Name:        cloudcommon.ResourceAppLBs,
-				Description: cloudcommon.ResourceQuotaDesc[cloudcommon.ResourceAppLBs],
+				Name:        cloudcommon.ResourceNetworkLBs,
+				Description: cloudcommon.ResourceQuotaDesc[cloudcommon.ResourceNetworkLBs],
 			},
 		},
 	}, nil
@@ -214,10 +212,10 @@ func getAwsEksResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, resou
 	var eksRes AwsEksResources
 	// ClusterInstKey -> Node count
 	uniqueClusters := make(map[edgeproto.ClusterInstKey]int)
-	appLBs := 0
+	networkLBs := 0
 	for _, vmRes := range resources {
 		if vmRes.Type == cloudcommon.ResourceTypeK8sLBSvc {
-			appLBs++
+			networkLBs++
 			continue
 		}
 		if vmRes.Type != cloudcommon.VMTypeClusterK8sNode {
@@ -229,15 +227,15 @@ func getAwsEksResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, resou
 			uniqueClusters[vmRes.Key] += 1
 		}
 	}
-	K8sNodesPerCluster := 0
+	maxK8sNodesPerCluster := 0
 	for _, v := range uniqueClusters {
-		if v > K8sNodesPerCluster {
-			K8sNodesPerCluster = v
+		if v > maxK8sNodesPerCluster {
+			maxK8sNodesPerCluster = v
 		}
 	}
 	eksRes.K8sClustersUsed = uint64(len(uniqueClusters))
-	eksRes.K8sNodesPerClusterUsed = uint64(K8sNodesPerCluster)
-	eksRes.AppLBsUsed = uint64(appLBs)
+	eksRes.MaxK8sNodesPerClusterUsed = uint64(maxK8sNodesPerCluster)
+	eksRes.NetworkLBsUsed = uint64(networkLBs)
 	log.SpanLog(ctx, log.DebugLevelApi, "AwsEks getAwsEksResources", "cloudletKey", cloudlet.Key, "resources", eksRes)
 	return &eksRes
 }
@@ -247,9 +245,9 @@ func (a *AwsEksPlatform) GetClusterAdditionalResources(ctx context.Context, clou
 	log.SpanLog(ctx, log.DebugLevelApi, "AwsEks GetClusterAdditionalResources", "cloudletKey", cloudlet.Key)
 	// resource name -> resource units
 	cloudletRes := map[string]string{
-		cloudcommon.ResourceK8sClusters:        "",
-		cloudcommon.ResourceK8sNodesPerCluster: "",
-		cloudcommon.ResourceAppLBs:             "",
+		cloudcommon.ResourceK8sClusters:           "",
+		cloudcommon.ResourceMaxK8sNodesPerCluster: "",
+		cloudcommon.ResourceNetworkLBs:            "",
 	}
 	resInfo := make(map[string]edgeproto.InfraResource)
 	for resName, resUnits := range cloudletRes {
@@ -270,15 +268,15 @@ func (a *AwsEksPlatform) GetClusterAdditionalResources(ctx context.Context, clou
 		outInfo.Value += eksRes.K8sClustersUsed
 		resInfo[cloudcommon.ResourceK8sClusters] = outInfo
 	}
-	outInfo, ok = resInfo[cloudcommon.ResourceK8sNodesPerCluster]
+	outInfo, ok = resInfo[cloudcommon.ResourceMaxK8sNodesPerCluster]
 	if ok {
-		outInfo.Value = eksRes.K8sNodesPerClusterUsed
-		resInfo[cloudcommon.ResourceK8sNodesPerCluster] = outInfo
+		outInfo.Value = eksRes.MaxK8sNodesPerClusterUsed
+		resInfo[cloudcommon.ResourceMaxK8sNodesPerCluster] = outInfo
 	}
-	outInfo, ok = resInfo[cloudcommon.ResourceAppLBs]
+	outInfo, ok = resInfo[cloudcommon.ResourceNetworkLBs]
 	if ok {
-		outInfo.Value += eksRes.AppLBsUsed
-		resInfo[cloudcommon.ResourceAppLBs] = outInfo
+		outInfo.Value += eksRes.NetworkLBsUsed
+		resInfo[cloudcommon.ResourceNetworkLBs] = outInfo
 	}
 	return resInfo
 }
@@ -287,7 +285,7 @@ func (a *AwsEksPlatform) GetClusterAdditionalResourceMetric(ctx context.Context,
 	eksRes := getAwsEksResources(ctx, cloudlet, resources)
 
 	resMetric.AddIntVal(cloudcommon.ResourceMetricK8sClusters, eksRes.K8sClustersUsed)
-	resMetric.AddIntVal(cloudcommon.ResourceMetricK8sNodesPerCluster, eksRes.K8sNodesPerClusterUsed)
-	resMetric.AddIntVal(cloudcommon.ResourceMetricAppLBs, eksRes.AppLBsUsed)
+	resMetric.AddIntVal(cloudcommon.ResourceMetricMaxK8sNodesPerCluster, eksRes.MaxK8sNodesPerClusterUsed)
+	resMetric.AddIntVal(cloudcommon.ResourceMetricNetworkLBs, eksRes.NetworkLBsUsed)
 	return nil
 }

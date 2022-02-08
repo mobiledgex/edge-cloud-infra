@@ -108,8 +108,8 @@ end
 
 template '/tmp/prometheus.yml' do
   source 'prometheus.erb'
-  variables (
-    :remote_write_addr => get_thanos_remote_write_addr()
+  variables(
+    remote_write_addr: get_thanos_remote_write_addr()
   )
   mode '0644'
   action :create

@@ -149,6 +149,7 @@ class Chef
         cmd = "thanos-" + region + ".mobiledgex.net"
       else
         cmd = "thanos-" + deploymentTag + "-" + region + ".mobiledgex.net"
+      end
       cmd
     end
   end

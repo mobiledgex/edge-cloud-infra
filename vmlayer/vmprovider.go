@@ -154,7 +154,6 @@ const (
 	ProviderInitCreateCloudletRestricted ProviderInitStage = "CreateCloudletRestricted"
 	ProviderInitPlatformStartCrm         ProviderInitStage = "PlatformStartCrm"
 	ProviderInitPlatformStartCrmStandby  ProviderInitStage = "ProviderInitPlatformStartCrmStandby"
-	ProviderInitPlatformCrmBecomeActive  ProviderInitStage = "ProviderInitPlatformCrmBecomeActive"
 	ProviderInitPlatformStartShepherd    ProviderInitStage = "PlatformStartShepherd"
 	ProviderInitDeleteCloudlet           ProviderInitStage = "DeleteCloudlet"
 	ProviderInitGetVmSpec                ProviderInitStage = "GetVmSpec"
@@ -527,8 +526,6 @@ func (v *VMPlatform) Init(ctx context.Context, platformConfig *platform.Platform
 // initTasksCrmActiveOrStandby does init functions that are the same for active and standby CRM on startup
 func (v *VMPlatform) initTasksCrmActiveOrStandby(ctx context.Context, caches *platform.Caches, initStage ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "initTasksCrmActiveOrStandby", "initStage", initStage)
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "doing init provider", "initStage", initStage)
 	var err error
 	if err = v.VMProvider.InitProvider(ctx, caches, initStage, updateCallback); err != nil {
 		return err

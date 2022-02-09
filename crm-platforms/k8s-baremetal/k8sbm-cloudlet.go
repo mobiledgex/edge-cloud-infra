@@ -66,6 +66,7 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 	cloudletResourcesCreated := false
 	err := k.commonPf.InitCloudletSSHKeys(ctx, accessApi)
 	if err != nil {
+		updateCallback(edgeproto.UpdateTask, "failed InitCloudletSSHKeys")
 		return cloudletResourcesCreated, err
 	}
 
@@ -90,11 +91,13 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 	chefApi := chefmgmt.ChefApiAccess{}
-
+	// xxx split or fold anthos into the normal HA path. Here we're testing "setup_service_anthos"
+	// which doesn't carry the requirements of HA for now.
+	// So we'll try getting simplex up for Direct _and_ Restricted access here.
 	nodeInfo := chefmgmt.ChefNodeInfo{
 		NodeName: "baremetal-controller",
 		NodeType: cloudcommon.VMTypePlatform,
-		Policy:   chefmgmt.ChefPolicyK8s,
+		Policy:   chefmgmt.ChefPolicyK8sAnthos,
 	}
 	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, &nodeInfo, &chefApi, nil)
 	if err != nil {
@@ -104,13 +107,15 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 
 		return cloudletResourcesCreated, fmt.Errorf("Chef client is not initialized")
 	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with clientCrmAccessPrivateKey: %s", pfConfig.CrmAccessPrivateKey))
-	chefPolicy := chefmgmt.ChefPolicyK8s
+
+	chefPolicy := chefmgmt.ChefPolicyK8sAnthos
 	if cloudlet.Deployment == cloudcommon.DeploymentTypeKubernetes {
 		chefPolicy = chefmgmt.ChefPolicyK8s
 	}
 	clientName := k.GetChefClientName(&cloudlet.Key)
 	chefParams := k.GetChefParams(clientName, "", chefPolicy, chefAttributes)
+
+	fmt.Printf("bmCloudletCreate access: %+v  clientName %s, chefAttrs: %+v\n\n", cloudlet.InfraApiAccess, clientName, chefAttributes)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
 		sshClient, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
 		if err != nil {
@@ -125,7 +130,7 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 		// once we get here, we require cleanup on failure because we have accessed the control node
 		cloudletResourcesCreated = true
 
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating Chef Client %s with cloudlet attributes", clientName))
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("DirectAccess Creating Chef Client %s with cloudlet attributes", clientName))
 		clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
 		if err != nil {
 			return cloudletResourcesCreated, err
@@ -146,10 +151,11 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 		return cloudletResourcesCreated, chefmgmt.GetChefRunStatus(ctx, k.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
 
 	} else if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with clientCrmAccessPrivateKey: %s", pfConfig.CrmAccessPrivateKey))
+		updateCallback(edgeproto.UpdateTask, "Creating K8s baremetalt Restricted Access please note and write accesskey.pem")
 		// need chef and access keys for op to install, maybe via  a k8s manifest file, or just a bash script to copy them in place.
 		// we assume chef-client has been installed along with the client.pem using knife boostrap so all we need here is the access key.
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with client %s", clientName))
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access api access key  %s", pfConfig.CrmAccessPrivateKey))
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with client %s need chefserver.pem for node bootstraping", clientName))
 		//return cloudletResourcesCreated, fmt.Errorf("Restricted access not yet supported on BareMetal")
 	}
 	return true, nil

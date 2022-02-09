@@ -9,6 +9,12 @@ if [ $# -lt 1 ]; then
 fi
 MASTERIP=$1
 echo "Master IP $MASTERIP"
+HOSTNAME=`hostname`
+# replace 127.0.0.1 with the internal IP address in /etc/hosts. This is needed
+# if there are multiple networks on the node. 
+sed -i s/"127.0.0.1 $HOSTNAME"/"$MASTERIP $HOSTNAME"/g /etc/hosts 
+echo "replaced localhost with $MASTERIP in /etc/hosts"
+
 
 systemctl is-active --quiet kubelet
 if [ $? -ne 0 ]; then

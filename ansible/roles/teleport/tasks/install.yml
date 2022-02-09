@@ -15,11 +15,33 @@
 
 - name: Install teleport
   apt:
-    name: "teleport={{ teleport_version }}"
+    name: teleport
     state: present
     update_cache: yes
   become: yes
   notify: Restart teleport
+  tags: setup
+
+- name: Gather package facts
+  package_facts:
+    manager: auto
+  tags: setup
+
+- set_fact:
+    teleport_current_version: "{{ ansible_facts.packages['teleport'][0]['version'] }}"
+  tags: setup
+
+- debug:
+    msg: "Teleport version: {{ teleport_current_version }}"
+  tags: setup
+
+- name: "Ensure teleport version is at least {{ teleport_minimum_version }}"
+  apt:
+    name: teleport
+    state: latest
+  become: yes
+  notify: Restart teleport
+  when: teleport_current_version is version(teleport_minimum_version, '<')
   tags: setup
 
 - name: Install config file

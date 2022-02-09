@@ -3,9 +3,13 @@
   gather_facts: no
   vars:
     security_group_name: vm-scanner-sg
-    access_remote_ip: 34.72.87.153
+    vm_scanner_host: gvm.mobiledgex.net
 
   tasks:
+    - name: Look up VM scanner host IP
+      set_fact:
+        access_remote_ip: "{{ lookup('dig', vm_scanner_host) }}"
+
     - name: "Create security group: {{ security_group_name }}"
       openstack.cloud.security_group:
         name: "{{ security_group_name }}"
@@ -38,3 +42,49 @@
       loop:
         - IPv4
         - IPv6
+
+- hosts: gvm
+  tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      vars:
+        docker_skip_registry_login: yes
+
+    - name: Install gvm-tools
+      pip:
+        name: gvm-tools
+      become: yes
+
+    - name: Load GVM creds
+      import_role:
+        name: load-vault-creds
+        tasks_from: gvm
+
+    - name: Install GVM script wrapper
+      template:
+        src: internal/gvm/gvm-script-wrapper
+        dest: /usr/local/bin/
+        owner: gvm
+        group: gvm
+        mode: "0500"
+      become: yes
+
+    - name: Install GVM scripts
+      copy:
+        src: "{{ item }}"
+        dest: /usr/local/bin/
+        owner: root
+        group: root
+        mode: "0444"
+        backup: yes
+      loop:
+        - internal/gvm/scan-report.py
+        - internal/gvm/scan-status.py
+        - internal/gvm/scan-system.py
+      become: yes

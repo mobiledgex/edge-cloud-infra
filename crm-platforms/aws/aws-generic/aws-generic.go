@@ -17,8 +17,18 @@ import (
 
 type AwsCredentialsType string
 
-const AwsCredentialsAccount = "account"
-const AwsCredentialsSession = "session"
+const (
+	AwsCredentialsAccount = "account"
+	AwsCredentialsSession = "session"
+
+	AWSServiceCodeEKS = "eks"
+	AWSServiceCodeELB = "elasticloadbalancing"
+
+	// Codes used to identify service quota for AWS resources
+	AWSServiceQuotaClusters           = "L-1194D53C"
+	AWSServiceQuotaNodesPerNodeGroup  = "L-BD136A63"
+	AWSServiceQuotaNetworkLBPerRegion = "L-69A177A2"
+)
 
 type AWSQuotas struct {
 	Limit  float64

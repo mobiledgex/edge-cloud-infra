@@ -25,9 +25,10 @@ const (
 	AWSServiceCodeELB = "elasticloadbalancing"
 
 	// Codes used to identify service quota for AWS resources
-	AWSServiceQuotaClusters           = "L-1194D53C"
-	AWSServiceQuotaNodesPerNodeGroup  = "L-BD136A63"
-	AWSServiceQuotaNetworkLBPerRegion = "L-69A177A2"
+	AWSServiceQuotaClusters             = "L-1194D53C"
+	AWSServiceQuotaNodeGroupsPerCluster = "L-6D54EA21"
+	AWSServiceQuotaNodesPerNodeGroup    = "L-BD136A63"
+	AWSServiceQuotaNetworkLBPerRegion   = "L-69A177A2"
 )
 
 type AWSQuotas struct {

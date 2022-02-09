@@ -174,6 +174,7 @@ func (a *AwsEksPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]e
 		return nil, err
 	}
 	clusterListMax := uint64(0)
+	clusterNodeGroupsMax := uint64(0)
 	clusterNodesMax := uint64(0)
 	networkLBMax := uint64(0)
 	for _, eksSvcQuota := range eksSvcQuotas {
@@ -182,7 +183,13 @@ func (a *AwsEksPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]e
 			clusterListMax = uint64(eksSvcQuota.Value)
 		case awsgen.AWSServiceQuotaNodesPerNodeGroup:
 			clusterNodesMax = uint64(eksSvcQuota.Value)
+		case awsgen.AWSServiceQuotaNodeGroupsPerCluster:
+			clusterNodeGroupsMax = uint64(eksSvcQuota.Value)
 		}
+	}
+	clusterMaxTotalK8sNodes := uint64(0)
+	if clusterNodeGroupsMax > 0 && clusterNodesMax > 0 {
+		clusterMaxTotalK8sNodes = clusterNodeGroupsMax * clusterNodesMax
 	}
 	for _, elbSvcQuota := range elbSvcQuotas {
 		switch elbSvcQuota.Code {
@@ -203,8 +210,9 @@ func (a *AwsEksPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]e
 			InfraMaxValue: clusterNodesMax,
 		},
 		edgeproto.InfraResource{
-			Name:  cloudcommon.ResourceTotalK8sNodes,
-			Value: uint64(k8sNodeCount),
+			Name:          cloudcommon.ResourceTotalK8sNodes,
+			Value:         uint64(k8sNodeCount),
+			InfraMaxValue: clusterMaxTotalK8sNodes,
 		},
 		edgeproto.InfraResource{
 			Name:          cloudcommon.ResourceNetworkLBs,

@@ -85,7 +85,7 @@ func UpdateDockerUser(ctx context.Context, client ssh.Client) error {
 	return nil
 }
 
-func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
+func (k *K8sBareMetalPlatform) InitActiveOrStandbyCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Init start")
 	k.caches = caches
 	if err := k.commonPf.InitInfraCommon(ctx, platformConfig, k8sbmProps); err != nil {
@@ -119,6 +119,10 @@ func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platfor
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (k *K8sBareMetalPlatform) InitActive(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	return nil
 }
 

@@ -27,8 +27,13 @@ func (f *FederationPlatform) GetFeatures() *platform.Features {
 	return &platform.Features{}
 }
 
-// Init is called once during CRM startup.
-func (f *FederationPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
+// InitActiveOrStandbyCommon is called once during CRM startup.
+func (f *FederationPlatform) InitActiveOrStandbyCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
+	return nil
+}
+
+// InitActive is optional init steps for the active unit, if applicable
+func (f *FederationPlatform) InitActive(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	return nil
 }
 

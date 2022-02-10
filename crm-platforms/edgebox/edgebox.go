@@ -45,8 +45,8 @@ var edgeboxProps = map[string]*edgeproto.PropertyInfo{
 	},
 }
 
-func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := e.generic.Init(ctx, platformConfig, caches, haMgr, updateCallback)
+func (e *EdgeboxPlatform) InitActiveOrStandbyCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
+	err := e.generic.InitActiveOrStandbyCommon(ctx, platformConfig, caches, haMgr, updateCallback)
 	// Set the test Mode based on what is in PlatformConfig
 	infracommon.SetTestMode(platformConfig.TestMode)
 	infracommon.SetEdgeboxMode(true)
@@ -67,7 +67,10 @@ func (e *EdgeboxPlatform) Init(ctx context.Context, platformConfig *platform.Pla
 	}
 	log.SpanLog(ctx, log.DebugLevelInfra, "done init edgebox")
 	return nil
+}
 
+func (e *EdgeboxPlatform) InitActive(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	return nil
 }
 
 func (e *EdgeboxPlatform) GetEdgeboxNetworkScheme() string {

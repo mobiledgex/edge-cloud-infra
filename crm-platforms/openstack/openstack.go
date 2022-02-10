@@ -34,9 +34,9 @@ func (o *OpenstackPlatform) GetFeatures() *platform.Features {
 
 func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	o.InitResourceReservations(ctx)
-	if stage == vmlayer.ProviderInitPlatformStartCrm || stage == vmlayer.ProviderInitPlatformStartCrmStandby {
+	if stage == vmlayer.ProviderInitPlatformStartCrmActive || stage == vmlayer.ProviderInitPlatformStartCrmActiveOrStandby {
 		o.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr)
-		if stage == vmlayer.ProviderInitPlatformStartCrm {
+		if stage == vmlayer.ProviderInitPlatformStartCrmActive {
 			return o.PrepNetwork(ctx, updateCallback)
 		}
 	}

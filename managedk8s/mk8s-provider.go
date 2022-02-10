@@ -37,7 +37,7 @@ type ManagedK8sPlatform struct {
 	infracommon.CommonEmbedded
 }
 
-func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
+func (m *ManagedK8sPlatform) InitActiveOrStandbyCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Init", "type", m.Type)
 	props, err := m.Provider.GetProviderSpecificProps(ctx)
 	if err != nil {
@@ -59,6 +59,10 @@ func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.
 		return err
 	}
 	return m.Provider.Login(ctx)
+}
+
+func (m *ManagedK8sPlatform) InitActive(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	return nil
 }
 
 func (m *ManagedK8sPlatform) GetFeatures() *platform.Features {

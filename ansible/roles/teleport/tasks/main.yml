@@ -112,3 +112,22 @@
   loop: "{{ setups | dict2items }}"
   loop_control:
     loop_var: setup
+
+- name: "Create {{ tef_mgr_group }} group"
+  group:
+    name: "{{ tef_mgr_group }}"
+  become: yes
+
+- name: Set up Telefonica user management script
+  copy:
+    src: tef-user-mgr
+    dest: "{{ tef_user_mgr }}"
+    mode: "0500"
+  become: yes
+
+- name: Grant sudo access to Telefonica user management script
+  template:
+    src: tef-user-mgr-sudoers.j2
+    dest: /etc/sudoers.d/tef_mgr
+    mode: "0440"
+  become: yes

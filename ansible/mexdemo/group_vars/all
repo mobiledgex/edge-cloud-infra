@@ -27,3 +27,5 @@ vault_github_users:
     role: admin
   - userid: ashxjain
     role: admin
+  - userid: dunkletx
+    role: cloudlet_admin

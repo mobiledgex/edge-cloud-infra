@@ -23,6 +23,8 @@ vault_github_users:
     role: editor
   - userid: bibingeorge1986
     role: cloudlet_admin
+  - userid: dunkletx
+    role: admin
   - userid: venkytv
     role: admin
 

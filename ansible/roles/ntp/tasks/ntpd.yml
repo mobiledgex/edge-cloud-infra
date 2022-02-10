@@ -1,0 +1,12 @@
+---
+- name: Turn off timesyncd
+  command: "timedatectl set-ntp no"
+  become: yes
+  changed_when: false
+
+- name: Install ntp
+  apt:
+    name:
+      - ntp
+    update_cache: yes
+  become: yes

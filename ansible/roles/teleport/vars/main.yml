@@ -5,3 +5,6 @@ setups:
 
 kubeconfig_publish: /usr/local/bin/kubeconfigs-publish.py
 node_token_publish: /usr/local/bin/node-token-publish.py
+tef_user_mgr: /usr/local/bin/tef-user-mgr
+tef_mgr: tefmgr
+tef_mgr_group: tefmgr

@@ -825,7 +825,7 @@ func (p *PartnerApi) FederationAppOnboarding(c echo.Context) error {
 // Remote partner federator sends this request to us to get application onboarding status
 func (p *PartnerApi) FederationAppOnboardingStatus(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
-	appObStatusReq := AppOnboardingStatusRequest{}
+	appObStatusReq := AppDeploymentStatusRequest{}
 	if err := c.Bind(&appObStatusReq); err != nil {
 		return err
 	}

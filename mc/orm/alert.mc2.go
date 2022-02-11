@@ -851,8 +851,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigCacheDir: 21.24
 	// ConfigSecondaryCrmAccessPrivateKey: 21.25
 	// ConfigThanosRecvAddr: 21.26
-	// ConfigFederationAddr: 21.27
-	// ConfigFederationName: 21.28
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2
@@ -911,6 +909,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// SecondaryNotifySrvAddr: 53
 	// DnsLabel: 54
 	// RootLbFqdn: 55
+	// FederationConfig: 56
+	// FederationConfigFederationName: 56.1
+	// FederationConfigSelfFederationId: 56.2
+	// FederationConfigPartnerFederationId: 56.3
+	// FederationConfigZoneCountryCode: 56.4
+	// FederationConfigPartnerFederationAddr: 56.5
 	// ```
 	// Security:
 	//   Bearer:

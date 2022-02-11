@@ -8,6 +8,7 @@ import (
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
+	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/tls"
 )
 
@@ -60,8 +61,10 @@ func (c *FederationClient) SendRequest(ctx context.Context, method, fedAddr, fed
 	requestUrl := fmt.Sprintf("%s%s", fedAddr, endpoint)
 	status, err := restClient.HttpJsonSend(method, requestUrl, apiKey, reqData, replyData)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelFedapi, "Federation API failed", "method", method, "url", requestUrl, "request", reqData, "response", replyData, "error", err)
 		return err
 	}
+	log.SpanLog(ctx, log.DebugLevelFedapi, "Federation API success", "method", method, "url", requestUrl, "request", reqData, "response", replyData)
 	if status != http.StatusOK {
 		return fmt.Errorf("Failed to get response for %s request to URL %s, status=%s", method, requestUrl, http.StatusText(status))
 	}

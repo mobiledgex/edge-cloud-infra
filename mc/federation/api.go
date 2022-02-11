@@ -317,35 +317,8 @@ type AppMetadata struct {
 	DeveloperId string `json:"developerId"`
 	// Version of the application in string format
 	Version string `json:"version"`
-	// Classification of application.
-	Category string `jsaon:"category"`
 	// Details about application
 	AppDescription string `json:"appDescription"`
-	// Unique key associated with the application.  This key is used of authentication by client devices
-	AccessToken string `json:"accessToken"`
-	// enum: ["Allowed", "Not Allowed"]
-	// If application supports mobility or not
-	MobilitySupport string `json:"mobilitySupport"`
-}
-
-// Parameters corresponding to the performance constraints, tenancy details etc
-type AppAttributes struct {
-	// enum: ["none","low","veryLow"]
-	// Latency requirements for the application. Allowed values are none, low and very low. Very Low corresponds to range 15 - 30 msec, Low corresponds to range 30 - 50 msec. None means 51 and above
-	LatencyConstraints string `json:"latencyConstraints"`
-	// enum: SINGLE, MULTIPLE
-	// Define if app supports single user or multiple users
-	Tenancy string `json:"tenancy"`
-	// If tenancy is multiple, then how many users 1 app can handle
-	NoOfUsersPerApp int64 `json:"noOfUsersPerApp"`
-	// enum: [0, 1]
-	// 0 means all Edges and 1 is single edge
-	DeploymentSites int `json:"deploymentSites"`
-	// enum: PRIVATE, PUBLIC
-	// Define if the application is available for subscription/download by other users/developers
-	Visibility string `json:"visibility"`
-	// Data transfer bandwidth requirement (minimum limit) for the application. It should in Mbits/sec
-	Bandwidth string `json:"bandwidth"`
 }
 
 // Geographical location where application should be made available
@@ -374,16 +347,6 @@ type AppComponentSource struct {
 	Username string `json:"username"`
 	// defines the docker repo password incase external docker repository is used to provide component images
 	Password string `json:"password"`
-}
-
-// Details about the terraform and ansible scripts associated with the application
-type AppDeployment struct {
-	// Name of terraform zip folder containing terraform scripts associate with the application. This is required only when application schema is defined using Terraform
-	TerraformFile string `json:"terraformFile"`
-	// Name of ansible folder containing ansible scripts associated with the application.
-	AnsibleFile string `json:"ansibleFile"`
-	// Name of helm folder containing helm chart associated with the application.
-	HelmFile string `json:"helmFile"`
 }
 
 type AppInterfaceType string
@@ -416,7 +379,7 @@ type AppExposedInterface struct {
 	UpstreamPath string `json:"upstreamPath"`
 	// enum: ["external", "internal"]
 	// defines whether the interface is exposed to outer world or not. If this is set to "internal", then it is not exposed otherwise it is exposed to application component at UE. As of now only "external" is supported.
-	Visibility AppInterfaceVisibility `json:"visiblity"`
+	Visibility AppInterfaceVisibility `json:"visibility"`
 }
 
 // No of GPUs required by the application
@@ -491,7 +454,7 @@ type AppComponent struct {
 	// Details of path/docker repository to get component image
 	ComponentSource AppComponentSource `json:"componentSource"`
 	// List of interfaces exposed by the application component
-	ExposedInterfaces []AppExposedInterface `json:"exposedInterfaces"`
+	ExposedInterfaces []AppExposedInterface `json:"ExposedInterfaces"`
 	// Details about the minimum CPU, RAM and GPU required by the application"
 	ComputeResourceRequirements AppComputeResourceRequirement `json:"ComputeResourceRequirements"`
 	// List of key value pairs that will be injected as environment variables in the Kubernetes pod created corresponding the component.
@@ -512,8 +475,6 @@ type AppComponentDetail struct {
 
 // Details about application components, application images, compute resources etc
 type AppSpec struct {
-	// Details about the terraform and ansible scripts associated with the application
-	Deployment AppDeployment `json:"deployment"`
 	// Details about application components, interfaces, executables etc
 	ComponentDetails []AppComponentDetail `json:"componentdetails"`
 }
@@ -547,16 +508,8 @@ type AppOnboardingRequest struct {
 	ArtifactId string `json:"artifactId"`
 	// Name of the application
 	AppName string `json:"appName"`
-	// Name of terraform file (zip format). This is required when application schema is defined using Terraform
-	TerraformFileId string `json:"terraformFileId"`
-	// Name of ansible file (zip format) associated with the application
-	AnsibleFileId string `json:"ansibleFileId"`
-	// Name of helm file (zip format) associated with the application
-	HelmFileId string `json:"helmFileId"`
 	// Application metadata details
 	Metadata AppMetadata `json:"metadata"`
-	// Parameters corresponding to the performance constraints, tenancy details etc
-	Attributes AppAttributes `json:"attributes"`
 	// default: "Enabled"
 	// enum: "Enabled", "Disabled"
 	// Define if application can be provisioned or not
@@ -578,7 +531,7 @@ type AppOnboardingResponse struct {
 	RequestId string `json:"requestId"`
 }
 
-type AppOnboardingStatusRequest struct {
+type AppDeploymentStatusRequest struct {
 	// Identifier of application
 	AppId string `json:"appId"`
 	// Request identifier
@@ -626,7 +579,7 @@ type AppDeboardingRequest struct {
 	// Request identifier
 	RequestId string `json:"requestId"`
 	// Identifier of application
-	AppId string `json:"appid"`
+	AppId string `json:"appId"`
 	// Application version
 	Version string `json:"version"`
 	// Unique identifier for the operator
@@ -634,9 +587,9 @@ type AppDeboardingRequest struct {
 	// ISO 3166-1 Alpha-2 code for the country
 	LeadOperatorCountry string `json:"leadOperatorcountry"`
 	// A unique key to authorize/authenticate requests over federation interface. Each operator generates its federation key and the same is used for authentication and authorization over federation interface
-	LeadFederationId string `json:"leadfederationid"`
+	LeadFederationId string `json:"leadfederationId"`
 	// A unique key to authorize/authenticate requests over federation interface. Each operator generates its federation key and the same is used for authentication and authorization over federation interface
-	PartnerFederationId string `json:"partnerfederationid"`
+	PartnerFederationId string `json:"partnerfederationId"`
 	// Identifier for the zone on which application is onboarded
 	Zone string `json:"zone"`
 }
@@ -658,9 +611,9 @@ type AppProvisionRequest struct {
 	// Unique identifier for the operator
 	LeadOperatorId string `json:"leadOperatorId"`
 	// A unique key to authorize/authenticate requests over federation interface. Each operator generates its federation key and the same is used for authentication and authorization over federation interface
-	LeadFederationId string `json:"leadfederationId"`
+	LeadFederationId string `json:"leadFederationId"`
 	// A unique key to authorize/authenticate requests over federation interface. Each operator generates its federation key and the same is used for authentication and authorization over federation interface
-	PartnerFederationId string `json:"partnerfederationId"`
+	PartnerFederationId string `json:"partnerFederationId"`
 	// Details about the application
 	AppProvData AppProvisionData `json:"appProvisionData"`
 }
@@ -684,9 +637,47 @@ type AppDeprovisionRequest struct {
 	// Request identifier
 	RequestId string `json:"requestId"`
 	// A unique key to authorize/authenticate requests over federation interface. Each operator generates its federation key and the same is used for authentication and authorization over federation interface
-	LeadFederationId string `json:"leadfederationId"`
+	LeadFederationId string `json:"leadFederationId"`
 	// A unique key to authorize/authenticate requests over federation interface. Each operator generates its federation key and the same is used for authentication and authorization over federation interface
-	PartnerFederationId string `json:"partnerfederationId"`
+	PartnerFederationId string `json:"partnerFederationId"`
 	// Details about the application
 	AppDeprovData AppDeprovisionData `json:"appDeprovisionData"`
+}
+
+type ProvisioningState string
+
+const (
+	ProvisioningState_SUCCESS ProvisioningState = "SUCCESS"
+	ProvisioningState_PENDING ProvisioningState = "PENDING"
+	ProvisioningState_FAILED  ProvisioningState = "FAILED"
+)
+
+type AppHTTPBinding struct {
+	// URL exposed by the gMEC platform for HTTP based traffic
+	Endpoint string `json:"endpoint"`
+}
+
+type AppMicroservice struct {
+	// Details about how to access application for HTTP based traffic
+	HTTPBindings []AppHTTPBinding `json:"httpBindings"`
+}
+
+type AppAccessEndPoints struct {
+	// List of microservice which are exposed
+	Microservices []AppMicroservice `json:"microservices"`
+}
+
+type AppProvisioningStatusResponse struct {
+	// Identifier of application
+	AppId string `json:"appId"`
+	// Request identifier
+	RequestId string `json:"requestId"`
+	// A unique key to authorize/authenticate requests over federation interface. Each operator generates its federation key and the same is used for authentication and authorization over federation interface
+	LeadFederationId string `json:"leadFederationId"`
+	// A unique key to authorize/authenticate requests over federation interface. Each operator generates its federation key and the same is used for authentication and authorization over federation interface
+	PartnerFederationId string `json:"partnerFederationId"`
+	// Application provisioning state
+	Status ProvisioningState `json:"status"`
+	// Details about the IP and Port on the gMEC which are exposed externally to connect to the application
+	AccessEndPoints AppAccessEndPoints `json:"appAccessEndPoints"`
 }

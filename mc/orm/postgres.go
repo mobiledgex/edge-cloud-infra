@@ -444,6 +444,14 @@ func upgradeCustom(ctx context.Context, db *gorm.DB) error {
 	if res.Error != nil {
 		return res.Error
 	}
+
+	// add Thanos column as empty string to the controller table
+	cmd = `ALTER TABLE IF EXISTS "controllers" ADD IF NOT EXISTS "thanos_metrics" text`
+	res = db.Exec(cmd)
+	if res.Error != nil {
+		return res.Error
+	}
+
 	// change value to unique, desired values
 	ctrls := []ormapi.Controller{}
 	err := db.Find(&ctrls).Error

@@ -145,6 +145,7 @@ func TestFRMNotify(t *testing.T) {
 	require.Nil(t, err)
 	defer span.Finish()
 
+	haMgr.HARole = string(process.HARolePrimary)
 	notifyClient, controllerData, err := InitFRM(ctx, &nodeMgr, &haMgr, "frm-hostname", "local", "dummy.net", notifyAddr)
 	require.Nil(t, err)
 	defer func() {

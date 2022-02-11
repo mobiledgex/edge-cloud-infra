@@ -16,7 +16,9 @@ auth_service:
   authentication:
     type: github
 ssh_service:
-  enabled: "no"
+  enabled: "yes"
+  labels:
+    env: bastion
 proxy_service:
   enabled: "yes"
   listen_addr: 0.0.0.0:3023

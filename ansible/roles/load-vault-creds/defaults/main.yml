@@ -6,6 +6,7 @@ cloudflare_account_path: secret/ansible/common/accounts/cloudflare
 esproxy_account_path: secret/ansible/common/accounts/esproxy
 esproxy_cleanup_account_path: secret/ansible/common/accounts/esproxy_cleanup
 gcp_account_path: secret/ansible/common/accounts/gcp
+gvm_account_path: secret/ansible/common/accounts/gvm
 harbot_account_path: secret/ansible/common/accounts/harbor
 locapi_account_path: secret/ansible/common/accounts/locapi
 mc_ldap_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc_ldap"

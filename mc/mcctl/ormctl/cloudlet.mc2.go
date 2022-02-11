@@ -211,7 +211,7 @@ var CreateCloudletCmd = &ApiCommand{
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
-	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Config,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,SecondaryCrmAccessPublicKey,SecondaryCrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,DeletePrepare,GpuConfig.LicenseConfigMd5Sum,DnsLabel,RootLbFqdn,ResTagMap",
+	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Config,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,SecondaryCrmAccessPublicKey,SecondaryCrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,DeletePrepare,GpuConfig.LicenseConfigMd5Sum,DnsLabel,RootLbFqdn,FederationConfig,ResTagMap",
 	ReqData:              &ormapi.RegionCloudlet{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/CreateCloudlet",
@@ -229,7 +229,7 @@ var DeleteCloudletCmd = &ApiCommand{
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
-	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Config,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,SecondaryCrmAccessPublicKey,SecondaryCrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,DeletePrepare,GpuConfig.LicenseConfigMd5Sum,DnsLabel,RootLbFqdn,ResTagMap",
+	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Config,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,SecondaryCrmAccessPublicKey,SecondaryCrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,DeletePrepare,GpuConfig.LicenseConfigMd5Sum,DnsLabel,RootLbFqdn,FederationConfig,ResTagMap",
 	ReqData:              &ormapi.RegionCloudlet{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/DeleteCloudlet",
@@ -247,7 +247,7 @@ var UpdateCloudletCmd = &ApiCommand{
 	AliasArgs:            strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:          &CloudletSpecialArgs,
 	Comments:             addRegionComment(CloudletComments),
-	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Config,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,SecondaryCrmAccessPublicKey,SecondaryCrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,DeletePrepare,GpuConfig.LicenseConfigMd5Sum,DnsLabel,RootLbFqdn,PlatformType,DeploymentLocal,Flavor,PhysicalName,ContainerVersion,ResTagMap,VmImageVersion,Deployment,InfraApiAccess,InfraConfig,OverridePolicyContainerVersion,VmPool,ResTagMap",
+	NoConfig:             "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Config,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,SecondaryCrmAccessPublicKey,SecondaryCrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,DeletePrepare,GpuConfig.LicenseConfigMd5Sum,DnsLabel,RootLbFqdn,FederationConfig,PlatformType,DeploymentLocal,Flavor,PhysicalName,ContainerVersion,ResTagMap,VmImageVersion,Deployment,InfraApiAccess,InfraConfig,OverridePolicyContainerVersion,VmPool,ResTagMap",
 	ReqData:              &ormapi.RegionCloudlet{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/UpdateCloudlet",
@@ -265,7 +265,7 @@ var ShowCloudletCmd = &ApiCommand{
 	AliasArgs:    strings.Join(CloudletAliasArgs, " "),
 	SpecialArgs:  &CloudletSpecialArgs,
 	Comments:     addRegionComment(CloudletComments),
-	NoConfig:     "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Config,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,SecondaryCrmAccessPublicKey,SecondaryCrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,DeletePrepare,GpuConfig.LicenseConfigMd5Sum,DnsLabel,RootLbFqdn,ResTagMap",
+	NoConfig:     "Location.HorizontalAccuracy,Location.VerticalAccuracy,Location.Course,Location.Speed,Location.Timestamp,Config,ChefClientKey,State,Errors,CrmAccessPublicKey,CrmAccessKeyUpgradeRequired,SecondaryCrmAccessPublicKey,SecondaryCrmAccessKeyUpgradeRequired,CreatedAt,UpdatedAt,TrustPolicyState,HostController,DeletePrepare,GpuConfig.LicenseConfigMd5Sum,DnsLabel,RootLbFqdn,FederationConfig,ResTagMap",
 	ReqData:      &ormapi.RegionCloudlet{},
 	ReplyData:    &edgeproto.Cloudlet{},
 	Path:         "/auth/ctrl/ShowCloudlet",
@@ -552,11 +552,6 @@ var CreateCloudletOptionalArgs = []string{
 	"singlekubernetesclusterowner",
 	"platformhighavailability",
 	"secondarynotifysrvaddr",
-	"federationconfig.federationname",
-	"federationconfig.selffederationid",
-	"federationconfig.partnerfederationid",
-	"federationconfig.zonecountrycode",
-	"federationconfig.partnerfederationaddr",
 }
 var DeleteCloudletRequiredArgs = []string{
 	"cloudletorg",
@@ -610,11 +605,6 @@ var DeleteCloudletOptionalArgs = []string{
 	"singlekubernetesclusterowner",
 	"platformhighavailability",
 	"secondarynotifysrvaddr",
-	"federationconfig.federationname",
-	"federationconfig.selffederationid",
-	"federationconfig.partnerfederationid",
-	"federationconfig.zonecountrycode",
-	"federationconfig.partnerfederationaddr",
 }
 var UpdateCloudletRequiredArgs = []string{
 	"cloudletorg",
@@ -657,11 +647,6 @@ var UpdateCloudletOptionalArgs = []string{
 	"singlekubernetesclusterowner",
 	"platformhighavailability",
 	"secondarynotifysrvaddr",
-	"federationconfig.federationname",
-	"federationconfig.selffederationid",
-	"federationconfig.partnerfederationid",
-	"federationconfig.zonecountrycode",
-	"federationconfig.partnerfederationaddr",
 }
 var ShowCloudletRequiredArgs = []string{
 	"cloudletorg",
@@ -715,11 +700,6 @@ var ShowCloudletOptionalArgs = []string{
 	"singlekubernetesclusterowner",
 	"platformhighavailability",
 	"secondarynotifysrvaddr",
-	"federationconfig.federationname",
-	"federationconfig.selffederationid",
-	"federationconfig.partnerfederationid",
-	"federationconfig.zonecountrycode",
-	"federationconfig.partnerfederationaddr",
 }
 var GetCloudletPropsRequiredArgs = []string{
 	"platformtype",
@@ -996,11 +976,6 @@ var CloudletOptionalArgs = []string{
 	"singlekubernetesclusterowner",
 	"platformhighavailability",
 	"secondarynotifysrvaddr",
-	"federationconfig.federationname",
-	"federationconfig.selffederationid",
-	"federationconfig.partnerfederationid",
-	"federationconfig.zonecountrycode",
-	"federationconfig.partnerfederationaddr",
 }
 var CloudletAliasArgs = []string{
 	"fields=cloudlet.fields",

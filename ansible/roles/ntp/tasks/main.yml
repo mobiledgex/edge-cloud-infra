@@ -1,12 +1,10 @@
 ---
-- name: Turn off timesyncd
-  command: "timedatectl set-ntp no"
-  become: yes
-  changed_when: false
+- import_role:
+    name: ntp
+    tasks_from: ntpd
+  when: use_ntpd|bool
 
-- name: Install ntp
-  apt:
-    name:
-      - ntp
-    update_cache: yes
-  become: yes
+- import_role:
+    name: ntp
+    tasks_from: timesyncd
+  when: not use_ntpd|bool

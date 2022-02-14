@@ -22,14 +22,14 @@ import (
 
 const (
 	// Chef Policies
-	ChefPolicyBase      = "base"
-	ChefPolicyDocker    = "docker_crm"
-	ChefPolicyK8s       = "k8s_crm"
-	ChefPolicyK8sAnthos = "k8s_crm_anthos" // testing testing... platform-simple all 3 containers in one pod, no ha
-
-	//	DefaultChefServerPath = "https://chef.mobiledgex.net/organizations/mobiledgex"
-	DefaultChefServerPath = "https://jlmtest.mobiledgex.net/organizations/mobiledgex"
+	ChefPolicyBase        = "base"
+	ChefPolicyDocker      = "docker_crm"
+	ChefPolicyK8s         = "k8s_crm"
+	ChefPolicyK8sWorker   = "k8s_worker_crm"
+	ChefPolicyK8sAnthos   = "k8s_crm_anthos" // testing testing... platform-simple all 3 containers in one pod, no ha
+	DefaultChefServerPath = "https://chef.mobiledgex.net/organizations/mobiledgex"
 	DefaultCacheDir       = "/root/crm_cache"
+	DefaultChefServerPath = "https://jlmtest.mobiledgex.net/organizations/mobiledgex"
 )
 
 const (

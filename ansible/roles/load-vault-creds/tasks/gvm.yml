@@ -1,0 +1,7 @@
+- name: Look up GVM creds in vault
+  set_fact:
+    vault_lookup: "{{ lookup('vault', gvm_account_path) }}"
+
+- set_fact:
+    gvm_username: "{{ vault_lookup.gvm.data.username }}"
+    gvm_password: "{{ vault_lookup.gvm.data.password }}"

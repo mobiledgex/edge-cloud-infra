@@ -6,6 +6,7 @@ pipeline {
     parameters {
         string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag for the custom build')
         gitParameter(branchFilter: 'origin/(.*)', sortMode: 'ASCENDING_SMART', defaultValue: 'master', name: 'BRANCH', type: 'PT_BRANCH')
+        booleanParam name: 'SKIP_VAULT_SETUP', defaultValue: false, description: 'Skip vault setup stage during deployment'
     }
     environment {
         DEFAULT_DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
@@ -53,7 +54,11 @@ export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
 export ANSIBLE_FORCE_COLOR=true
 
 [ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
-./deploy.sh -V "$DOCKER_BUILD_TAG" -y development
+if $SKIP_VAULT_SETUP; then
+    ./deploy.sh -s vault-setup -V "$DOCKER_BUILD_TAG" -y development
+else
+    ./deploy.sh -V "$DOCKER_BUILD_TAG" -y development
+fi
                         '''
                     }
                 }

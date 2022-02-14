@@ -1,0 +1,5 @@
+---
+- name: Turn on timesyncd
+  command: "timedatectl set-ntp yes"
+  become: yes
+  changed_when: false

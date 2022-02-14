@@ -31,3 +31,6 @@ teleport.mobiledgex.net
 
 [trivy]
 trivy.mobiledgex.net
+
+[gvm]
+gvm.mobiledgex.net

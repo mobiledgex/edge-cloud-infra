@@ -423,12 +423,10 @@ func (m *cloudletUsageMetrics) InitObject(ctx context.Context, rc *InfluxDBConte
 	if err != nil {
 		return err
 	}
-	// Platform type is required for cloudlet resource usage
-	if m.Selector == "resourceusage" {
-		m.platformTypes, err = getCloudletPlatformTypes(ctx, rc.claims.Username, m.Region, m.Cloudlets)
-		if err != nil {
-			return err
-		}
+	// Platform type is required for cloudlet resource usage, but for consistency check for all selectors
+	m.platformTypes, err = getCloudletPlatformTypes(ctx, rc.claims.Username, m.Region, m.Cloudlets)
+	if err != nil {
+		return err
 	}
 	return m.cloudletMetrics.InitObject(ctx, rc)
 }
@@ -492,6 +490,12 @@ func ShowMetricsCommon(c echo.Context, in MetricsObject) error {
 	if in.GetObjCount() == 0 {
 		return fmt.Errorf("At least one %s org has to be specified", in.GetType())
 	}
+
+	// Validate objects
+	if err := in.ValidateObjects(); err != nil {
+		return err
+	}
+
 	rc.region = in.GetRegion()
 	if err = in.ValidateSelector(); err != nil {
 		return err

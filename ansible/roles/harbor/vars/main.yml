@@ -1,4 +1,3 @@
 harbor_install_dir: "{{ ansible_env.HOME }}/harbor"
-harbor_registry_storage_bucket: "mobiledgex-registry"
+harbor_service_script: /usr/local/bin/harbor-svc
 gcp_service_account_path: /etc/gcp-harbor-registry-service-principal.json
-gcp_service_account_vault_path: secret/ansible/common/accounts/harbor_storage

@@ -1,0 +1,33 @@
+---
+- hosts: harbor
+  vars:
+    gcp_service_account_vault_path: secret/ansible/common/accounts/harbor_storage
+    harbor_registry_storage_bucket: "mobiledgex-registry"
+
+  tasks:
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+    - import_role:
+        name: docker
+      vars:
+        docker_skip_registry_login: yes
+
+    - name: Load harbor creds from vault
+      import_role:
+        name: load-vault-creds
+        tasks_from: harbor-internal
+
+    - name: Load GCP storage bucket credentials from vault
+      set_fact:
+        vault_lookup: "{{ lookup('vault', gcp_service_account_vault_path) }}"
+
+    - import_role:
+        name: harbor
+      vars:
+        registry_storage_bucket: "{{ harbor_registry_storage_bucket }}"
+        gcp_service_account_credentials: "{{ vault_lookup.harbor_storage.data }}"
+        db_root_password: "{{ harbor_internal_db_root_password }}"
+        initial_password: "{{ harbor_internal_initial_password }}"

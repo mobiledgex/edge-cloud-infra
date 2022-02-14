@@ -25,6 +25,21 @@
   become: yes
   notify: Restart docker daemon
 
+- name: Install service script
+  template:
+    src: harbor-svc.sh.j2
+    dest: "{{ harbor_service_script }}"
+    owner: root
+    group: root
+    mode: "0544"
+  become: yes
+
+- name: Install systemd service
+  template:
+    src: harbor.service.j2
+    dest: /etc/systemd/system/harbor.service
+  become: yes
+
 - name: Check if harbor is already installed
   stat:
     path: "{{ harbor_install_dir }}/harbor.yml"
@@ -55,20 +70,10 @@
       remote_src: yes
     tags: setup
 
-  - name: Load harbor creds from vault
-    import_role:
-      name: load-vault-creds
-      tasks_from: harbor
-
-  - name: Load GCP storage bucket credentials from vault
-    set_fact:
-      vault_lookup: "{{ lookup('vault', gcp_service_account_vault_path) }}"
-    register: result
-
   - name: Set up GCP service account credentials
     copy:
       dest: "{{ gcp_service_account_path }}"
-      content: "{{ vault_lookup.harbor_storage.data }}"
+      content: "{{ gcp_service_account_credentials }}"
       owner: "10000"
       group: root
       mode: "0400"
@@ -87,4 +92,37 @@
       creates: /data/registry
     become: yes
 
+  - name: Wait for service to start
+    systemd:
+      name: harbor
+      enabled: yes
+      state: started
+    become: yes
+
+  - wait_for:
+      timeout: 10
+    delegate_to: localhost
+
+  - name: Set admin password
+    uri:
+      url: "https://{{ inventory_hostname }}/api/v2.0/users/1/password"
+      user: admin
+      password: "{{ harbor_initial_password }}"
+      method: PUT
+      body:
+        old_password: "{{ harbor_initial_password }}"
+        new_password: "{{ harbor_admin_password }}"
+      body_format: json
+
+  - import_role:
+      name: harbor
+      tasks_from: configure
+
   when: not harbor_config_file.stat.exists
+
+- name: Enable harbor service
+  systemd:
+    name: harbor
+    enabled: yes
+    state: started
+  become: yes

@@ -111,6 +111,7 @@
       vars:
         buckets:
           - "{{ gcs_gpu_drivers_bucket }}"
+          - "{{ gcs_harbor_bucket }}"
           - "{{ gcs_operator_reports_bucket }}"
 
     - import_role:
@@ -139,6 +140,30 @@
     - import_role:
         name: ns1
         tasks_from: global-dme
+
+- hosts: harbor
+  tasks:
+    - debug: var=deploy_environ
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+    - name: Load GCP service account for Harbor GCS access
+      import_role:
+        name: load-vault-creds
+        tasks_from: gcs-harbor-service-account
+    - debug: var=gcs_harbor_service_account
+    - name: Load harbor creds from vault
+      import_role:
+        name: load-vault-creds
+        tasks_from: harbor
+    - import_role:
+        name: harbor
+      vars:
+        registry_storage_bucket: "{{ gcs_harbor_bucket }}"
+        gcp_service_account_credentials: "{{ gcs_harbor_service_account }}"
+        db_root_password: "{{ harbor_db_root_password }}"
+        initial_password: "{{ harbor_initial_password }}"
+        admin_password: "{{ harbor_admin_password }}"
 
 - hosts: gitlab
   tasks:

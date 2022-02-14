@@ -1,0 +1,14 @@
+[Unit]
+Description=Harbor Registry
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart={{ harbor_service_script }} start
+ExecReload={{ harbor_service_script }} restart
+ExecStop={{ harbor_service_script }} stop
+
+[Install]
+WantedBy=multi-user.target

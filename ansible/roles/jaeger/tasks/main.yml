@@ -83,6 +83,7 @@
           ES_USERNAME: "{{ jaeger_es_user }}"
           ES_PASSWORD: "{{ jaeger_es_pass }}"
           ES_MAX_SPAN_AGE: "720h"
+          ES_NUM_SHARDS: 2
 
     - name: Deploy jaeger query
       docker_container:
@@ -99,6 +100,7 @@
           ES_USERNAME: "{{ jaeger_es_user }}"
           ES_PASSWORD: "{{ jaeger_es_pass }}"
           ES_MAX_SPAN_AGE: "720h"
+          ES_NUM_SHARDS: 2
 
     - name: Install dependencies
       apt:

@@ -1,0 +1,60 @@
+#!/bin/bash
+PATH='/usr/bin:/bin:/usr/local/bin'; export PATH
+
+NEED_SVCS=11
+
+cd "{{ harbor_install_dir }}"
+
+wait_for_svcs() {
+        # Wait until all services are healthy
+        SECONDS=0
+        while (( SECONDS < 120 )); do
+        NUM_SVCS=$( docker ps --format "{{ '{{' }}.Image{{ '}}' }} {{ '{{' }}.Status{{ '}}' }}" | grep '^goharbor/' | grep -c '(healthy)$' )
+                if [[ "$NUM_SVCS" == "$NEED_SVCS" ]]; then
+                        echo "$NUM_SVCS services healthy"
+                        return 0
+                fi
+
+                echo "Waiting for $(( NEED_SVCS - NUM_SVCS )) service(s)..."
+                sleep 2
+        done
+        return 2
+}
+
+case "$1" in
+start)
+        docker-compose up -d
+
+        wait_for_svcs; RC=$?
+        if [[ "$RC" != 0 ]]; then
+                echo "ERROR: Failed to bring up harbor services" >&2
+                docker-compose ps
+        fi
+        exit "$RC"
+        ;;
+
+restart)
+        docker-compose restart
+
+        RC=$( wait_for_svcs )
+        if [[ "$RC" != 0 ]]; then
+                echo "ERROR: Failed to bring up harbor services" >&2
+                docker-compose ps
+        fi
+        exit "$RC"
+        ;;
+
+stop)
+        docker-compose down
+        ;;
+
+status)
+        docker-compose ps
+        ;;
+
+*)
+        echo "Unknown command: $1" >&2
+        exit 1
+        ;;
+
+esac

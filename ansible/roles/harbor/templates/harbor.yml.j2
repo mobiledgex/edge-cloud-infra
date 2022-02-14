@@ -15,12 +15,12 @@ https:
 # The initial password of Harbor admin
 # It only works in first time to install harbor
 # Remember Change the admin password from UI after launching Harbor.
-harbor_admin_password: {{ harbor_initial_password }}
+harbor_admin_password: "{{ initial_password }}"
 
 # Harbor DB configuration
 database:
   # The password for the root user of Harbor DB. Change this before any production use.
-  password: {{ harbor_db_root_password }}
+  password: "{{ db_root_password }}"
   # The maximum number of connections in the idle connection pool. If it <=0, no idle connections are retained.
   max_idle_conns: 50
   # The maximum number of open connections to the database. If it <= 0, then there is no limit on the number of open connections.
@@ -33,7 +33,7 @@ data_volume: /data
 # Use GCP as backing storage
 storage_service:
   gcs:
-    bucket: {{ harbor_registry_storage_bucket }}
+    bucket: {{ registry_storage_bucket }}
     keyfile: {{ gcp_service_account_path }}
   redirect:
     disabled: false

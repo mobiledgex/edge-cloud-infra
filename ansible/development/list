@@ -38,6 +38,9 @@ localhost	ansible_connection=local
 [gitlab]
 gitlab-dev.mobiledgex.net
 
+[harbor]
+harbor-dev.mobiledgex.net
+
 [postgres]
 postgres-dev.mobiledgex.net
 

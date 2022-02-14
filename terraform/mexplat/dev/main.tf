@@ -102,7 +102,6 @@ module "console" {
     "mc-artifactory",
     "mc-federation-${var.environ_tag}",
     "mc-ldap-${var.environ_tag}",
-    "mc-ldap-harbor",
     "mc-notify-${var.environ_tag}",
     "jaeger",
     "alt-https",
@@ -226,6 +225,7 @@ resource "google_compute_firewall" "mc_ldap" {
   target_tags = ["mc-ldap-${var.environ_tag}"]
   source_ranges = [
     "${module.gitlab.external_ip}/32",
+    "${module.harbor.external_ip}/32",
   ]
 }
 

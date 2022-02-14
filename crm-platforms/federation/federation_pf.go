@@ -41,7 +41,10 @@ func (f *FederationPlatform) GetVersionProperties() map[string]string {
 
 // Get platform features
 func (f *FederationPlatform) GetFeatures() *platform.Features {
-	return &platform.Features{}
+	return &platform.Features{
+		SupportsKubernetesOnly:        true,
+		KubernetesRequiresWorkerNodes: true,
+	}
 }
 
 // Get federation config for cloudlet

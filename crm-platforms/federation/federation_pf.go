@@ -204,7 +204,7 @@ func (f *FederationPlatform) CreateAppInst(ctx context.Context, clusterInst *edg
 		Zone:     appInst.Key.ClusterInstKey.CloudletKey.Name,
 		Operator: appInst.Key.ClusterInstKey.CloudletKey.FederatedOrganization,
 	}
-	appId := appInst.UniqueId
+	appId := appInst.DnsLabel
 
 	// TODO: These are hardcoded for now as the partner operator has not implemented
 	//       the required functionality for this. For customization, fetch config from
@@ -422,7 +422,7 @@ func (f *FederationPlatform) DeleteAppInst(ctx context.Context, clusterInst *edg
 		return err
 	}
 	revision := log.SpanTraceID(ctx)
-	appId := appInst.UniqueId
+	appId := appInst.DnsLabel
 	appRegion := federation.AppRegion{
 		Country:  fedConfig.ZoneCountryCode,
 		Zone:     appInst.Key.ClusterInstKey.CloudletKey.Name,

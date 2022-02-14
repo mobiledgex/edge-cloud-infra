@@ -359,7 +359,7 @@ func (f *FederationPlatform) CreateAppInst(ctx context.Context, clusterInst *edg
 	}
 
 	// Wait for app provision status to be ready
-	updateCallback(edgeproto.UpdateTask, "Wait for application to be provisioned")
+	updateCallback(edgeproto.UpdateTask, "Waiting for application to be provisioned")
 	start = time.Now()
 	for {
 		time.Sleep(10 * time.Second)

@@ -128,10 +128,10 @@ func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, req *dme.QosP
 	reqBody.ProtocolOut = req.ProtocolOut.String()
 	reqBody.Qos = req.Profile.String()
 	reqBody.Duration = int64(req.SessionDuration)
-	if net.ParseIP(req.IpUserEquipment) == nil {
+	if net.ParseIP(req.IpUserEquipment).To4() == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid Address for IpUserEquipment: %s", req.IpUserEquipment)
 	}
-	if net.ParseIP(req.IpApplicationServer) == nil {
+	if net.ParseIP(req.IpApplicationServer).To4() == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "Invalid Address for IpApplicationServer: %s", req.IpApplicationServer)
 	}
 	reply, err = sessionsclient.CallTDGQosPriorityAPI(ctx, "", http.MethodPost, o.Servers.QosSesAddr, qosSessionsApiKey, reqBody)

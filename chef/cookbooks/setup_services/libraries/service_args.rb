@@ -100,9 +100,13 @@ class Chef
       crmargs
     end
 
-    def get_shep_args
+    def get_shep_args(harole)
       shepargs = shepherd_cmd.split(' ')
       shepargs.shift()
+      if harole != ''
+        shepargs.append('--HARole')
+        shepargs.append(harole)
+      end
       shepargs
     end
 

@@ -124,7 +124,7 @@ class Chef
                                      cache_vol: { name: 'cache-vol', mountPath: '/root/crm_cache' } },
         },
         shepherd: { cmd: 'shepherd',
-                    cmdargs: get_shep_args,
+                    cmdargs: get_shep_args(harole),
                     env: node['shepherd']['env'],
                     image: node['edgeCloudImage'] + ':' + node['edgeCloudVersion'],
                     volumeMounts: { accesskey_vol: { name: 'accesskey-vol', mountPath: '/root/accesskey' } },

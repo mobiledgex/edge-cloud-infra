@@ -3,18 +3,27 @@ PATH='/usr/bin:/bin:/usr/local/bin'; export PATH
 
 USAGE="usage: $( basename $0 ) <command>
 
-  add <user>  Add Telefonica user account
-  ls          List Telefonica user accounts
-  rm <user>   Remove Telefonica user account
+  add <user> <division> Add Telefonica user account
+  ls                    List Telefonica user accounts
+  rm <user>             Remove Telefonica user account
 "
 
 add_user() {
     username="$1"
-    if [[ -z "$username" ]]; then
-        echo "usage: $( basename $0 ) $COMM <user>" >&2
+    division="$( echo $2 | tr 'A-Z' 'a-z' | sed 's/^telefonica-//' )"
+    if [[ -z "$username" || -z "$division" ]]; then
+        echo "usage: $( basename $0 ) $COMM <user> <division>" >&2
         exit 1
     fi
-    tctl users add "$1" --roles=telefonica
+    case "$division" in
+        telefonica|{{ telefonica_divisions|map('lower')|join('|') }}) true ;;
+        *) echo "error: unknown division: $2" >&2; exit 1 ;;
+    esac
+
+    rolename="$division"
+    [[ "$rolename" != telefonica ]] && rolename="telefonica-${rolename}"
+
+    tctl users add "$1" --roles="$rolename"
 }
 
 ls_users() {
@@ -41,7 +50,7 @@ rm_user() {
 
 COMM="$1"; shift
 case "$COMM" in
-    add|create)         add_user "$1" ;;
+    add|create)         add_user "$1" "$2";;
     rm|remove|delete)   rm_user "$1" ;;
     ls|list)            ls_users ;;
     *)                  echo "$USAGE" >&2; exit 1 ;;

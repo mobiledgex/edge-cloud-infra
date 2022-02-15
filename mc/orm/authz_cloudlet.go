@@ -255,7 +255,14 @@ func (s *AuthzCloudletKey) populate(ctx context.Context, region, username, orgfi
 func authzCreateCloudlet(ctx context.Context, region, username string, obj *edgeproto.Cloudlet, resource, action string) error {
 	ops := []authOp{withRequiresOrg(obj.Key.Organization)}
 	for _, org := range obj.AllianceOrgs {
+		if org == obj.Key.FederatedOrganization {
+			// validation is not required as it is a partner operator
+			continue
+		}
 		ops = append(ops, withReferenceOrg(org, OrgTypeOperator))
+	}
+	if obj.SingleKubernetesClusterOwner != "" {
+		ops = append(ops, withReferenceOrg(obj.SingleKubernetesClusterOwner, OrgTypeAny))
 	}
 	if obj.PlatformType != edgeproto.PlatformType_PLATFORM_TYPE_EDGEBOX {
 		ops = append(ops, withNoEdgeboxOnly())
@@ -266,6 +273,10 @@ func authzCreateCloudlet(ctx context.Context, region, username string, obj *edge
 func authzUpdateCloudlet(ctx context.Context, region, username string, obj *edgeproto.Cloudlet, resource, action string) error {
 	ops := []authOp{}
 	for _, org := range obj.AllianceOrgs {
+		if org == obj.Key.FederatedOrganization {
+			// validation is not required as it is a partner operator
+			continue
+		}
 		ops = append(ops, withReferenceOrg(org, OrgTypeOperator))
 	}
 	return authorized(ctx, username, obj.Key.Organization, resource, action, ops...)

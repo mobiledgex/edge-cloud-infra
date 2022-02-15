@@ -143,6 +143,9 @@
 - hosts: gitlab
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
@@ -166,6 +169,9 @@
 - hosts: postgres
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
@@ -184,6 +190,9 @@
 
 - hosts: crms
   tasks:
+    - import_role:
+        name: ntp
+      tags: setup
     - import_role:
         name: vault
         tasks_from: vault-ssh
@@ -214,6 +223,9 @@
 - hosts: stun
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
@@ -227,6 +239,9 @@
 
 - hosts: alertmanager
   tasks:
+    - import_role:
+        name: ntp
+      tags: setup
     - import_role:
         name: vault
         tasks_from: vault-ssh
@@ -242,6 +257,9 @@
 
 - hosts: console
   tasks:
+    - import_role:
+        name: ntp
+      tags: setup
     - import_role:
         name: vault
         tasks_from: vault-ssh
@@ -284,6 +302,9 @@
 - hosts: notifyroot
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
@@ -301,6 +322,9 @@
 
 - hosts: registry_replicas
   tasks:
+    - import_role:
+        name: ntp
+      tags: setup
     - import_role:
         name: vault
         tasks_from: vault-ssh
@@ -323,6 +347,10 @@
 
 - hosts: jaeger
   tasks:
+    - import_role:
+        name: ntp
+      tags: setup
+
     - import_role:
         name: vault
         tasks_from: vault-ssh
@@ -350,6 +378,10 @@
 - hosts: esproxy
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+
+    - import_role:
         name: vault
         tasks_from: vault-ssh
 
@@ -368,6 +400,10 @@
 
 - hosts: kafka
   tasks:
+    - import_role:
+        name: ntp
+      tags: setup
+
     - import_role:
         name: vault
         tasks_from: vault-ssh

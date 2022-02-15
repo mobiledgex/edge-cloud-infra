@@ -27,6 +27,7 @@
     - policies/cloudlets.write.v1.hcl.j2
     - policies/edge-cloud-registry.read.v1.hcl.j2
     - policies/federation.write.v1.hcl.j2
+    - policies/federation.read.v1.hcl.j2
     - policies/gcs.read.v1.hcl.j2
     - policies/gcp-auth.read.v1.hcl.j2
     - policies/gcp-bucket-create-key.read.v1.hcl.j2
@@ -74,6 +75,7 @@
     - policies/sys-policies.read.v1.hcl.j2
     - policies/sys-policies.write.v1.hcl.j2
     - policies/sys-storage-raft-snapshot.read.v1.hcl.j2
+    - policies/teleport-node-token.read.v1.hcl.j2
     - policies/teleport-node-token.write.v1.hcl.j2
     - policies/transit-etcd-backup.decrypt.v1.hcl.j2
     - policies/transit-etcd-backup.encrypt.v1.hcl.j2

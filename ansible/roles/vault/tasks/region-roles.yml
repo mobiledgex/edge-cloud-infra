@@ -92,5 +92,7 @@
     name: "{{ region_prefix }}.frm.v1"
     policies:
       - approle.login.v1
+      - federation.read.v1
+      - mexenv.read.v1
       - "{{ region_prefix }}.pki-regional.issue.v1"
     token_type: batch

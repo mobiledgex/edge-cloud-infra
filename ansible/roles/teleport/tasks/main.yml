@@ -5,6 +5,10 @@
     tasks_from: install
   vars:
     teleport_config_template: teleport.yaml.j2
+    telefonica_divisions:
+      - Brazil
+      - GCTIO
+      - Germany
 
 - name: Create teleport config dir
   file:
@@ -81,6 +85,27 @@
   when: telefonica_role is changed
   tags: config
 
+- include_role:
+    name: teleport
+    tasks_from: telefonica-division.yml
+  loop: "{{ telefonica_divisions|map('lower') }}"
+  loop_control:
+    loop_var: division
+
+- name: Set up tefmgr access role
+  template:
+    src: tefmgr-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/tefmgr-access-role.yaml"
+  become: yes
+  register: tefmgr_role
+  tags: config
+
+- name: Apply tefmgr access role
+  command: "tctl create -f {{ tefmgr_role.dest }}"
+  become: yes
+  when: tefmgr_role is changed
+  tags: config
+
 - name: Set up directory for vault roles
   file:
     path: /etc/vault_roles
@@ -112,3 +137,30 @@
   loop: "{{ setups | dict2items }}"
   loop_control:
     loop_var: setup
+
+- name: "Create {{ tef_mgr_group }} group"
+  group:
+    name: "{{ tef_mgr_group }}"
+  become: yes
+
+- name: "Create {{ tef_mgr }} user"
+  user:
+    name: "{{ tef_mgr }}"
+    comment: "TEF manager"
+    group: "{{ tef_mgr_group }}"
+    shell: /bin/bash
+  become: yes
+
+- name: Set up Telefonica user management script
+  template:
+    src: tef-user-mgr.j2
+    dest: "{{ tef_user_mgr }}"
+    mode: "0500"
+  become: yes
+
+- name: Grant sudo access to Telefonica user management script
+  template:
+    src: tef-user-mgr-sudoers.j2
+    dest: /etc/sudoers.d/tef_mgr
+    mode: "0440"
+  become: yes

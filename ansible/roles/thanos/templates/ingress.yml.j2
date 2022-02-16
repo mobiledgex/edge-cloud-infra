@@ -1,4 +1,3 @@
-TODO
 apiVersion: extensions/v1beta1
 kind: Ingress
 metadata:
@@ -14,11 +13,11 @@ spec:
   tls:
   - hosts:
       - "{{ thanos_fqdn }}"
-    secretName: edgeturn-tls
+    secretName: thanosquery-tls
   rules:
   - host: "{{ thanos_fqdn }}"
     http:
       paths:
       - backend:
-          serviceName: edgeturn
-          servicePort: 443
+          serviceName: thanosquery
+          servicePort: {{ thanos_query_port }}

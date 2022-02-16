@@ -65,12 +65,7 @@ func (s *AuthzShow) setCloudletKeysFromPool(ctx context.Context, region, usernam
 			// skip pools which operator is not allowed to access
 			return nil
 		}
-		for _, clKey := range pool.Cloudlets {
-			cloudletKey := edgeproto.CloudletKey{
-				Name:                  clKey.Name,
-				Organization:          pool.Key.Organization,
-				FederatedOrganization: clKey.FederatedOrganization,
-			}
+		for _, cloudletKey := range pool.Cloudlets {
 			s.allowedCloudlets[cloudletKey] = struct{}{}
 		}
 		return nil

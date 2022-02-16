@@ -131,12 +131,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	// build map of cloudlets associated with all cloudlet pools
 	s.cloudletPoolSide = make(map[edgeproto.CloudletKey]int)
 	err = ctrlclient.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
-		for _, clKey := range pool.Cloudlets {
-			cloudletKey := edgeproto.CloudletKey{
-				Name:                  clKey.Name,
-				Organization:          pool.Key.Organization,
-				FederatedOrganization: clKey.FederatedOrganization,
-			}
+		for _, cloudletKey := range pool.Cloudlets {
 			// cloudlet may belong to multiple pools, if any pool
 			// is ours, allow access.
 			side, found := s.cloudletPoolSide[cloudletKey]

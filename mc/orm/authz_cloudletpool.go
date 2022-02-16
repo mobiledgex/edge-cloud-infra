@@ -93,14 +93,9 @@ func authzCloudletPoolMembers(ctx context.Context, region, username string, pool
 	rc.Region = region
 	rc.Database = database
 	rc.SkipAuthz = true
-	for _, clKey := range pool.Cloudlets {
-		if !util.ValidName(clKey.Name) {
-			return fmt.Errorf("Invalid Cloudlet name %q", clKey.Name)
-		}
-		key := edgeproto.CloudletKey{
-			Name:                  clKey.Name,
-			Organization:          pool.Key.Organization,
-			FederatedOrganization: clKey.FederatedOrganization,
+	for _, key := range pool.Cloudlets {
+		if !util.ValidName(key.Name) {
+			return fmt.Errorf("Invalid Cloudlet name %q", key.Name)
 		}
 		invalidOrgs := []string{}
 		err := ctrlclient.GetOrganizationsOnCloudletStream(ctx, &rc, &key, connCache, func(org *edgeproto.Organization) error {

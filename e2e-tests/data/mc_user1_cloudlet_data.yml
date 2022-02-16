@@ -83,6 +83,7 @@ regiondata:
         organization: enterprise
       cloudlets:
       - name: enterprise-1
+        organization: enterprise
     cloudletinfos:
     - key:
         organization: enterprise
@@ -145,6 +146,7 @@ regiondata:
         organization: enterprise
       cloudlets:
       - name: enterprise-2
+        organization: enterprise
     cloudletinfos:
     - key:
         organization: enterprise

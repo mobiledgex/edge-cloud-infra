@@ -5,8 +5,9 @@ platform_k8s_pool_size: 3
 platform_k8s_pool_size_max: 5
 platform_k8s_vm_size: Standard_D2s_v3
 mex_docker_registry: harbor.mobiledgex.net
-edge_cloud_image: "{{ mex_docker_registry }}/mobiledgex/edge-cloud"
-monitor_image: "{{ mex_docker_registry }}/mobiledgex/monitor"
+mex_registry_project: mobiledgex
+edge_cloud_image: "{{ mex_docker_registry }}/{{ mex_registry_project }}/edge-cloud"
+monitor_image: "{{ mex_docker_registry }}/{{ mex_registry_project }}/monitor"
 mex_ops_email: mobiledgex.ops@mobiledgex.com
 cloudflare_zone: mobiledgex.net
 global_dme_suffix: ".global.dme.{{ cloudflare_zone }}"

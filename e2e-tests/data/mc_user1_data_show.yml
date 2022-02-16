@@ -411,7 +411,7 @@ regiondata:
         organization: enterprise
         name: enterprise-pool
       cloudlets:
-      - enterprise-1
+      - name: enterprise-1
 - region: locala
   appdata:
     flavors:
@@ -632,4 +632,4 @@ regiondata:
         organization: enterprise
         name: enterprise-pool
       cloudlets:
-      - enterprise-2
+      - name: enterprise-2

@@ -197,7 +197,7 @@ regiondata:
         organization: enterprise
         name: enterprise-pool
       cloudlets:
-      - enterprise-1
+      - name: enterprise-1
     autoscalepolicies:
     - key:
         organization: AcmeAppCo

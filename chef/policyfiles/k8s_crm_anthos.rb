@@ -7,14 +7,15 @@ name 'k8s_crm_anthos'
 default_source :chef_server, "https://jlmtest.mobiledgex.net/organizations/mobiledgex"
 
 # run_list: chef-client will run these recipes in the order specified.
-run_list 'chef_client_updater::default', 'recipe[runstatus_handler]', 'recipe[run_cmd]', 'recipe[setup_infra]', 'recipe[preflight_crm_checks]', 'recipe[run_diagnostics]', 'recipe[setup_services_anthos::k8s]', 'recipe[set_security_policies]', 'recipe[copy_third_party_notice]'
+run_list 'chef_client_updater::default', 'recipe[runstatus_handler]', 'recipe[run_cmd]', 'recipe[setup_infra]', 'recipe[preflight_crm_checks]', 'recipe[setup_vault_ssh]', 'recipe[run_diagnostics]', 'recipe[setup_services_anthos::k8s]', 'recipe[set_security_policies]', 'recipe[copy_third_party_notice]'
 
 # Specify a custom source for a single cookbook:
 cookbook 'runstatus_handler', '= 1.0.0'
 cookbook 'setup_infra', '= 1.0.0'
 cookbook 'preflight_crm_checks', '= 1.0.0'
+cookbook 'setup_vault_ssh', '= 1.0.0'
 cookbook 'docker', '= 7.7.0'
-cookbook 'setup_services_anthos', '= 1.6.0'
+cookbook 'setup_services_anthos', '= 1.7.0'
 cookbook 'run_diagnostics', '= 1.0.0'
 cookbook 'run_cmd', '= 1.0.0'
 #cookbook 'chef_client_updater', '= 3.11.0'

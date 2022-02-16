@@ -31,35 +31,35 @@ action :prep_cluster do
     ignore_failure true
   end
 
-  execute('Assign k8s node labels for master') do
-    action :run
-    retries 2
-    retry_delay 2
-    Chef::Log.info("Setting label platform-cluster-master for #{node['platform-cluster-master']} ")
-    command "kubectl label nodes #{node['platform-cluster-master']} harole=master --kubeconfig=/home/ubuntu/.kube/config"
-    returns 0
-    ignore_failure true
-  end
+#  execute('Assign k8s node labels for master') do
+#    action :run
+#    retries 2
+#    retry_delay 2
+#    Chef::Log.info("Setting label platform-cluster-master for #{node['platform-cluster-master']} ")
+#    command "kubectl label nodes #{node['platform-cluster-master']} harole=master --kubeconfig=/home/ubuntu/.kube/config"
+#    returns 0
+#    ignore_failure true
+#  end
 
-  execute('Assign k8s node labels for primary') do
-    action :run
-    retries 2
-    retry_delay 2
-    Chef::Log.info("Setting label platform-cluster-primary-node for #{node['platform-cluster-primary-node']} ")
-    command "kubectl label nodes #{node['platform-cluster-primary-node']} harole=primary --kubeconfig=/home/ubuntu/.kube/config"
-    returns 0
-    ignore_failure true
-  end
+#  execute('Assign k8s node labels for primary') do
+#    action :run
+#    retries 2
+#    retry_delay 2
+#    Chef::Log.info("Setting label platform-cluster-primary-node for #{node['platform-cluster-primary-node']} ")
+#    command "kubectl label nodes #{node['platform-cluster-primary-node']} harole=primary --kubeconfig=/home/ubuntu/.kube/config"
+#    returns 0
+#    ignore_failure true
+#  end
 
-  execute('Assign k8s node labels for secondary') do
-    action :run
-    retries 2
-    retry_delay 2
-    Chef::Log.info("Setting label platform-cluster-secondary-node for #{node['platform-cluster-secondary-node']} ")
-    command "kubectl label nodes #{node['platform-cluster-secondary-node']} harole=secondary --kubeconfig=/home/ubuntu/.kube/config"
-    returns 0
-    ignore_failure true
-  end
+#  execute('Assign k8s node labels for secondary') do
+#    action :run
+#    retries 2
+#    retry_delay 2
+#    Chef::Log.info("Setting label platform-cluster-secondary-node for #{node['platform-cluster-secondary-node']} ")
+#    command "kubectl label nodes #{node['platform-cluster-secondary-node']} harole=secondary --kubeconfig=/home/ubuntu/.kube/config"
+#    returns 0
+#    ignore_failure true
+#  end
 end # prep-cluster
 
 action :setup_redis do
@@ -117,70 +117,70 @@ action :deploy_simplex_platform do
   
 end # deploy-simplex-platform
 
-action :deploy_ha_platform do
-  cookbook_file 'home/ubuntu/prometheus.yml' do
-    source 'prometheus.yml'
-    owner 'ubuntu'
-    group 'ubuntu'
-    mode '0644'
-    action :create_if_missing
-  end
-
-  execute('create-prometheus-configmap') do
-    Chef::Log.info('create prometheus configmap')
-    action :run
-    command 'kubectl create configmap prom-cm --from-file prometheus.yml=/home/ubuntu/prometheus.yml --kubeconfig=/home/ubuntu/.kube/config'
-    retries 2
-    retry_delay 2
-    returns 0
-    ignore_failure true
-  end
-
-  # to affect a switchover, delete the primary deployment and re-create
-  execute('delete-primary') do
-    action :run
-    command 'kubectl delete -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config||true'
-    returns 0
-  end
-
-  execute('create-primary') do
-    action :run
-    command 'kubectl create -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config'
-    returns 0
-  end
-
-  execute('wait-primary') do
-    Chef::Log.info('Wait for primary platform pod to come up')
-    action :run
-    retries 30
-    retry_delay 10
-    command 'kubectl get pods -l app=platform-primary -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
-    returns 0
-  end
-
-  chef_sleep('sleep-after-primary') do
-    seconds      30
-    action       :sleep
-  end
-
-  execute('delete-secondary') do
-    action :run
-    command 'kubectl delete -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config||true'
-    returns 0
-  end
-
-  execute('create-secondary') do
-    action :run
-    command 'kubectl create -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config'
-    returns 0
-  end
-
-  execute('wait-secondary') do
-    Chef::Log.info('Wait for seconday platform pod to come up')
-    action :run
-    retries 30
-    retry_delay 10
-    command 'kubectl get pods -l app=platform-secondary -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
-    returns 0
-  end
-end # deploy-ha-platform
+#action :deploy_ha_platform do
+#  cookbook_file 'home/ubuntu/prometheus.yml' do
+#    source 'prometheus.yml'
+#    owner 'ubuntu'
+#    group 'ubuntu'
+#    mode '0644'
+#    action :create_if_missing
+#  end
+#
+#  execute('create-prometheus-configmap') do
+#    Chef::Log.info('create prometheus configmap')
+#    action :run
+#    command 'kubectl create configmap prom-cm --from-file prometheus.yml=/home/ubuntu/prometheus.yml --kubeconfig=/home/ubuntu/.kube/config'
+#    retries 2
+#    retry_delay 2
+#    returns 0
+#    ignore_failure true
+#  end
+#
+#  # to affect a switchover, delete the primary deployment and re-create
+#  execute('delete-primary') do
+#    action :run
+#    command 'kubectl delete -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config||true'
+#    returns 0
+#  end
+#
+#  execute('create-primary') do
+#    action :run
+#    command 'kubectl create -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+#    returns 0
+#  end
+#
+#  execute('wait-primary') do
+#    Chef::Log.info('Wait for primary platform pod to come up')
+#    action :run
+#    retries 30
+#    retry_delay 10
+#    command 'kubectl get pods -l app=platform-primary -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
+#    returns 0
+#  end
+#
+#  chef_sleep('sleep-after-primary') do
+#    seconds      30
+#    action       :sleep
+#  end
+#
+#  execute('delete-secondary') do
+#    action :run
+#    command 'kubectl delete -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config||true'
+#    returns 0
+#  end
+#
+#  execute('create-secondary') do
+#    action :run
+#    command 'kubectl create -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+#    returns 0
+#  end
+#
+#  execute('wait-secondary') do
+#    Chef::Log.info('Wait for seconday platform pod to come up')
+#    action :run
+#    retries 30
+#    retry_delay 10
+#    command 'kubectl get pods -l app=platform-secondary -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
+#    returns 0
+#  end
+#end # deploy-ha-platform

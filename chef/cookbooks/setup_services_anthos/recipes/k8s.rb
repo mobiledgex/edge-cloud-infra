@@ -1,12 +1,12 @@
-svc_vars_primary = get_services_vars('primary')
-svc_vars_secondary = get_services_vars('secondary')
+#svc_vars_primary = get_services_vars('primary')
+#svc_vars_secondary = get_services_vars('secondary')
 hostvol_vars = get_hostvols_vars
 configmap_vars = get_configmap_vars
 
 platform_k8s('prep platform cluster') do
   action :prep_cluster
   # setting up secondary role is the last step in prep, so if this exists do not run
-  not_if 'kubectl get nodes --show-labels --kubeconfig=/home/ubuntu/.kube/config|grep harole=secondary'
+#  not_if 'kubectl get nodes --show-labels --kubeconfig=/home/ubuntu/.kube/config|grep harole=secondary'
 end
 
 # ruby-newbie: the guard only_if seems not to prevent
@@ -83,21 +83,21 @@ template '/home/ubuntu/k8s-deployment-primary.yaml' do
   only_if { node.attribute?(:redisServiceName) }
 end
 
-template '/home/ubuntu/k8s-deployment-secondary.yaml' do
-  source 'k8s_service.erb'
-  owner 'ubuntu'
-  group 'ubuntu'
-  mode '0644'
-  variables(
-     harole: 'secondary',
-     deploymentName: 'platform-secondary',
-    version: node['edgeCloudVersion'],
-     services: svc_vars_secondary,
-     hostvols: hostvol_vars,
-     configmaps: configmap_vars
-   )
-  only_if { node.attribute?(:redisServiceName) }
-end
+#template '/home/ubuntu/k8s-deployment-secondary.yaml' do
+#  source 'k8s_service.erb'
+#  owner 'ubuntu'
+#  group 'ubuntu'
+#  mode '0644'
+#  variables(
+#     harole: 'secondary',
+#     deploymentName: 'platform-secondary',
+#    version: node['edgeCloudVersion'],
+#     services: svc_vars_secondary,
+#     hostvols: hostvol_vars,
+#     configmaps: configmap_vars
+#   )
+#  only_if { node.attribute?(:redisServiceName) }
+#end
 
 # deploy the platform in simplex mode if redis is disabled and the current state is different than the template
 platform_k8s('deploy simplex platform') do
@@ -107,8 +107,8 @@ platform_k8s('deploy simplex platform') do
 end
 
 # deploy the platform in H/A mode if redis is enabled and the current state of either primary or secondary is different than the template
-platform_k8s('deploy HA platform') do
-  action :deploy_ha_platform
-  only_if { node.attribute?(:redisServiceName) }
-  not_if 'kubectl diff -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config && kubectl diff -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config'
-end
+#platform_k8s('deploy HA platform') do
+#  action :deploy_ha_platform
+#  only_if { node.attribute?(:redisServiceName) }
+#  not_if 'kubectl diff -f /home/ubuntu/k8s-deployment-primary.yaml --kubeconfig=/home/ubuntu/.kube/config && kubectl diff -f /home/ubuntu/k8s-deployment-secondary.yaml --kubeconfig=/home/ubuntu/.kube/config'
+#end

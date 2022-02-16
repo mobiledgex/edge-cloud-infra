@@ -21,12 +21,10 @@ spec:
         args:
         - query
         - --http-address=:{{ thanos_query_port }}
-        - --store={{ thanos_recv_service_addr }}
+        - --store={{ thanos_recv_service_addr }}:{{ thanos_recv_grpc_port }}
         ports:
         - name: http
           containerPort: {{ thanos_query_port }}
-        - name: grpc
-          containerPort: {{ thanos_recv_grpc_port }}
         resources:
           requests:
             cpu: "50m"

@@ -21,7 +21,7 @@ spec:
         args:
         - query
         - --http-address=:{{ thanos_query_port }}
-        - --store={{ thanos_fqdn }}:{{ thanos_recv_grpc_port }}
+        - --store={{ thanos_recv_service_addr }}
         ports:
         - name: http
           containerPort: {{ thanos_query_port }}

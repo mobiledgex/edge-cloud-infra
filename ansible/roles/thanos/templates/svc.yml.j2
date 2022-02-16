@@ -19,7 +19,7 @@ kind: Service
 metadata:
   labels:
     app: thanosrecv
-  name: thanosrecv
+  name: {{ thanos_recv_svc_name }}
   namespace: default
 spec:
   ports:

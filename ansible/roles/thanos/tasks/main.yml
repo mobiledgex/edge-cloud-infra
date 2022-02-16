@@ -12,6 +12,10 @@
   set_fact:
     thanos_fqdn: "{{ thanos_dns }}.{{ cloudflare_zone }}"
 
+- name: Set thanos recv k8s dns entry
+  set_fact:
+    thanos_recv_service_addr: "{{ thanos_recv_svc_name }}.default.svc.cluster.local"
+
 - name: Deploy thanos
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"
@@ -42,7 +46,7 @@
     account_email: "{{ cloudflare_account_email }}"
     account_api_token: "{{ cloudflare_account_api_token }}"
 
-# Add thanos query cert
+# Add thanos query cert - TODO: probably need something like this for mTLS
 # - name: Generate Thanos cert manifest
 #   template:
 #     src: mexplat/tls-cert.yaml.j2

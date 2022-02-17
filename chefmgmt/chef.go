@@ -305,10 +305,12 @@ func ChefClientCreate(ctx context.Context, client *chef.Client, chefParams *Serv
 		}
 		err = client.ACLs.Put("nodes", clientName, aclType, acl)
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "chef client create (Put(nodes)) error adding acl", "err", err.Error(), "client(node)Name", clientName, "aclType", aclType, "acl", acl)
 			return "", fmt.Errorf("unable to add %s acl for node %s", aclType, clientName)
 		}
 		err = client.ACLs.Put("clients", clientName, aclType, acl)
 		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "chef client create (Put(clients)) error adding acl", "err", err.Error(), "client(node)Name", clientName, "aclType", aclType, "acl", acl)
 			return "", fmt.Errorf("unable to add %s acl for client %s", aclType, clientName)
 		}
 	}

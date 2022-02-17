@@ -23,13 +23,6 @@ type ChefClientConfigParams struct {
 	NodeName  string
 }
 
-// in the restricted access case, knife bootstrap $NODE_IP -n $NODE_NAME
-// will create the below while installing chef, so we'll create a script
-// for the Op to run locally to reach out to our chef server.
-// So don't try and setup chef nodes for restricted.
-// included in the script root/accesskey/accesskey.pem, and the
-// ChefServer.pem used to setup .chef/* for running the knife cmd(s)
-
 // chefClientConfigTemplate is used to populate /etc/chef/client.rb
 var chefClientConfigTemplate = `
 log_level              :info
@@ -61,57 +54,59 @@ func (k *K8sBareMetalPlatform) GetChefParams(nodeName, clientKey string, policyN
 	}
 }
 
-// chef node names == bare metal host names
-// implies restricted access _must_ conform to this convention for chef to
-// label nodes via kubectl
 func (k *K8sBareMetalPlatform) GetChefClientName(ckey *edgeproto.CloudletKey) string {
 	// Prefix with region name
 	name := util.K8SSanitize(ckey.Name + "-" + ckey.Organization)
+	// DeploymentTag ~= chefPolicyGroup
 	return k.commonPf.DeploymentTag + "-" + k.commonPf.PlatformConfig.Region + "-" + name
 }
 
 func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "cloudlet", cloudlet)
+
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
+		return k.CreateCloudletDirect(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
+	}
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
+		return k.CreateCloudletRestricted(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
+	}
+	return false, fmt.Errorf("unhandled InfraApiAccess %s", cloudlet.InfraApiAccess)
+}
+
+func (k *K8sBareMetalPlatform) CreateCloudletDirect(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletDirect", "cloudlet", cloudlet)
 
 	cloudletResourcesCreated := false
 	err := k.commonPf.InitCloudletSSHKeys(ctx, accessApi)
 	if err != nil {
-		updateCallback(edgeproto.UpdateTask, "failed InitCloudletSSHKeys")
 		return cloudletResourcesCreated, err
 	}
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("CreateCloudlet sshPub: %s sshPrivateKey: %s", k.commonPf.SshKey.PublicKey, k.commonPf.SshKey.PrivateKey))
 
 	k.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
 	if err := k.commonPf.InitInfraCommon(ctx, k.commonPf.PlatformConfig, k8sbmProps); err != nil {
-		updateCallback(edgeproto.UpdateTask, "failed GetPlatformConfig")
 		return cloudletResourcesCreated, err
 	}
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "cloudlet", cloudlet, "PlatformConfig", k.commonPf.PlatformConfig)
 
 	// edge-cloud image already contains the certs
 	if pfConfig.TlsCertFile != "" {
 		crtFile, err := infracommon.GetDockerCrtFile(pfConfig.TlsCertFile)
 		if err != nil {
-			updateCallback(edgeproto.UpdateTask, "failed GetDockerCrtFile")
 			return cloudletResourcesCreated, err
 		}
 		pfConfig.TlsCertFile = crtFile
 	}
 
-	if pfConfig.ChefServerPath == "" { // xxx testing xxx
-		pfConfig.ChefServerPath = "https://jlmtest.mobiledgex.net/organizations/mobiledgex" // chefmgmt.DefaultChefServerPath
+	if pfConfig.ChefServerPath == "" {
+		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
 	}
 	if pfConfig.ContainerRegistryPath == "" {
 		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
 	}
 	chefApi := chefmgmt.ChefApiAccess{}
-	// xxx split or fold anthos into the normal HA path. Here we're testing "setup_service_anthos"
-	// which doesn't carry the requirements of HA for now.
-	// So we'll try getting simplex up for Direct _and_ Restricted access here.
+
+	// TODO, we should switch bare metal k8s to use k8s chef policy
 	nodeInfo := chefmgmt.ChefNodeInfo{
-		NodeName: "baremetal-controller", // noop
+		NodeName: "baremetal-controller",
 		NodeType: cloudcommon.VMTypePlatform,
 		Policy:   chefmgmt.ChefPolicyDocker,
 	}
@@ -120,84 +115,136 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 		return cloudletResourcesCreated, err
 	}
 	if k.commonPf.ChefClient == nil {
-
 		return cloudletResourcesCreated, fmt.Errorf("Chef client is not initialized")
 	}
 
 	chefPolicy := chefmgmt.ChefPolicyDocker
 	if cloudlet.Deployment == cloudcommon.DeploymentTypeKubernetes {
-		chefPolicy = chefmgmt.ChefPolicyK8sAnthos      // xxx testing simplex k8s_crm_anthos policy xxx
-		nodeInfo.Policy = chefmgmt.ChefPolicyK8sAnthos // fold into normal ha / policyk8s xxx
+		chefPolicy = chefmgmt.ChefPolicyK8s
 	}
+
 	clientName := k.GetChefClientName(&cloudlet.Key)
 	chefParams := k.GetChefParams(clientName, "", chefPolicy, chefAttributes)
 
-	fmt.Printf("\n\tbmCloudletCreate access: %+v  clientName %s, chefAttrs: %+v\n\n", cloudlet.InfraApiAccess, clientName, chefAttributes)
-
-	// don't try and access the node in restricted access mode
-	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
-
-		updateCallback(edgeproto.UpdateTask, "DIRECT_ACCESS")
-
-		sshClient, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
-		if err != nil || sshClient == nil {
-			updateCallback(edgeproto.UpdateTask, "Failed to get ssh client to control host")
-			return cloudletResourcesCreated, fmt.Errorf("Failed to get ssh client to control host: %v", err)
-		}
-
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Direct Acess CrmAccessPrivateKey: %s", pfConfig.CrmAccessPrivateKey))
-		if pfConfig.CrmAccessPrivateKey != "" {
-			err = pc.WriteFile(sshClient, " /root/accesskey/accesskey.pem", pfConfig.CrmAccessPrivateKey, "accesskey", pc.SudoOn)
-			if err != nil {
-				updateCallback(edgeproto.UpdateTask, "Failed to write access key")
-				return cloudletResourcesCreated, fmt.Errorf("Write access key fail: %v", err)
-			}
-		}
-		// once we get here, we require cleanup on failure because we have accessed the control node
-		cloudletResourcesCreated = true
-
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("DirectAccess Creating Chef Client %s with cloudlet attributes", clientName))
-		clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
-		if err != nil {
-			return cloudletResourcesCreated, err
-		}
-		// Store client key in cloudlet obj
-		cloudlet.ChefClientKey = make(map[string]string)
-		cloudlet.ChefClientKey[clientName] = clientKey
-
-		// install chef
-		err = k.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
-		if err != nil {
-			return cloudletResourcesCreated, err
-		}
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess with client %s", clientName))
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess api access key  %s", pfConfig.CrmAccessPrivateKey))
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess with chef key %s", clientKey))
-
-		return cloudletResourcesCreated, chefmgmt.GetChefRunStatus(ctx, k.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
-
-	} else if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
-		// here we need to create the install script for the op to finish off rolling out the k8s deployment of crm, shep and prom xxx
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with clientCrmAccessPrivateKey: %s", pfConfig.CrmAccessPrivateKey))
-		updateCallback(edgeproto.UpdateTask, "Creating K8s baremetalt Restricted Access please note and write accesskey.pem")
-		// need chef and access keys for op to install, maybe via  a k8s manifest file, or just a bash script to copy them in place.
-		// we assume chef-client has been installed along with the client.pem using knife boostrap so all we need here is the access key.
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetal Restricted Access with client %s need chefserver.pem for node bootstraping", clientName))
-		//return cloudletResourcesCreated, fmt.Errorf("Restricted access not yet supported on BareMetal")
-
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("RestrictedAccess Creating Chef Client %s with cloudlet attributes", clientName))
-
-		clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
-		if err != nil {
-			return cloudletResourcesCreated, err
-		}
-		// Store client key in cloudlet obj
-		cloudlet.ChefClientKey = make(map[string]string)
-		cloudlet.ChefClientKey[clientName] = clientKey
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt RestrictedAccess install  chef key %s", clientKey))
-
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletDirect", "cloudlet", cloudlet.Key, "chef policy", chefPolicy, "attrs", chefParams)
+	sshClient, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
+	if err != nil || sshClient == nil {
+		updateCallback(edgeproto.UpdateTask, "Failed to get ssh client to control host")
+		return cloudletResourcesCreated, fmt.Errorf("Failed to get ssh client to control host: %v", err)
 	}
-	return true, nil
+	if pfConfig.CrmAccessPrivateKey != "" {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Direct Access CrmAccessPrivateKey: %s", pfConfig.CrmAccessPrivateKey))
+		err = pc.WriteFile(sshClient, " /root/accesskey/accesskey.pem", pfConfig.CrmAccessPrivateKey, "accesskey", pc.SudoOn)
+		if err != nil {
+			updateCallback(edgeproto.UpdateTask, "Failed to write access key")
+			return cloudletResourcesCreated, fmt.Errorf("Write access key fail: %v", err)
+		}
+	}
+	// once we get here, we require cleanup on failure because we have accessed the control node
+	cloudletResourcesCreated = true
+
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating Chef Client %s with cloudlet attributes", clientName))
+
+	clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
+	if err != nil {
+		return cloudletResourcesCreated, err
+	}
+	// Store client key in cloudlet obj
+	cloudlet.ChefClientKey = make(map[string]string)
+	cloudlet.ChefClientKey[clientName] = clientKey
+
+	// install chef
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("setup chef on server client %s with cloudlet attributes %s", clientName, chefParams))
+	err = k.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
+	if err != nil {
+		return cloudletResourcesCreated, err
+	}
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess with client %s", clientName))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess api access key  %s", pfConfig.CrmAccessPrivateKey))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt DirectAccess with chef key %s", clientKey))
+
+	return cloudletResourcesCreated, chefmgmt.GetChefRunStatus(ctx, k.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
+}
+
+// we could run the chef-client in a container in the pod
+// or leave it be a daemon ? xxx
+// Could make a struct for nodes
+// if we knife bootstrap $IP -N $NodeNames we get from kubectl get nodes,
+// of just let the string be what we give to bootstrap
+type RestrictedParams struct {
+	accessKey       string
+	chefServerPem   string
+	masterNode      string // 192.168.1.26 -N
+	workerNodes     []string
+	chefPolicy      string
+	chefPolicyGroup string
+}
+
+func (k *K8sBareMetalPlatform) CreateCloudletRestricted(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
+
+	cloudletResourcesCreated := false
+	err := k.commonPf.InitCloudletSSHKeys(ctx, accessApi)
+	if err != nil {
+		return cloudletResourcesCreated, err
+	}
+
+	k.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
+	if err := k.commonPf.InitInfraCommon(ctx, k.commonPf.PlatformConfig, k8sbmProps); err != nil {
+		return cloudletResourcesCreated, err
+	}
+
+	// edge-cloud image already contains the certs
+	if pfConfig.TlsCertFile != "" {
+		crtFile, err := infracommon.GetDockerCrtFile(pfConfig.TlsCertFile)
+		if err != nil {
+			return cloudletResourcesCreated, err
+		}
+		pfConfig.TlsCertFile = crtFile
+	}
+
+	if pfConfig.ChefServerPath == "" {
+		pfConfig.ChefServerPath = chefmgmt.DefaultChefServerPath
+	}
+	if pfConfig.ContainerRegistryPath == "" {
+		pfConfig.ContainerRegistryPath = infracommon.DefaultContainerRegistryPath
+	}
+	chefApi := chefmgmt.ChefApiAccess{}
+	// No support for restricted docker policy, K8sPolicyAnthos to be renamed baremetal I guess
+	nodeInfo := chefmgmt.ChefNodeInfo{
+		NodeType: cloudcommon.VMTypePlatform, // VMTypePlatformClusterMaster ? xxx
+		Policy:   chefmgmt.ChefPolicyK8sBM,
+	}
+	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, &nodeInfo, &chefApi, nil)
+	if err != nil {
+		return cloudletResourcesCreated, err
+	}
+	chefPolicy := chefmgmt.ChefPolicyK8sBM
+	clientName := k.GetChefClientName(&cloudlet.Key)
+	chefParams := k.GetChefParams(clientName, "", chefPolicy, chefAttributes)
+
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletDirect", "cloudlet", cloudlet.Key, "chef policy", chefPolicy, "attrs", chefParams)
+	// hope we can get this far, else we'll need help from chef.go I guess xxx
+
+	// here we need to create the install script for the op to finish off rolling out the k8s deployment of crm, shep and prom xxx
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with clientCrmAccessPrivateKey: %s", pfConfig.CrmAccessPrivateKey))
+	updateCallback(edgeproto.UpdateTask, "Creating K8s baremetalt Restricted Access please note and write accesskey.pem")
+	// need chef and access keys for op to install, maybe via  a k8s manifest file, or just a bash script to copy them in place.
+	// we assume chef-client has been installed along with the client.pem using knife boostrap so all we need here is the access key.
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetal Restricted Access with client %s need chefserver.pem for node bootstraping", clientName))
+	//return cloudletResourcesCreated, fmt.Errorf("Restricted access not yet supported on BareMetal")
+
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("RestrictedAccess Creating Chef Client %s with cloudlet attributes", clientName))
+
+	clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
+	if err != nil {
+		return cloudletResourcesCreated, err
+	}
+	// Store client key in cloudlet obj
+	cloudlet.ChefClientKey = make(map[string]string)
+	cloudlet.ChefClientKey[clientName] = clientKey
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt RestrictedAccess install  chef key %s", clientKey))
+	// maybe we make a shell script template, and fill it in with what we know.
+	return cloudletResourcesCreated, nil
 }
 
 func (k *K8sBareMetalPlatform) SetupChefOnServer(ctx context.Context, sshClient ssh.Client, clientName string, cloudlet *edgeproto.Cloudlet, chefParams *chefmgmt.ServerChefParams) error {

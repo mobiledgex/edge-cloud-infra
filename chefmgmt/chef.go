@@ -25,7 +25,7 @@ const (
 	ChefPolicyBase        = "base"
 	ChefPolicyDocker      = "docker_crm"
 	ChefPolicyK8s         = "k8s_crm"
-	ChefPolicyK8sAnthos   = "k8s_crm_anthos" // testing simplex direct and restricted, should our chef node contain the ipaccess?
+	ChefPolicyK8sBM       = "k8s_crm_anthos" // rename: testing simplex direct and restricted, should our chef node contain the ipaccess?
 	ChefPolicyK8sWorker   = "k8s_worker_crm"
 	DefaultChefServerPath = "https://jlmtest.mobiledgex.net/organizations/mobiledgex"
 	DefaultCacheDir       = "/root/crm_cache"

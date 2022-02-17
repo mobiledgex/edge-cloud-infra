@@ -146,9 +146,9 @@ class Chef
       region = node.normal['crmserver']['args']['region'].downcase
       deploymentTag = node.normal['crmserver']['args']['deploymentTag'].downcase
       if deployTag == "main"
-        cmd = "thanos-" + region + ".mobiledgex.net"
+        cmd = region + ".thanos-recv.mobiledgex.net"
       else
-        cmd = "thanos-" + deploymentTag + "-" + region + ".mobiledgex.net"
+        cmd = region + "-" + deploymentTag + ".thanos-recv.mobiledgex.net"
       end
       cmd
     end

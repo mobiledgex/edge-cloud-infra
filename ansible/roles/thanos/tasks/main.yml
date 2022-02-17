@@ -8,9 +8,13 @@
     - deploy_environ != 'main'
     - deploy_environ != 'prod'
 
-- name: Compute thanos FQDN
+- name: Compute thanos query FQDN
   set_fact:
     thanos_fqdn: "{{ thanos_dns }}.{{ cloudflare_zone }}"
+
+- name: Compute thanos receiver FQDN
+  set_fact:
+    thanos_recv_fqdn: "{{ thanos_dns }}-recv.{{ cloudflare_zone }}"
 
 - name: Set thanos recv k8s dns entry
   set_fact:
@@ -72,6 +76,10 @@
 #   until: "'Certificate is up to date and has not expired' in describe_cert_command.stdout"
 #   changed_when: false
 #   check_mode: no
+
+- name: Look up console IP to whitelist
+  set_fact:
+    console_ip: "{{ lookup('dig', console_vm_hostname) }}"
 
 - name: Set up ingress
   k8s:

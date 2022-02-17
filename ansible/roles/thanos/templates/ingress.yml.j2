@@ -9,7 +9,7 @@ metadata:
     nginx.ingress.kubernetes.io/server-snippet: |
       server_tokens off;
     cert-manager.io/cluster-issuer: "letsencrypt-dns01"
-    ingress.kubernetes.io/whitelist-source-range: "{{ console_ip }}/32"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "{{ console_ip }}/32"
 spec:
   tls:
   - hosts:

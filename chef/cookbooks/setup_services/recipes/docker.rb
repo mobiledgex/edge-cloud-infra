@@ -112,7 +112,7 @@ template '/tmp/prometheus.yml' do
     remote_write_addr: get_thanos_remote_write_addr()
   )
   mode '0644'
-  action :create
+  action :create_if_missing
   force_unlink true
   notifies :restart, 'docker_container[cloudletPrometheus]', :delayed
 end

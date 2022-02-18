@@ -71,6 +71,8 @@ spec:
          - "--deploymentTag"
          - "{{ deployment_tag_override | default(deploy_environ) }}"
          - "--autoUpgrade"
+         - "--thanosRecvAddr"
+         - "{{ thanos_recv_fqdn }}"
          - "-d"
          - "etcd,api,notify,upgrade,infra"
         env:

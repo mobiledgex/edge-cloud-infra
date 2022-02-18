@@ -12,8 +12,8 @@
 
 # TODO: Get rid of this once all clusters are migrated to 1.19+
 - set_fact:
-    mandatory_manifest: "https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.47.0/deploy/static/mandatory.yaml"
-    cloud_manifest: "https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.47.0/deploy/static/provider/cloud-generic.yaml"
+    mandatory_manifest: "https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/mandatory.yaml"
+    cloud_manifest: "https://raw.githubusercontent.com/kubernetes/ingress-nginx/nginx-0.30.0/deploy/static/provider/cloud-generic.yaml"
   when: kubernetes_version is version('1.19', '<')
 
 - name: "Set up nginx ingress controller"

@@ -27,6 +27,7 @@ console_prod=yes
 alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 billing_platform=chargify
+federated_mc=true
 
 [notifyroot]
 notifyroot-stage.mobiledgex.net

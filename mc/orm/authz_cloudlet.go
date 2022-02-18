@@ -131,11 +131,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	// build map of cloudlets associated with all cloudlet pools
 	s.cloudletPoolSide = make(map[edgeproto.CloudletKey]int)
 	err = ctrlclient.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
-		for _, name := range pool.Cloudlets {
-			cloudletKey := edgeproto.CloudletKey{
-				Name:         name,
-				Organization: pool.Key.Organization,
-			}
+		for _, cloudletKey := range pool.Cloudlets {
 			// cloudlet may belong to multiple pools, if any pool
 			// is ours, allow access.
 			side, found := s.cloudletPoolSide[cloudletKey]
@@ -260,6 +256,9 @@ func authzCreateCloudlet(ctx context.Context, region, username string, obj *edge
 			continue
 		}
 		ops = append(ops, withReferenceOrg(org, OrgTypeOperator))
+	}
+	if obj.SingleKubernetesClusterOwner != "" {
+		ops = append(ops, withReferenceOrg(obj.SingleKubernetesClusterOwner, OrgTypeAny))
 	}
 	if obj.PlatformType != edgeproto.PlatformType_PLATFORM_TYPE_EDGEBOX {
 		ops = append(ops, withNoEdgeboxOnly())

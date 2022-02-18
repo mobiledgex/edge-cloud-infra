@@ -149,13 +149,13 @@ const (
 type ProviderInitStage string
 
 const (
-	ProviderInitCreateCloudletDirect            ProviderInitStage = "CreateCloudletDirect"
-	ProviderInitCreateCloudletRestricted        ProviderInitStage = "CreateCloudletRestricted"
-	ProviderInitPlatformStartCrmActive          ProviderInitStage = "PlatformStartCrmActive"
-	ProviderInitPlatformStartCrmActiveOrStandby ProviderInitStage = "ProviderInitPlatformStartCrmActiveOrStandby"
-	ProviderInitPlatformStartShepherd           ProviderInitStage = "PlatformStartShepherd"
-	ProviderInitDeleteCloudlet                  ProviderInitStage = "DeleteCloudlet"
-	ProviderInitGetVmSpec                       ProviderInitStage = "GetVmSpec"
+	ProviderInitCreateCloudletDirect        ProviderInitStage = "CreateCloudletDirect"
+	ProviderInitCreateCloudletRestricted    ProviderInitStage = "CreateCloudletRestricted"
+	ProviderInitPlatformStartCrmConditional ProviderInitStage = "ProviderInitPlatformStartCrmConditional"
+	ProviderInitPlatformStartCrmCommon      ProviderInitStage = "ProviderInitPlatformStartCrmCommon"
+	ProviderInitPlatformStartShepherd       ProviderInitStage = "PlatformStartShepherd"
+	ProviderInitDeleteCloudlet              ProviderInitStage = "DeleteCloudlet"
+	ProviderInitGetVmSpec                   ProviderInitStage = "GetVmSpec"
 )
 
 // OperationInitStage is used to perform any common functions needed when starting and finishing an operation on the provider
@@ -356,8 +356,8 @@ func (v *VMPlatform) crmUpgradeCmd(ctx context.Context, req *edgeproto.DebugRequ
 	return fmt.Sprintf("%v", results)
 }
 
-func (v *VMPlatform) InitActiveOrStandbyCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "InitActiveOrStandbyCommon", "physicalName", platformConfig.PhysicalName, "type", v.Type)
+func (v *VMPlatform) InitCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitCommon", "physicalName", platformConfig.PhysicalName, "type", v.Type)
 	// setup the internal cloudlet cache which does not come from the controller
 	cloudletInternal := edgeproto.CloudletInternal{
 		Key:   *platformConfig.CloudletKey,
@@ -393,7 +393,7 @@ func (v *VMPlatform) InitActiveOrStandbyCommon(ctx context.Context, platformConf
 	v.VMProvider.InitData(ctx, caches)
 
 	updateCallback(edgeproto.UpdateTask, "Fetching API access credentials")
-	if err = v.VMProvider.InitApiAccessProperties(ctx, platformConfig.AccessApi, platformConfig.EnvVars, ProviderInitPlatformStartCrmActiveOrStandby); err != nil {
+	if err = v.VMProvider.InitApiAccessProperties(ctx, platformConfig.AccessApi, platformConfig.EnvVars, ProviderInitPlatformStartCrmCommon); err != nil {
 		return err
 	}
 	v.FlavorList, err = v.VMProvider.GetFlavorList(ctx)
@@ -401,14 +401,14 @@ func (v *VMPlatform) InitActiveOrStandbyCommon(ctx context.Context, platformConf
 		log.SpanLog(ctx, log.DebugLevelInfra, "GetFlavorList failed", "err", err)
 		return err
 	}
-	if err = v.VMProvider.InitProvider(ctx, caches, ProviderInitPlatformStartCrmActiveOrStandby, updateCallback); err != nil {
+	if err = v.VMProvider.InitProvider(ctx, caches, ProviderInitPlatformStartCrmCommon, updateCallback); err != nil {
 		return err
 	}
 	return nil
 
 }
 
-func (v *VMPlatform) InitActive(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) InitHAConditional(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	var result OperationInitResult
 	ctx, result, err := v.VMProvider.InitOperationContext(ctx, OperationInitStart)
@@ -486,8 +486,15 @@ func (v *VMPlatform) InitActive(ctx context.Context, platformConfig *platform.Pl
 	return nil
 }
 
-func (v *VMPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState dme.CloudletState) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
+//  for now there is only only HA Conditional compat version for all providers. This could be
+// changed if needed, but if a  provider specific version is defined it should be appended to
+// the VMPlatform version in place of v.Type in case the VMPlatform init sequence changes
+func (v *VMPlatform) GetInitHAConditionalCompatibilityVersion(ctx context.Context) string {
+	return "VMPlatform-1.0-" + v.Type
+}
+
+func (v *VMPlatform) PerformUpgrades(ctx context.Context, caches *platform.Caches, cloudletState dme.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "PerformUpgrades", "cloudletState", cloudletState)
 
 	if v.VMProperties.Upgrade {
 		_, err := v.UpgradeFuncHandleSSHKeys(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, caches)

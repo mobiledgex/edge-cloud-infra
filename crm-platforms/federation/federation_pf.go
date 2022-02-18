@@ -26,14 +26,18 @@ func (f *FederationPlatform) GetFeatures() *platform.Features {
 	return &platform.Features{}
 }
 
-// InitActiveOrStandbyCommon is called once during CRM startup.
-func (f *FederationPlatform) InitActiveOrStandbyCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
+// InitCommon is called once during CRM startup.
+func (f *FederationPlatform) InitCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
 	return nil
 }
 
-// InitActive is optional init steps for the active unit, if applicable
-func (f *FederationPlatform) InitActive(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+// InitHAConditional is optional init steps for the active unit, if applicable
+func (f *FederationPlatform) InitHAConditional(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
 	return nil
+}
+
+func (f *FederationPlatform) GetInitHAConditionalCompatibilityVersion(ctx context.Context) string {
+	return "federation-1.0"
 }
 
 // Gather information about the cloudlet platform.
@@ -161,7 +165,7 @@ func (f *FederationPlatform) DeleteCloudletAccessVars(ctx context.Context, cloud
 }
 
 // Sync data with controller
-func (f *FederationPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState dme.CloudletState) error {
+func (f *FederationPlatform) PerformUpgrades(ctx context.Context, caches *platform.Caches, cloudletState dme.CloudletState) error {
 	return nil
 }
 

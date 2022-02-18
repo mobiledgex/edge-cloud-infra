@@ -75,6 +75,7 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 
 func (k *K8sBareMetalPlatform) CreateCloudletDirect(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletDirect", "cloudlet", cloudlet)
+	// wtf? cloudlet.Deployment is docker by default?
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("CreateCloudletDirect deployment %+v\n", cloudlet.Deployment))
 
 	cloudletResourcesCreated := false

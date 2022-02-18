@@ -37,7 +37,7 @@ const (
 	ServiceTypeShepherd           = "shepherd"
 	ServiceTypeCloudletPrometheus = intprocess.PrometheusContainer
 	K8sMasterNodeCount            = 1
-	K8sWorkerNodeCount            = 2
+	K8sWorkerNodeCount            = 1 // xxx simplex testing. in general, for BM create cloudlet, use env vars I guess?
 	CRMRedisImage                 = "docker.io/bitnami/redis"
 	CRMRedisVersion               = "6.2.6-debian-10-r103"
 )

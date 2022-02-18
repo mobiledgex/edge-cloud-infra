@@ -1,5 +1,5 @@
 {
-  "revision_id": "8c792d66641e9da6441d621a07e04e55f926d1cae25cf4c37b2c7c9ec6f98276",
+  "revision_id": "01093be54f390e7d7baf1395afb961f77f073f9ec094cace7038d9e6a00a9998",
   "name": "k8s_crm_anthos",
   "run_list": [
     "recipe[chef_client_updater::default]",
@@ -117,25 +117,25 @@
       }
     },
     "setup_services_anthos": {
-      "version": "1.7.0",
-      "identifier": "e8fc5d5988dea8f67f21eb917e79d6aa3e990e25",
-      "dotted_decimal_identifier": "65579672461172392.69382627933650553.236026683002405",
-      "cache_key": "setup_services_anthos-1.7.0",
+      "version": "1.9.0",
+      "identifier": "b260abf5919b5eb905060ba6cbb4d88eafed68e5",
+      "dotted_decimal_identifier": "50208837530131294.52078394214894516.238107348527333",
+      "cache_key": "setup_services_anthos-1.9.0",
       "origin": "https://jlmtest.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
         "chef_server": "https://jlmtest.mobiledgex.net/organizations/mobiledgex",
-        "version": "1.7.0"
+        "version": "1.9.0"
       }
     },
     "setup_vault_ssh": {
-      "version": "1.0.0",
-      "identifier": "31ba7122bbbf012a7e770aae15832b5bd56ec951",
-      "dotted_decimal_identifier": "13997268935622401.11960998767236483.47673422825809",
-      "cache_key": "setup_vault_ssh-1.0.0",
+      "version": "1.0.3",
+      "identifier": "68d8fd7ad4886d8ea3cb8666a8be180aefa14005",
+      "dotted_decimal_identifier": "29511980776982637.40149541221476542.26435249061893",
+      "cache_key": "setup_vault_ssh-1.0.3",
       "origin": "https://jlmtest.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
         "chef_server": "https://jlmtest.mobiledgex.net/organizations/mobiledgex",
-        "version": "1.0.0"
+        "version": "1.0.3"
       }
     }
   },
@@ -187,11 +187,11 @@
       ],
       [
         "setup_services_anthos",
-        "= 1.7.0"
+        "= 1.9.0"
       ],
       [
         "setup_vault_ssh",
-        "= 1.0.0"
+        "= 1.0.3"
       ]
     ],
     "dependencies": {
@@ -222,13 +222,13 @@
       "setup_infra (1.0.0)": [
 
       ],
-      "setup_services_anthos (1.7.0)": [
+      "setup_services_anthos (1.9.0)": [
         [
           "docker",
           ">= 0.0.0"
         ]
       ],
-      "setup_vault_ssh (1.0.0)": [
+      "setup_vault_ssh (1.0.3)": [
 
       ]
     }

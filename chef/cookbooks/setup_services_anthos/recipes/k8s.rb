@@ -59,7 +59,7 @@ template '/home/ubuntu/k8s-deployment.yaml' do
      harole: 'simplex',
      deploymentName: 'platform-simplex',
      version: node['edgeCloudVersion'],
-     services: svc_vars_primary,
+     #services: svc_vars_primary,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )
@@ -76,7 +76,6 @@ template '/home/ubuntu/k8s-deployment-primary.yaml' do
      harole: 'primary',
      deploymentName: 'platform-primary',
      version: node['edgeCloudVersion'],
-     services: svc_vars_primary,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )

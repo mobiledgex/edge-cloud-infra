@@ -909,6 +909,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// SecondaryNotifySrvAddr: 53
 	// DnsLabel: 54
 	// RootLbFqdn: 55
+	// FederationConfig: 56
+	// FederationConfigFederationName: 56.1
+	// FederationConfigSelfFederationId: 56.2
+	// FederationConfigPartnerFederationId: 56.3
+	// FederationConfigZoneCountryCode: 56.4
+	// FederationConfigPartnerFederationAddr: 56.5
 	// ```
 	// Security:
 	//   Bearer:
@@ -1121,6 +1127,9 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyOrganization: 2.1
 	// KeyName: 2.2
 	// Cloudlets: 3
+	// CloudletsOrganization: 3.1
+	// CloudletsName: 3.2
+	// CloudletsFederatedOrganization: 3.3
 	// CreatedAt: 4
 	// CreatedAtSeconds: 4.1
 	// CreatedAtNanos: 4.2

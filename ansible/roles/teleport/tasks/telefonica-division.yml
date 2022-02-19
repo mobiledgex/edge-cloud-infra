@@ -1,0 +1,14 @@
+---
+- name: "Set up Telefonica {{ division }} access role"
+  template:
+    src: telefonica-division-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/telefonica-{{ division }}-access-role.yaml"
+  become: yes
+  register: telefonica_division_role
+  tags: config
+
+- name: "Apply Telefonica {{ division }} access role"
+  command: "tctl create -f {{ telefonica_division_role.dest }}"
+  become: yes
+  when: telefonica_division_role is changed
+  tags: config

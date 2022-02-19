@@ -719,6 +719,9 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	badPermTestCloudletAllianceOrg(t, mcClient, uri, tokenDev, ctrl.Region, org3)
 	badPermTestCloudletAllianceOrg(t, mcClient, uri, tokenDev2, ctrl.Region, org3)
 
+	// test for non-existing reference orgs
+	badPermTestReferenceOrg(t, mcClient, uri, tokenOper, ctrl.Region, org3)
+
 	// test operators can modify their own objs but not each other's
 	badPermTestCloudlet(t, mcClient, uri, tokenOper, ctrl.Region, org4, nil)
 	badPermTestCloudlet(t, mcClient, uri, tokenOper2, ctrl.Region, org3, nil)
@@ -897,7 +900,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 					Name:         "orgspool",
 					Organization: org3,
 				},
-				Cloudlets: []string{cloudletName},
+				Cloudlets: []edgeproto.CloudletKey{cloudletKey},
 			},
 		}
 		_, status, err = mcClient.CreateCloudletPool(uri, tokenOper, &badpool)
@@ -921,8 +924,8 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		member := ormapi.RegionCloudletPoolMember{
 			Region: ctrl.Region,
 			CloudletPoolMember: edgeproto.CloudletPoolMember{
-				Key:          pool.CloudletPool.Key,
-				CloudletName: cloudletName,
+				Key:      pool.CloudletPool.Key,
+				Cloudlet: cloudletKey,
 			},
 		}
 		_, status, err = mcClient.AddCloudletPoolMember(uri, tokenOper, &member)
@@ -958,7 +961,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		require.Equal(t, http.StatusOK, status)
 
 		// negative test - add without cloudlet specified
-		member.CloudletPoolMember.CloudletName = ""
+		member.CloudletPoolMember.Cloudlet.Name = ""
 		_, status, err = mcClient.AddCloudletPoolMember(uri, tokenOper, &member)
 		require.NotNil(t, err)
 		require.Equal(t, "Invalid Cloudlet name", err.Error())
@@ -1044,7 +1047,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		CloudletPoolMember: edgeproto.CloudletPoolMember{},
 	}
 	member.CloudletPoolMember.Key = pool.CloudletPool.Key
-	member.CloudletPoolMember.CloudletName = tc3.Name
+	member.CloudletPoolMember.Cloudlet = *tc3
 	_, status, err = mcClient.AddCloudletPoolMember(uri, tokenOper, &member)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
@@ -1833,6 +1836,30 @@ func badPermTestNonExistent(t *testing.T, mcClient *mctestclient.Client, uri, to
 	badPermCreateTrustPolicy(t, mcClient, uri, token, region, neOrg)
 	badPermCreateCloudletPool(t, mcClient, uri, token, region, neOrg)
 	badPermCreateResTagTable(t, mcClient, uri, token, region, neOrg)
+}
+
+// Test that we get org not found error for referenced orgs
+func badPermTestReferenceOrg(t *testing.T, mcClient *mctestclient.Client, uri, token, region, operOrg string) {
+	regCloudlet := ormapi.RegionCloudlet{
+		Region: region,
+		Cloudlet: edgeproto.Cloudlet{
+			Key: edgeproto.CloudletKey{
+				Name:         "clx",
+				Organization: operOrg,
+			},
+			PlatformType: edgeproto.PlatformType_PLATFORM_TYPE_FAKE,
+		},
+	}
+	regCloudlet.Cloudlet.AllianceOrgs = []string{"no-such-org"}
+	_, _, err := mcClient.CreateCloudlet(uri, token, &regCloudlet)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Org no-such-org not found")
+
+	regCloudlet.Cloudlet.AllianceOrgs = nil
+	regCloudlet.Cloudlet.SingleKubernetesClusterOwner = "no-such-org"
+	_, _, err = mcClient.CreateCloudlet(uri, token, &regCloudlet)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Org no-such-org not found")
 }
 
 func badPermTestAutoProvPolicy400(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AutoProvPolicy)) {
@@ -2932,13 +2959,12 @@ type User struct {
 
 // Used to test addition of new DnsRegion unique not null column
 type Controller struct {
-	Region        string    `gorm:"primary_key"`
-	Address       string    `gorm:"unique;not null"`
-	NotifyAddr    string    `gorm:"type:text"`
-	InfluxDB      string    `gorm:"type:text"`
-	ThanosMetrics string    `gorm:"type:text"`
-	CreatedAt     time.Time `json:",omitempty"`
-	UpdatedAt     time.Time `json:",omitempty"`
+	Region     string    `gorm:"primary_key"`
+	Address    string    `gorm:"unique;not null"`
+	NotifyAddr string    `gorm:"type:text"`
+	InfluxDB   string    `gorm:"type:text"`
+	CreatedAt  time.Time `json:",omitempty"`
+	UpdatedAt  time.Time `json:",omitempty"`
 }
 
 func TestUpgrade(t *testing.T) {

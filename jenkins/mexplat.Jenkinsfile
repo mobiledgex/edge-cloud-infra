@@ -38,7 +38,7 @@ pipeline {
             steps {
                 dir(path: 'ansible') {
                     ansiColor('xterm') {
-                        sh label: 'Run ansible playbook', script: '''$!/bin/bash
+                        sh label: 'Run ansible playbook', script: '''#!/bin/bash
 export GITHUB_USER="${GITHUB_CREDS_USR}"
 export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
 export AZURE_CLIENT_ID="${AZURE_SERVICE_PRINCIPAL_USR}"

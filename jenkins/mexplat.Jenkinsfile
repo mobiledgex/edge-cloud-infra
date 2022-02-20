@@ -4,8 +4,9 @@ pipeline {
     }
     agent any
     parameters {
-        string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag for the custom build')
+        string name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag for the custom build; default to YYYY-MM-DD'
         booleanParam name: 'SKIP_VAULT_SETUP', defaultValue: false, description: 'Skip vault setup stage during deployment'
+        booleanParam name: 'MOBILEDGEX_DEV_REGISTRY', defaultValue: false, description: 'Pick edge-cloud images from the "mobiledgex-dev" docker registry'
     }
     environment {
         DEFAULT_DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
@@ -47,11 +48,12 @@ export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
 export ANSIBLE_FORCE_COLOR=true
 
 [ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
-if $SKIP_VAULT_SETUP; then
-    ./deploy.sh -s vault-setup -V "$DOCKER_BUILD_TAG" -y staging
-else
-    ./deploy.sh -V "$DOCKER_BUILD_TAG" -y staging
-fi
+
+DEPLOY_ARGS=( -y )
+$SKIP_VAULT_SETUP && DEPLOY_ARGS+=( -s vault-setup )
+$MOBILEDGEX_DEV_REGISTRY && DEPLOY_ARGS+=( -D )
+
+./deploy.sh -V "$DOCKER_BUILD_TAG" "${DEPLOY_ARGS[@]}" staging
                         '''
                     }
                 }

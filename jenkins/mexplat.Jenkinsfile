@@ -3,8 +3,12 @@ pipeline {
         timeout(time: 30, unit: 'MINUTES')
     }
     agent any
+    parameters {
+        string(name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag for the custom build')
+        booleanParam name: 'SKIP_VAULT_SETUP', defaultValue: false, description: 'Skip vault setup stage during deployment'
+    }
     environment {
-        DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
+        DEFAULT_DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
         ANSIBLE_VAULT_PASSWORD_FILE = credentials('ansible-mex-vault-pass-file')
         ARM_ACCESS_KEY = credentials('azure-storage-access-key')
         GCP_AUTH_KIND = 'serviceaccount'
@@ -21,7 +25,11 @@ pipeline {
         stage('Set up build tag') {
             steps {
                 script {
-                    currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                    try {
+                        currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                    } catch (err) {
+                        currentBuild.displayName = "${DEFAULT_DOCKER_BUILD_TAG}"
+                    }
                 }
             }
         }
@@ -38,7 +46,12 @@ export VAULT_ROLE_ID="${ANSIBLE_ROLE_USR}"
 export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
 export ANSIBLE_FORCE_COLOR=true
 
-./deploy.sh -V "$DOCKER_BUILD_TAG" -y staging
+[ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
+if $SKIP_VAULT_SETUP; then
+    ./deploy.sh -s vault-setup -V "$DOCKER_BUILD_TAG" -y staging
+else
+    ./deploy.sh -V "$DOCKER_BUILD_TAG" -y staging
+fi
                         '''
                     }
                 }

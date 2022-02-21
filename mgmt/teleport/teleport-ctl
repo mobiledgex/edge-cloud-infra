@@ -1,0 +1,166 @@
+#!/usr/bin/env python3
+
+import argparse
+import getpass
+import logging
+import os
+import re
+import requests
+import subprocess
+import sys
+
+logging.basicConfig(level=logging.INFO)
+
+supported_orgs = {
+    "Telefonica",
+    "Telefonica-Brazil",
+    "Telefonica-GCTIO",
+    "Telefonica-Germany",
+}
+
+# Return a list of orgs for a user where the user is an OperatorManager
+def user_orgs(args, filter=["OperatorManager"]):
+    with open(os.path.expanduser("~/.mctoken")) as f:
+        token = f.read().strip()
+
+    mc_host = "console.mobiledgex.net" if args.setup == "main" \
+        else f"console-{args.setup}.mobiledgex.net"
+
+    r = requests.post(f"https://{mc_host}/api/v1/auth/role/showuser",
+                      headers={
+                          "Authorization": f"Bearer {token}",
+                      },
+                      json={"username": args.name})
+    if r.status_code != requests.codes.ok:
+        try:
+            message = r.json()["message"]
+            sys.exit(message)
+        except:
+            r.raise_for_status()
+
+    return [ x["org"] for x in r.json() if x["role"] in filter ]
+
+
+# Run the tef-user-mgr command over ssh on the teleport auth node
+def tctl_user_cmd(action, user=None, orgs=[]):
+    args = [ user ] if user else []
+    args.extend(orgs)
+    subprocess.call(["tsh", "ssh", "tefmgr@teleport", "sudo", "/usr/local/bin/tef-user-mgr",
+                     action, *args])
+
+# Create a user account in teleport with roles mapped to the user's roles in MC
+def user_create(args):
+    # Get a list of orgs the user is an operator manager of
+    orgs = user_orgs(args)
+
+    # Further filter supported orgs
+    orgs = [ x for x in orgs if x in supported_orgs ]
+
+    if not orgs:
+        sys.exit(f"User not OperatorManager in one of these orgs: {', '.join(sorted(supported_orgs))}")
+
+    print(f"Adding user to orgs: {', '.join(sorted(orgs))}")
+    tctl_user_cmd("add", args.name, orgs)
+
+# List user roles in teleport
+def user_show(args):
+    if args.name:
+        tctl_user_cmd("ls", args.name)
+    else:
+        tctl_user_cmd("ls")
+
+# Delete user account from teleport
+def user_delete(args):
+    tctl_user_cmd("rm", args.name)
+
+# Print chef node details using knife
+def knife_show(node):
+    try:
+        subprocess.check_call(["knife", "node", "show", node, "-a", "tags", "-a", "ipaddress"])
+    except Exception as e:
+        sys.exit(3)
+
+# Run a "knife exec" command
+def knife_exec(command):
+    return subprocess.check_call(["knife", "exec", "-E", command])
+
+# Trigger setup of teleport on the given chef node
+def node_create(args):
+    chef_node = f"{args.setup}-{args.region}-{args.node}"
+
+    # Ensure that the node exists
+    print()
+    knife_show(chef_node)
+    cont = input("\nSet up teleport on this node? (Yn) ")
+    if cont.lower().startswith("n"):
+        sys.exit()
+
+    # Fetch teleport node token from vault
+    vault = f"vault-{args.setup}.mobiledgex.net"
+    token = getpass.getpass(f"Vault token for {vault}: ")
+    r = requests.get(f"https://{vault}/v1/secret/data/ansible/common/teleport-node-token",
+                     headers={"X-Vault-Token": token})
+    try:
+        teleport_token = r.json()["data"]["data"]["value"]
+    except Exception as e:
+        sys.exit(f"Failed to fetch teleport token from vault: {vault}")
+
+    transform = "nodes.transform ('name:%s') {|n| n.normal['teleport_token'] = '%s' }" % (chef_node, teleport_token)
+    knife_exec(transform)
+
+# Trigger removal of teleport on the given chef node
+def node_delete(args):
+    chef_node = f"{args.setup}-{args.region}-{args.node}"
+
+    # Ensure that the node exists
+    print()
+    knife_show(chef_node)
+    cont = input("\nRemove teleport from this node? (Yn) ")
+    if cont.lower().startswith("n"):
+        sys.exit()
+
+    # Remove the teleport_token from the node's attributes
+    transform = "nodes.transform ('name:%s') {|n| n.normal['teleport_token'] = '' }" % chef_node
+    knife_exec(transform)
+
+if __name__ == "__main__":
+    root_parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+        description="manage teleport nodes and user accounts")
+    root_parser.add_argument("--setup", help="setup to use", default="main")
+    root_parser.set_defaults(func=lambda x: root_parser.print_help())
+
+    root_subparsers = root_parser.add_subparsers()
+
+    node_parser = root_subparsers.add_parser("node", help="manage teleport nodes")
+    node_parser.set_defaults(func=lambda x: node_parser.print_help())
+    node_subparsers = node_parser.add_subparsers()
+
+    node_create_parser = node_subparsers.add_parser("create", help="set up teleport on node")
+    node_create_parser.add_argument("region", help="region node is in (eg: \"EU\")")
+    node_create_parser.add_argument("node", help="node name")
+    node_create_parser.set_defaults(func=node_create)
+
+    node_delete_parser = node_subparsers.add_parser("delete", help="remove teleport from node")
+    node_delete_parser.add_argument("region", help="region node is in (eg: \"EU\")")
+    node_delete_parser.add_argument("node", help="node name")
+    node_delete_parser.set_defaults(func=node_delete)
+
+    user_parser = root_subparsers.add_parser("user", help="manage teleport user accounts")
+    user_parser.set_defaults(func=lambda x: user_parser.print_help())
+    user_subparsers = user_parser.add_subparsers()
+
+    user_create_parser = user_subparsers.add_parser("create", help="create teleport user account")
+    user_create_parser.add_argument("name", help="username")
+    user_create_parser.set_defaults(func=user_create)
+
+    user_show_parser = user_subparsers.add_parser("show", help="show teleport user account details")
+    user_show_parser.add_argument("name", nargs='?', help="username")
+    user_show_parser.set_defaults(func=user_show)
+
+    user_delete_parser = user_subparsers.add_parser("delete", help="delete teleport user account")
+    user_delete_parser.add_argument("name", help="username")
+    user_delete_parser.set_defaults(func=user_delete)
+
+    args = root_parser.parse_args()
+    args.func(args)

@@ -22,15 +22,6 @@ action :prep_cluster do
     ignore_failure true
   end
 
-  execute('Remove master taint') do
-    action :run
-    retries 2
-    retry_delay 2
-    command 'kubectl taint nodes -l node-role.kubernetes.io/master node-role.kubernetes.io/master:NoSchedule- --kubeconfig=/home/ubuntu/.kube/config'
-    returns 0
-    ignore_failure true
-  end
-
   execute('Assign k8s node labels for master') do
     action :run
     retries 2
@@ -98,6 +89,12 @@ action :deploy_simplex_platform do
 end # deploy-simplex-platform
 
 action :deploy_ha_platform do
+  # verify all nodes are still up, no retries at this stage
+  execute("check-k8s-cluster, looking for #{node['k8sNodeCount']} nodes") do
+    action :run
+    command "kubectl get nodes --kubeconfig=/home/ubuntu/.kube/config| grep ' Ready' | wc -l | grep -w #{node['k8sNodeCount']}"
+    returns 0
+  end
 
   # to affect a switchover, delete the primary deployment and re-create
   execute('delete-primary') do
@@ -112,7 +109,7 @@ action :deploy_ha_platform do
     returns 0
   end
 
-  execute('wait-primary') do
+  execute('wait-primary-running') do
     Chef::Log.info('Wait for primary platform pod to come up')
     action :run
     retries 30
@@ -121,9 +118,13 @@ action :deploy_ha_platform do
     returns 0
   end
 
-  chef_sleep('sleep-after-primary') do
-    seconds      30
-    action       :sleep
+  execute('wait-primary-init-done') do
+    Chef::Log.info('Wait for primary platform pod to be ready to become active')
+    action :run
+    retries 30
+    retry_delay 15
+    command 'kubectl logs deployment/platform-primary -c crmserver --kubeconfig=/home/ubuntu/.kube/config | grep "waiting for platform to become active"'
+    returns 0
   end
 
   execute('delete-secondary') do

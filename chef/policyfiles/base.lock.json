@@ -1,5 +1,5 @@
 {
-  "revision_id": "2ea6bc50ba31757ece03025ffd5a682f77cd6807f3dee13b6343c165c9e6616e",
+  "revision_id": "5321a9d5d623da0245e65a5cee0dcacd8a2525668fefba9b1dc9d284a4856e16",
   "name": "base",
   "run_list": [
     "recipe[chef_client_updater::default]",
@@ -59,8 +59,8 @@
     },
     "setup_teleport": {
       "version": "0.0.1",
-      "identifier": "d95df68144bf46d30c763b11c9903fe252845a57",
-      "dotted_decimal_identifier": "61183383258316614.59404922022644112.70241279564375",
+      "identifier": "821e5339500ab7432e1a2f4fc6e1c1886e99a491",
+      "dotted_decimal_identifier": "36625089765051063.18909513437398753.212791715275921",
       "cache_key": "setup_teleport-0.0.1",
       "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {

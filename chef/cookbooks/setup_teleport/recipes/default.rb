@@ -1,4 +1,4 @@
-if node.attribute?('teleport_token') and node.attribute['teleport_token'] and node.attribute['teleport_token'].length > 0
+if node.attribute.fetch('teleport_token', '').length > 0
 
     teleport node.name do
         action          :setup

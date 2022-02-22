@@ -503,11 +503,11 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	// Delete FQDN of shared RootLB
 	rootLbFqdn := rootLBName
-	if cloudlet.rootLbFqdn != "" {
-		rootLbFqdn = cloudlet.rootLbFqdn
+	if cloudlet.RootLbFqdn != "" {
+		rootLbFqdn = cloudlet.RootLbFqdn
 	}
 	if err = v.VMProperties.CommonPf.DeleteDNSRecords(ctx, rootLbFqdn); err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete sharedRootLB DNS record", "fqdn", rootLBName, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete sharedRootLB DNS record", "fqdn", rootLbFqdn, "err", err)
 	}
 
 	// Not sure if it's safe to remove vars from Vault due to testing/virtual cloudlets,

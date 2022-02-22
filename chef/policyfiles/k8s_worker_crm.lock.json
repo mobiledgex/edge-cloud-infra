@@ -1,5 +1,5 @@
 {
-  "revision_id": "f8f662383c872ea207ebb90b09647a0281b0f9410812bfac5b6d286366403e59",
+  "revision_id": "644c3d6ed4d3f8e3687f08a5331d1b8d4baaa33f0330887d4c38ff5619e93888",
   "name": "k8s_worker_crm",
   "run_list": [
     "recipe[chef_client_updater::default]",
@@ -8,7 +8,8 @@
     "recipe[preflight_crm_checks::default]",
     "recipe[setup_services::k8s-worker]",
     "recipe[chef_client_updater::default]",
-    "recipe[set_security_policies::default]"
+    "recipe[set_security_policies::default]",
+    "recipe[setup_teleport::default]"
   ],
   "included_policy_locks": [
 
@@ -90,6 +91,17 @@
         "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
         "version": "1.3.4"
       }
+    },
+    "setup_teleport": {
+      "version": "1.0.0",
+      "identifier": "588cab4f59ead86f9b7e057ed8978b6b85351de9",
+      "dotted_decimal_identifier": "24924465349126872.31414687975266455.153293912612329",
+      "cache_key": "setup_teleport-1.0.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.0.0"
+      }
     }
   },
   "default_attributes": {
@@ -129,6 +141,10 @@
       [
         "setup_services",
         "= 1.3.4"
+      ],
+      [
+        "setup_teleport",
+        "= 1.0.0"
       ]
     ],
     "dependencies": {
@@ -155,6 +171,9 @@
           "docker",
           ">= 0.0.0"
         ]
+      ],
+      "setup_teleport (1.0.0)": [
+
       ]
     }
   }

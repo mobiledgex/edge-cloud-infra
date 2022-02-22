@@ -64,7 +64,7 @@ def user_create(args):
     orgs = [ x for x in orgs if x in supported_orgs ]
 
     if not orgs:
-        sys.exit(f"User not OperatorManager in one of these orgs: {', '.join(sorted(supported_orgs))}")
+        sys.exit(f"User not OperatorManager in any of these orgs: {', '.join(sorted(supported_orgs))}")
 
     print(f"Adding user to orgs: {', '.join(sorted(orgs))}")
     tctl_user_cmd("add", args.name, orgs)

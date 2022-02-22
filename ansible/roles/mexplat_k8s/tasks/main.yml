@@ -4,7 +4,7 @@
     tasks_from: load-kubeconfig
 
 - debug:
-    msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
+    msg: "Deploying edge-cloud '{{ edge_cloud_image }}:{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
 
 - name: "Confirm {{ region }} region upgrade"
   pause:

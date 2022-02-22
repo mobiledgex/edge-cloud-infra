@@ -7,3 +7,4 @@
     azure_terraform_service_principal_id: "{{ vault_lookup.azure.data.terraform_service_principal_id }}"
     azure_terraform_service_principal_secret: "{{ vault_lookup.azure.data.terraform_service_principal_secret }}"
     azure_subscription_id: "{{ vault_lookup.azure.data.subscription_id }}"
+    azure_ssh_key_pub: "{{ vault_lookup.azure.data.ssh_key_pub }}"

@@ -34,6 +34,13 @@
     state: present
     definition: "{{ lookup('template', 'deploy.yml.j2') }}"
 
+- name: Deploy the DME autoscaler
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    state: present
+    definition: "{{ lookup('template', 'hpa.yml.j2') }}"
+
 - name: Deploy the Mex DME LB
   k8s:
     kubeconfig: "{{ kubeconfig_file.path }}"

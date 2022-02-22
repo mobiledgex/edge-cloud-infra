@@ -64,6 +64,7 @@ end # prep-cluster
 
 action :setup_redis do
   execute('Setup redis deployment') do
+    Chef::Log.info("Setting up redis")
     action :run
     command 'kubectl apply -f /home/ubuntu/k8s-deployment-redis.yaml --kubeconfig=/home/ubuntu/.kube/config'
     returns 0
@@ -82,6 +83,7 @@ end # setup-redis
 
 action :deploy_simplex_platform do
   # simplex needs prom too
+  Chef::Log.info('Deploy prometheus platform simplex')
   cookbook_file 'home/ubuntu/prometheus.yml' do
     source 'prometheus.yml'
     owner 'ubuntu'
@@ -89,18 +91,88 @@ action :deploy_simplex_platform do
     mode '0644'
     action :create_if_missing
   end
+
+  # PV and PVCs for accesskey and cache mounts into crm and shepherd containers
+  cookbook_file 'home/ubuntu/accesskey_vol.yml'  do
+    source 'accesskey_vol.yml'
+    owner 'ubuntu'
+    group 'ubuntu'
+    mode '0664'
+    action :create_if_missing
+  end
+
+  execute('apply-accesskey-vol') do
+    Chef::Log.info('create accesskey vol peristent volume')
+    action :run
+    command 'kubectl apply -f /home/ubuntu/accesskey_vol.yml --kubeconfig=/home/ubuntu/.kube/config'
+    retries 2
+    retry_delay 2
+    returns 0    
+  end
+
+  cookbook_file 'home/ubuntu/accesskey_vol_claim.yml' do
+    source 'accesskey_vol_claim.yml'
+    owner 'ubuntu'
+    group 'ubuntu'
+    mode '0664'
+    action :create_if_missing
+  end
+
+  execute('apply-accesskey-vol-claim') do
+    Chef::Log.info('create accesskey vol peristent volume claim')
+    action :run
+    command 'kubectl apply -f /home/ubuntu/accesskey_vol_claim.yml --kubeconfig=/home/ubuntu/.kube/config'
+    retries 2
+    retry_delay 2
+    returns 0   
+  end
+  
+  cookbook_file 'home/ubuntu/cache_vol.yml' do
+    source 'cache_vol.yml'
+    owner 'ubuntu'
+    group 'ubuntu'
+    mode '0664'
+    action :create_if_missing
+  end
+
+  execute('apply-cache-vol') do
+    Chef::Log.info('create cache vol peristent volume')
+    action :run
+    command 'kubectl apply -f /home/ubuntu/cache_vol.yml --kubeconfig=/home/ubuntu/.kube/config'
+    retries 2
+    retry_delay 2
+    returns 0    
+  end
+
+  cookbook_file 'home/ubuntu/cache_vol_claim.yml' do
+    source 'cache_vol_claim.yml'
+    owner 'ubuntu'
+    group 'ubuntu'
+    mode '0664'
+    action :create_if_missing
+  end
+
+  execute('apply-cache-vol-claim') do
+    Chef::Log.info('create cache vol peristent volume claim')
+    action :run
+    command 'kubectl apply -f /home/ubuntu/cache_vol_claim.yml --kubeconfig=/home/ubuntu/.kube/config'
+    retries 2
+    retry_delay 2
+    returns 0    
+  end
   
   execute('create-prometheus-configmap') do
-      Chef::Log.info('create prometheus configmap')
-      action :run
-      command 'kubectl create configmap prom-cm --from-file prometheus.yml=/home/ubuntu/prometheus.yml --kubeconfig=/home/ubuntu/.kube/config'
-      retries 2
-      retry_delay 2
-      returns 0
-      ignore_failure true
+    Chef::Log.info('create prometheus configmap')
+    action :run
+    command 'kubectl create configmap prom-cm --from-file prometheus.yml=/home/ubuntu/prometheus.yml --kubeconfig=/home/ubuntu/.kube/config'
+    retries 2
+    retry_delay 2
+    returns 0
+    ignore_failure true
   end
     
   execute('Setup simplex deployment') do
+    Chef::Log.info("apply k8s-deployment.yaml")    
     action :run
     command 'kubectl apply -f /home/ubuntu/k8s-deployment.yaml --kubeconfig=/home/ubuntu/.kube/config'
     returns 0

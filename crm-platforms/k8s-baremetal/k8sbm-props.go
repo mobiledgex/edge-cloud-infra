@@ -27,6 +27,16 @@ var k8sbmProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Ethernet interface used for K8S LB, e.g. eno2",
 		Mandatory:   true,
 	},
+	"K8S_NUM_MASTERS": {
+		Name:        "Number Master Nodes",
+		Description: "Number of k8s masters in cluster",
+		Mandatory:   true,
+	},
+	"K8S_NUM_WORKERS": {
+		Name:        "Number Worker Nodes",
+		Description: "Number of k8s wokers in cluster",
+		Mandatory:   true,
+	},
 }
 
 func (k *K8sBareMetalPlatform) GetControlAccessIp() string {
@@ -41,6 +51,15 @@ func (k *K8sBareMetalPlatform) GetExternalIpRanges() string {
 
 func (k *K8sBareMetalPlatform) GetExternalEthernetInterface() string {
 	value, _ := k.commonPf.Properties.GetValue("K8S_EXTERNAL_ETH_INTERFACE")
+	return value
+}
+
+func (k *K8sBareMetalPlatform) GetNumMasterNodes() string {
+	value, _ := k.commonPf.Properties.GetValue("K8S_NUM_MASTERS")
+	return value
+}
+func (k *K8sBareMetalPlatform) GetNumWorkerNodes() string {
+	value, _ := k.commonPf.Properties.GetValue("K8S_NUM_WORKERS")
 	return value
 }
 

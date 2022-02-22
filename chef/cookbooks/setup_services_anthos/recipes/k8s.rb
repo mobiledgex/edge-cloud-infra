@@ -1,4 +1,4 @@
-#svc_vars_primary = get_services_vars('primary')
+svc_vars_primary = get_services_vars('primary')
 #svc_vars_secondary = get_services_vars('secondary')
 hostvol_vars = get_hostvols_vars
 configmap_vars = get_configmap_vars
@@ -51,6 +51,7 @@ end
 
 # If redis is not specified, create the simplex manifest. If modified, trigger simplex deployment
 template '/home/ubuntu/k8s-deployment.yaml' do
+  Chef::Log.info("Create k8s-deployment.yaml")
   source 'k8s_service.erb'
   owner 'ubuntu'
   group 'ubuntu'
@@ -59,7 +60,7 @@ template '/home/ubuntu/k8s-deployment.yaml' do
      harole: 'simplex',
      deploymentName: 'platform-simplex',
      version: node['edgeCloudVersion'],
-     #services: svc_vars_primary,
+     services: svc_vars_primary,
      hostvols: hostvol_vars,
      configmaps: configmap_vars
    )
@@ -100,6 +101,7 @@ end
 
 # deploy the platform in simplex mode if redis is disabled and the current state is different than the template
 platform_k8s('deploy simplex platform') do
+  Chef::Log.info("Setting up redis")
   action :deploy_simplex_platform
   not_if { node.attribute?(:redisServiceName) }
   not_if 'kubectl diff -f /home/ubuntu/k8s-deployment.yaml --kubeconfig=/home/ubuntu/.kube/config'

@@ -96,5 +96,9 @@ spec:
             - name: <%= vol_attrs[:name] %> 
               mountPath: <%= vol_attrs[:mountPath] %>
          <% end %>
-         <% end %>
+         securityContext:
+	   privileged: true
+           runAsUser: 0
+           runAsGroup: 0
+	 <% end %>
        <% end %>

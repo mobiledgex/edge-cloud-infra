@@ -21,7 +21,6 @@ action :setup do
         action      :create
     end
 
-
     # Write the teleport initial token to a file
     file '/etc/teleport.token' do
         content new_resource.initial_token

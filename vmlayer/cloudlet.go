@@ -502,7 +502,11 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	// Delete FQDN of shared RootLB
-	if err = v.VMProperties.CommonPf.DeleteDNSRecords(ctx, rootLBName); err != nil {
+	rootLbFqdn := rootLBName
+	if cloudlet.rootLbFqdn != "" {
+		rootLbFqdn = cloudlet.rootLbFqdn
+	}
+	if err = v.VMProperties.CommonPf.DeleteDNSRecords(ctx, rootLbFqdn); err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete sharedRootLB DNS record", "fqdn", rootLBName, "err", err)
 	}
 

@@ -11,6 +11,12 @@ action :prep_cluster do
     returns 0
   end
 
+  execute('patch-coredns, prevent from running on master and add pod anti-affinity') do
+    action :run
+    command 'kubectl patch -n kube-system deployment coredns  -p \'{"spec": {"template": {"spec": {"tolerations": [{"key": "CriticalAddonsOnly"}], "affinity": {"podAntiAffinity": {"requiredDuringSchedulingIgnoredDuringExecution": [{"labelSelector": {"matchExpressions": [{"key": "k8s-app", "operator": "In", "values": ["kube-dns"]}]}, "topologyKey": "kubernetes.io/hostname"}]}}}}}}\' --kubeconfig=/home/ubuntu/.kube/config'
+    returns 0
+  end
+
   execute('Setup docker registry secrets') do
     action :run
     retries 2

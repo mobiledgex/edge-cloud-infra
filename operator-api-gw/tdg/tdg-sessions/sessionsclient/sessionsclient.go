@@ -233,6 +233,9 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 	} else if status == http.StatusNotFound {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "404 Session not found")
 		// This status will be returned in the reply.
+	} else if status == http.StatusBadRequest {
+		log.SpanLog(ctx, log.DebugLevelDmereq, "400 Bad request")
+		// This status will be returned in the reply.
 	} else {
 		log.WarnLog("returning error", "received ", status)
 		return nil, fmt.Errorf(fmt.Sprintf("API call received unknown status: %d", status))

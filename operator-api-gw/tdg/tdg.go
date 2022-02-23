@@ -104,6 +104,10 @@ func (*OperatorApiGw) GetVersionProperties() map[string]string {
 	return version.InfraBuildProps("TDGOperator")
 }
 
+func (o *OperatorApiGw) SetQosSessionsApiKey(key string) {
+	qosSessionsApiKey = key
+}
+
 func (o *OperatorApiGw) CreatePrioritySession(ctx context.Context, req *dme.QosPrioritySessionCreateRequest) (*dme.QosPrioritySessionReply, error) {
 	var reply *dme.QosPrioritySessionReply
 	var err error

@@ -24,6 +24,7 @@ import (
 var OrgTypeAdmin = "admin"
 var OrgTypeDeveloper = "developer"
 var OrgTypeOperator = "operator"
+var OrgTypeAny = ""
 
 type UpdateType int
 
@@ -166,6 +167,16 @@ func DeleteOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Organizat
 
 	// check for Controller objects belonging to org or if it is part of a parent billing org
 	err = orgInUse(ctx, org.Name)
+	if err != nil {
+		undoerr := markOrgForDelete(db, org.Name, !doMark)
+		if undoerr != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "undo mark org for delete", "undoerr", undoerr)
+		}
+		return err
+	}
+
+	// check for if org is in use by federator
+	err = orgInUseByFederatorCheck(ctx, org.Name)
 	if err != nil {
 		undoerr := markOrgForDelete(db, org.Name, !doMark)
 		if undoerr != nil {

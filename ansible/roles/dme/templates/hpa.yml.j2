@@ -1,12 +1,12 @@
 apiVersion: autoscaling/v2beta2
 kind: HorizontalPodAutoscaler
 metadata:
-  name: controller
+  name: dme
 spec:
   scaleTargetRef:
     apiVersion: apps/v1
     kind: Deployment
-    name: controller
+    name: dme
   minReplicas: 2
   maxReplicas: {{ dme_replicas }}
   metrics:

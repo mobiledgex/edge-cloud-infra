@@ -6,8 +6,14 @@ action :prep_cluster do
   execute("wait-k8s-cluster, looking for #{node['k8sNodeCount']} nodes") do
     action :run
     retries 30
-    retry_delay 10
+    retry_delay 15
     command "kubectl get nodes --kubeconfig=/home/ubuntu/.kube/config| grep ' Ready' | wc -l | grep -w #{node['k8sNodeCount']}"
+    returns 0
+  end
+
+  execute('patch-coredns, prevent from running on master and add pod anti-affinity') do
+    action :run
+    command 'kubectl patch -n kube-system deployment coredns  -p \'{"spec": {"template": {"spec": {"tolerations": [{"key": "CriticalAddonsOnly"}], "affinity": {"podAntiAffinity": {"requiredDuringSchedulingIgnoredDuringExecution": [{"labelSelector": {"matchExpressions": [{"key": "k8s-app", "operator": "In", "values": ["kube-dns"]}]}, "topologyKey": "kubernetes.io/hostname"}]}}}}}}\' --kubeconfig=/home/ubuntu/.kube/config'
     returns 0
   end
 
@@ -18,15 +24,6 @@ action :prep_cluster do
     regsecrets = data_bag_item('mexsecrets', 'docker_registry')
     Chef::Log.info("Create secret to access #{node['edgeCloudImage']} as user #{regsecrets['mex_docker_username']}")
     command "kubectl create secret docker-registry mexreg-secret --docker-server=#{node['edgeCloudImage']} --docker-username=#{regsecrets['mex_docker_username']} --docker-password=#{regsecrets['mex_docker_password']} --docker-email=mobiledgex.ops@mobiledgex.com --kubeconfig=/home/ubuntu/.kube/config"
-    returns 0
-    ignore_failure true
-  end
-
-  execute('Remove master taint') do
-    action :run
-    retries 2
-    retry_delay 2
-    command 'kubectl taint nodes -l node-role.kubernetes.io/master node-role.kubernetes.io/master:NoSchedule- --kubeconfig=/home/ubuntu/.kube/config'
     returns 0
     ignore_failure true
   end
@@ -98,22 +95,11 @@ action :deploy_simplex_platform do
 end # deploy-simplex-platform
 
 action :deploy_ha_platform do
-  cookbook_file 'home/ubuntu/prometheus.yml' do
-    source 'prometheus.yml'
-    owner 'ubuntu'
-    group 'ubuntu'
-    mode '0644'
-    action :create_if_missing
-  end
-
-  execute('create-prometheus-configmap') do
-    Chef::Log.info('create prometheus configmap')
+  # verify all nodes are still up, no retries at this stage
+  execute("check-k8s-cluster, looking for #{node['k8sNodeCount']} nodes") do
     action :run
-    command 'kubectl create configmap prom-cm --from-file prometheus.yml=/home/ubuntu/prometheus.yml --kubeconfig=/home/ubuntu/.kube/config'
-    retries 2
-    retry_delay 2
+    command "kubectl get nodes --kubeconfig=/home/ubuntu/.kube/config| grep ' Ready' | wc -l | grep -w #{node['k8sNodeCount']}"
     returns 0
-    ignore_failure true
   end
 
   # to affect a switchover, delete the primary deployment and re-create
@@ -129,18 +115,22 @@ action :deploy_ha_platform do
     returns 0
   end
 
-  execute('wait-primary') do
+  execute('wait-primary-running') do
     Chef::Log.info('Wait for primary platform pod to come up')
     action :run
     retries 30
-    retry_delay 10
+    retry_delay 15
     command 'kubectl get pods -l app=platform-primary -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
     returns 0
   end
 
-  chef_sleep('sleep-after-primary') do
-    seconds      30
-    action       :sleep
+  execute('wait-primary-init-done') do
+    Chef::Log.info('Wait for primary platform pod to be ready to become active')
+    action :run
+    retries 30
+    retry_delay 15
+    command 'kubectl logs deployment/platform-primary -c crmserver --kubeconfig=/home/ubuntu/.kube/config | grep "waiting for platform to become active"'
+    returns 0
   end
 
   execute('delete-secondary') do

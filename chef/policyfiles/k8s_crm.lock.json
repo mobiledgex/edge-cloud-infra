@@ -1,5 +1,5 @@
 {
-  "revision_id": "ee9c450e0b46ab770814bc164d25c3360cf1cde69f041d0217801545d9137999",
+  "revision_id": "5e4ebebd00526e9be32705e8360f5dc063531242d098f02ecb54ba5da4a14738",
   "name": "k8s_crm",
   "run_list": [
     "recipe[chef_client_updater::default]",
@@ -10,6 +10,7 @@
     "recipe[run_diagnostics::default]",
     "recipe[setup_services::k8s]",
     "recipe[set_security_policies::default]",
+    "recipe[setup_teleport::default]",
     "recipe[copy_third_party_notice::default]"
   ],
   "included_policy_locks": [
@@ -116,14 +117,25 @@
       }
     },
     "setup_services": {
-      "version": "1.3.3",
-      "identifier": "cd5a0a3b062d60dc2d19d438869a084d03f3bbc5",
-      "dotted_decimal_identifier": "57801370212117856.61974083834250906.9126871808965",
-      "cache_key": "setup_services-1.3.3",
+      "version": "1.3.6",
+      "identifier": "1df6c16abe613c4db23378c0bdddb2d5b61a0609",
+      "dotted_decimal_identifier": "8434084904591676.21869507345694173.196630952936969",
+      "cache_key": "setup_services-1.3.6",
       "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
         "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
-        "version": "1.3.3"
+        "version": "1.3.6"
+      }
+    },
+    "setup_teleport": {
+      "version": "1.1.0",
+      "identifier": "30d6ee9312a2a3be676ba1ea5b1b3372276e4118",
+      "dotted_decimal_identifier": "13747119040144035.53593957550676763.56565380825368",
+      "cache_key": "setup_teleport-1.1.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.1.0"
       }
     }
   },
@@ -175,7 +187,11 @@
       ],
       [
         "setup_services",
-        "= 1.3.3"
+        "= 1.3.6"
+      ],
+      [
+        "setup_teleport",
+        "= 1.1.0"
       ]
     ],
     "dependencies": {
@@ -206,11 +222,14 @@
       "setup_infra (1.0.0)": [
 
       ],
-      "setup_services (1.3.3)": [
+      "setup_services (1.3.6)": [
         [
           "docker",
           ">= 0.0.0"
         ]
+      ],
+      "setup_teleport (1.1.0)": [
+
       ]
     }
   }

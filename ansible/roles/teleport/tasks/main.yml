@@ -5,6 +5,10 @@
     tasks_from: install
   vars:
     teleport_config_template: teleport.yaml.j2
+    telefonica_divisions:
+      - Brazil
+      - GCTIO
+      - Germany
 
 - name: Create teleport config dir
   file:
@@ -81,6 +85,13 @@
   when: telefonica_role is changed
   tags: config
 
+- include_role:
+    name: teleport
+    tasks_from: telefonica-division.yml
+  loop: "{{ telefonica_divisions|map('lower') }}"
+  loop_control:
+    loop_var: division
+
 - name: Set up tefmgr access role
   template:
     src: tefmgr-access-role.yaml.j2
@@ -141,8 +152,8 @@
   become: yes
 
 - name: Set up Telefonica user management script
-  copy:
-    src: tef-user-mgr
+  template:
+    src: tef-user-mgr.j2
     dest: "{{ tef_user_mgr }}"
     mode: "0500"
   become: yes

@@ -3,8 +3,13 @@ pipeline {
         timeout(time: 30, unit: 'MINUTES')
     }
     agent any
+    parameters {
+        string name: 'DOCKER_BUILD_TAG', defaultValue: '', description: 'Docker build tag for the custom build; default to YYYY-MM-DD'
+        booleanParam name: 'SKIP_VAULT_SETUP', defaultValue: false, description: 'Skip vault setup stage during deployment'
+        booleanParam name: 'MOBILEDGEX_DEV_REGISTRY', defaultValue: false, description: 'Pick edge-cloud images from the "mobiledgex-dev" docker registry'
+    }
     environment {
-        DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
+        DEFAULT_DOCKER_BUILD_TAG = sh(returnStdout: true, script: 'date +"%Y-%m-%d" | tr -d "\n"')
         ANSIBLE_VAULT_PASSWORD_FILE = credentials('ansible-mex-vault-pass-file')
         ARM_ACCESS_KEY = credentials('azure-storage-access-key')
         GCP_AUTH_KIND = 'serviceaccount'
@@ -21,7 +26,11 @@ pipeline {
         stage('Set up build tag') {
             steps {
                 script {
-                    currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                    try {
+                        currentBuild.displayName = "${DOCKER_BUILD_TAG}"
+                    } catch (err) {
+                        currentBuild.displayName = "${DEFAULT_DOCKER_BUILD_TAG}"
+                    }
                 }
             }
         }
@@ -29,7 +38,7 @@ pipeline {
             steps {
                 dir(path: 'ansible') {
                     ansiColor('xterm') {
-                        sh label: 'Run ansible playbook', script: '''$!/bin/bash
+                        sh label: 'Run ansible playbook', script: '''#!/bin/bash
 export GITHUB_USER="${GITHUB_CREDS_USR}"
 export GITHUB_TOKEN="${GITHUB_CREDS_PSW}"
 export AZURE_CLIENT_ID="${AZURE_SERVICE_PRINCIPAL_USR}"
@@ -38,7 +47,13 @@ export VAULT_ROLE_ID="${ANSIBLE_ROLE_USR}"
 export VAULT_SECRET_ID="${ANSIBLE_ROLE_PSW}"
 export ANSIBLE_FORCE_COLOR=true
 
-./deploy.sh -V "$DOCKER_BUILD_TAG" -y staging
+[ -n "$DOCKER_BUILD_TAG" ] || DOCKER_BUILD_TAG="$DEFAULT_DOCKER_BUILD_TAG"
+
+DEPLOY_ARGS=( -y )
+$SKIP_VAULT_SETUP && DEPLOY_ARGS+=( -s vault-setup )
+$MOBILEDGEX_DEV_REGISTRY && DEPLOY_ARGS+=( -D )
+
+./deploy.sh -V "$DOCKER_BUILD_TAG" "${DEPLOY_ARGS[@]}" staging
                         '''
                     }
                 }

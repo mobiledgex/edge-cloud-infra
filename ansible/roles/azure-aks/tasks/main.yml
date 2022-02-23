@@ -18,7 +18,7 @@
     dns_prefix: "{{ platform_region.dns_prefix }}"
     linux_profile:
       admin_username: "{{ vm_ssh_user }}"
-      ssh_key: "{{ lookup('file', vm_ssh_pub_key_file) }}\n"
+      ssh_key: "{{ azure_ssh_key_pub }}\n"
     service_principal:
       client_id: "{{ azure_terraform_service_principal_id }}"
       client_secret: "{{ azure_terraform_service_principal_secret }}"

@@ -19,7 +19,7 @@ cookbook 'run_diagnostics', '= 1.0.0'
 cookbook 'run_cmd', '= 1.0.0'
 cookbook 'chef_client_updater', '= 3.11.0'
 cookbook 'set_security_policies', '= 1.0.0'
-cookbook 'setup_teleport', '= 1.0.0'
+cookbook 'setup_teleport', '= 1.1.0'
 cookbook 'copy_third_party_notice', '= 1.0.1'
 
 # Set chef-client version

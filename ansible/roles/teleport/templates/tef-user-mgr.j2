@@ -3,32 +3,42 @@ PATH='/usr/bin:/bin:/usr/local/bin'; export PATH
 
 USAGE="usage: $( basename $0 ) <command>
 
-  add <user> <division> Add Sonoral user account
-  ls                    List Sonoral user accounts
-  rm <user>             Remove Sonoral user account
+  add <user> <org> [<org>...]  Add Sonoral user account to orgs
+  ls                           List Sonoral user accounts
+  rm <user>                    Remove Sonoral user account
 "
 
 add_user() {
-    username="$1"
-    division="$( echo $2 | tr 'A-Z' 'a-z' | sed 's/^sonoral-//' )"
-    if [[ -z "$username" || -z "$division" ]]; then
-        echo "usage: $( basename $0 ) $COMM <user> <division>" >&2
+    if [[ $# -lt 2 ]]; then
+        echo "usage: $( basename $0 ) $COMM <user> <org> [<org>...]" >&2
         exit 1
     fi
-    case "$division" in
-        sonoral|{{ sonoral_divisions|map('lower')|join('|') }}) true ;;
-        *) echo "error: unknown division: $2" >&2; exit 1 ;;
-    esac
 
-    rolename="$division"
-    [[ "$rolename" != sonoral ]] && rolename="sonoral-${rolename}"
+    username="$1"; shift
+    roles=
 
-    tctl users add "$1" --roles="$rolename"
+    for org in "$@"; do
+        d="$( echo "$org" | tr 'A-Z' 'a-z' | sed 's/^sonoral-//' )"
+        case "$d" in
+            sonoral|{{ sonoral_divisions|map('lower')|join('|') }}) true ;;
+            *) echo "error: unknown org: $org" >&2; exit 1 ;;
+        esac
+        rolename="$d"
+        [[ "$rolename" != sonoral ]] && rolename="sonoral-${rolename}"
+
+        roles="${roles},${rolename}"
+    done
+
+    # Strip leading comma
+    roles="${roles#,}"
+
+    tctl users add "$username" --roles="$roles"
 }
 
 ls_users() {
+    [[ -n "$1" ]] && userfilt="^$1\$" || userfilt='.'
     # Print header and lines with "sonoral" in the roles column
-    tctl users ls | awk 'NR < 3 || $2 ~ "sonoral"'
+    tctl users ls | awk -v user="$userfilt" 'NR < 3 || ( $1 ~ user && $2 ~ "sonoral" )'
 }
 
 rm_user() {
@@ -50,8 +60,8 @@ rm_user() {
 
 COMM="$1"; shift
 case "$COMM" in
-    add|create)         add_user "$1" "$2";;
+    add|create)         add_user "$@" ;;
     rm|remove|delete)   rm_user "$1" ;;
-    ls|list)            ls_users ;;
+    ls|list)            ls_users "$1" ;;
     *)                  echo "$USAGE" >&2; exit 1 ;;
 esac

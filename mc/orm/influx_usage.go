@@ -207,6 +207,9 @@ func GetClusterUsage(event *client.Response, checkpoint *client.Response, start,
 			cloudletorg := fmt.Sprintf("%v", values[4])
 			flavor := fmt.Sprintf("%v", values[5])
 			status := fmt.Sprintf("%v", values[6])
+			if values[7] == nil {
+				return nil, fmt.Errorf("Invalid data entry - nodecount is nil")
+			}
 			nodecount, err := values[7].(json.Number).Int64()
 			if err != nil {
 				return nil, fmt.Errorf("Error trying to convert nodecount to int: %s", err)
@@ -252,6 +255,9 @@ func GetClusterUsage(event *client.Response, checkpoint *client.Response, start,
 			flavor := fmt.Sprintf("%v", values[5])
 			event := fmt.Sprintf("%v", values[6])
 			status := fmt.Sprintf("%v", values[7])
+			if values[8] == nil {
+				return nil, fmt.Errorf("Invalid data entry - nodecount is nil")
+			}
 			nodecount, err := values[8].(json.Number).Int64()
 			if err != nil {
 				return nil, fmt.Errorf("Error trying to convert nodecount to int: %s", err)

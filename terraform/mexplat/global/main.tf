@@ -22,6 +22,57 @@ terraform {
   }
 }
 
+# Service account
+resource "google_service_account" "default" {
+  account_id  = var.gcp_project
+}
+
+# Main global cluster
+resource "google_container_cluster" primary {
+  name        = "primary"
+  location    = "us-central1"
+
+  # We can't create a cluster with no node pool defined, but we want to only use
+  # separately managed node pools. So we create the smallest possible default
+  # node pool and immediately delete it.
+  remove_default_node_pool = true
+  initial_node_count       = 1
+
+  cluster_autoscaling {
+    enabled         = true
+
+    resource_limits {
+      resource_type = "cpu"
+      minimum       = 1
+      maximum       = 4
+    }
+
+    resource_limits {
+      resource_type = "memory"
+      minimum       = 4
+      maximum       = 16
+    }
+  }
+}
+
+resource "google_container_node_pool" "primary_preemptible_nodes" {
+  name       = "primary-node-pool"
+  location   = "us-central1"
+  cluster    = google_container_cluster.primary.name
+  node_count = 1
+
+  node_config {
+    preemptible  = true
+    machine_type = "e2-medium"
+
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+    service_account = google_service_account.default.email
+    oauth_scopes    = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
+  }
+}
+
 # Firewall rules allowing Artifactory main and QA to talk to MC LDAP
 resource "google_compute_firewall" "mc_artifactory" {
   name        = "mc-artifactory"

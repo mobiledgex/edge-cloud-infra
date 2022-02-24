@@ -36,9 +36,8 @@ func (o *OpenstackPlatform) GetFeatures() *platform.Features {
 
 func (o *OpenstackPlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "stage", stage)
-
+	o.InitResourceReservations(ctx)
 	if stage == vmlayer.ProviderInitPlatformStartCrmCommon {
-		o.InitResourceReservations(ctx)
 		o.initDebug(o.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 	} else if stage == vmlayer.ProviderInitPlatformStartCrmConditional {
 		return o.PrepNetwork(ctx, updateCallback)

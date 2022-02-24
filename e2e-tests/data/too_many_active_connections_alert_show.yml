@@ -9,14 +9,13 @@
     clusterorg: AcmeAppCo
     env: testing
     job: MobiledgeX Monitoring
+    port: "80"
     region: local
     scope: Application
     severity: warning
     type: UserDefined
   annotations:
     description: Too many connections at the same time
+    title: UserDefinedAlert1
   state: firing
-  activeat:
-    seconds: 1625943334
-    nanos: 527423538
   value: 101

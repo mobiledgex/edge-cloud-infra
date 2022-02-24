@@ -131,18 +131,31 @@ func (o *OpenstackPlatform) ValidateNetwork(ctx context.Context) error {
 
 // ValidateAdditionalNetworks ensures that any specified additional networks have
 // just one subnet with no default GW and DHCP must be enabled
-func (o *OpenstackPlatform) ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error {
+func (o *OpenstackPlatform) ValidateAdditionalNetworks(ctx context.Context, additionalNets map[string]vmlayer.NetworkType) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ValidateAdditionalNetworks")
 
-	for _, n := range additionalNets {
+	netTypes := []vmlayer.NetworkType{vmlayer.NetworkTypeExternalAdditionalPlatform, vmlayer.NetworkTypeExternalAdditionalRootLb}
+	cloudletAddNets := o.VMProperties.GetNetworksByType(ctx, netTypes)
+
+	for n := range additionalNets {
+		subnetName := n
 		subnets, err := o.ListSubnets(ctx, n)
 		if err != nil {
-			return err
+			log.SpanLog(ctx, log.DebugLevelInfra, "list subnets for network failed, assume network is a subnet", "name", n)
+		} else {
+			// network is not a subnet
+			if len(subnets) != 1 {
+				return fmt.Errorf("Unexpected number of subnets: %d in network %s", len(subnets), n)
+			}
+			// we only allow specifying as a network name and not a subnet for the cloudlet-wide additional networks which
+			// is mainly replaced by per-cluster networks. We don't want to fail the startup for those for backwards compatibility
+			_, ok := cloudletAddNets[n]
+			if !ok {
+				return fmt.Errorf("specified network %s must be an openstack subnet name", n)
+			}
+			subnetName = subnets[0].Name
 		}
-		if len(subnets) != 1 {
-			return fmt.Errorf("Unexpected number of subnets: %d in network %s", len(subnets), n)
-		}
-		subnet, err := o.GetSubnetDetail(ctx, subnets[0].Name)
+		subnet, err := o.GetSubnetDetail(ctx, subnetName)
 		if err != nil {
 			return err
 		}
@@ -176,7 +189,8 @@ func (o *OpenstackPlatform) PrepNetwork(ctx context.Context, updateCallback edge
 		return fmt.Errorf("cannot find ext net %s", o.VMProperties.GetCloudletExternalNetwork())
 	}
 
-	err = o.ValidateAdditionalNetworks(ctx, o.VMProperties.GetCloudletAdditionalRootLbNetworks())
+	netTypes := []vmlayer.NetworkType{vmlayer.NetworkTypeExternalAdditionalRootLb}
+	err = o.ValidateAdditionalNetworks(ctx, o.VMProperties.GetNetworksByType(ctx, netTypes))
 	if err != nil {
 		return err
 	}

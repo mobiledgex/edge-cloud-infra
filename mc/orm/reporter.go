@@ -15,9 +15,12 @@ import (
 
 	influxdb "github.com/influxdata/influxdb/client/v2"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/gcs"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -93,7 +96,7 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 		return nil
 	}
 	if res.Error != nil {
-		return dbErr(res.Error)
+		return ormutil.DbErr(res.Error)
 	}
 	applyUpdate := false
 	if !newDate.IsZero() {
@@ -109,12 +112,12 @@ func updateReporterData(ctx context.Context, reporterName, reporterOrg string, n
 	if applyUpdate {
 		err := tx.Save(&updateReporter).Error
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 	}
 	err := tx.Commit().Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	return nil
 }
@@ -303,14 +306,14 @@ func tzMatch(timezone string, reportTime time.Time) (bool, error) {
 
 // Create reporter to generate usage reports
 func CreateReporter(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
 	reporter := ormapi.Reporter{}
 	if err := c.Bind(&reporter); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	// sanity check
 	if reporter.Name == "" {
@@ -393,17 +396,17 @@ func CreateReporter(c echo.Context) error {
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"reporters_pkey") {
 			return fmt.Errorf("Reporter for org %s with name %s already exists", reporter.Org, reporter.Name)
 		}
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	// trigger report generation if schedule date is today as it may have passed our internal report schedule
 	if ormapi.DateCmp(scheduleDate, time.Now()) == 0 {
 		triggerReporter()
 	}
-	return c.JSON(http.StatusOK, Msg("Reporter created"))
+	return c.JSON(http.StatusOK, ormutil.Msg("Reporter created"))
 }
 
 func UpdateReporter(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -413,9 +416,9 @@ func UpdateReporter(c echo.Context) error {
 	// modified fields.
 	body, err := ioutil.ReadAll(c.Request().Body)
 	in := ormapi.Reporter{}
-	err = json.Unmarshal(body, &in)
+	err = BindJson(body, &in)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	if in.Name == "" {
 		return fmt.Errorf("Reporter name not specified")
@@ -438,7 +441,7 @@ func UpdateReporter(c echo.Context) error {
 		return fmt.Errorf("Reporter not found")
 	}
 	if res.Error != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(res.Error).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(res.Error).Error())
 	}
 
 	// check if user is authorized to update reporter
@@ -448,9 +451,9 @@ func UpdateReporter(c echo.Context) error {
 
 	oldReporter := reporter
 	// apply specified fields
-	err = json.Unmarshal(body, &reporter)
+	err = BindJson(body, &reporter)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	applyUpdate := false
 	if reporter.Email != oldReporter.Email {
@@ -526,11 +529,11 @@ func UpdateReporter(c echo.Context) error {
 
 	err = tx.Save(&reporter).Error
 	if err != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(err).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(err).Error())
 	}
 	err = tx.Commit().Error
 	if err != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(err).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(err).Error())
 	}
 	if schedDateUpdated {
 		// trigger report generation if schedule date is today as it may have passed our internal report schedule
@@ -538,18 +541,18 @@ func UpdateReporter(c echo.Context) error {
 			triggerReporter()
 		}
 	}
-	return c.JSON(http.StatusOK, Msg("reporter updated"))
+	return c.JSON(http.StatusOK, ormutil.Msg("reporter updated"))
 }
 
 func DeleteReporter(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
 	reporter := ormapi.Reporter{}
 	if err := c.Bind(&reporter); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	if reporter.Name == "" {
 		return fmt.Errorf("Reporter name not specified")
@@ -571,7 +574,7 @@ func DeleteReporter(c echo.Context) error {
 		return fmt.Errorf("Reporter not found")
 	}
 	if res.Error != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(res.Error).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(res.Error).Error())
 	}
 	// check if user is authorized to delete reporter
 	if err := authorized(ctx, claims.Username, reporter.Org, ResourceCloudlets, ActionManage); err != nil {
@@ -583,13 +586,13 @@ func DeleteReporter(c echo.Context) error {
 	}
 	err = tx.Commit().Error
 	if err != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(err).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(err).Error())
 	}
-	return c.JSON(http.StatusOK, Msg("reporter deleted"))
+	return c.JSON(http.StatusOK, ormutil.Msg("reporter deleted"))
 }
 
 func ShowReporter(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -599,12 +602,12 @@ func ShowReporter(c echo.Context) error {
 	filter := ormapi.Reporter{}
 	if c.Request().ContentLength > 0 {
 		if err := c.Bind(&filter); err != nil {
-			return bindErr(err)
+			return ormutil.BindErr(err)
 		}
 	}
 	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, claims.Username, ResourceCloudletAnalytics, ActionView)
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	_, admin := authOrgs[""]
 	_, orgFound := authOrgs[filter.Org]
@@ -616,7 +619,7 @@ func ShowReporter(c echo.Context) error {
 	reporters := []ormapi.Reporter{}
 	err = db.Where(&filter).Find(&reporters).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	showOutput := []ormapi.Reporter{}
 	if admin {
@@ -642,14 +645,14 @@ func GenerateReport(c echo.Context) error {
 }
 
 func GenerateReportObj(c echo.Context, dataOnly bool) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
 	report := ormapi.GenerateReport{}
 	if err := c.Bind(&report); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	org := report.Org
 	if org == "" {
@@ -725,9 +728,10 @@ func GenerateReportObj(c echo.Context, dataOnly bool) error {
 }
 
 func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi.GenerateReport) ([][]string, error) {
-	rc := &RegionContext{
-		region:   report.Region,
-		username: username,
+	rc := &ormutil.RegionContext{
+		Region:   report.Region,
+		Username: username,
+		Database: database,
 	}
 	obj := edgeproto.Cloudlet{
 		Key: edgeproto.CloudletKey{
@@ -736,9 +740,11 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 	}
 	cloudlets := [][]string{}
 	cloudletsPresent := make(map[string]struct{})
-	err := ShowCloudletStream(ctx, rc, &obj, func(res *edgeproto.Cloudlet) error {
+	err := ctrlclient.ShowCloudletStream(ctx, rc, &obj, connCache, nil, func(res *edgeproto.Cloudlet) error {
 		platformTypeStr := edgeproto.PlatformType_CamelName[int32(res.PlatformType)]
 		platformTypeStr = strings.TrimPrefix(platformTypeStr, "PlatformType")
+		// Better to show platform type as "simulated", instead of "fake"
+		platformTypeStr = strings.Replace(platformTypeStr, "Fake", "Simulated", -1)
 		stateStr := edgeproto.TrackedState_CamelName[int32(res.State)]
 		cloudletData := []string{res.Key.Name, platformTypeStr, stateStr}
 
@@ -750,7 +756,7 @@ func GetCloudletSummaryData(ctx context.Context, username string, report *ormapi
 		return nil, err
 	}
 	sort.Slice(cloudlets, func(i, j int) bool {
-		return cloudlets[i][0] > cloudlets[j][0]
+		return cloudlets[i][0] < cloudlets[j][0]
 	})
 	return cloudlets, nil
 }
@@ -787,19 +793,20 @@ func GetCloudletPoolSummaryData(ctx context.Context, username string, report *or
 			poolPendingDevelopers[op.CloudletPool] = []string{op.Org}
 		}
 	}
-	rc := RegionContext{
-		region:   report.Region,
-		username: username,
+	rc := ormutil.RegionContext{
+		Region:   report.Region,
+		Username: username,
+		Database: database,
 	}
 	poolKey := edgeproto.CloudletPoolKey{Organization: report.Org}
 	poolCloudlets := make(map[string][]string)
-	err = ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{Key: poolKey}, func(pool *edgeproto.CloudletPool) error {
-		for _, name := range pool.Cloudlets {
+	err = ctrlclient.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{Key: poolKey}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
+		for _, clKey := range pool.Cloudlets {
 			if cloudlets, ok := poolCloudlets[pool.Key.Name]; ok {
-				cloudlets = append(cloudlets, name)
+				cloudlets = append(cloudlets, clKey.Name)
 				poolCloudlets[pool.Key.Name] = cloudlets
 			} else {
-				poolCloudlets[pool.Key.Name] = []string{name}
+				poolCloudlets[pool.Key.Name] = []string{clKey.Name}
 			}
 		}
 		return nil
@@ -832,13 +839,17 @@ func GetCloudletResourceUsageData(ctx context.Context, username string, report *
 		Cloudlet: edgeproto.CloudletKey{
 			Organization: report.Org,
 		},
-		Selector:  "resourceusage",
-		StartTime: report.StartTime,
-		EndTime:   report.EndTime,
+		Selector: "resourceusage",
+		MetricsCommon: ormapi.MetricsCommon{
+			TimeRange: edgeproto.TimeRange{
+				StartTime: report.StartTime,
+				EndTime:   report.EndTime,
+			},
+		},
 	}
 	rc.region = in.Region
 
-	platformTypes, err := getCloudletPlatformTypes(ctx, username, report.Region, &in.Cloudlet)
+	platformTypes, err := getCloudletPlatformTypes(ctx, username, report.Region, []edgeproto.CloudletKey{in.Cloudlet})
 	if err != nil {
 		return nil, err
 	}
@@ -943,9 +954,13 @@ func GetCloudletFlavorUsageData(ctx context.Context, username string, report *or
 		Cloudlet: edgeproto.CloudletKey{
 			Organization: report.Org,
 		},
-		Selector:  "flavorusage",
-		StartTime: report.StartTime,
-		EndTime:   report.EndTime,
+		Selector: "flavorusage",
+		MetricsCommon: ormapi.MetricsCommon{
+			TimeRange: edgeproto.TimeRange{
+				StartTime: report.StartTime,
+				EndTime:   report.EndTime,
+			},
+		},
 	}
 	rc.region = in.Region
 	cmd := CloudletUsageMetricsQuery(&in, nil)
@@ -1041,7 +1056,7 @@ func GetCloudletEvents(ctx context.Context, username string, report *ormapi.Gene
 			Types:   []string{node.EventType},
 			Regions: []string{report.Region},
 		},
-		TimeRange: util.TimeRange{
+		TimeRange: edgeproto.TimeRange{
 			StartTime: report.StartTime,
 			EndTime:   report.EndTime,
 		},
@@ -1083,9 +1098,10 @@ func inTimeSpan(start, end, check time.Time) bool {
 
 func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string][][]string, error) {
 	alertsData := make(map[string][][]string)
-	rc := &RegionContext{
-		region:   report.Region,
-		username: username,
+	rc := &ormutil.RegionContext{
+		Region:   report.Region,
+		Username: username,
+		Database: database,
 	}
 	obj := &edgeproto.Alert{
 		Labels: map[string]string{
@@ -1093,14 +1109,10 @@ func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.Gene
 			cloudcommon.AlertScopeTypeTag:        cloudcommon.AlertScopeCloudlet,
 		},
 	}
-	alerts, err := ShowAlertObj(ctx, rc, obj)
-	if err != nil {
-		return nil, err
-	}
-	for _, alert := range alerts {
-		alertTime := cloudcommon.TimestampToTime(alert.ActiveAt).In(report.StartTime.Location())
+	err := ctrlclient.ShowAlertStream(ctx, rc, obj, connCache, nil, func(alert *edgeproto.Alert) error {
+		alertTime := dme.TimestampToTime(alert.ActiveAt).In(report.StartTime.Location())
 		if !inTimeSpan(report.StartTime, report.EndTime, alertTime) {
-			continue
+			return nil
 		}
 		cloudlet, ok := alert.Labels[edgeproto.CloudletKeyTagName]
 		if !ok {
@@ -1116,14 +1128,19 @@ func GetCloudletAlerts(ctx context.Context, username string, report *ormapi.Gene
 			alertsData[cloudlet] = [][]string{}
 		}
 		alertsData[cloudlet] = append(alertsData[cloudlet], entry)
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return alertsData, nil
 }
 
 func GetCloudletAppUsageData(ctx context.Context, username string, report *ormapi.GenerateReport) (map[string]PieChartDataMap, error) {
-	rc := &RegionContext{
-		region:   report.Region,
-		username: username,
+	rc := &ormutil.RegionContext{
+		Region:   report.Region,
+		Username: username,
+		Database: database,
 	}
 	obj := &edgeproto.AppInst{
 		Key: edgeproto.AppInstKey{
@@ -1136,12 +1153,8 @@ func GetCloudletAppUsageData(ctx context.Context, username string, report *ormap
 		State:    edgeproto.TrackedState_READY,
 		Liveness: edgeproto.Liveness_LIVENESS_STATIC,
 	}
-	appInsts, err := ShowAppInstObj(ctx, rc, obj)
-	if err != nil {
-		return nil, err
-	}
 	appsCount := make(map[string]PieChartDataMap)
-	for _, appInst := range appInsts {
+	err := ctrlclient.ShowAppInstStream(ctx, rc, obj, connCache, nil, func(appInst *edgeproto.AppInst) error {
 		cloudletName := appInst.Key.ClusterInstKey.CloudletKey.Name
 		appOrg := appInst.Key.AppKey.Organization
 		if _, ok := appsCount[cloudletName]; !ok {
@@ -1152,6 +1165,10 @@ func GetCloudletAppUsageData(ctx context.Context, username string, report *ormap
 		} else {
 			appsCount[cloudletName][appOrg] = 1
 		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return appsCount, nil
 }
@@ -1168,9 +1185,13 @@ func GetAppResourceUsageData(ctx context.Context, username string, report *ormap
 				},
 			},
 		},
-		Selector:  "cpu,mem,disk,network",
-		StartTime: report.StartTime,
-		EndTime:   report.EndTime,
+		Selector: "cpu,mem,disk,network",
+		MetricsCommon: ormapi.MetricsCommon{
+			TimeRange: edgeproto.TimeRange{
+				StartTime: report.StartTime,
+				EndTime:   report.EndTime,
+			},
+		},
 	}
 	rc.region = in.Region
 	claims := &UserClaims{Username: username}
@@ -1341,7 +1362,7 @@ func GetAppStateEvents(ctx context.Context, username string, report *ormapi.Gene
 				"cloudletorg": report.Org,
 			},
 		},
-		TimeRange: util.TimeRange{
+		TimeRange: edgeproto.TimeRange{
 			StartTime: report.StartTime,
 			EndTime:   report.EndTime,
 		},
@@ -1610,14 +1631,14 @@ func getGCSStorageClient(ctx context.Context) (*gcs.GCSClient, error) {
 
 func ShowReport(c echo.Context) error {
 	// get list of generated reports from cloud
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
 	reportQuery := ormapi.DownloadReport{}
 	if err := c.Bind(&reportQuery); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	// sanity check
 	if reportQuery.Org == "" {
@@ -1658,14 +1679,14 @@ func ShowReport(c echo.Context) error {
 
 func DownloadReport(c echo.Context) error {
 	// download report from cloud with given filename
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
 	reportQuery := ormapi.DownloadReport{}
 	if err := c.Bind(&reportQuery); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	// sanity check
 	if reportQuery.Org == "" {

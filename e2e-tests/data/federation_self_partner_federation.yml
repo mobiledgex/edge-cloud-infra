@@ -1,0 +1,9 @@
+federations:
+- selfoperatorid: dmuus
+  name: dmuus-SA-{{partnertag}}-{{region}}-fed
+- selfoperatorid: dmuus
+  name: dmuus-SB-{{partnertag}}-{{region}}-fed
+- selfoperatorid: enterprise
+  name: enterprise-SA-{{partnertag}}-{{region}}-fed
+- selfoperatorid: enterprise
+  name: enterprise-SB-{{partnertag}}-{{region}}-fed

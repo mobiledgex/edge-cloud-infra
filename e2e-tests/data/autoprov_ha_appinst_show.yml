@@ -17,7 +17,7 @@ regiondata:
       cloudletloc:
         latitude: 31
         longitude: -91
-      uri: shared.dmuus-cloud-1.dmuus.mobiledgex.net
+      uri: shared.dmuus-cloud-1-dmuus.local.mobiledgex.net
       liveness: Autoprov
       mappedports:
       - proto: Tcp
@@ -26,15 +26,15 @@ regiondata:
       flavor:
         name: x1.small
       state: Ready
-      createdat:
-        seconds: 1591661539
-        nanos: 376315000
-      powerstate: PowerOn
-      vmflavor: x1.small
       runtimeinfo:
         containerids:
         - appOnClusterNode0
+      healthcheck: Ok
+      powerstate: PowerOn
+      vmflavor: x1.small
       realclustername: Reservable1
+      uniqueid: acmeappcoautoprovha10-autocluster-autoprov-dmuus-cloud-1-dmuus
+      dnslabel: autoprovha10-acmeappco
     - key:
         appkey:
           organization: AcmeAppCo
@@ -50,7 +50,7 @@ regiondata:
       cloudletloc:
         latitude: 35
         longitude: -95
-      uri: shared.dmuus-cloud-2.dmuus.mobiledgex.net
+      uri: shared.dmuus-cloud-2-dmuus.local.mobiledgex.net
       liveness: Autoprov
       mappedports:
       - proto: Tcp
@@ -59,12 +59,12 @@ regiondata:
       flavor:
         name: x1.small
       state: Ready
-      createdat:
-        seconds: 1591661539
-        nanos: 352091000
-      powerstate: PowerOn
-      vmflavor: x1.small
       runtimeinfo:
         containerids:
         - appOnClusterNode0
+      healthcheck: Ok
+      powerstate: PowerOn
+      vmflavor: x1.small
       realclustername: Reservable2
+      uniqueid: acmeappcoautoprovha10-autocluster-autoprov-dmuus-cloud-2-dmuus
+      dnslabel: autoprovha10-acmeappco

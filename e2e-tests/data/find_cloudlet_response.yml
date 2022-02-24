@@ -1,5 +1,5 @@
-status: FindFound
-fqdn: smallcluster.dmuus-cloud-1.dmuus.mobiledgex.net
+status: Found
+fqdn: smallcluster-acmeappco.dmuus-cloud-1-dmuus.local.mobiledgex.net
 ports:
 - proto: Tcp
   internalport: 80

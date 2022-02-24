@@ -60,14 +60,27 @@ install-edge-cloud:
 install-internal:
 	go install ./...
 
-$(APICOMMENTS): ./mc/ormapi/apidoc/apidoc.go ./mc/ormapi/api.go
+$(APICOMMENTS): ./mc/ormapi/apidoc/apidoc.go ./mc/ormapi/api.go ./mc/ormapi/federation_api.go
 	go install ./mc/ormapi/apidoc
-	apidoc --apiFile ./mc/ormapi/api.go
+	apidoc --apiFile ./mc/ormapi/api.go --apiFile ./mc/ormapi/federation_api.go --outFile ./mc/ormapi/api.comments.go
 
 doc:
 	go install ./protoc-gen-mc2
 	make -f proto.make
+	go install ./doc/swaggerfix
 	swagger generate spec -i ./doc/init.json -o ./doc/apidocs.swagger.json --scan-models
+	swaggerfix --custom ./doc/custom.yaml ./doc/apidocs.swagger.json
+
+doc-local-server:
+	docker run --rm -p 1081:80 \
+		-v "$(shell pwd)/doc/apidocs.swagger.json:/usr/share/nginx/html/swagger.json" \
+		-e SPEC_URL=swagger.json \
+		-e REDOC_OPTIONS='sort-props-alphabetically=\"true\"' \
+		redocly/redoc:v2.0.0-rc.23
+
+third_party:
+	parsedeps --gennotice ../edge-cloud/cloud-resource-manager/cmd/crmserver/ ../edge-cloud/d-match-engine/dme-server ./plugin/platform/ ./plugin/edgeevents ./shepherd ./shepherd/shepherd_platform > THIRD-PARTY-NOTICES
+
 
 .PHONY: doc
 

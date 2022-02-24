@@ -16,6 +16,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/vmware/go-vcloud-director/v2/govcd"
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 	vcdtypes "github.com/vmware/go-vcloud-director/v2/types/v56"
@@ -24,12 +25,6 @@ import (
 type VcdResources struct {
 	VmsUsed uint64
 }
-
-// cachedVdc is used for VM app metrics
-var cachedVdc *govcd.Vdc
-var lastCachedVdcRefreshTime time.Time
-
-var ChangeSinceLastVmAppStats bool
 
 const CurrentVmMetrics string = "application/vnd.vmware.vcloud.metrics.currentUsageSpec+xml"
 
@@ -48,6 +43,7 @@ func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.Pla
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetPlatformResourceInfo")
 
 	var resources = vmlayer.PlatformResources{}
+	resources.CollectTime, _ = prototypes.TimestampProto(time.Now())
 	resinfo, err := v.GetCloudletInfraResourcesInfo(ctx)
 	if err != nil {
 		return nil, err
@@ -64,6 +60,9 @@ func (v *VcdPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.Pla
 		case cloudcommon.ResourceExternalIPs:
 			resources.Ipv4Max = r.InfraMaxValue
 			resources.Ipv4Used = r.Value
+		case cloudcommon.ResourceDiskGb:
+			resources.DiskMax = r.InfraMaxValue
+			resources.DiskUsed = r.Value
 		}
 	}
 	return &resources, nil
@@ -77,7 +76,7 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 	if vcdClient == nil {
 		return nil, fmt.Errorf(NoVCDClientInContext)
 	}
-	vdc, err := v.GetVdc(ctx, vcdClient)
+	vdc, err := v.GetVdcFromContext(ctx, vcdClient)
 	if err != nil {
 		return nil, err
 	}
@@ -90,6 +89,8 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 	// get the cpu speed to calculate number of VMs used.  When we create VMs we specify the number of VCPUs, but
 	// to find the quotas and numbers used, we have to search for the CPU speed and calculate.
 	cpuSpeed := v.GetVcpuSpeedOverride(ctx)
+	var storageLimit int64 = 0
+	var storageUsed int64 = 0
 	if cpuSpeed == 0 {
 		// retrieve from admin org
 		adminOrg, err := govcd.GetAdminOrgByName(vcdClient, org.Org.Name)
@@ -101,6 +102,14 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Unable to get AdminVdc", "adminOrgName", "adminOrg.Org.Name", "error", err)
 			return nil, fmt.Errorf("Unable to get AdminVcd named: %s - %v", v.GetVDCName(), err)
+		}
+		if len(adminVdc.AdminVdc.VdcStorageProfiles.VdcStorageProfile) > 0 {
+			foundStorageProfile, err := govcd.GetStorageProfileByHref(vcdClient, adminVdc.AdminVdc.VdcStorageProfiles.VdcStorageProfile[0].HREF)
+			if err != nil {
+				return nil, fmt.Errorf("Unable to get storage profile - %v", err)
+			}
+			storageLimit = foundStorageProfile.Limit / 1024
+			storageUsed = foundStorageProfile.StorageUsedMB / 1024
 		}
 		// VMW stores the speed in 2 different places, the first of which is generally nil in our testing
 		if adminVdc.AdminVdc.VCpuInMhz != nil && *adminVdc.AdminVdc.VCpuInMhz != 0 {
@@ -122,7 +131,7 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 	if err != nil {
 		return nil, fmt.Errorf("Failed to query VmList: %v", err)
 	}
-	extNet, err := v.GetExtNetwork(ctx, vcdClient)
+	extNet, err := v.GetExtNetwork(ctx, vcdClient, v.vmProperties.GetCloudletExternalNetwork())
 	if err != nil {
 		return nil, err
 	}
@@ -159,6 +168,11 @@ func (v *VcdPlatform) GetCloudletInfraResourcesInfo(ctx context.Context) ([]edge
 		Name:          cloudcommon.ResourceInstances,
 		InfraMaxValue: uint64(vdc.Vdc.VMQuota),
 		Value:         uint64(len(vmlist)),
+	})
+	resInfo = append(resInfo, edgeproto.InfraResource{
+		Name:          cloudcommon.ResourceDiskGb,
+		InfraMaxValue: uint64(storageLimit),
+		Value:         uint64(storageUsed),
 	})
 	for _, cap := range vdc.Vdc.ComputeCapacity {
 		resInfo = append(resInfo, edgeproto.InfraResource{
@@ -237,38 +251,26 @@ func (v *VcdPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cl
 	return nil
 }
 
-// GetVdcFromCacheForVmStats gets a cached VDC object pointer or get a new one if the cache is stale, i.e.
-// it changed since last accessed or if the cached pointer is older than GetVmAppVdcMaxCacheTime.  This allows
-// the VDC and Org APIs to be done only once per collection interval for all VM Apps.
-func (v *VcdPlatform) GetVdcFromCacheForVmStats(ctx context.Context, vcdClient *govcd.VCDClient) (*govcd.Vdc, error) {
-	m, err := v.GetVmAppStatsVdcMaxCacheTime()
-	if err != nil {
-		return nil, err
+func (v *VcdPlatform) VmAppChangedCallback(ctx context.Context, appInst *edgeproto.AppInst, newState edgeproto.TrackedState) {
+	log.SpanLog(ctx, log.DebugLevelMetrics, "VmAppChangedCallback", "appInstKey", appInst.Key, "newState", newState)
+	if v.GetHrefCacheEnabled() && newState != edgeproto.TrackedState_READY {
+		vmName := appInst.Uri
+		v.DeleteVmHrefFromCache(ctx, vmName)
+		// delete using old format also
+		altVmName := oldGetAppFQN(&appInst.Key.AppKey)
+		v.DeleteVmHrefFromCache(ctx, altVmName)
 	}
-	maxCacheTime := time.Second * time.Duration(m)
-	elapsed := time.Since(lastCachedVdcRefreshTime)
-	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVdcFromCacheForVmStats", "maxCacheTime", maxCacheTime, "lastCachedVdcRefreshTime", lastCachedVdcRefreshTime, "elapsed", elapsed, "changed", ChangeSinceLastVmAppStats)
-
-	if elapsed < maxCacheTime && cachedVdc != nil && !ChangeSinceLastVmAppStats {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "GetVdcFromCacheForVmStats return cached vdc")
-		return cachedVdc, nil
-	}
-	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVdcFromCacheForVmStats get new VDC")
-	cachedVdc, err = v.GetVdc(ctx, vcdClient)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "GetVdcFromCacheForVmStats failed to get new VDC", "err", err)
-		return nil, fmt.Errorf("GetVdc Failed - %v", err)
-	}
-	ChangeSinceLastVmAppStats = false
-	lastCachedVdcRefreshTime = time.Now()
-	return cachedVdc, nil
 }
 
-func (v *VcdPlatform) VmAppChangedCallback(ctx context.Context) {
-	ChangeSinceLastVmAppStats = true
+func oldGetAppFQN(key *edgeproto.AppKey) string {
+	app := util.DNSSanitize(key.Name)
+	dev := util.DNSSanitize(key.Organization)
+	ver := util.DNSSanitize(key.Version)
+	return fmt.Sprintf("%s%s%s", dev, app, ver)
 }
 
-func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
+func (v *VcdPlatform) GetVMStats(ctx context.Context, appInst *edgeproto.AppInst) (*vmlayer.VMMetrics, error) {
+	key := &appInst.Key
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats", "key", key)
 
 	vm := &govcd.VM{}
@@ -280,17 +282,12 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 		log.SpanLog(ctx, log.DebugLevelInfra, NoVCDClientInContext)
 		return nil, fmt.Errorf(NoVCDClientInContext, err)
 	}
-	vdc, err := v.GetVdcFromCacheForVmStats(ctx, vcdClient)
+	vdc, err := v.GetVdcFromContext(ctx, vcdClient)
 	if err != nil {
 		return nil, fmt.Errorf("GetVdcFromCacheForVmStats Failed - %v", err)
 	}
 
 	// we need the flavor to do RAM conversion
-	appInst := edgeproto.AppInst{}
-	if !v.caches.AppInstCache.Get(key, &appInst) {
-		log.SpanLog(ctx, log.DebugLevelMetrics, "AppInst not in cache", "key", key)
-		return nil, fmt.Errorf("GetVMStats failed to find appinst in cache for AppInst %s", key)
-	}
 	flavor := edgeproto.Flavor{}
 	flavorKey := edgeproto.FlavorKey{
 		Name: appInst.Flavor.Name,
@@ -299,18 +296,13 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey)
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Flavor not in cache", "appkey", key, "flavorKey", flavorKey)
 		return nil, fmt.Errorf("GetVMStats failed to find flavor in cache for AppInst %s", key)
 	}
-
-	vmName := cloudcommon.GetAppFQN(&key.AppKey)
-	if vmName == "" {
-		return nil, fmt.Errorf("GetAppFQN failed to return vmName for AppInst %s\n", key.AppKey.Name)
-	}
-	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats for", "vm", vmName)
-
+	vmName := appInst.UniqueId
 	vm, err = v.FindVMByName(ctx, vmName, vcdClient, vdc)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "GetVMStats vm not found", "vnname", vmName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "VM not found", "vnname", vmName, "err", err)
 		return nil, err
 	}
+	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats for", "vm", vmName)
 	link := vm.VM.Link.ForType(CurrentVmMetrics, types.RelMetrics)
 	if link == nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics for VM", "vmName", vmName)

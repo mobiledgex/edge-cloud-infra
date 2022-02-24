@@ -9,7 +9,6 @@ import (
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	_ "github.com/gogo/protobuf/types"
-	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
 	math "math"
@@ -30,9 +29,10 @@ type swaggerCreateVMPool struct {
 }
 
 type RegionVMPool struct {
-	// required: true
 	// Region name
+	// required: true
 	Region string
+	// VMPool in region
 	VMPool edgeproto.VMPool
 }
 
@@ -84,9 +84,10 @@ type swaggerAddVMPoolMember struct {
 }
 
 type RegionVMPoolMember struct {
-	// required: true
 	// Region name
-	Region       string
+	// required: true
+	Region string
+	// VMPoolMember in region
 	VMPoolMember edgeproto.VMPoolMember
 }
 

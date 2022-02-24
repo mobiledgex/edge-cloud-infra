@@ -4,7 +4,7 @@
     tasks_from: load-kubeconfig
 
 - debug:
-    msg: "Deploying edge-cloud version '{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
+    msg: "Deploying edge-cloud '{{ edge_cloud_image }}:{{ edge_cloud_version }}' to cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
 
 - name: "Confirm {{ region }} region upgrade"
   pause:
@@ -13,6 +13,7 @@
 - import_role: name="k8s"
 - import_role: name="cert-manager"
 - import_role: name="etcd"
+- import_role: name="redis"
 - import_role: name="ingress"
 - import_role: name="edgeturn"
 - import_role: name="influxdb"
@@ -20,4 +21,10 @@
 - import_role: name="dme"
 - import_role: name="cluster-svc"
 - import_role: name="autoprov"
+- import_role: name="frm"
 - import_role: name="k8s-telegraf"
+
+- name: Validate InfluxDB source IP access list
+  import_role:
+    name: influxdb
+    tasks_from: svc

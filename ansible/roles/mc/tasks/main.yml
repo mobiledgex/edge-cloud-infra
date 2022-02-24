@@ -30,7 +30,6 @@
 - name: Compute mc command line
   set_fact:
     mc_args:
-      - mc
       - "-commonName"
       - "{{ inventory_hostname }}"
       - "-addr"
@@ -39,6 +38,8 @@
       - "{{ notifyroot_hostname }}:{{ notifyroot_port }}"
       - "-notifySrvAddr"
       - "0.0.0.0:{{ mc_notify_srv_port }}"
+      - "-controllerNotifyPort"
+      - "{{ controller_notify_port }}"
       - "-sqlAddr"
       - "{{ postgres_hostname }}:5432"
       - "-vaultAddr"
@@ -68,17 +69,37 @@
   set_fact:
     mc_name: "{{ mc_vm_hostname.split('.')[0]|lower }}"
 
-- name: Deploy the MC
-  docker_container:
-    name: "{{ mc_name }}"
-    image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
-    restart_policy: unless-stopped
-    command: "{{ mc_args }}"
-    ports:
+- name: Set docker container ports
+  set_fact:
+    mc_port_maps:
       - "127.0.0.1:{{ mc_api_port }}:{{ mc_api_port }}"
       - "127.0.0.1:19389:{{ mc_ldap_port }}"
       - "127.0.0.1:{{ mc_vnc_port }}:{{ mc_vnc_port }}"
       - "{{ mc_notify_srv_port }}:{{ mc_notify_srv_port }}"
+
+- block:
+
+    - name: Add federation address
+      set_fact:
+        mc_args: "{{ mc_args + [ '-federationAddr', '0.0.0.0:' + mc_federation_port_internal|string ] }}"
+
+    - set_fact:
+        fed_api_port_map: "127.0.0.1:{{ mc_federation_port_internal }}:{{ mc_federation_port_internal }}"
+
+    - name: Set up port map for federation API
+      set_fact:
+        mc_port_maps: "{{ mc_port_maps + [ fed_api_port_map ] }}"
+
+  when: federated_mc|bool
+
+- name: Deploy the MC
+  docker_container:
+    name: "{{ mc_name }}"
+    image: "{{ edge_cloud_image }}-mc:{{ edge_cloud_version }}"
+    restart_policy: unless-stopped
+    entrypoint: mc
+    command: "{{ mc_args }}"
+    ports: "{{ mc_port_maps }}"
     env:
       db_name: "{{ mc_postgres_db }}"
       db_username: "{{ mc_postgres_username }}"

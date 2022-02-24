@@ -15,14 +15,14 @@ tests:
     retryintervalsec: 0.5
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: mcalerts
 
   - name: verify that no emails about alerts are present
     actions: [email-check]
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: emaildata
 
   - name: verify no alert receivers are present
@@ -30,7 +30,7 @@ tests:
     curuserfile: '{{datadir2}}/mc_admin.yml'
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_object.yml'
       filetype: mcdata
 
   - name: admin creates an alert receiver
@@ -60,13 +60,13 @@ tests:
       filetype: mcdata
 
   - name: make sure no user alerts are defined
-    actions: [mcapi-showfiltered]
+    actions: [mcapi-showalerts]
     apifile: '{{datadir2}}/user2_alerts_filter.yml'
     curuserfile: '{{datadir2}}/mc_user2.yml'
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
       yaml2: '{{datadir2}}/useralert_alert_empty.yml'
-      filetype: mcdata
+      filetype: mcalerts
 
   - name: create a new user-defined alert
     actions: [mcapi-create]
@@ -82,13 +82,14 @@ tests:
     actions: [cmds]
     apifilevars:
       activeconns: "101"
+      port: "80"
     apifile: '{{datadir2}}/autoscale_prom_set_active'
 
   - name: check user defined alert
     actions: [mcapi-showalerts]
     apifile: '{{datadir2}}/show_local_region.yml'
     curuserfile: '{{datadir2}}/mc_admin.yml'
-    retrycount: 10
+    retrycount: 16
     retryintervalsec: 0.5
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
@@ -108,17 +109,18 @@ tests:
     actions: [cmds]
     apifilevars:
       activeconns: "50"
+      port: "80"
     apifile: '{{datadir2}}/autoscale_prom_set_active'
 
   - name: check user defined alert is cleared
     actions: [mcapi-showalerts]
     apifile: '{{datadir2}}/show_local_region.yml'
     curuserfile: '{{datadir2}}/mc_admin.yml'
-    retrycount: 10
+    retrycount: 16
     retryintervalsec: 0.5
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/useralert_alert_empty.yml'
       filetype: mcalerts
 
   - name: verify that email notification about an alert resolution was sent
@@ -141,43 +143,45 @@ tests:
     curuserfile: '{{datadir2}}/mc_user2.yml'
 
   - name: make sure no user alerts are defined
-    actions: [mcapi-showfiltered]
+    actions: [mcapi-showalerts]
     apifile: '{{datadir2}}/user2_alerts_filter.yml'
     curuserfile: '{{datadir2}}/mc_user2.yml'
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
       yaml2: '{{datadir2}}/useralert_alert_empty.yml'
-      filetype: mcdata
+      filetype: mcalerts
 
   - name: delete all emails and verify that mailbox is empty
     actions: [email-deleteall, email-check]
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: emaildata
 
   - name: delete all slack messages and verify that the channel is empty
     actions: [slack-deleteall, slack-check]
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: slackdata
 
   - name: delete all pagerduty events and verify that the channel is empty
     actions: [pagerduty-deleteall, pagerduty-check]
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: pagerdutydata
 
   - name: set healthy backend servers to 0
     actions: [cmds]
+    apifilevars:
+      port: "80"
     apifile: "{{datadir2}}/alert_appinstdown"
 
   - name: check health check alerts
     actions: [mcapi-showalerts]
     apifile: '{{datadir2}}/show_local_region.yml'
-    curuserfile: '{{datadir2}}/mc_admin.yml'
+    curuserfile: '{{datadir2}}/mc_user2.yml'
     retrycount: 10
     retryintervalsec: 0.5
     compareyaml:
@@ -216,6 +220,8 @@ tests:
 
   - name: set healthy backend servers to 1
     actions: [cmds]
+    apifilevars:
+      port: "80"
     apifile: "{{datadir2}}/alert_appinstup"
 
   - name: check health check alerts cleared
@@ -226,7 +232,7 @@ tests:
     retryintervalsec: 0.5
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: mcalerts
 
   - name: verify that email notification about an alert resolution was sent
@@ -277,32 +283,36 @@ tests:
     curuserfile: '{{datadir2}}/mc_admin.yml'
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_object.yml'
       filetype: mcdata
   
   - name: delete all emails and verify that mailbox is empty
     actions: [email-deleteall, email-check]
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: emaildata
 
   - name: delete all slack messages and verify that the channel is empty
     actions: [slack-deleteall, slack-check]
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: slackdata
 
   - name: delete all pagerduty events and verify that the channel is empty
     actions: [pagerduty-deleteall, pagerduty-check]
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: pagerdutydata
 
   - name: cloudlet alert created by the operator user
     actions: [mcapi-create]
+    apifilevars:
+      severity: "warning"
+      cloudlet_org: "dmuus"
+      cloudlet_name: "dmuus-cloud-1"
     apifile: '{{datadir2}}/mc_user1_cloudlet_alert_receiver.yml'
     curuserfile: '{{datadir2}}/mc_user1.yml'
 
@@ -337,9 +347,21 @@ tests:
       yaml2: '{{datadir2}}/emaildata_cloudlet_alert_firing.yml'
       filetype: emaildata
   
-  - name: start crm on dmuus-cloud-1 cloudlet
+  - name: check that the app on the cloudlet has offline health check
+    actions: [mcapi-showfiltered-noignore]
+    apifile: '{{datadir2}}/cloudlet_alert_appinst_filter.yml'
+    curuserfile: '{{datadir2}}/mc_user2.yml'
+    retrycount: 5
+    retryintervalsec: 0.2
+    compareyaml:
+      yaml1: '{{outputdir}}/show-commands.yml'
+      yaml2: '{{datadir2}}/cloudlet_alert_appinst_offline_show.yml'
+      # mcdata-xind keeps health check status
+      filetype: mcdata-xind
+
+  - name: start crm on dmuus-cloud-1 cloudlet(ctrl2)
     apifile: "{{datadir2}}/cloudlet_dmuus-cloud-1.yml"
-    actions: [start-crm=dmuus-cloud-1,sleep=1]
+    actions: [start-crm=dmuus-cloud-1 ctrl=ctrl2,sleep=1]
 
   - name: check cloudlet alert was cleared
     actions: [mcapi-showalerts]
@@ -349,8 +371,20 @@ tests:
     retryintervalsec: 0.5
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: mcalerts
+
+  - name: check that the app on the cloudlet is back online
+    actions: [mcapi-showfiltered-noignore]
+    apifile: '{{datadir2}}/cloudlet_alert_appinst_filter.yml'
+    curuserfile: '{{datadir2}}/mc_user2.yml'
+    retrycount: 5
+    retryintervalsec: 0.2
+    compareyaml:
+      yaml1: '{{outputdir}}/show-commands.yml'
+      yaml2: '{{datadir2}}/cloudlet_alert_appinst_online_show.yml'
+      # mcdata-xind keeps health check status
+      filetype: mcdata-xind
 
   - name: enable resource quotas alerts
     actions: [mcapi-update, mcapi-show]
@@ -393,6 +427,10 @@ tests:
   
   - name: user1 deletes alert receiver
     actions: [mcapi-delete]
+    apifilevars:
+      severity: "warning"
+      cloudlet_org: "dmuus"
+      cloudlet_name: "dmuus-cloud-1"
     apifile: '{{datadir2}}/mc_user1_cloudlet_alert_receiver.yml'
     curuserfile: '{{datadir2}}/mc_user1.yml'
 
@@ -401,12 +439,12 @@ tests:
     curuserfile: '{{datadir2}}/mc_admin.yml'
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_object.yml'
       filetype: mcdata
   
   - name: delete all emails and verify that mailbox is empty
     actions: [email-deleteall, email-check]
     compareyaml:
       yaml1: '{{outputdir}}/show-commands.yml'
-      yaml2: '{{datadir2}}/mcappdata_empty.yml'
+      yaml2: '{{datadir2}}/mc_empty_list.yml'
       filetype: emaildata

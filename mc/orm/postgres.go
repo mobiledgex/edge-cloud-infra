@@ -14,6 +14,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/gormlog"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
+	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/util/tasks"
 )
 
@@ -67,9 +68,32 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 			return
 		}
 
+		err := upgradeCustom(ctx, db)
+		if err != nil {
+			initDone <- err
+			return
+		}
+
 		// create or update tables
-		err := db.AutoMigrate(&ormapi.User{}, &ormapi.Organization{},
-			&ormapi.Controller{}, &ormapi.Config{}, &ormapi.OrgCloudletPool{}, &ormapi.AccountInfo{}, &ormapi.BillingOrganization{}, &ormapi.UserApiKey{}, &ormapi.Reporter{}).Error
+		err = db.AutoMigrate(
+			&ormapi.User{},
+			&ormapi.Organization{},
+			&ormapi.Controller{},
+			&ormapi.Config{},
+			&ormapi.OrgCloudletPool{},
+			&ormapi.AccountInfo{},
+			&ormapi.BillingOrganization{},
+			&ormapi.UserApiKey{},
+			&ormapi.Reporter{},
+			&ormapi.McRateLimitFlowSettings{},
+			&ormapi.McRateLimitMaxReqsSettings{},
+			// Federation GORM Objects
+			&ormapi.Federator{},
+			&ormapi.Federation{},
+			&ormapi.FederatorZone{},
+			&ormapi.FederatedPartnerZone{},
+			&ormapi.FederatedSelfZone{},
+		).Error
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "automigrate", "err", err)
 			if unitTest {
@@ -115,7 +139,34 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 			}
 			continue
 		}
+		err = InitRateLimitMc(ctx)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "init ratelimitmc", "err", err)
+			if unitTest {
+				initDone <- err
+				return
+			}
+			continue
+		}
+		err = InitFederationAPIConstraints(loggedDB(ctx))
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelApi, "init federation API constraints", "err", err)
+			if unitTest {
+				initDone <- err
+				return
+			}
+			continue
+		}
 		log.SpanLog(ctx, log.DebugLevelApi, "init data done")
+
+		if err := fixPostgresNullValues(ctx); err != nil {
+			if unitTest {
+				initDone <- err
+				return
+			}
+			// not a fatal error, so just log it
+			log.SpanLog(ctx, log.DebugLevelApi, "fix postgres null values failed", "err", err)
+		}
 		break
 	}
 	go func() {
@@ -131,14 +182,8 @@ func InitData(ctx context.Context, superuser, superpass string, pingInterval tim
 	initDone <- nil
 }
 
-// Unfortunately the logger interface used by gorm does not
-// allow any context to be passed in, so each function that
-// calls into the DB must first convert it to a loggedDB.
 func loggedDB(ctx context.Context) *gorm.DB {
-	db := database.New() // clone
-	db.SetLogger(&gormlog.Logger{Ctx: ctx})
-	db.LogMode(true)
-	return db
+	return gormlog.LoggedDB(ctx, database)
 }
 
 const sqlEventsChannel = "events"
@@ -259,4 +304,181 @@ func sqlListenerWorkFunc(ctx context.Context, k interface{}) {
 			log.SpanLog(ctx, log.DebugLevelApi, "failed to refresh controller clients", "err", err)
 		}
 	}
+}
+
+// fixPostgresNullValues fixes columns that are added to existing tables,
+// which end up getting NULL values instead of empty values (0, "", false).
+// This causes show filtering on those values to fail, because the filter
+// query is looking for 0, but the value is NULL.
+func fixPostgresNullValues(ctx context.Context) error {
+	log.SpanLog(ctx, log.DebugLevelInfo, "fix postgres null values")
+	db := loggedDB(ctx)
+	// refresh null_frac stats
+	err := db.Exec("ANALYZE").Error
+	if err != nil {
+		return err
+	}
+	// here, null_frac is the fractional amount of the column's
+	// rows that have null values
+	cmd := "SELECT tablename, attname, null_frac FROM pg_stats WHERE schemaname='public' AND null_frac > 0"
+	res := db.Raw(cmd)
+	if res.Error != nil {
+		return res.Error
+	}
+	rows, err := res.Rows()
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var colTypes map[postgresTableCol]string
+
+	for rows.Next() {
+		var tableName, colName string
+		var nullFrac float64
+		err = rows.Scan(&tableName, &colName, &nullFrac)
+		if err != nil {
+			return err
+		}
+		log.SpanLog(ctx, log.DebugLevelInfo, "fixing column null values", "table", tableName, "column", colName, "nullFrac", nullFrac)
+		if tableName == "" || colName == "" {
+			continue
+		}
+		if colTypes == nil {
+			colTypes, err = getPostgresColumnTypes(ctx)
+			if err != nil {
+				return err
+			}
+		}
+		tableCol := postgresTableCol{
+			table: tableName,
+			col:   colName,
+		}
+		dataType, ok := colTypes[tableCol]
+		if !ok {
+			return fmt.Errorf("column type for %s %s not found", tableName, colName)
+		}
+		emptyVal, err := getPostgresEmptyVal(dataType)
+		if err != nil {
+			return fmt.Errorf("get empty val for %s %s failed, %s", tableName, colName, err)
+		}
+		cmd := fmt.Sprintf("UPDATE %s SET %s = %s WHERE %s IS NULL", tableName, colName, emptyVal, colName)
+		err = db.Exec(cmd).Error
+		if err != nil {
+			return fmt.Errorf("run cmd %q failed, %s", cmd, err)
+		}
+	}
+	return nil
+}
+
+type postgresTableCol struct {
+	table string
+	col   string
+}
+
+func getPostgresColumnTypes(ctx context.Context) (map[postgresTableCol]string, error) {
+	db := loggedDB(ctx)
+	cmd := "SELECT table_name, column_name, data_type FROM information_schema.columns WHERE table_schema='public'"
+	res := db.Raw(cmd)
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	rows, err := res.Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	colTypes := map[postgresTableCol]string{}
+
+	for rows.Next() {
+		var tableName, colName, dataType string
+		err = rows.Scan(&tableName, &colName, &dataType)
+		if err != nil {
+			return nil, err
+		}
+		if tableName == "" || colName == "" || dataType == "" {
+			continue
+		}
+		tableCol := postgresTableCol{
+			table: tableName,
+			col:   colName,
+		}
+		colTypes[tableCol] = dataType
+
+	}
+	return colTypes, nil
+}
+
+var postgresNumericTypes = []string{"bigint", "int8", "bigserial", "serial8",
+	"double precision", "float8", "integer", "int", "int4",
+	"numeric", "decimal", "real", "float4", "smallint", "int2",
+	"smallserial", "serial2", "serial", "serial4", "money"}
+var postgresStringTypes = []string{"bit", "bit varying", "varbit", "char",
+	"varchar", "json", "text", "citext"}
+
+func getPostgresEmptyVal(dataType string) (string, error) {
+	if strings.HasPrefix(dataType, "boolean") {
+		return `'false'`, nil
+	}
+	if strings.HasPrefix(dataType, "timestamp") {
+		return "'epoch'", nil
+	}
+	for _, t := range postgresNumericTypes {
+		if strings.HasPrefix(dataType, t) {
+			return `0`, nil
+		}
+	}
+	for _, t := range postgresStringTypes {
+		if strings.HasPrefix(dataType, t) {
+			return `''`, nil
+		}
+	}
+	return "", fmt.Errorf("unrecognized type %s", dataType)
+}
+
+// custom upgrades that can't be done via AutoMigrate
+func upgradeCustom(ctx context.Context, db *gorm.DB) error {
+	// add unique not null DnsRegion column to controllers
+	cmd := `ALTER TABLE IF EXISTS "controllers" ADD IF NOT EXISTS "dns_region" text NOT NULL DEFAULT ''`
+	res := db.Exec(cmd)
+	if res.Error != nil {
+		return res.Error
+	}
+
+	// change value to unique, desired values
+	ctrls := []ormapi.Controller{}
+	err := db.Find(&ctrls).Error
+	updateControllers := true
+	if err != nil && strings.Contains(err.Error(), `relation "controllers" does not exist`) {
+		err = nil
+		updateControllers = false
+	}
+	if err != nil {
+		return err
+	}
+	if updateControllers {
+		dnsRegions := make(map[string]*ormapi.Controller)
+
+		for _, ctrl := range ctrls {
+			if ctrl.DnsRegion == "" {
+				ctrl.DnsRegion = util.DNSSanitize(ctrl.Region)
+				if conflict, found := dnsRegions[ctrl.DnsRegion]; found {
+					return fmt.Errorf("dns region name conflict, regions %s and %s both dns sanitizes to %s, please fix region names", conflict.Region, ctrl.Region, ctrl.DnsRegion)
+				}
+				cmd := fmt.Sprintf(`UPDATE "controllers" SET "dns_region" = '%s' WHERE "region" = '%s'`, ctrl.DnsRegion, ctrl.Region)
+				res := db.Exec(cmd)
+				if res.Error != nil {
+					return res.Error
+				}
+			}
+			dnsRegions[ctrl.DnsRegion] = &ctrl
+		}
+		// add unique constraint
+		cmd = `ALTER TABLE IF EXISTS "controllers" ADD UNIQUE ("dns_region")`
+		res = db.Exec(cmd)
+		if res.Error != nil {
+			return res.Error
+		}
+	}
+	return nil
 }

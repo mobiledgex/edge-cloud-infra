@@ -4,18 +4,18 @@
 package orm
 
 import (
-	"context"
 	fmt "fmt"
 	_ "github.com/gogo/googleapis/google/api"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"io"
 	math "math"
 )
 
@@ -27,97 +27,43 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func ShowAlert(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionAlert{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
-	err = ShowAlertStream(ctx, rc, &in.Alert, func(res *edgeproto.Alert) error {
+	obj := &in.Alert
+	var authz ctrlclient.ShowAlertAuthz
+	if !rc.SkipAuthz {
+		authz, err = newShowAlertAuthz(ctx, rc.Region, rc.Username, ResourceAlert, ActionView)
+		if err != nil {
+			return err
+		}
+	}
+
+	cb := func(res *edgeproto.Alert) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
-	})
+	}
+	err = ctrlclient.ShowAlertStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-type ShowAlertAuthz interface {
-	Ok(obj *edgeproto.Alert) (bool, bool)
-	Filter(obj *edgeproto.Alert)
-}
-
-func ShowAlertStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert, cb func(res *edgeproto.Alert) error) error {
-	var authz ShowAlertAuthz
-	var err error
-	if !rc.skipAuthz {
-		authz, err = newShowAlertAuthz(ctx, rc.region, rc.username, ResourceAlert, ActionView)
-		if err != nil {
-			return err
-		}
-	}
-	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
-	}
-	api := edgeproto.NewAlertApiClient(rc.conn)
-	stream, err := api.ShowAlert(ctx, obj)
-	if err != nil {
-		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		if !rc.skipAuthz {
-			authzOk, filterOutput := authz.Ok(res)
-			if !authzOk {
-				continue
-			}
-			if filterOutput {
-				authz.Filter(res)
-			}
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func ShowAlertObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Alert) ([]edgeproto.Alert, error) {
-	arr := []edgeproto.Alert{}
-	err := ShowAlertStream(ctx, rc, obj, func(res *edgeproto.Alert) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
 }
 
 func addControllerApis(method string, group *echo.Group) {
@@ -131,12 +77,74 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAlert", ShowAlert)
+	// swagger:route POST /auth/ctrl/CreateAlertPolicy AlertPolicy CreateAlertPolicy
+	// Create an Alert Policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateAlertPolicy", CreateAlertPolicy)
+	// swagger:route POST /auth/ctrl/DeleteAlertPolicy AlertPolicy DeleteAlertPolicy
+	// Delete an Alert Policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteAlertPolicy", DeleteAlertPolicy)
+	// swagger:route POST /auth/ctrl/UpdateAlertPolicy AlertPolicy UpdateAlertPolicy
+	// Update an Alert Policy.
+	// The following values should be added to `AlertPolicy.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// CpuUtilizationLimit: 3
+	// MemUtilizationLimit: 4
+	// DiskUtilizationLimit: 5
+	// ActiveConnLimit: 6
+	// Severity: 7
+	// TriggerTime: 8
+	// Labels: 9
+	// LabelsKey: 9.1
+	// LabelsValue: 9.2
+	// Annotations: 10
+	// AnnotationsKey: 10.1
+	// AnnotationsValue: 10.2
+	// Description: 11
+	// DeletePrepare: 12
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateAlertPolicy", UpdateAlertPolicy)
+	// swagger:route POST /auth/ctrl/ShowAlertPolicy AlertPolicy ShowAlertPolicy
+	// Show Alert Policies.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowAlertPolicy", ShowAlertPolicy)
 	// swagger:route POST /auth/ctrl/UpdateSettings Settings UpdateSettings
 	// Update settings.
 	// The following values should be added to `Settings.fields` field array to specify which fields will be updated.
 	// ```
 	// ShepherdMetricsCollectionInterval: 2
 	// ShepherdAlertEvaluationInterval: 20
+	// ShepherdMetricsScrapeInterval: 40
 	// ShepherdHealthCheckRetries: 3
 	// ShepherdHealthCheckInterval: 4
 	// AutoDeployIntervalSec: 5
@@ -164,12 +172,18 @@ func addControllerApis(method string, group *echo.Group) {
 	// LocationTileSideLengthKm: 29
 	// EdgeEventsMetricsContinuousQueriesCollectionIntervals: 30
 	// EdgeEventsMetricsContinuousQueriesCollectionIntervalsInterval: 30.1
+	// EdgeEventsMetricsContinuousQueriesCollectionIntervalsRetention: 30.2
 	// InfluxDbDownsampledMetricsRetention: 31
 	// InfluxDbEdgeEventsMetricsRetention: 32
 	// AppinstClientCleanupInterval: 33
 	// ClusterAutoScaleAveragingDurationSec: 34
 	// ClusterAutoScaleRetryDelay: 35
-	// UserDefinedAlertMinTriggerTime: 36
+	// AlertPolicyMinTriggerTime: 36
+	// DisableRateLimit: 37
+	// RateLimitMaxTrackedIps: 39
+	// ResourceSnapshotThreadInterval: 41
+	// PlatformHaInstancePollInterval: 42
+	// PlatformHaInstanceActiveExpireTime: 43
 	// ```
 	// Security:
 	//   Bearer:
@@ -231,6 +245,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// OptResMap: 6
 	// OptResMapKey: 6.1
 	// OptResMapValue: 6.2
+	// DeletePrepare: 7
 	// ```
 	// Security:
 	//   Bearer:
@@ -334,6 +349,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// TagsKey: 3.1
 	// TagsValue: 3.2
 	// Azone: 4
+	// DeletePrepare: 5
 	// ```
 	// Security:
 	//   Bearer:
@@ -383,6 +399,116 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GetResTagTable", GetResTagTable)
+	// swagger:route POST /auth/ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
+	// Create an Auto Scale Policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateAutoScalePolicy", CreateAutoScalePolicy)
+	// swagger:route POST /auth/ctrl/DeleteAutoScalePolicy AutoScalePolicy DeleteAutoScalePolicy
+	// Delete an Auto Scale Policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteAutoScalePolicy", DeleteAutoScalePolicy)
+	// swagger:route POST /auth/ctrl/UpdateAutoScalePolicy AutoScalePolicy UpdateAutoScalePolicy
+	// Update an Auto Scale Policy.
+	// The following values should be added to `AutoScalePolicy.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// MinNodes: 3
+	// MaxNodes: 4
+	// ScaleUpCpuThresh: 5
+	// ScaleDownCpuThresh: 6
+	// TriggerTimeSec: 7
+	// StabilizationWindowSec: 8
+	// TargetCpu: 9
+	// TargetMem: 10
+	// TargetActiveConnections: 11
+	// DeletePrepare: 12
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateAutoScalePolicy", UpdateAutoScalePolicy)
+	// swagger:route POST /auth/ctrl/ShowAutoScalePolicy AutoScalePolicy ShowAutoScalePolicy
+	// Show Auto Scale Policies.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowAutoScalePolicy", ShowAutoScalePolicy)
+	// swagger:route POST /auth/ctrl/CreateTrustPolicy TrustPolicy CreateTrustPolicy
+	// Create a Trust Policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateTrustPolicy", CreateTrustPolicy)
+	// swagger:route POST /auth/ctrl/DeleteTrustPolicy TrustPolicy DeleteTrustPolicy
+	// Delete a Trust policy.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteTrustPolicy", DeleteTrustPolicy)
+	// swagger:route POST /auth/ctrl/UpdateTrustPolicy TrustPolicy UpdateTrustPolicy
+	// Update a Trust policy.
+	// The following values should be added to `TrustPolicy.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyOrganization: 2.1
+	// KeyName: 2.2
+	// OutboundSecurityRules: 3
+	// OutboundSecurityRulesProtocol: 3.1
+	// OutboundSecurityRulesPortRangeMin: 3.2
+	// OutboundSecurityRulesPortRangeMax: 3.3
+	// OutboundSecurityRulesRemoteCidr: 3.4
+	// DeletePrepare: 4
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateTrustPolicy", UpdateTrustPolicy)
+	// swagger:route POST /auth/ctrl/ShowTrustPolicy TrustPolicy ShowTrustPolicy
+	// Show Trust Policies.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowTrustPolicy", ShowTrustPolicy)
 	// swagger:route POST /auth/ctrl/CreateApp App CreateApp
 	// Create Application.
 	//  Creates a definition for an application instance for Cloudlet deployment.
@@ -450,15 +576,20 @@ func addControllerApis(method string, group *echo.Group) {
 	// Trusted: 37
 	// RequiredOutboundConnections: 38
 	// RequiredOutboundConnectionsProtocol: 38.1
-	// RequiredOutboundConnectionsPort: 38.2
-	// RequiredOutboundConnectionsRemoteIp: 38.4
+	// RequiredOutboundConnectionsPortRangeMin: 38.2
+	// RequiredOutboundConnectionsPortRangeMax: 38.3
+	// RequiredOutboundConnectionsRemoteCidr: 38.4
 	// AllowServerless: 39
 	// ServerlessConfig: 40
 	// ServerlessConfigVcpus: 40.1
+	// ServerlessConfigVcpusWhole: 40.1.1
+	// ServerlessConfigVcpusNanos: 40.1.2
 	// ServerlessConfigRam: 40.2
 	// ServerlessConfigMinReplicas: 40.3
 	// VmAppOsType: 41
-	// UserDefinedAlerts: 42
+	// AlertPolicies: 42
+	// QosSessionProfile: 43
+	// QosSessionDuration: 44
 	// ```
 	// Security:
 	//   Bearer:
@@ -499,8 +630,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAppAutoProvPolicy", RemoveAppAutoProvPolicy)
-	// swagger:route POST /auth/ctrl/AddAppUserDefinedAlert AppUserDefinedAlert AddAppUserDefinedAlert
-	// Add an UserAlert to the App.
+	// swagger:route POST /auth/ctrl/AddAppAlertPolicy AppAlertPolicy AddAppAlertPolicy
+	// Add an AlertPolicy to the App.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -508,9 +639,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/AddAppUserDefinedAlert", AddAppUserDefinedAlert)
-	// swagger:route POST /auth/ctrl/RemoveAppUserDefinedAlert AppUserDefinedAlert RemoveAppUserDefinedAlert
-	// Remove an UserAlert from the App.
+	group.Match([]string{method}, "/ctrl/AddAppAlertPolicy", AddAppAlertPolicy)
+	// swagger:route POST /auth/ctrl/RemoveAppAlertPolicy AppAlertPolicy RemoveAppAlertPolicy
+	// Remove an AlertPolicy from the App.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -518,7 +649,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/RemoveAppUserDefinedAlert", RemoveAppUserDefinedAlert)
+	group.Match([]string{method}, "/ctrl/RemoveAppAlertPolicy", RemoveAppAlertPolicy)
 	// swagger:route POST /auth/ctrl/ShowCloudletsForAppDeployment DeploymentCloudletRequest ShowCloudletsForAppDeployment
 	// Discover cloudlets supporting deployments of App.
 	// DefaultFlavor
@@ -575,6 +706,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// PropertiesValue: 6.2
 	// State: 7
 	// IgnoreState: 8
+	// DeletePrepare: 9
 	// ```
 	// Security:
 	//   Bearer:
@@ -658,6 +790,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// Key: 2
 	// KeyOrganization: 2.1
 	// KeyName: 2.2
+	// KeyFederatedOrganization: 2.3
 	// Location: 5
 	// LocationLatitude: 5.1
 	// LocationLongitude: 5.2
@@ -680,13 +813,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// TimeLimitsUpdateAppInstTimeout: 9.5
 	// TimeLimitsDeleteAppInstTimeout: 9.6
 	// Errors: 10
-	// Status: 11
-	// StatusTaskNumber: 11.1
-	// StatusMaxTasks: 11.2
-	// StatusTaskName: 11.3
-	// StatusStepName: 11.4
-	// StatusMsgCount: 11.5
-	// StatusMsgs: 11.6
 	// State: 12
 	// CrmOverride: 13
 	// DeploymentLocal: 14
@@ -723,6 +849,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigCrmAccessPrivateKey: 21.22
 	// ConfigAccessApiAddr: 21.23
 	// ConfigCacheDir: 21.24
+	// ConfigSecondaryCrmAccessPrivateKey: 21.25
+	// ConfigThanosRecvAddr: 21.26
 	// ResTagMap: 22
 	// ResTagMapKey: 22.1
 	// ResTagMapValue: 22.2
@@ -769,7 +897,24 @@ func addControllerApis(method string, group *echo.Group) {
 	// GpuConfigProperties: 45.2
 	// GpuConfigPropertiesKey: 45.2.1
 	// GpuConfigPropertiesValue: 45.2.2
+	// GpuConfigLicenseConfig: 45.3
+	// GpuConfigLicenseConfigMd5Sum: 45.4
 	// EnableDefaultServerlessCluster: 46
+	// AllianceOrgs: 47
+	// SingleKubernetesClusterOwner: 48
+	// DeletePrepare: 49
+	// PlatformHighAvailability: 50
+	// SecondaryCrmAccessPublicKey: 51
+	// SecondaryCrmAccessKeyUpgradeRequired: 52
+	// SecondaryNotifySrvAddr: 53
+	// DnsLabel: 54
+	// RootLbFqdn: 55
+	// FederationConfig: 56
+	// FederationConfigFederationName: 56.1
+	// FederationConfigSelfFederationId: 56.2
+	// FederationConfigPartnerFederationId: 56.3
+	// FederationConfigZoneCountryCode: 56.4
+	// FederationConfigPartnerFederationAddr: 56.5
 	// ```
 	// Security:
 	//   Bearer:
@@ -845,7 +990,7 @@ func addControllerApis(method string, group *echo.Group) {
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/AddCloudletResMapping", AddCloudletResMapping)
 	// swagger:route POST /auth/ctrl/RemoveCloudletResMapping CloudletResMap RemoveCloudletResMapping
-	// Add Optional Resource tag table.
+	// Remove Optional Resource tag table.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -854,6 +999,26 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveCloudletResMapping", RemoveCloudletResMapping)
+	// swagger:route POST /auth/ctrl/AddCloudletAllianceOrg CloudletAllianceOrg AddCloudletAllianceOrg
+	// Add alliance organization to the cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AddCloudletAllianceOrg", AddCloudletAllianceOrg)
+	// swagger:route POST /auth/ctrl/RemoveCloudletAllianceOrg CloudletAllianceOrg RemoveCloudletAllianceOrg
+	// Remove alliance organization from the cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RemoveCloudletAllianceOrg", RemoveCloudletAllianceOrg)
 	// swagger:route POST /auth/ctrl/FindFlavorMatch FlavorMatch FindFlavorMatch
 	// Discover if flavor produces a matching platform flavor.
 	// Security:
@@ -874,6 +1039,16 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowFlavorsForCloudlet", ShowFlavorsForCloudlet)
+	// swagger:route POST /auth/ctrl/GetOrganizationsOnCloudlet CloudletKey GetOrganizationsOnCloudlet
+	// Get organizations of ClusterInsts and AppInsts on cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetOrganizationsOnCloudlet", GetOrganizationsOnCloudlet)
 	// swagger:route POST /auth/ctrl/RevokeAccessKey CloudletKey RevokeAccessKey
 	// Revoke crm access key.
 	// Security:
@@ -952,12 +1127,16 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyOrganization: 2.1
 	// KeyName: 2.2
 	// Cloudlets: 3
+	// CloudletsOrganization: 3.1
+	// CloudletsName: 3.2
+	// CloudletsFederatedOrganization: 3.3
 	// CreatedAt: 4
 	// CreatedAtSeconds: 4.1
 	// CreatedAtNanos: 4.2
 	// UpdatedAt: 5
 	// UpdatedAtSeconds: 5.1
 	// UpdatedAtNanos: 5.2
+	// DeletePrepare: 6
 	// ```
 	// Security:
 	//   Bearer:
@@ -1048,14 +1227,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// VmsFlavorPropMapValue: 3.7.5.2
 	// State: 4
 	// Errors: 5
-	// Status: 6
-	// StatusTaskNumber: 6.1
-	// StatusMaxTasks: 6.2
-	// StatusTaskName: 6.3
-	// StatusStepName: 6.4
-	// StatusMsgCount: 6.5
-	// StatusMsgs: 6.6
 	// CrmOverride: 7
+	// DeletePrepare: 8
 	// ```
 	// Security:
 	//   Bearer:
@@ -1098,62 +1271,6 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveVMPoolMember", RemoveVMPoolMember)
-	// swagger:route POST /auth/ctrl/CreateAutoScalePolicy AutoScalePolicy CreateAutoScalePolicy
-	// Create an Auto Scale Policy.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateAutoScalePolicy", CreateAutoScalePolicy)
-	// swagger:route POST /auth/ctrl/DeleteAutoScalePolicy AutoScalePolicy DeleteAutoScalePolicy
-	// Delete an Auto Scale Policy.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteAutoScalePolicy", DeleteAutoScalePolicy)
-	// swagger:route POST /auth/ctrl/UpdateAutoScalePolicy AutoScalePolicy UpdateAutoScalePolicy
-	// Update an Auto Scale Policy.
-	// The following values should be added to `AutoScalePolicy.fields` field array to specify which fields will be updated.
-	// ```
-	// Key: 2
-	// KeyOrganization: 2.1
-	// KeyName: 2.2
-	// MinNodes: 3
-	// MaxNodes: 4
-	// ScaleUpCpuThresh: 5
-	// ScaleDownCpuThresh: 6
-	// TriggerTimeSec: 7
-	// StabilizationWindowSec: 8
-	// TargetCpu: 9
-	// TargetMem: 10
-	// TargetActiveConnections: 11
-	// ```
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateAutoScalePolicy", UpdateAutoScalePolicy)
-	// swagger:route POST /auth/ctrl/ShowAutoScalePolicy AutoScalePolicy ShowAutoScalePolicy
-	// Show Auto Scale Policies.
-	//  Any fields specified will be used to filter results.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowAutoScalePolicy", ShowAutoScalePolicy)
 	// swagger:route POST /auth/ctrl/CreateClusterInst ClusterInst CreateClusterInst
 	// Create Cluster Instance.
 	//  Creates an instance of a Cluster on a Cloudlet, defined by a Cluster Key and a Cloudlet Key. ClusterInst is a collection of compute resources on a Cloudlet on which AppInsts are deployed.
@@ -1187,6 +1304,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyCloudletKey: 2.2
 	// KeyCloudletKeyOrganization: 2.2.1
 	// KeyCloudletKeyName: 2.2.2
+	// KeyCloudletKeyFederatedOrganization: 2.2.3
 	// KeyOrganization: 2.3
 	// Flavor: 3
 	// FlavorName: 3.1
@@ -1201,13 +1319,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// Deployment: 15
 	// NumMasters: 13
 	// NumNodes: 14
-	// Status: 16
-	// StatusTaskNumber: 16.1
-	// StatusMaxTasks: 16.2
-	// StatusTaskName: 16.3
-	// StatusStepName: 16.4
-	// StatusMsgCount: 16.5
-	// StatusMsgs: 16.6
 	// ExternalVolumeSize: 17
 	// AutoScalePolicy: 18
 	// AvailabilityZone: 19
@@ -1243,6 +1354,10 @@ func addControllerApis(method string, group *echo.Group) {
 	// ReservationEndedAtSeconds: 31.1
 	// ReservationEndedAtNanos: 31.2
 	// MultiTenant: 32
+	// Networks: 33
+	// DeletePrepare: 34
+	// DnsLabel: 35
+	// Fqdn: 36
 	// ```
 	// Security:
 	//   Bearer:
@@ -1307,6 +1422,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// CloudletsKey: 5.1
 	// CloudletsKeyOrganization: 5.1.1
 	// CloudletsKeyName: 5.1.2
+	// CloudletsKeyFederatedOrganization: 5.1.3
 	// CloudletsLoc: 5.2
 	// CloudletsLocLatitude: 5.2.1
 	// CloudletsLocLongitude: 5.2.2
@@ -1322,6 +1438,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// MaxInstances: 7
 	// UndeployClientCount: 8
 	// UndeployIntervalCount: 9
+	// DeletePrepare: 10
 	// ```
 	// Security:
 	//   Bearer:
@@ -1362,8 +1479,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/RemoveAutoProvPolicyCloudlet", RemoveAutoProvPolicyCloudlet)
-	// swagger:route POST /auth/ctrl/CreateTrustPolicy TrustPolicy CreateTrustPolicy
-	// Create a Trust Policy.
+	// swagger:route POST /auth/ctrl/CreateTrustPolicyException TrustPolicyException CreateTrustPolicyException
+	// Create a Trust Policy Exception, by App Developer Organization.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1371,29 +1488,26 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateTrustPolicy", CreateTrustPolicy)
-	// swagger:route POST /auth/ctrl/DeleteTrustPolicy TrustPolicy DeleteTrustPolicy
-	// Delete a Trust policy.
-	// Security:
-	//   Bearer:
-	// responses:
-	//   200: success
-	//   400: badRequest
-	//   403: forbidden
-	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteTrustPolicy", DeleteTrustPolicy)
-	// swagger:route POST /auth/ctrl/UpdateTrustPolicy TrustPolicy UpdateTrustPolicy
-	// Update a Trust policy.
-	// The following values should be added to `TrustPolicy.fields` field array to specify which fields will be updated.
+	group.Match([]string{method}, "/ctrl/CreateTrustPolicyException", CreateTrustPolicyException)
+	// swagger:route POST /auth/ctrl/UpdateTrustPolicyException TrustPolicyException UpdateTrustPolicyException
+	// Update a Trust Policy Exception, by Operator Organization.
+	// The following values should be added to `TrustPolicyException.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
-	// KeyOrganization: 2.1
-	// KeyName: 2.2
-	// OutboundSecurityRules: 3
-	// OutboundSecurityRulesProtocol: 3.1
-	// OutboundSecurityRulesPortRangeMin: 3.2
-	// OutboundSecurityRulesPortRangeMax: 3.3
-	// OutboundSecurityRulesRemoteCidr: 3.4
+	// KeyAppKey: 2.1
+	// KeyAppKeyOrganization: 2.1.1
+	// KeyAppKeyName: 2.1.2
+	// KeyAppKeyVersion: 2.1.3
+	// KeyCloudletPoolKey: 2.2
+	// KeyCloudletPoolKeyOrganization: 2.2.1
+	// KeyCloudletPoolKeyName: 2.2.2
+	// KeyName: 2.3
+	// State: 3
+	// OutboundSecurityRules: 4
+	// OutboundSecurityRulesProtocol: 4.1
+	// OutboundSecurityRulesPortRangeMin: 4.2
+	// OutboundSecurityRulesPortRangeMax: 4.3
+	// OutboundSecurityRulesRemoteCidr: 4.4
 	// ```
 	// Security:
 	//   Bearer:
@@ -1402,9 +1516,19 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateTrustPolicy", UpdateTrustPolicy)
-	// swagger:route POST /auth/ctrl/ShowTrustPolicy TrustPolicy ShowTrustPolicy
-	// Show Trust Policies.
+	group.Match([]string{method}, "/ctrl/UpdateTrustPolicyException", UpdateTrustPolicyException)
+	// swagger:route POST /auth/ctrl/DeleteTrustPolicyException TrustPolicyException DeleteTrustPolicyException
+	// Delete a Trust Policy Exception, by App Developer Organization.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteTrustPolicyException", DeleteTrustPolicyException)
+	// swagger:route POST /auth/ctrl/ShowTrustPolicyException TrustPolicyException ShowTrustPolicyException
+	// Show Trust Policy Exceptions.
 	//  Any fields specified will be used to filter results.
 	// Security:
 	//   Bearer:
@@ -1413,7 +1537,62 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowTrustPolicy", ShowTrustPolicy)
+	group.Match([]string{method}, "/ctrl/ShowTrustPolicyException", ShowTrustPolicyException)
+	// swagger:route POST /auth/ctrl/CreateNetwork Network CreateNetwork
+	// Create a Network.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateNetwork", CreateNetwork)
+	// swagger:route POST /auth/ctrl/DeleteNetwork Network DeleteNetwork
+	// Delete a Network.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteNetwork", DeleteNetwork)
+	// swagger:route POST /auth/ctrl/UpdateNetwork Network UpdateNetwork
+	// Update a Network.
+	// The following values should be added to `Network.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyCloudletKey: 2.1
+	// KeyCloudletKeyOrganization: 2.1.1
+	// KeyCloudletKeyName: 2.1.2
+	// KeyCloudletKeyFederatedOrganization: 2.1.3
+	// KeyName: 2.2
+	// Routes: 3
+	// RoutesDestinationCidr: 3.1
+	// RoutesNextHopIp: 3.2
+	// ConnectionType: 4
+	// DeletePrepare: 5
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateNetwork", UpdateNetwork)
+	// swagger:route POST /auth/ctrl/ShowNetwork Network ShowNetwork
+	// Show Networks.
+	//  Any fields specified will be used to filter results.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowNetwork", ShowNetwork)
 	// swagger:route POST /auth/ctrl/CreateAppInst AppInst CreateAppInst
 	// Create Application Instance.
 	//  Creates an instance of an App on a Cloudlet where it is defined by an App plus a ClusterInst key. Many of the fields here are inherited from the App definition.
@@ -1463,6 +1642,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// KeyClusterInstKeyCloudletKey: 2.4.2
 	// KeyClusterInstKeyCloudletKeyOrganization: 2.4.2.1
 	// KeyClusterInstKeyCloudletKeyName: 2.4.2.2
+	// KeyClusterInstKeyCloudletKeyFederatedOrganization: 2.4.2.3
 	// KeyClusterInstKeyOrganization: 2.4.3
 	// CloudletLoc: 3
 	// CloudletLocLatitude: 3.1
@@ -1485,6 +1665,7 @@ func addControllerApis(method string, group *echo.Group) {
 	// MappedPortsEndPort: 9.6
 	// MappedPortsTls: 9.7
 	// MappedPortsNginx: 9.8
+	// MappedPortsMaxPktSize: 9.9
 	// Flavor: 12
 	// FlavorName: 12.1
 	// State: 14
@@ -1496,13 +1677,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// CreatedAtSeconds: 21.1
 	// CreatedAtNanos: 21.2
 	// AutoClusterIpAccess: 22
-	// Status: 23
-	// StatusTaskNumber: 23.1
-	// StatusMaxTasks: 23.2
-	// StatusTaskName: 23.3
-	// StatusStepName: 23.4
-	// StatusMsgCount: 23.5
-	// StatusMsgs: 23.6
 	// Revision: 24
 	// ForceUpdate: 25
 	// UpdateMultiple: 26
@@ -1510,7 +1684,6 @@ func addControllerApis(method string, group *echo.Group) {
 	// ConfigsKind: 27.1
 	// ConfigsConfig: 27.2
 	// HealthCheck: 29
-	// PrivacyPolicy: 30
 	// PowerState: 31
 	// ExternalVolumeSize: 32
 	// AvailabilityZone: 33
@@ -1520,6 +1693,12 @@ func addControllerApis(method string, group *echo.Group) {
 	// UpdatedAtSeconds: 36.1
 	// UpdatedAtNanos: 36.2
 	// RealClusterName: 37
+	// InternalPortToLbIp: 38
+	// InternalPortToLbIpKey: 38.1
+	// InternalPortToLbIpValue: 38.2
+	// DedicatedIp: 39
+	// UniqueId: 40
+	// DnsLabel: 41
 	// ```
 	// Security:
 	//   Bearer:
@@ -1580,8 +1759,8 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/ShowAppInstRefs", ShowAppInstRefs)
-	// swagger:route POST /auth/ctrl/CreateUserAlert UserAlert CreateUserAlert
-	// Create a User Defined Alert.
+	// swagger:route POST /auth/ctrl/ShowRateLimitSettings RateLimitSettings ShowRateLimitSettings
+	// Show RateLimit settings for an API endpoint and target.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1589,9 +1768,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/CreateUserAlert", CreateUserAlert)
-	// swagger:route POST /auth/ctrl/DeleteUserAlert UserAlert DeleteUserAlert
-	// Delete a User Defined Alert.
+	group.Match([]string{method}, "/ctrl/ShowRateLimitSettings", ShowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/CreateFlowRateLimitSettings FlowRateLimitSettings CreateFlowRateLimitSettings
+	// Create Flow RateLimit settings for an API endpoint and target.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1599,26 +1778,21 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/DeleteUserAlert", DeleteUserAlert)
-	// swagger:route POST /auth/ctrl/UpdateUserAlert UserAlert UpdateUserAlert
-	// Update a User Defined Alert.
-	// The following values should be added to `UserAlert.fields` field array to specify which fields will be updated.
+	group.Match([]string{method}, "/ctrl/CreateFlowRateLimitSettings", CreateFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/UpdateFlowRateLimitSettings FlowRateLimitSettings UpdateFlowRateLimitSettings
+	// Update Flow RateLimit settings for an API endpoint and target.
+	// The following values should be added to `FlowRateLimitSettings.fields` field array to specify which fields will be updated.
 	// ```
 	// Key: 2
-	// KeyOrganization: 2.1
-	// KeyName: 2.2
-	// CpuUtilizationLimit: 3
-	// MemUtilizationLimit: 4
-	// DiskUtilizationLimit: 5
-	// ActiveConnLimit: 6
-	// Severity: 7
-	// TriggerTime: 8
-	// Labels: 9
-	// LabelsKey: 9.1
-	// LabelsValue: 9.2
-	// Annotations: 10
-	// AnnotationsKey: 10.1
-	// AnnotationsValue: 10.2
+	// KeyFlowSettingsName: 2.1
+	// KeyRateLimitKey: 2.2
+	// KeyRateLimitKeyApiName: 2.2.1
+	// KeyRateLimitKeyApiEndpointType: 2.2.2
+	// KeyRateLimitKeyRateLimitTarget: 2.2.3
+	// Settings: 3
+	// SettingsFlowAlgorithm: 3.1
+	// SettingsReqsPerSecond: 3.2
+	// SettingsBurstSize: 3.3
 	// ```
 	// Security:
 	//   Bearer:
@@ -1627,10 +1801,9 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/UpdateUserAlert", UpdateUserAlert)
-	// swagger:route POST /auth/ctrl/ShowUserAlert UserAlert ShowUserAlert
-	// Show User Defined Alerts.
-	//  Any fields specified will be used to filter results.
+	group.Match([]string{method}, "/ctrl/UpdateFlowRateLimitSettings", UpdateFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/DeleteFlowRateLimitSettings FlowRateLimitSettings DeleteFlowRateLimitSettings
+	// Delete Flow RateLimit settings for an API endpoint and target.
 	// Security:
 	//   Bearer:
 	// responses:
@@ -1638,7 +1811,70 @@ func addControllerApis(method string, group *echo.Group) {
 	//   400: badRequest
 	//   403: forbidden
 	//   404: notFound
-	group.Match([]string{method}, "/ctrl/ShowUserAlert", ShowUserAlert)
+	group.Match([]string{method}, "/ctrl/DeleteFlowRateLimitSettings", DeleteFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/ShowFlowRateLimitSettings FlowRateLimitSettings ShowFlowRateLimitSettings
+	// Show Flow RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowFlowRateLimitSettings", ShowFlowRateLimitSettings)
+	// swagger:route POST /auth/ctrl/CreateMaxReqsRateLimitSettings MaxReqsRateLimitSettings CreateMaxReqsRateLimitSettings
+	// Create MaxReqs RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/CreateMaxReqsRateLimitSettings", CreateMaxReqsRateLimitSettings)
+	// swagger:route POST /auth/ctrl/UpdateMaxReqsRateLimitSettings MaxReqsRateLimitSettings UpdateMaxReqsRateLimitSettings
+	// Update MaxReqs RateLimit settings for an API endpoint and target.
+	// The following values should be added to `MaxReqsRateLimitSettings.fields` field array to specify which fields will be updated.
+	// ```
+	// Key: 2
+	// KeyMaxReqsSettingsName: 2.1
+	// KeyRateLimitKey: 2.2
+	// KeyRateLimitKeyApiName: 2.2.1
+	// KeyRateLimitKeyApiEndpointType: 2.2.2
+	// KeyRateLimitKeyRateLimitTarget: 2.2.3
+	// Settings: 3
+	// SettingsMaxReqsAlgorithm: 3.1
+	// SettingsMaxRequests: 3.2
+	// SettingsInterval: 3.3
+	// ```
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/UpdateMaxReqsRateLimitSettings", UpdateMaxReqsRateLimitSettings)
+	// swagger:route POST /auth/ctrl/DeleteMaxReqsRateLimitSettings MaxReqsRateLimitSettings DeleteMaxReqsRateLimitSettings
+	// Delete MaxReqs RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/DeleteMaxReqsRateLimitSettings", DeleteMaxReqsRateLimitSettings)
+	// swagger:route POST /auth/ctrl/ShowMaxReqsRateLimitSettings MaxReqsRateLimitSettings ShowMaxReqsRateLimitSettings
+	// Show MaxReqs RateLimit settings for an API endpoint and target.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/ShowMaxReqsRateLimitSettings", ShowMaxReqsRateLimitSettings)
 	// swagger:route POST /auth/ctrl/ShowAppInstClient AppInstClientKey ShowAppInstClient
 	// Show application instance clients.
 	//

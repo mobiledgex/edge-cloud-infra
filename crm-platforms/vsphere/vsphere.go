@@ -10,7 +10,6 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -45,7 +44,7 @@ func (v *VSpherePlatform) InitData(ctx context.Context, caches *platform.Caches)
 func (v *VSpherePlatform) InitProvider(ctx context.Context, caches *platform.Caches, stage vmlayer.ProviderInitStage, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider for VSphere", "stage", stage)
 	v.InitData(ctx, caches)
-	if stage == vmlayer.ProviderInitPlatformStartCrm {
+	if stage == vmlayer.ProviderInitPlatformStartCrmConditional {
 		v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr)
 	}
 	if stage != vmlayer.ProviderInitDeleteCloudlet {
@@ -114,15 +113,14 @@ func (v *VSpherePlatform) GetResourceID(ctx context.Context, resourceType vmlaye
 	return "", fmt.Errorf("GetResourceID not implemented for resource type: %s ", resourceType)
 }
 
-func (v *VSpherePlatform) VmAppChangedCallback(ctx context.Context) {
+func (v *VSpherePlatform) VmAppChangedCallback(ctx context.Context, appInst *edgeproto.AppInst, newState edgeproto.TrackedState) {
 }
 
-func (v *VSpherePlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
+func (v *VSpherePlatform) GetVMStats(ctx context.Context, appInst *edgeproto.AppInst) (*vmlayer.VMMetrics, error) {
 	log.DebugLog(log.DebugLevelSampled, "GetVMStats")
-	vmName := cloudcommon.GetAppFQN(&key.AppKey)
-	vmMetrics := vmlayer.VMMetrics{}
-
 	cr := MetricsCollectionRequestType{CollectNetworkStats: true, CollectCPUStats: true, CollectMemStats: true}
+	vmMetrics := vmlayer.VMMetrics{}
+	vmName := appInst.UniqueId
 	mets, err := v.GetMetrics(ctx, vmName, &cr)
 	if err != nil {
 		return &vmMetrics, err

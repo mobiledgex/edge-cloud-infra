@@ -18,4 +18,6 @@ tests:
   - includefile: verify_loc.yml
     loops: 2
   - includefile: fetchlogs.yml
+  - includefile: federationtest.yml
+  - includefile: qos_priority_sessions.yml
   - includefile: {{edge-cloud-testfiles}}/stop_cleanup.yml

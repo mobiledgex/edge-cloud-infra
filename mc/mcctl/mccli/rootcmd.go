@@ -60,7 +60,12 @@ func GetRootCommand() *RootCommand {
 		rc.getCmdGroup(ormctl.VMPoolGroup),
 		rc.getCmdGroup(ormctl.ReporterGroup),
 		rc.getCmdGroup(ormctl.GPUDriverGroup),
+		rc.getCmdGroup(ormctl.TrustPolicyExceptionGroup),
+		rc.getCmdGroup(ormctl.NetworkGroup),
 		rc.getReportCmdGroup(),
+		rc.getCmdGroup(ormctl.FederatorGroup),
+		rc.getCmdGroup(ormctl.FederatorZoneGroup),
+		rc.getCmdGroup(ormctl.FederationGroup),
 	}
 	developerCommands := []*cobra.Command{
 		rc.getDevCloudletShowCommand(),
@@ -73,9 +78,10 @@ func GetRootCommand() *RootCommand {
 		rc.getCmdGroup(ormctl.AppInstClientGroup),
 		rc.getCmdGroup(ormctl.AppInstRefsGroup),
 		rc.getCmdGroup(ormctl.AppInstLatencyGroup),
-		rc.getExecCmd("RunCommandCli"),
-		rc.getExecCmd("RunConsole"),
-		rc.getExecCmd("ShowLogsCli"),
+		rc.getCmdGroup(ormctl.TrustPolicyExceptionGroup),
+		rc.getExecCmd("RunCommandCli", cli.AddTtyFlags),
+		rc.getExecCmd("RunConsole", cli.NoFlags),
+		rc.getExecCmd("ShowLogsCli", cli.NoFlags),
 	}
 	adminCommands := []*cobra.Command{
 		rc.getCmdGroup(ormctl.ControllerGroup),
@@ -88,10 +94,12 @@ func GetRootCommand() *RootCommand {
 		rc.getCmdGroup(ormctl.DeviceGroup),
 		rc.getCmdGroup(ormctl.ClusterRefsGroup),
 		rc.getCmdGroup(ormctl.RepositoryGroup),
-		rc.getExecCmd("AccessCloudletCli"),
+		rc.getExecCmd("AccessCloudletCli", cli.AddTtyFlags),
 		rc.getCmdGroup(ormctl.SpansGroup),
 		rc.getCmd("RestrictedUpdateUser"),
 		rc.getCmd("RestrictedUpdateOrg"),
+		rc.getCmdGroup(ormctl.RateLimitSettingsGroup),
+		rc.getCmdGroup(ormctl.RateLimitSettingsMcGroup),
 	}
 	logsMetricsCommands := []*cobra.Command{
 		rc.getCmdGroup(ormctl.MetricsGroup),
@@ -99,7 +107,7 @@ func GetRootCommand() *RootCommand {
 		rc.getCmdGroup(ormctl.EventsGroup),
 		rc.getCmdGroup(ormctl.UsageGroup),
 		rc.getCmdGroup(ormctl.AlertReceiverGroup),
-		rc.getCmdGroup(ormctl.UserAlertGroup),
+		rc.getCmdGroup(ormctl.AlertPolicyGroup),
 	}
 	otherCommands := []*cobra.Command{
 		GetVersionCmd(),

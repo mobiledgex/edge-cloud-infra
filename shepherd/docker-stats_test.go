@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -67,9 +68,9 @@ var testNetData = `  ens3: 448842077 3084030    0    0    0     0          0    
 var testDiskInvalidData = "0B (virtual invalid)"
 var testDiskData = "0B (virtual 55.5MB)"
 
-var testMultiContainerDiskData = `{"container":"DockerApp1","id":"1","disk":"0B (virtual 1KB)"}
-{"container":"DockerApp2Container1","id":"2","disk":"0B (virtual 2.0MB)"}
-{"container":"DockerApp2Container2","id":"3","disk":"0B (virtual 3GB)"}`
+var testMultiContainerDiskData = `{"container":"DockerApp1","id":"1","disk":"0B (virtual 1KB)","labels":"cluster=testcluster,mexAppName=dockerapp1,mexAppVersion=10"}
+{"container":"DockerApp2Container1","id":"2","disk":"0B (virtual 2.0MB)","labels":"cluster=testcluster,mexAppName=dockerapp2,mexAppVersion=10"}
+{"container":"DockerApp2Container2","id":"3","disk":"0B (virtual 3GB)","labels":"cluster=testcluster,mexAppName=dockerapp2,mexAppVersion=10"}`
 
 // Example output of resource-tracker
 var testDockerClusterData = shepherd_common.ClusterMetrics{
@@ -150,12 +151,13 @@ func TestDockerStats(t *testing.T) {
 		DockerContainerPid:   "0",
 		CatContainerNetData:  testNetData,
 		DockerPsSizeData:     testMultiContainerDiskData,
+		Ncpus:                fmt.Sprintf("%d\n", testFlavor1.Vcpus),
 	}
 	edgeproto.InitAppInstCache(&AppInstCache)
 	edgeproto.InitFlavorCache(&FlavorCache)
 	FlavorCache.Update(ctx, &testFlavor1, 0)
 	AppInstCache.Update(ctx, &testAppInstDocker2, 0)
-	testDockerStats, err := NewClusterWorker(ctx, "", time.Second*1, time.Second*1, nil, &testClusterInst, &platform)
+	testDockerStats, err := NewClusterWorker(ctx, "", 0, time.Second*1, time.Second*1, nil, &testClusterInst, nil, &platform)
 	assert.Nil(t, err, "Get a patform client for unit test cloudlet")
 	clusterMetrics := testDockerStats.clusterStat.GetClusterStats(ctx)
 	appsMetrics := testDockerStats.clusterStat.GetAppStats(ctx)
@@ -163,11 +165,13 @@ func TestDockerStats(t *testing.T) {
 	assert.NotNil(t, appsMetrics, "Fill stats from json")
 	testAppKey.Pod = k8smgmt.NormalizeName("DockerApp1")
 	testAppKey.App = k8smgmt.NormalizeName("DockerApp1")
+	testAppKey.Version = k8smgmt.NormalizeName("10")
 	stat, found := appsMetrics[testAppKey]
 	// Check PodStats
 	assert.True(t, found, "Container DockerApp1 is not found")
 	if found {
-		assert.Equal(t, float64(1.11), stat.Cpu)
+		//divide these cpu numbers by 2 since the flavor has 2 cpus
+		assert.Equal(t, float64(1.11/2), stat.Cpu)
 		assert.Equal(t, uint64(11649679), stat.Mem)
 		assert.Equal(t, uint64(1*1024), stat.Disk)
 		// this comes from testNetData

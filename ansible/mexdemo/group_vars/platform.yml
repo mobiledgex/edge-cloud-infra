@@ -5,7 +5,7 @@ regions:
     region: JP
     latitude: 35.68
     longitude: 139.77
-    kubernetes_version: 1.18.10
+    kubernetes_version: 1.18.19
 
   - name: mexdemo-eu-cluster
     azure_resource_group_name: mexdemo-eu-resource-group
@@ -13,7 +13,7 @@ regions:
     region: EU
     latitude: 52.3667
     longitude: 4.9
-    kubernetes_version: 1.18.10
+    kubernetes_version: 1.18.19
     global_dme_aliases:
       - 262-01
       - 262-06
@@ -25,4 +25,5 @@ regions:
     region: US
     latitude: 41.8819
     longitude: -87.6278
-    kubernetes_version: 1.18.10
+    kubernetes_version: 1.18.19
+    influxdb_volume_size: 50Gi

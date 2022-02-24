@@ -6,6 +6,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/redundancy"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
@@ -26,6 +27,10 @@ type ManagedK8sProvider interface {
 	RunClusterDeleteCommand(ctx context.Context, clusterName string) error
 	InitApiAccessProperties(ctx context.Context, accessApi platform.AccessApi, vars map[string]string) error
 	GetAccessData(ctx context.Context, cloudlet *edgeproto.Cloudlet, region string, vaultConfig *vault.Config, dataType string, arg []byte) (map[string]string, error)
+	GetCloudletInfraResourcesInfo(ctx context.Context) ([]edgeproto.InfraResource, error)
+	GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error)
+	GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource
+	GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error
 }
 
 // ManagedK8sPlatform contains info needed by all Managed Kubernetes Providers
@@ -36,14 +41,14 @@ type ManagedK8sPlatform struct {
 	infracommon.CommonEmbedded
 }
 
-func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+func (m *ManagedK8sPlatform) InitCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Init", "type", m.Type)
 	props, err := m.Provider.GetProviderSpecificProps(ctx)
 	if err != nil {
 		return err
 	}
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "Init API access properties")
+	log.SpanLog(ctx, log.DebugLevelInfra, "Init provider")
 	err = m.Provider.InitApiAccessProperties(ctx, platformConfig.AccessApi, platformConfig.EnvVars)
 	if err != nil {
 		return err
@@ -58,6 +63,14 @@ func (m *ManagedK8sPlatform) Init(ctx context.Context, platformConfig *platform.
 		return err
 	}
 	return m.Provider.Login(ctx)
+}
+
+func (m *ManagedK8sPlatform) InitHAConditional(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	return nil
+}
+
+func (s *ManagedK8sPlatform) GetInitHAConditionalCompatibilityVersion(ctx context.Context) string {
+	return "mk8s-1.0"
 }
 
 func (m *ManagedK8sPlatform) GetFeatures() *platform.Features {
@@ -100,15 +113,15 @@ func (m *ManagedK8sPlatform) GetAccessData(ctx context.Context, cloudlet *edgepr
 
 // called by controller, make sure it doesn't make any calls to infra API
 func (m *ManagedK8sPlatform) GetClusterAdditionalResources(ctx context.Context, cloudlet *edgeproto.Cloudlet, vmResources []edgeproto.VMResource, infraResMap map[string]edgeproto.InfraResource) map[string]edgeproto.InfraResource {
-	return nil
+	return m.Provider.GetClusterAdditionalResources(ctx, cloudlet, vmResources, infraResMap)
 }
 
 func (m *ManagedK8sPlatform) GetClusterAdditionalResourceMetric(ctx context.Context, cloudlet *edgeproto.Cloudlet, resMetric *edgeproto.Metric, resources []edgeproto.VMResource) error {
-	return nil
+	return m.Provider.GetClusterAdditionalResourceMetric(ctx, cloudlet, resMetric, resources)
 }
 
 func (m *ManagedK8sPlatform) GetCloudletResourceQuotaProps(ctx context.Context) (*edgeproto.CloudletResourceQuotaProps, error) {
-	return &edgeproto.CloudletResourceQuotaProps{}, nil
+	return m.Provider.GetCloudletResourceQuotaProps(ctx)
 }
 
 func (m *ManagedK8sPlatform) GetRootLBFlavor(ctx context.Context) (*edgeproto.Flavor, error) {

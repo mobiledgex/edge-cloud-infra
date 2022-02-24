@@ -1,0 +1,53 @@
+federations:
+- name: dmuus-SA-{{partnertag}}-{{region}}-fed
+  selfoperatorid: dmuus
+  selffederationid: dmuus-SA-{{partnertag}}-{{region}}
+  federator:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    federationid: {{partnertag}}-{{region}}-dmuus-SA
+    federationaddr: {{fedaddr}}
+    mcc: 123
+    mnc:
+    - 111
+    - 222
+    - 333
+- name: dmuus-SB-{{partnertag}}-{{region}}-fed
+  selfoperatorid: dmuus
+  selffederationid: dmuus-SB-{{partnertag}}-{{region}}
+  federator:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    federationid: {{partnertag}}-{{region}}-dmuus-SB
+    federationaddr: {{fedaddr}}
+    mcc: 123
+    mnc:
+    - 111
+    - 222
+    - 333
+- name: enterprise-SA-{{partnertag}}-{{region}}-fed
+  selfoperatorid: enterprise
+  selffederationid: enterprise-SA-{{partnertag}}-{{region}}
+  federator:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    federationid: {{partnertag}}-{{region}}-enterprise-SA
+    federationaddr: {{fedaddr}}
+    mcc: 123
+    mnc:
+    - 111
+    - 222
+    - 333
+- name: enterprise-SB-{{partnertag}}-{{region}}-fed
+  selfoperatorid: enterprise
+  selffederationid: enterprise-SB-{{partnertag}}-{{region}}
+  federator:
+    operatorid: {{partnertag}}
+    countrycode: {{region}}
+    federationid: {{partnertag}}-{{region}}-enterprise-SB
+    federationaddr: {{fedaddr}}
+    mcc: 123
+    mnc:
+    - 111
+    - 222
+    - 333

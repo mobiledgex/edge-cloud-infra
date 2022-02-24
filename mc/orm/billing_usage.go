@@ -6,7 +6,9 @@ import (
 	"time"
 
 	"github.com/mobiledgex/edge-cloud-infra/billing"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
@@ -67,16 +69,16 @@ func CollectBillingUsage(collectInterval time.Duration) {
 }
 
 func recordRegionUsage(ctx context.Context, region string, start, end time.Time) {
-	poolList, err := ShowCloudletPoolObj(ctx, &RegionContext{skipAuthz: true, region: region}, &edgeproto.CloudletPool{})
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get cloudletpool list")
-		return
-	}
 	poolMap := make(map[string]string)
-	for _, pool := range poolList {
-		for _, cloudName := range pool.Cloudlets {
-			poolMap[cloudName] = pool.Key.Organization
+	err := ctrlclient.ShowCloudletPoolStream(ctx, &ormutil.RegionContext{SkipAuthz: true, Region: region, Database: database}, &edgeproto.CloudletPool{}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
+		for _, clKey := range pool.Cloudlets {
+			poolMap[clKey.Name] = pool.Key.Organization
 		}
+		return nil
+	})
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfo, "Unable to get cloudletpool list", "region", region, "err", err)
+		return
 	}
 	rc := InfluxDBContext{region: region}
 	appIn := ormapi.RegionAppInstUsage{

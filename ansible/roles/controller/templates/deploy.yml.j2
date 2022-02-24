@@ -5,7 +5,7 @@ metadata:
   labels:
     app: controller
 spec:
-  replicas: {{ controller_replicas }}
+  replicas: 1
   selector:
     matchLabels:
       app: controller
@@ -20,11 +20,11 @@ spec:
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: "200m"
-            memory: "500m"
+            cpu: "{{ controller_cpu_request }}"
+            memory: "{{ controller_memory_request | human_to_bytes }}"
           limits:
-            cpu: "400m"
-            memory: "2Gi"
+            cpu: "{{ controller_cpu_limit }}"
+            memory: "{{ controller_memory_limit | human_to_bytes }}"
         command:
          - "controller"
          - "--commonName"
@@ -36,7 +36,7 @@ spec:
          - "--httpAddr"
          - "0.0.0.0:36001"
          - "--notifyAddr"
-         - "0.0.0.0:37001"
+         - "0.0.0.0:{{ controller_notify_port }}"
          - "--notifyParentAddrs"
          - "{{ console_vm_hostname }}:{{ mc_notify_srv_port }}"
          - "--notifyRootAddrs"
@@ -45,6 +45,10 @@ spec:
          - "0.0.0.0:41001"
          - "--etcdUrls"  
          - "{{ etcd_cluster_client }}:2379"
+         - "--redisMasterName"
+         - "{{ redis_master_name }}"
+         - "--redisSentinelAddrs"
+         - "{{ redis_sentinel_endpoint }}"
          - "--edgeTurnAddr"
          - "{{ edgeturn_fqdn }}:6080"
          - "--vaultAddr"

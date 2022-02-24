@@ -1,0 +1,6 @@
+alertreceivers:
+- name: emailClusterInstPlatformAlertReceiver
+  type: email
+  severity: error
+  user: mexadmin
+  email: ops@mobiledgex.net

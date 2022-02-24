@@ -4,17 +4,17 @@
 package orm
 
 import (
-	"context"
 	fmt "fmt"
 	_ "github.com/gogo/googleapis/google/api"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"io"
 	math "math"
 )
 
@@ -26,326 +26,170 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func EnableDebugLevels(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionDebugRequest{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
-	err = EnableDebugLevelsStream(ctx, rc, &in.DebugRequest, func(res *edgeproto.DebugReply) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func EnableDebugLevelsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest, cb func(res *edgeproto.DebugReply) error) error {
+	obj := &in.DebugRequest
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForEnableDebugLevels(); err != nil {
 		return err
 	}
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, "",
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, "",
 			ResourceConfig, ActionManage); err != nil {
 			return err
 		}
 	}
-	if rc.conn == nil {
-		conn, err := connectNotifyRoot(ctx)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
+
+	cb := func(res *edgeproto.DebugReply) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
 	}
-	api := edgeproto.NewDebugApiClient(rc.conn)
-	stream, err := api.EnableDebugLevels(ctx, obj)
+	err = ctrlclient.EnableDebugLevelsStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
-func EnableDebugLevelsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest) ([]edgeproto.DebugReply, error) {
-	arr := []edgeproto.DebugReply{}
-	err := EnableDebugLevelsStream(ctx, rc, obj, func(res *edgeproto.DebugReply) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
-}
-
 func DisableDebugLevels(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionDebugRequest{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
-	err = DisableDebugLevelsStream(ctx, rc, &in.DebugRequest, func(res *edgeproto.DebugReply) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DisableDebugLevelsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest, cb func(res *edgeproto.DebugReply) error) error {
+	obj := &in.DebugRequest
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForDisableDebugLevels(); err != nil {
 		return err
 	}
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, "",
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, "",
 			ResourceConfig, ActionManage); err != nil {
 			return err
 		}
 	}
-	if rc.conn == nil {
-		conn, err := connectNotifyRoot(ctx)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
+
+	cb := func(res *edgeproto.DebugReply) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
 	}
-	api := edgeproto.NewDebugApiClient(rc.conn)
-	stream, err := api.DisableDebugLevels(ctx, obj)
+	err = ctrlclient.DisableDebugLevelsStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
-func DisableDebugLevelsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest) ([]edgeproto.DebugReply, error) {
-	arr := []edgeproto.DebugReply{}
-	err := DisableDebugLevelsStream(ctx, rc, obj, func(res *edgeproto.DebugReply) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
-}
-
 func ShowDebugLevels(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionDebugRequest{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
-	err = ShowDebugLevelsStream(ctx, rc, &in.DebugRequest, func(res *edgeproto.DebugReply) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func ShowDebugLevelsStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest, cb func(res *edgeproto.DebugReply) error) error {
+	obj := &in.DebugRequest
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, "",
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, "",
 			ResourceConfig, ActionView); err != nil {
 			return err
 		}
 	}
-	if rc.conn == nil {
-		conn, err := connectNotifyRoot(ctx)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
+
+	cb := func(res *edgeproto.DebugReply) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
 	}
-	api := edgeproto.NewDebugApiClient(rc.conn)
-	stream, err := api.ShowDebugLevels(ctx, obj)
+	err = ctrlclient.ShowDebugLevelsStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
-func ShowDebugLevelsObj(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest) ([]edgeproto.DebugReply, error) {
-	arr := []edgeproto.DebugReply{}
-	err := ShowDebugLevelsStream(ctx, rc, obj, func(res *edgeproto.DebugReply) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
-}
-
 func RunDebug(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionDebugRequest{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 
-	err = RunDebugStream(ctx, rc, &in.DebugRequest, func(res *edgeproto.DebugReply) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func RunDebugStream(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest, cb func(res *edgeproto.DebugReply) error) error {
+	obj := &in.DebugRequest
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForRunDebug(); err != nil {
 		return err
 	}
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, "",
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, "",
 			ResourceConfig, ActionManage); err != nil {
 			return err
 		}
 	}
-	if rc.conn == nil {
-		conn, err := connectNotifyRoot(ctx)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
+
+	cb := func(res *edgeproto.DebugReply) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
 	}
-	api := edgeproto.NewDebugApiClient(rc.conn)
-	stream, err := api.RunDebug(ctx, obj)
+	err = ctrlclient.RunDebugStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
-}
-
-func RunDebugObj(ctx context.Context, rc *RegionContext, obj *edgeproto.DebugRequest) ([]edgeproto.DebugReply, error) {
-	arr := []edgeproto.DebugReply{}
-	err := RunDebugStream(ctx, rc, obj, func(res *edgeproto.DebugReply) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
 }

@@ -14,8 +14,8 @@ func init() {
 		Use:          "app",
 		Short:        "View App billing events",
 		RequiredArgs: strings.Join(append([]string{"region"}, AppEventRequiredArgs...), " "),
-		OptionalArgs: strings.Join(AppEventOptionalArgs, " "),
-		AliasArgs:    strings.Join(AppEventAliasArgs, " "),
+		OptionalArgs: strings.Join(append(BillingEventsCommonArgs, AppEventOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(MetricsCommonAliasArgs, AppEventAliasArgs...), " "),
 		Comments:     addRegionComment(EventComments),
 		ReqData:      &ormapi.RegionAppInstEvents{},
 		ReplyData:    &ormapi.AllMetrics{},
@@ -25,8 +25,8 @@ func init() {
 		Use:          "cluster",
 		Short:        "View ClusterInst billing events",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClusterEventRequiredArgs...), " "),
-		OptionalArgs: strings.Join(ClusterEventOptionalArgs, " "),
-		AliasArgs:    strings.Join(ClusterEventAliasArgs, " "),
+		OptionalArgs: strings.Join(append(BillingEventsCommonArgs, ClusterEventOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(MetricsCommonAliasArgs, ClusterEventAliasArgs...), " "),
 		Comments:     addRegionComment(EventComments),
 		ReqData:      &ormapi.RegionClusterInstEvents{},
 		ReplyData:    &ormapi.AllMetrics{},
@@ -36,8 +36,8 @@ func init() {
 		Use:          "cloudlet",
 		Short:        "View Cloudlet billing events",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletEventRequiredArgs...), " "),
-		OptionalArgs: strings.Join(CloudletEventOptionalArgs, " "),
-		AliasArgs:    strings.Join(CloudletEventAliasArgs, " "),
+		OptionalArgs: strings.Join(append(BillingEventsCommonArgs, CloudletEventOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(MetricsCommonAliasArgs, CloudletEventAliasArgs...), " "),
 		Comments:     addRegionComment(EventComments),
 		ReqData:      &ormapi.RegionCloudletEvents{},
 		ReplyData:    &ormapi.AllMetrics{},
@@ -46,74 +46,74 @@ func init() {
 	AllApis.AddGroup(BillingEventsGroup, "View billing events ", cmds)
 }
 
-var AppEventRequiredArgs = []string{
-	"app-org",
+var BillingEventsCommonArgs = []string{
+	"limit",
+	"starttime",
+	"endtime",
+	"startage",
+	"endage",
 }
+
+var AppEventRequiredArgs = []string{}
 
 var AppEventOptionalArgs = []string{
 	"appname",
+	"apporg",
 	"appvers",
 	"cluster",
 	"cloudlet",
-	"cloudlet-org",
-	"last",
-	"starttime",
-	"endtime",
+	"cloudletorg",
 }
 
 var AppEventAliasArgs = []string{
-	"app-org=appinst.appkey.organization",
+	"apporg=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
 	"cluster=appinst.clusterinstkey.clusterkey.name",
-	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
+	"cloudletorg=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
 }
 
-var ClusterEventRequiredArgs = []string{
-	"cluster-org",
-}
+var ClusterEventRequiredArgs = []string{}
 
 var ClusterEventOptionalArgs = []string{
 	"cluster",
-	"cloudlet-org",
+	"clusterorg",
+	"cloudletorg",
 	"cloudlet",
-	"last",
-	"starttime",
-	"endtime",
 }
 
 var ClusterEventAliasArgs = []string{
-	"cluster-org=clusterinst.organization",
+	"clusterorg=clusterinst.organization",
 	"cluster=clusterinst.clusterkey.name",
-	"cloudlet-org=clusterinst.cloudletkey.organization",
+	"cloudletorg=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
 }
 
 var CloudletEventRequiredArgs = []string{
-	"cloudlet-org",
+	"cloudletorg",
 }
 
 var CloudletEventOptionalArgs = []string{
 	"cloudlet",
-	"last",
-	"starttime",
-	"endtime",
 }
 
 var CloudletEventAliasArgs = []string{
-	"cloudlet-org=cloudlet.organization",
+	"cloudletorg=cloudlet.organization",
 	"cloudlet=cloudlet.name",
 }
 
 var EventComments = map[string]string{
-	"app-org":      "Organization or Company Name that a Developer is part of",
-	"appname":      "App name",
-	"appvers":      "App version",
-	"cluster":      "Cluster name",
-	"cloudlet-org": "Organization name owning of the cloudlet",
-	"cloudlet":     "Name of the cloudlet",
-	"last":         "Display the last X Events",
-	"starttime":    "Time to start displaying stats from",
-	"endtime":      "Time up to which to display stats",
+	"apporg":      "Organization or Company Name that a Developer is part of",
+	"appname":     "App name",
+	"appvers":     "App version",
+	"cluster":     "Cluster name",
+	"clusterorg":  "Organization or Company Name that a Cluster is used by",
+	"cloudletorg": "Organization name owning of the cloudlet",
+	"cloudlet":    "Name of the cloudlet",
+	"limit":       "Display the last X events",
+	"starttime":   "Time to start displaying stats from in RFC3339 format (ex. 2002-12-31T15:00:00Z)",
+	"endtime":     "Time up to which to display stats in RFC3339 format (ex. 2002-12-31T10:00:00-05:00)",
+	"startage":    "Relative age from now of search range start (default 48h)",
+	"endage":      "Relative age from now of search range end (default 0)",
 }

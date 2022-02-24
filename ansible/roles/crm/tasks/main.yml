@@ -61,7 +61,7 @@
       - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
       - "--useVaultPki"
       - "--notifyAddrs"
-      - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:37001"
+      - "{{ controller_name }}.ctrl.{{ cloudflare_zone }}:{{ controller_notify_port }}"
       - "--deploymentTag"
       - "{{ deployment_tag_override | default(deploy_environ) }}"
       - "-d"

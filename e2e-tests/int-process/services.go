@@ -45,11 +45,16 @@ scrape_configs:
       replacement: '${1}'
     - regex: 'instance|envoy_cluster_name'
       action: labeldrop
+{{- if .RemoteWriteAddr}}
+remote_write:
+- url: http://{{.RemoteWriteAddr}}/api/v1/receive
+{{- end}}
 `
 
 type prometheusConfigArgs struct {
-	EvalInterval   string
-	ScrapeInterval string
+	EvalInterval    string
+	ScrapeInterval  string
+	RemoteWriteAddr string
 }
 
 var prometheusConfigTemplate *template.Template
@@ -80,6 +85,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 	deploymentTag := ""
 	chefServerPath := ""
 	accessApiAddr := ""
+	thanosRecvAddr := ""
 	if pfConfig != nil {
 		// Same vault role-id/secret-id as CRM
 		for k, v := range pfConfig.EnvVar {
@@ -96,6 +102,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		deploymentTag = pfConfig.DeploymentTag
 		chefServerPath = pfConfig.ChefServerPath
 		accessApiAddr = pfConfig.AccessApiAddr
+		thanosRecvAddr = pfConfig.ThanosRecvAddr
 	}
 
 	for envKey, envVal := range cloudlet.EnvVar {
@@ -128,6 +135,7 @@ func getShepherdProc(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformC
 		Region:         region,
 		AppDNSRoot:     appDNSRoot,
 		ChefServerPath: chefServerPath,
+		ThanosRecvAddr: thanosRecvAddr,
 	}, opts, nil
 }
 
@@ -146,7 +154,10 @@ func StartShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfC
 	if err != nil {
 		return nil, err
 	}
-	shepherdProc.AccessKeyFile = cloudcommon.GetLocalAccessKeyFile(cloudlet.Key.Name)
+	// for local testing, include debug notify
+	opts = append(opts, process.WithDebug("api,notify,infra,metrics"))
+
+	shepherdProc.AccessKeyFile = cloudcommon.GetLocalAccessKeyFile(cloudlet.Key.Name, process.HARolePrimary) // TODO Shepherd HA
 
 	err = shepherdProc.StartLocal("/tmp/"+cloudlet.Key.Name+".shepherd.log", opts...)
 	if err != nil {
@@ -180,7 +191,7 @@ func StopShepherdService(ctx context.Context, cloudlet *edgeproto.Cloudlet) erro
 
 func StopFakeEnvoyExporters(ctx context.Context) error {
 	c := make(chan string)
-	go process.KillProcessesByName("fake_envoy_exporter", time.Second, "--cluster", c)
+	go process.KillProcessesByName("fake_envoy_exporter", time.Second, "--port", c)
 	log.SpanLog(ctx, log.DebugLevelInfra, "stopped fake_envoy_exporter", "msg", <-c)
 	return nil
 }
@@ -197,6 +208,7 @@ func GetCloudletPrometheusCmdArgs() []string {
 		"--web.listen-address",
 		":" + CloudletPrometheusPort,
 		"--web.enable-lifecycle",
+		"--web.enable-admin-api",
 		"--log.level=debug", // Debug
 	}
 }
@@ -218,8 +230,8 @@ func GetCloudletPrometheusDockerArgs(cloudlet *edgeproto.Cloudlet, cfgFile strin
 }
 
 // Starts prometheus container and connects it to the default ports
-func StartCloudletPrometheus(ctx context.Context, cloudlet *edgeproto.Cloudlet, settings *edgeproto.Settings) error {
-	if err := WriteCloudletPromConfig(ctx, (*time.Duration)(&settings.ShepherdMetricsCollectionInterval),
+func StartCloudletPrometheus(ctx context.Context, remoteWriteAddr string, cloudlet *edgeproto.Cloudlet, settings *edgeproto.Settings) error {
+	if err := WriteCloudletPromConfig(ctx, remoteWriteAddr, (*time.Duration)(&settings.ShepherdMetricsCollectionInterval),
 		(*time.Duration)(&settings.ShepherdAlertEvaluationInterval)); err != nil {
 		return err
 	}
@@ -246,10 +258,11 @@ func StartCloudletPrometheus(ctx context.Context, cloudlet *edgeproto.Cloudlet, 
 	return nil
 }
 
-func WriteCloudletPromConfig(ctx context.Context, promScrapeInterval *time.Duration, alertEvalInterval *time.Duration) error {
+func WriteCloudletPromConfig(ctx context.Context, remoteWriteAddr string, promScrapeInterval *time.Duration, alertEvalInterval *time.Duration) error {
 	args := prometheusConfigArgs{
-		ScrapeInterval: promScrapeInterval.String(),
-		EvalInterval:   alertEvalInterval.String(),
+		ScrapeInterval:  promScrapeInterval.String(),
+		EvalInterval:    alertEvalInterval.String(),
+		RemoteWriteAddr: remoteWriteAddr,
 	}
 	buf := bytes.Buffer{}
 	if err := prometheusConfigTemplate.Execute(&buf, &args); err != nil {

@@ -3,14 +3,15 @@ package shepherd_vmprovider
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -33,10 +34,31 @@ type ShepherdPlatform struct {
 	appDNSRoot      string
 }
 
-func (s *ShepherdPlatform) vmProviderCloudletCb(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "vmProviderCloudletCb")
-	s.VMPlatform.VMProvider.InternalCloudletUpdatedCallback(ctx, old, new)
+func (s *ShepherdPlatform) setPlatformActiveFromCloudletInfo(ctx context.Context, cloudletInternal *edgeproto.CloudletInternal) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "getPlatformActiveFromCloudletInfo", "cloudletInternal", cloudletInternal)
+	activeStr, ok := cloudletInternal.Props[infracommon.CloudletPlatformActive]
+	if !ok {
+		return nil
+	}
+	active, err := strconv.ParseBool(activeStr)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "unable to parse CloudletPlatformActive as bool", "activeStr", activeStr, "err", err)
+		return fmt.Errorf("unable to parse CloudletPlatformActive as bool")
+	} else {
+		log.ForceLogSpan(log.SpanFromContext(ctx))
+		log.SpanLog(ctx, log.DebugLevelInfra, "ShepherdPlatformActive", "active", active)
+		shepherd_common.ShepherdPlatformActive = active
+	}
+	return nil
+}
 
+func (s *ShepherdPlatform) vmProviderCloudletCb(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "vmProviderCloudletCb", "new cloudlet internal", new)
+	err := s.setPlatformActiveFromCloudletInfo(ctx, new)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "setPlatformActiveFromCloudletInfo returned error", "err", err)
+	}
+	s.VMPlatform.VMProvider.InternalCloudletUpdatedCallback(ctx, old, new)
 }
 
 func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig, platformCaches *platform.Caches) error {
@@ -54,6 +76,7 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 		return err
 	}
 
+	s.VMPlatform.Caches = platformCaches
 	s.VMPlatform.VMProvider.InitData(ctx, platformCaches)
 	// Override cloudlet internal updated callback so CloudletAccessToken updates from the CRM can be stored
 	platformCaches.CloudletInternalCache.SetUpdatedCb(s.vmProviderCloudletCb)
@@ -105,6 +128,16 @@ func (s *ShepherdPlatform) Init(ctx context.Context, pc *platform.PlatformConfig
 	}
 	s.collectInterval = time.Minute * time.Duration(intervalMins)
 	log.SpanLog(ctx, log.DebugLevelInfra, "init shepherd done", "rootLB", s.rootLbName, "physicalName", pc.PhysicalName, "VM App collect interval", s.collectInterval)
+
+	var cloudletInternal edgeproto.CloudletInternal
+	if !platformCaches.CloudletInternalCache.Get(pc.CloudletKey, &cloudletInternal) {
+		log.SpanLog(ctx, log.DebugLevelInfra, "cloudletInternal not found", "key", pc.CloudletKey)
+	} else {
+		err = s.setPlatformActiveFromCloudletInfo(ctx, &cloudletInternal)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -161,7 +194,7 @@ func (s *ShepherdPlatform) GetClusterPlatformClient(ctx context.Context, cluster
 	return client, nil
 }
 
-func (s *ShepherdPlatform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
+func (s *ShepherdPlatform) GetVmAppRootLbClient(ctx context.Context, appInst *edgeproto.AppInst) (ssh.Client, error) {
 	var err error
 	var result vmlayer.OperationInitResult
 	ctx, result, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
@@ -171,7 +204,7 @@ func (s *ShepherdPlatform) GetVmAppRootLbClient(ctx context.Context, app *edgepr
 	if result == vmlayer.OperationNewlyInitialized {
 		defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 	}
-	rootLBName := cloudcommon.GetVMAppFQDN(app, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.CloudletKey, s.VMPlatform.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
+	rootLBName := appInst.Uri
 	client, err := s.VMPlatform.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: rootLBName}, pc.WithCachedIp(false))
 	if err != nil {
 		return nil, err
@@ -185,7 +218,12 @@ func (s *ShepherdPlatform) GetVmAppRootLbClient(ctx context.Context, app *edgepr
 
 func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_common.CloudletMetrics, error) {
 	var err error
+
 	cloudletMetric := shepherd_common.CloudletMetrics{}
+	if !shepherd_common.ShepherdPlatformActive {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "skipping GetPlatformStats for inactive platform")
+		return cloudletMetric, nil
+	}
 	var result vmlayer.OperationInitResult
 	ctx, result, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
 	if err != nil {
@@ -198,6 +236,7 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 	if err != nil {
 		return cloudletMetric, err
 	}
+	log.SpanLog(ctx, log.DebugLevelMetrics, "Got PlatformStats", "platformResources", platformResources, "err", err)
 	cloudletMetric = shepherd_common.CloudletMetrics(*platformResources)
 	return cloudletMetric, nil
 }
@@ -205,6 +244,10 @@ func (s *ShepherdPlatform) GetPlatformStats(ctx context.Context) (shepherd_commo
 func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (shepherd_common.AppMetrics, error) {
 	var err error
 	appMetrics := shepherd_common.AppMetrics{}
+	if !shepherd_common.ShepherdPlatformActive {
+		log.SpanLog(ctx, log.DebugLevelMetrics, "skipping GetVmStats for inactive platform")
+		return appMetrics, nil
+	}
 	var result vmlayer.OperationInitResult
 	ctx, result, err = s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitStart)
 	if err != nil {
@@ -213,7 +256,11 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	if result == vmlayer.OperationNewlyInitialized {
 		defer s.VMPlatform.VMProvider.InitOperationContext(ctx, vmlayer.OperationInitComplete)
 	}
-	vmMetrics, err := s.VMPlatform.VMProvider.GetVMStats(ctx, key)
+	appInst := edgeproto.AppInst{}
+	if !s.VMPlatform.Caches.AppInstCache.Get(key, &appInst) {
+		return appMetrics, key.NotFoundError()
+	}
+	vmMetrics, err := s.VMPlatform.VMProvider.GetVMStats(ctx, &appInst)
 	if err != nil {
 		return appMetrics, err
 	}
@@ -221,6 +268,15 @@ func (s *ShepherdPlatform) GetVmStats(ctx context.Context, key *edgeproto.AppIns
 	return appMetrics, nil
 }
 
-func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context) {
-	s.VMPlatform.VMProvider.VmAppChangedCallback(ctx)
+func (s *ShepherdPlatform) VmAppChangedCallback(ctx context.Context, appInst *edgeproto.AppInst, newState edgeproto.TrackedState) {
+	s.VMPlatform.VMProvider.VmAppChangedCallback(ctx, appInst, newState)
+}
+
+func (s *ShepherdPlatform) SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error {
+	// Nothing to do for vmprovider
+	return nil
+}
+
+func (s *ShepherdPlatform) IsPlatformLocal(ctx context.Context) bool {
+	return false
 }

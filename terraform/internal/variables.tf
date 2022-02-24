@@ -122,3 +122,56 @@ variable "monitor_instance_name" {
 variable "monitor_zone" {
   default = "us-central1-a"
 }
+
+variable "openvas_domain_name" {
+  default = "openvas.mobiledgex.net"
+}
+
+variable "openvas_instance_name" {
+  default = "openvas"
+}
+
+variable "openvas_zone" {
+  default = "us-central1-a"
+}
+
+variable "teleport_domain_name" {
+  default = "teleport.mobiledgex.net"
+}
+
+variable "teleport_instance_name" {
+  default = "teleport"
+}
+
+variable "teleport_zone" {
+  default = "us-central1-a"
+}
+
+variable "trivy_domain_name" {
+  default = "trivy.mobiledgex.net"
+}
+
+variable "trivy_instance_name" {
+  default = "trivy"
+}
+
+variable "trivy_zone" {
+  default = "us-central1-a"
+}
+
+variable "gvm_static_address_name" {
+  description = "GVM static IP entity name"
+  default     = "gvm"
+}
+
+variable "gvm_domain_name" {
+  default = "gvm.mobiledgex.net"
+}
+
+variable "gvm_instance_name" {
+  default = "gvm"
+}
+
+variable "gvm_zone" {
+  default = "us-central1-a"
+}

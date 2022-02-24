@@ -1,0 +1,24 @@
+---
+- name: "Set up infra-{{ environ }} role"
+  template:
+    src: infra-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/infra-{{ environ }}-role.yaml"
+  become: yes
+  register: infra_role
+
+- name: "Apply infra-{{ environ }} role"
+  command: "tctl create -f {{ infra_role.dest }}"
+  become: yes
+  when: infra_role is changed
+
+- name: "Set up robot-{{ environ }} role"
+  template:
+    src: robot-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/robot-{{ environ }}-role.yaml"
+  become: yes
+  register: robot_role
+
+- name: "Apply robot-{{ environ }} role"
+  command: "tctl create -f {{ robot_role.dest }}"
+  become: yes
+  when: robot_role is changed

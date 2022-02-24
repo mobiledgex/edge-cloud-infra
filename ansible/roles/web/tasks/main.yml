@@ -13,6 +13,7 @@
     src: "{{ nginx_config_template }}"
     dest: "/etc/nginx/sites-available/{{ nginx_config_filename }}"
     mode: 0644
+    backup: yes
   become: yes
   when: nginx_config_template is defined
   notify:

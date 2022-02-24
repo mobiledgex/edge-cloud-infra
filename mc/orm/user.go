@@ -3,7 +3,6 @@ package orm
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"image/png"
 	"io/ioutil"
@@ -14,8 +13,10 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
+	"github.com/jinzhu/gorm"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/util"
@@ -40,7 +41,7 @@ func InitAdmin(ctx context.Context, superuser, superpass string) error {
 	log.SpanLog(ctx, log.DebugLevelApi, "init admin")
 
 	// create superuser if it doesn't exist
-	passhash, salt, iter := NewPasshash(superpass)
+	passhash, salt, iter := ormutil.NewPasshash(superpass)
 	super := ormapi.User{
 		Name:          superuser,
 		Email:         superuser + "@mobiledgex.net",
@@ -72,7 +73,7 @@ func GenerateWSAuthToken(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	claims.StandardClaims.IssuedAt = time.Now().Unix()
 	// Set short expiry as it is intended to be used immediately
@@ -83,14 +84,18 @@ func GenerateWSAuthToken(c echo.Context) error {
 		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
 		return fmt.Errorf("Failed to generate cookie")
 	}
-	return c.JSON(http.StatusOK, M{"token": cookie})
+	return c.JSON(http.StatusOK, ormutil.M{"token": cookie})
 }
 
 func Login(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	login := ormapi.UserLogin{}
 	if err := c.Bind(&login); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
+	}
+	config, err := getConfig(ctx)
+	if err != nil {
+		return err
 	}
 	db := loggedDB(ctx)
 	user := ormapi.User{}
@@ -111,13 +116,13 @@ func Login(c echo.Context) error {
 		user.Name = apiKeyObj.Username
 		err = db.Where(&user).First(&user).Error
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 		span := log.SpanFromContext(ctx)
 		span.SetTag("username", user.Name)
 		span.SetTag("email", user.Email)
 
-		matches, err := PasswordMatches(login.ApiKey, apiKeyObj.ApiKeyHash, apiKeyObj.Salt, apiKeyObj.Iter)
+		matches, err := ormutil.PasswordMatches(login.ApiKey, apiKeyObj.ApiKeyHash, apiKeyObj.Salt, apiKeyObj.Iter)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "apiKeyId matches err", "err", err)
 		}
@@ -151,14 +156,25 @@ func Login(c echo.Context) error {
 		span.SetTag("username", user.Name)
 		span.SetTag("email", user.Email)
 
-		matches, err := PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
+		// check if login is locked due to failed attempt(s)
+		err = checkLoginLocked(&user, config)
+		if err != nil {
+			return err
+		}
+		matches, err := ormutil.PasswordMatches(login.Password, user.Passhash, user.Salt, user.Iter)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "password matches err", "err", err)
 		}
 		if !matches || err != nil {
+			user.FailedLogins += 1
+			user.LastFailedLogin = time.Now()
+			saveUserLogin(ctx, db, &user)
 			time.Sleep(BadAuthDelay)
 			return fmt.Errorf("Invalid username or password")
 		}
+		user.FailedLogins = 0
+		user.LastLogin = time.Now()
+		saveUserLogin(ctx, db, &user)
 	}
 
 	if user.Locked {
@@ -188,11 +204,11 @@ func Login(c echo.Context) error {
 		// save password strength
 		err = db.Model(&user).Updates(&user).Error
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 	}
 
-	if login.Password != "" && user.TOTPSharedKey != "" {
+	if login.Password != "" && user.EnableTOTP && user.TOTPSharedKey != "" {
 		opts := totp.ValidateOpts{
 			Period:    OTPExpirationTime,
 			Skew:      1,
@@ -210,7 +226,7 @@ func Login(c echo.Context) error {
 				// log and ignore
 				log.SpanLog(ctx, log.DebugLevelApi, "failed to send otp email", "err", err)
 			}
-			return newHTTPError(http.StatusNetworkAuthenticationRequired, "Missing OTP\nPlease use two factor authenticator app on "+
+			return ormutil.NewHTTPError(http.StatusNetworkAuthenticationRequired, "Missing OTP\nPlease use two factor authenticator app on "+
 				"your phone to get OTP. We have also sent OTP to your registered email address")
 		}
 		// Default OTP expiration time for Authenticator client is set to 30secs
@@ -233,7 +249,7 @@ func Login(c echo.Context) error {
 		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie", "err", err)
 		return fmt.Errorf("Failed to generate cookie")
 	}
-	ret := M{"token": cookie.Value}
+	ret := ormutil.M{"token": cookie.Value}
 	if isAdmin {
 		ret["admin"] = true
 	}
@@ -241,19 +257,47 @@ func Login(c echo.Context) error {
 	return c.JSON(http.StatusOK, ret)
 }
 
+func checkLoginLocked(user *ormapi.User, config *ormapi.Config) error {
+	if user.FailedLogins == 0 {
+		return nil
+	}
+	lockoutDur := time.Duration(0)
+	if user.FailedLogins >= config.FailedLoginLockoutThreshold2 {
+		lockoutDur = time.Duration(config.FailedLoginLockoutTimeSec2) * time.Second
+	} else if user.FailedLogins >= config.FailedLoginLockoutThreshold1 {
+		lockoutDur = time.Duration(config.FailedLoginLockoutTimeSec1) * time.Second
+	} else {
+		lockoutDur = BadAuthDelay
+	}
+	elapsed := time.Since(user.LastFailedLogin)
+
+	if elapsed < lockoutDur {
+		remaining := lockoutDur - elapsed
+		return fmt.Errorf("Login temporarily disabled due to %d failed login attempts, please try again in %s", user.FailedLogins, remaining.Round(time.Second).String())
+	}
+	return nil
+}
+
+func saveUserLogin(ctx context.Context, db *gorm.DB, user *ormapi.User) {
+	err := db.Save(user).Error
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "save User failed", "err", err)
+	}
+}
+
 func RefreshAuthCookie(c echo.Context) error {
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	if claims.FirstIssuedAt == 0 {
 		log.SpanLog(ctx, log.DebugLevelApi, "failed to generate cookie as issued time is missing")
 		return fmt.Errorf("Failed to refresh auth cookie")
 	}
 	// refresh auth cookie only if it was issued within 30 days
 	if time.Unix(claims.FirstIssuedAt, 0).AddDate(0, 0, 30).Unix() < time.Now().Unix() {
-		return newHTTPError(http.StatusUnauthorized, "expired jwt")
+		return ormutil.NewHTTPError(http.StatusUnauthorized, "expired jwt")
 	}
 	claims.StandardClaims.IssuedAt = time.Now().Unix()
 	claims.StandardClaims.ExpiresAt = time.Now().AddDate(0, 0, 1).Unix()
@@ -264,7 +308,7 @@ func RefreshAuthCookie(c echo.Context) error {
 	}
 	httpCookie := NewHTTPAuthCookie(cookie, claims.ExpiresAt, serverConfig.DomainName)
 	c.SetCookie(httpCookie)
-	return c.JSON(http.StatusOK, M{"token": cookie})
+	return c.JSON(http.StatusOK, ormutil.M{"token": cookie})
 }
 
 func GenerateTOTPQR(accountName string) (string, []byte, error) {
@@ -293,10 +337,10 @@ func GenerateTOTPQR(accountName string) (string, []byte, error) {
 }
 
 func CreateUser(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	createuser := ormapi.CreateUser{}
 	if err := c.Bind(&createuser); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	user := createuser.User
 	if user.Name == "" {
@@ -364,7 +408,7 @@ func CreateUser(c echo.Context) error {
 	}
 
 	// password should be passed through in Passhash field.
-	user.Passhash, user.Salt, user.Iter = NewPasshash(user.Passhash)
+	user.Passhash, user.Salt, user.Iter = ormutil.NewPasshash(user.Passhash)
 	db := loggedDB(ctx)
 	if err := db.Create(&user).Error; err != nil {
 		//check specifically for duplicate username and/or emails
@@ -375,7 +419,7 @@ func CreateUser(c echo.Context) error {
 			return fmt.Errorf("Email already in use")
 		}
 
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	createuser.Verify.Email = user.Email
 	err = sendVerifyEmail(ctx, user.Name, &createuser.Verify)
@@ -408,11 +452,11 @@ func CreateUser(c echo.Context) error {
 }
 
 func ResendVerify(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	req := ormapi.EmailRequest{}
 	if err := c.Bind(&req); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	if err := ValidEmailRequest(c, &req); err != nil {
 		return err
@@ -421,10 +465,10 @@ func ResendVerify(c echo.Context) error {
 }
 
 func VerifyEmail(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	tok := ormapi.Token{}
 	if err := c.Bind(&tok); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	claims := EmailClaims{}
 	token, err := Jwks.VerifyCookie(tok.Token, &claims)
@@ -447,9 +491,9 @@ func VerifyEmail(c echo.Context) error {
 
 	user.EmailVerified = true
 	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
-	return c.JSON(http.StatusOK, Msg("email verified, thank you"))
+	return c.JSON(http.StatusOK, ormutil.Msg("email verified, thank you"))
 }
 
 func DeleteUser(c echo.Context) error {
@@ -457,11 +501,11 @@ func DeleteUser(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	user := ormapi.User{}
 	if err := c.Bind(&user); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	if user.Name == "" {
 		return fmt.Errorf("User Name not specified")
@@ -479,7 +523,7 @@ func DeleteUser(c echo.Context) error {
 	// delete role mappings
 	groups, err := enforcer.GetGroupingPolicy()
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	// check role mappings first before deleting
 	// need to make sure we are not deleting the last manager from an org or deleting the last AdminManager
@@ -521,7 +565,7 @@ func DeleteUser(c echo.Context) error {
 		if grp[0] == user.Name || (len(strs) == 2 && strs[1] == user.Name) {
 			err := enforcer.RemoveGroupingPolicy(ctx, grp[0], grp[1])
 			if err != nil {
-				return dbErr(err)
+				return ormutil.DbErr(err)
 			}
 		}
 	}
@@ -529,17 +573,17 @@ func DeleteUser(c echo.Context) error {
 	db := loggedDB(ctx)
 	err = db.Delete(&user).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	gitlabDeleteLDAPUser(ctx, user.Name)
 	artifactoryDeleteUser(ctx, user.Name)
 
-	return c.JSON(http.StatusOK, Msg("user deleted"))
+	return c.JSON(http.StatusOK, ormutil.Msg("user deleted"))
 }
 
 // Show current user info
 func CurrentUser(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -548,7 +592,7 @@ func CurrentUser(c echo.Context) error {
 	db := loggedDB(ctx)
 	err = db.Where(&user).First(&user).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	user.Passhash = ""
 	user.Salt = ""
@@ -568,7 +612,7 @@ var UserIgnoreFilterKeys = []string{
 
 // Show users by Organization
 func ShowUser(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -605,14 +649,14 @@ func ShowUser(c echo.Context) error {
 	users := []ormapi.User{}
 	err = db.Where(filter).Find(&users).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 
 	if !admin || filterOrg != "" || filterRole != "" {
 		// filter by specified org (or authorizedOrgs) or role
 		groupings, err := enforcer.GetGroupingPolicy()
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 		allowedUsers := make(map[string]struct{}) // key is username
 		for _, grp := range groupings {
@@ -671,13 +715,13 @@ func NewPassword(c echo.Context) error {
 	}
 	in := ormapi.NewPassword{}
 	if err := c.Bind(&in); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	return setPassword(c, claims.Username, in.Password)
 }
 
 func setPassword(c echo.Context, username, password string) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	if err := ValidPassword(password); err != nil {
 		return fmt.Errorf("Invalid password, %s", err)
 	}
@@ -685,7 +729,7 @@ func setPassword(c echo.Context, username, password string) error {
 	db := loggedDB(ctx)
 	err := db.Where(&user).First(&user).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 
 	calcPasswordStrength(ctx, &user, password)
@@ -699,11 +743,11 @@ func setPassword(c echo.Context, username, password string) error {
 		return err
 	}
 
-	user.Passhash, user.Salt, user.Iter = NewPasshash(password)
+	user.Passhash, user.Salt, user.Iter = ormutil.NewPasshash(password)
 	if err := db.Model(&user).Updates(&user).Error; err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
-	return c.JSON(http.StatusOK, Msg("password updated"))
+	return c.JSON(http.StatusOK, ormutil.Msg("password updated"))
 }
 
 func calcPasswordStrength(ctx context.Context, user *ormapi.User, password string) {
@@ -730,10 +774,10 @@ func checkPasswordStrength(ctx context.Context, user *ormapi.User, config *ormap
 }
 
 func PasswordResetRequest(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	req := ormapi.EmailRequest{}
 	if err := c.Bind(&req); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	if err := ValidEmailRequest(c, &req); err != nil {
 		return err
@@ -791,7 +835,7 @@ func PasswordResetRequest(c echo.Context) error {
 func PasswordReset(c echo.Context) error {
 	pw := ormapi.PasswordReset{}
 	if err := c.Bind(&pw); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	claims := EmailClaims{}
 	token, err := Jwks.VerifyCookie(pw.Token, &claims)
@@ -802,14 +846,14 @@ func PasswordReset(c echo.Context) error {
 			Internal: err,
 		}
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	span := log.SpanFromContext(ctx)
 	span.SetTag("username", claims.Username)
 	return setPassword(c, claims.Username, pw.Password)
 }
 
 func RestrictedUserUpdate(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -823,12 +867,12 @@ func RestrictedUserUpdate(c echo.Context) error {
 	// modified fields.
 	body, err := ioutil.ReadAll(c.Request().Body)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	in := ormapi.User{}
-	err = json.Unmarshal(body, &in)
+	err = BindJson(body, &in)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	// in may contain other fields, but can only specify
 	// name and email for where clause.
@@ -843,13 +887,13 @@ func RestrictedUserUpdate(c echo.Context) error {
 		return fmt.Errorf("user not found")
 	}
 	if res.Error != nil {
-		return dbErr(res.Error)
+		return ormutil.DbErr(res.Error)
 	}
 	saveuser := user
 	// apply specified fields
-	err = json.Unmarshal(body, &user)
+	err = BindJson(body, &user)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	// cannot update password or invariant fields
 	user.Passhash = saveuser.Passhash
@@ -861,7 +905,7 @@ func RestrictedUserUpdate(c echo.Context) error {
 
 	err = db.Save(&user).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	return nil
 }
@@ -901,7 +945,7 @@ func isUserAdmin(ctx context.Context, username string) (bool, error) {
 	// as it's part of one of the admin roles.
 	authOrgs, err := enforcer.GetAuthorizedOrgs(ctx, username, ResourceConfig, ActionView)
 	if err != nil {
-		return false, dbErr(err)
+		return false, ormutil.DbErr(err)
 	}
 	if _, found := authOrgs[""]; found {
 		return true, nil
@@ -910,7 +954,7 @@ func isUserAdmin(ctx context.Context, username string) (bool, error) {
 }
 
 func UpdateUser(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -928,7 +972,7 @@ func UpdateUser(c echo.Context) error {
 
 	// read args onto existing data, will overwrite only specified fields
 	if err := c.Bind(&cuser); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	// check for fields that are not allowed to change
 	if old.Name != user.Name {
@@ -957,6 +1001,12 @@ func UpdateUser(c echo.Context) error {
 	}
 	if old.PassCrackTimeSec != user.PassCrackTimeSec {
 		return fmt.Errorf("Cannot change passcracktimesec")
+	}
+	if old.LastLogin != user.LastLogin {
+		return fmt.Errorf("Cannot change last login time")
+	}
+	if old.LastFailedLogin != user.LastFailedLogin {
+		return fmt.Errorf("Cannot change last failed login time")
 	}
 
 	// if email changed, need to verify
@@ -996,10 +1046,10 @@ func UpdateUser(c echo.Context) error {
 
 	err = db.Save(user).Error
 	if err != nil {
-		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"email_pkey") {
+		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"users_email_key\"") {
 			return fmt.Errorf("Email %s already in use", user.Email)
 		}
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 
 	if sendVerify {
@@ -1024,7 +1074,7 @@ func UpdateUser(c echo.Context) error {
 }
 
 func CreateUserApiKey(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	db := loggedDB(ctx)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -1032,11 +1082,11 @@ func CreateUserApiKey(c echo.Context) error {
 	}
 	// Disallow apikey creation if auth type is ApiKey auth
 	if claims.AuthType == ApiKeyAuth {
-		return newHTTPError(http.StatusForbidden, "ApiKey auth not allowed to create API keys, please log in with user account")
+		return ormutil.NewHTTPError(http.StatusForbidden, "ApiKey auth not allowed to create API keys, please log in with user account")
 	}
 	apiKeyReq := ormapi.CreateUserApiKey{}
 	if err := c.Bind(&apiKeyReq); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	config, err := getConfig(ctx)
 	if err != nil {
@@ -1047,7 +1097,7 @@ func CreateUserApiKey(c echo.Context) error {
 	curApiKeys := []ormapi.UserApiKey{}
 	err = db.Where(&lookup).Find(&curApiKeys).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	if len(curApiKeys) >= config.UserApiKeyCreateLimit {
 		return fmt.Errorf("User cannot create more than %d API keys, please delete existing keys to create new one", config.UserApiKeyCreateLimit)
@@ -1066,7 +1116,7 @@ func CreateUserApiKey(c echo.Context) error {
 	org.Name = apiKeyObj.Org
 	err = db.Where(&org).First(&org).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 
 	lookupOrg := apiKeyObj.Org
@@ -1110,26 +1160,29 @@ func CreateUserApiKey(c echo.Context) error {
 			return fmt.Errorf("Invalid permission specified: [%s:%s], valid permissions (resource:action) are %v", perm.Resource, perm.Action, validPerms)
 		}
 		addPolicy(ctx, &policyErr, apiKeyRole, perm.Resource, perm.Action)
+		if perm.Action == ActionManage {
+			addPolicy(ctx, &policyErr, apiKeyRole, perm.Resource, ActionView)
+		}
 	}
 	if policyErr != nil {
 		cleanupPoliciesOnErr()
-		return dbErr(policyErr)
+		return ormutil.DbErr(policyErr)
 	}
 
 	err = enforcer.AddGroupingPolicy(ctx, psub, apiKeyRole)
 	if err != nil {
 		cleanupPoliciesOnErr()
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 
-	apiKeyHash, apiKeySalt, apiKeyIter := NewPasshash(apiKey)
+	apiKeyHash, apiKeySalt, apiKeyIter := ormutil.NewPasshash(apiKey)
 	apiKeyObj.ApiKeyHash = apiKeyHash
 	apiKeyObj.Salt = apiKeySalt
 	apiKeyObj.Iter = apiKeyIter
 	apiKeyObj.Id = apiKeyId
 	if err := db.Create(&apiKeyObj).Error; err != nil {
 		cleanupPoliciesOnErr()
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	apiKeyOut := ormapi.CreateUserApiKey{}
 	apiKeyOut.Id = apiKeyId
@@ -1138,7 +1191,7 @@ func CreateUserApiKey(c echo.Context) error {
 }
 
 func DeleteUserApiKey(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	db := loggedDB(ctx)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -1146,37 +1199,40 @@ func DeleteUserApiKey(c echo.Context) error {
 	}
 	// Disallow apikey deletion if auth type is ApiKey auth
 	if claims.AuthType == ApiKeyAuth {
-		return newHTTPError(http.StatusForbidden, "ApiKey auth not allowed to delete API keys, please log in with user account")
+		return ormutil.NewHTTPError(http.StatusForbidden, "ApiKey auth not allowed to delete API keys, please log in with user account")
 	}
 	lookup := ormapi.CreateUserApiKey{}
 	if err := c.Bind(&lookup); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
+	}
+	if lookup.Id == "" {
+		return fmt.Errorf("Missing API key ID")
 	}
 	apiKeyObj := ormapi.UserApiKey{Id: lookup.Id}
 	err = db.Where(&apiKeyObj).First(&apiKeyObj).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	apiKeyRole := getApiKeyRoleName(apiKeyObj.Id)
 	err = enforcer.RemovePolicy(ctx, apiKeyRole)
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	psub := rbac.GetCasbinGroup(apiKeyObj.Org, apiKeyObj.Id)
 	err = enforcer.RemoveGroupingPolicy(ctx, psub, apiKeyRole)
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	// delete user api key
 	err = db.Delete(&apiKeyObj).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
-	return c.JSON(http.StatusOK, Msg("deleted API Key successfully"))
+	return c.JSON(http.StatusOK, ormutil.Msg("deleted API Key successfully"))
 }
 
 func ShowUserApiKey(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	db := loggedDB(ctx)
 	claims, err := getClaims(c)
 	if err != nil {
@@ -1184,12 +1240,12 @@ func ShowUserApiKey(c echo.Context) error {
 	}
 	// Disallow apikey users to view api keys
 	if claims.AuthType == ApiKeyAuth {
-		return newHTTPError(http.StatusForbidden, "ApiKey auth not allowed to show API keys, please log in with user account")
+		return ormutil.NewHTTPError(http.StatusForbidden, "ApiKey auth not allowed to show API keys, please log in with user account")
 	}
 	filter := ormapi.CreateUserApiKey{}
 	if c.Request().ContentLength > 0 {
 		if err := c.Bind(&filter); err != nil {
-			return bindErr(err)
+			return ormutil.BindErr(err)
 		}
 	}
 	apiKeys := []ormapi.UserApiKey{}
@@ -1197,13 +1253,17 @@ func ShowUserApiKey(c echo.Context) error {
 	if filter.Id == "" {
 		err := db.Find(&apiKeys).Error
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 	} else {
 		apiKeyObj := ormapi.UserApiKey{Id: filter.Id}
-		err := db.Where(&apiKeyObj).First(&apiKeyObj).Error
+		res := db.Where(&apiKeyObj).First(&apiKeyObj)
+		if res.RecordNotFound() {
+			return fmt.Errorf("API key ID not found")
+		}
+		err := res.Error
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 		apiKeys = append(apiKeys, apiKeyObj)
 	}

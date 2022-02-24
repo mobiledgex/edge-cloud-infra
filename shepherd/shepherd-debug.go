@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 )
@@ -15,13 +16,22 @@ func InitDebug(nodeMgr *node.NodeMgr) {
 	nodeMgr.Debug.AddDebugFunc("set-scrape-interval", setScrapeInterval)
 	nodeMgr.Debug.AddDebugFunc("reset-scrape-interval", resetScrapeInterval)
 	nodeMgr.Debug.AddDebugFunc("show-scrape-interval", showScrapeInterval)
+	nodeMgr.Debug.AddDebugFunc("show-platform-active", showPlatformActive)
+
 }
 
 func showScrapeInterval(ctx context.Context, req *edgeproto.DebugRequest) string {
-	return "shepherd scraping metrics every " + promScrapeInterval.String()
+	return "shepherd scraping metrics every " + metricsScrapingInterval.String()
+}
+
+func showPlatformActive(ctx context.Context, req *edgeproto.DebugRequest) string {
+	return fmt.Sprintf("PlatformActive: %t", shepherd_common.ShepherdPlatformActive)
 }
 
 func setIntervalFromDbg(ctx context.Context, scrapeInterval *time.Duration) error {
+	if settings.ShepherdAlertEvaluationInterval.TimeDuration() < *scrapeInterval {
+		return fmt.Errorf("evaluation interval %s cannot be less than scrape interval %s", settings.ShepherdAlertEvaluationInterval.TimeDuration().String(), scrapeInterval.String())
+	}
 	// update cloudletPrometheus config file
 	err := updateCloudletPrometheusConfig(ctx, &metricsScrapingInterval, &settings.ShepherdAlertEvaluationInterval)
 	if err != nil {

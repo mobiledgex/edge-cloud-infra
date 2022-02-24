@@ -3,6 +3,8 @@ package ormctl
 import (
 	fmt "fmt"
 	"strings"
+
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 // ApiCommand defines the client interaction with the API. It is very
@@ -79,6 +81,9 @@ func (s *All) AddCommand(cmd *ApiCommand) {
 	if _, found := s.Commands[cmd.Name]; found {
 		panic(fmt.Errorf("Already a command named %s", cmd.Name))
 	}
+	if err := cmd.Validate(); err != nil {
+		panic(err.Error())
+	}
 	s.Commands[cmd.Name] = cmd
 }
 
@@ -119,7 +124,6 @@ func aliasedComments(comments map[string]string, aliases []string) map[string]st
 	}
 	for k, v := range comments {
 		if alias, found := lookup[k]; found {
-			delete(comments, k)
 			aliasedComments[alias] = v
 		} else {
 			aliasedComments[k] = v
@@ -131,4 +135,46 @@ func aliasedComments(comments map[string]string, aliases []string) map[string]st
 func addRegionComment(comments map[string]string) map[string]string {
 	comments["region"] = "Region name"
 	return comments
+}
+
+func (s *ApiCommand) Validate() error {
+	// make sure all arguments have valid help comment
+	args := []string{}
+	if str := strings.TrimSpace(s.RequiredArgs); str != "" {
+		args = append(args, strings.Split(str, " ")...)
+	}
+	if str := strings.TrimSpace(s.OptionalArgs); str != "" {
+		args = append(args, strings.Split(str, " ")...)
+	}
+	missingComments := []string{}
+	for _, arg := range args {
+		_, found := s.Comments[arg]
+		if !found {
+			missingComments = append(missingComments, arg)
+		}
+	}
+	if len(missingComments) > 0 {
+		return fmt.Errorf("Error, no comment found for command %s args %v, comments are %v, aliases are %v", s.Name, missingComments, s.Comments, s.AliasArgs)
+	}
+	aliasMap := make(map[string]string)
+	for _, alias := range strings.Fields(s.AliasArgs) {
+		kv := strings.SplitN(alias, "=", 2)
+		if len(kv) != 2 {
+			continue
+		}
+		aliasMap[kv[1]] = kv[0]
+	}
+	badArgs := []string{}
+	for _, arg := range args {
+		if alias, found := aliasMap[arg]; found {
+			arg = alias
+		}
+		if !util.ValidCliArg(arg) {
+			badArgs = append(badArgs, arg)
+		}
+	}
+	if len(badArgs) > 0 {
+		return fmt.Errorf("Error, bad format for command %s args %v, only lowercase letters and numbers allowed", s.Name, badArgs)
+	}
+	return nil
 }

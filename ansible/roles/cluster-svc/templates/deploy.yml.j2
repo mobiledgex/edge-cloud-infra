@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: cluster-svc
-        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        image: "{{ edge_cloud_image }}-cluster-svc:{{ edge_cloud_version }}"
         imagePullPolicy: Always
         resources:
           requests:
@@ -28,7 +28,7 @@ spec:
         command:
          - "cluster-svc"
          - "--notifyAddrs"
-         - "{{ controller_hostname }}:37001"
+         - "{{ controller_hostname }}:{{ controller_notify_port }}"
          - "--ctrlAddrs"
          - "{{ controller_hostname }}:55001"
          - "--region"
@@ -40,10 +40,9 @@ spec:
          - "{{ deployment_tag_override | default(deploy_environ) }}"
          - "--d"
          - "infra,notify,api"
-         - "--flavor"
-         - "x1.medium"
          - "--scrapeInterval"
          - "5s"
+         - "pluginRequired"
         env:
          - name: JAEGER_ENDPOINT
            value: "{{ jaeger_endpoint }}"

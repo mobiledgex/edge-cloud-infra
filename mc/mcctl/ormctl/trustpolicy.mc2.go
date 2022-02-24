@@ -31,6 +31,7 @@ var CreateTrustPolicyCmd = &ApiCommand{
 	AliasArgs:            strings.Join(TrustPolicyAliasArgs, " "),
 	SpecialArgs:          &TrustPolicySpecialArgs,
 	Comments:             addRegionComment(TrustPolicyComments),
+	NoConfig:             "DeletePrepare",
 	ReqData:              &ormapi.RegionTrustPolicy{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/CreateTrustPolicy",
@@ -48,6 +49,7 @@ var DeleteTrustPolicyCmd = &ApiCommand{
 	AliasArgs:            strings.Join(TrustPolicyAliasArgs, " "),
 	SpecialArgs:          &TrustPolicySpecialArgs,
 	Comments:             addRegionComment(TrustPolicyComments),
+	NoConfig:             "DeletePrepare",
 	ReqData:              &ormapi.RegionTrustPolicy{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/DeleteTrustPolicy",
@@ -65,6 +67,7 @@ var UpdateTrustPolicyCmd = &ApiCommand{
 	AliasArgs:            strings.Join(TrustPolicyAliasArgs, " "),
 	SpecialArgs:          &TrustPolicySpecialArgs,
 	Comments:             addRegionComment(TrustPolicyComments),
+	NoConfig:             "DeletePrepare",
 	ReqData:              &ormapi.RegionTrustPolicy{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/UpdateTrustPolicy",
@@ -82,6 +85,7 @@ var ShowTrustPolicyCmd = &ApiCommand{
 	AliasArgs:    strings.Join(TrustPolicyAliasArgs, " "),
 	SpecialArgs:  &TrustPolicySpecialArgs,
 	Comments:     addRegionComment(TrustPolicyComments),
+	NoConfig:     "DeletePrepare",
 	ReqData:      &ormapi.RegionTrustPolicy{},
 	ReplyData:    &edgeproto.TrustPolicy{},
 	Path:         "/auth/ctrl/ShowTrustPolicy",
@@ -102,7 +106,7 @@ func init() {
 }
 
 var TrustPolicyRequiredArgs = []string{
-	"cloudlet-org",
+	"cloudletorg",
 	"name",
 }
 var TrustPolicyOptionalArgs = []string{
@@ -114,23 +118,25 @@ var TrustPolicyOptionalArgs = []string{
 }
 var TrustPolicyAliasArgs = []string{
 	"fields=trustpolicy.fields",
-	"cloudlet-org=trustpolicy.key.organization",
+	"cloudletorg=trustpolicy.key.organization",
 	"name=trustpolicy.key.name",
 	"outboundsecurityrules:empty=trustpolicy.outboundsecurityrules:empty",
 	"outboundsecurityrules:#.protocol=trustpolicy.outboundsecurityrules:#.protocol",
 	"outboundsecurityrules:#.portrangemin=trustpolicy.outboundsecurityrules:#.portrangemin",
 	"outboundsecurityrules:#.portrangemax=trustpolicy.outboundsecurityrules:#.portrangemax",
 	"outboundsecurityrules:#.remotecidr=trustpolicy.outboundsecurityrules:#.remotecidr",
+	"deleteprepare=trustpolicy.deleteprepare",
 }
 var TrustPolicyComments = map[string]string{
 	"fields":                               "Fields are used for the Update API to specify which fields to apply",
-	"cloudlet-org":                         "Name of the organization for the cluster that this policy will apply to",
+	"cloudletorg":                          "Name of the organization for the cluster that this policy will apply to",
 	"name":                                 "Policy name",
-	"outboundsecurityrules:empty":          "list of outbound security rules for whitelisting traffic, specify outboundsecurityrules:empty=true to clear",
-	"outboundsecurityrules:#.protocol":     "tcp, udp, icmp",
+	"outboundsecurityrules:empty":          "List of outbound security rules for whitelisting traffic, specify outboundsecurityrules:empty=true to clear",
+	"outboundsecurityrules:#.protocol":     "TCP, UDP, ICMP",
 	"outboundsecurityrules:#.portrangemin": "TCP or UDP port range start",
 	"outboundsecurityrules:#.portrangemax": "TCP or UDP port range end",
-	"outboundsecurityrules:#.remotecidr":   "remote CIDR X.X.X.X/X",
+	"outboundsecurityrules:#.remotecidr":   "Remote CIDR X.X.X.X/X",
+	"deleteprepare":                        "Preparing to be deleted",
 }
 var TrustPolicySpecialArgs = map[string]string{
 	"trustpolicy.fields": "StringArray",

@@ -1,3 +1,9 @@
+# Set up apt cert validation
+file '/etc/apt/apt.conf.d/10cert-validation' do
+  content "Acquire::https::Verify-Peer \"#{node['aptCertValidation']}\";\n"
+  action :create
+end
+
 if node.normal['tags'].include?('vmtype/rootlb')
   # Check installed package `dpkg -s mobiledgex | grep Version | awk -F ": " '{print $2}'`
   curTag = shell_out("dpkg -s mobiledgex | grep Version | awk -F \": \" '{printf $2}'").stdout
@@ -26,7 +32,7 @@ if node.normal['tags'].include?('vmtype/rootlb')
       action :create
     end
     apt_repository 'bionic' do
-      uri 'https://apt.mobiledgex.net/cirrus/2021-06-30'
+      uri 'https://apt.mobiledgex.net/cirrus/2022-01-26'
       distribution 'bionic'
       components ['main']
     end
@@ -35,12 +41,25 @@ if node.normal['tags'].include?('vmtype/rootlb')
       distribution 'cirrus'
       components ['main']
     end
-    execute('Unhold the mobiledgex package, if held') do
-      action "run"
-      command "apt-mark unhold mobiledgex"
+    file '/etc/apt/auth.conf.d/mobiledgex.net.conf' do
+      content "machine artifactory.mobiledgex.net login apt password mobiledgex\nmachine apt.mobiledgex.net login apt password mobiledgex"
+      action :create_if_missing
+    end
+    bash 'Unhold the mobiledgex package if exists and held' do
+      code <<-EOH
+        dpkg -l | grep -i mobiledgex
+        if [[ $? -eq 0 ]]; then
+          apt-mark unhold mobiledgex
+        else
+          echo "mobiledgex package doesn't exist"
+        fi
+      EOH
       returns 0
     end
     apt_update
+    apt_package 'ca-certificates' do
+      action :upgrade
+    end
 
     bash 'install-mobiledgex-deb-pkg-with-appropriate-kernel' do
       code <<-EOH

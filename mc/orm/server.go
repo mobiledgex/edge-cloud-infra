@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -18,18 +20,22 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/billing/chargify"
 	"github.com/mobiledgex/edge-cloud-infra/billing/fakebilling"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
+	"github.com/mobiledgex/edge-cloud-infra/mc/federation"
 	"github.com/mobiledgex/edge-cloud-infra/mc/orm/alertmgr"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud-infra/version"
+	"github.com/mobiledgex/edge-cloud/cli"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/ratelimit"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/notify"
 	edgetls "github.com/mobiledgex/edge-cloud/tls"
-	"github.com/mobiledgex/edge-cloud/util"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/nmcclain/ldap"
 	gitlab "github.com/xanzy/go-gitlab"
@@ -37,27 +43,31 @@ import (
 
 // Server struct is just to track sql/db so we can stop them later.
 type Server struct {
-	config       *ServerConfig
-	sql          *intprocess.Sql
-	database     *gorm.DB
-	echo         *echo.Echo
-	vault        *process.Vault
-	stopInitData bool
-	initDataDone chan error
-	initJWKDone  chan struct{}
-	notifyServer *notify.ServerMgr
-	notifyClient *notify.Client
-	sqlListener  *pq.Listener
-	ldapServer   *ldap.Server
-	done         chan struct{}
+	config          *ServerConfig
+	sql             *intprocess.Sql
+	database        *gorm.DB
+	echo            *echo.Echo
+	vault           *process.Vault
+	stopInitData    bool
+	initDataDone    chan error
+	initJWKDone     chan struct{}
+	notifyServer    *notify.ServerMgr
+	notifyClient    *notify.Client
+	sqlListener     *pq.Listener
+	ldapServer      *ldap.Server
+	done            chan struct{}
+	alertMgrStarted bool
+	federationEcho  *echo.Echo
 }
 
 type ServerConfig struct {
 	ServAddr                string
 	SqlAddr                 string
 	VaultAddr               string
+	FederationAddr          string
 	RunLocal                bool
 	InitLocal               bool
+	SqlDataDir              string
 	IgnoreEnv               bool
 	ApiTlsCertFile          string
 	ApiTlsKeyFile           string
@@ -85,6 +95,7 @@ type ServerConfig struct {
 	DomainName              string
 	StaticDir               string
 	DeploymentTag           string
+	ControllerNotifyPort    string
 }
 
 var DefaultDBUser = "mcuser"
@@ -104,8 +115,11 @@ var artifactorySync *AppStoreSync
 var nodeMgr *node.NodeMgr
 var AlertManagerServer *alertmgr.AlertMgrServer
 var allRegionCaches AllRegionCaches
+var connCache *ConnCache
+var fedClient *federation.FederationClient
 
 var unitTestNodeMgrOps []node.NodeOp
+var rateLimitMgr *ratelimit.RateLimitManager
 
 func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	server := Server{config: config}
@@ -185,10 +199,10 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 		roleID := roles.MCRoleID
 		secretID := roles.MCSecretID
-		config.VaultAddr = process.VaultAddress
+		config.VaultAddr = vaultProc.ListenAddr
 		server.vault = &vaultProc
 		auth := vault.NewAppRoleAuth(roleID, secretID)
-		config.vaultConfig = vault.NewConfig(process.VaultAddress, auth)
+		config.vaultConfig = vault.NewConfig(vaultProc.ListenAddr, auth)
 	}
 	// vaultConfig should only be set by unit tests
 	if config.vaultConfig == nil {
@@ -230,11 +244,14 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	}
 
 	if config.RunLocal {
+		if config.SqlDataDir == "" {
+			config.SqlDataDir = "./.postgres"
+		}
 		sql := intprocess.Sql{
 			Common: process.Common{
 				Name: "sql1",
 			},
-			DataDir:  "./.postgres",
+			DataDir:  config.SqlDataDir,
 			HttpAddr: config.SqlAddr,
 			Username: dbuser,
 			Dbname:   dbname,
@@ -264,6 +281,11 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		return nil, fmt.Errorf("enforcer init failed, %v", err)
 	}
 
+	fedClient, err = federation.NewClient(accessapi.NewVaultGlobalClient(config.vaultConfig))
+	if err != nil {
+		log.FatalLog("Failed to setup federation client", "err", err)
+	}
+
 	server.initDataDone = make(chan error, 1)
 	go InitData(ctx, Superuser, superpass, config.PingInterval, &server.stopInitData, server.done, server.initDataDone)
 
@@ -284,14 +306,21 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 	}
 
+	connCache = NewConnCache()
+	connCache.Start()
+
 	e := echo.New()
 	e.HideBanner = true
+	e.Binder = &CustomBinder{}
 	server.echo = e
 
 	e.GET("/", func(c echo.Context) error {
 		return c.String(http.StatusOK, "OK")
 	})
-	e.Use(logger)
+
+	// AuthCookie needs to be done here at the root so it can run before RateLimit and extract the user information needed by the RateLimit middleware.
+	// AuthCookie will only run for the /auth path.
+	e.Use(logger, AuthCookie, RateLimit)
 
 	// login route
 	root := "api/v1"
@@ -333,7 +362,6 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	e.POST(root+"/resendverify", ResendVerify)
 	// authenticated routes - jwt middleware
 	auth := e.Group(root + "/auth")
-	auth.Use(AuthCookie)
 	// refresh auth cookie
 	auth.POST("/refresh", RefreshAuthCookie)
 
@@ -548,6 +576,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/billingorg/deletepaymentprofile", DeletePaymentInfo)
 
 	auth.POST("/controller/create", CreateController)
+	auth.POST("/controller/update", UpdateController)
 	auth.POST("/controller/delete", DeleteController)
 	auth.POST("/controller/show", ShowController)
 	auth.POST("/gitlab/resync", GitlabResync)
@@ -572,6 +601,15 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/cloudletpoolaccesspending/show", ShowCloudletPoolAccessPending)
 	auth.POST("/orgcloudlet/show", ShowOrgCloudlet)
 	auth.POST("/orgcloudletinfo/show", ShowOrgCloudletInfo)
+	auth.POST("/ratelimitsettingsmc/show", ShowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/createflow", CreateFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/deleteflow", DeleteFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/updateflow", UpdateFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/showflow", ShowFlowRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/createmaxreqs", CreateMaxReqsRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/deletemaxreqs", DeleteMaxReqsRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/updatemaxreqs", UpdateMaxReqsRateLimitSettingsMc)
+	auth.POST("/ratelimitsettingsmc/showmaxreqs", ShowMaxReqsRateLimitSettingsMc)
 
 	// Support multiple connection types: HTTP(s), Websockets
 	addControllerApis("POST", auth)
@@ -589,6 +627,8 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	//   403: forbidden
 	//   404: notFound
 	auth.POST("/metrics/app", GetMetricsCommon)
+
+	auth.POST("/metrics/app/v2", GetAppMetricsV2)
 
 	// swagger:route POST /auth/metrics/cluster DeveloperMetrics ClusterMetrics
 	// Cluster related metrics.
@@ -783,6 +823,28 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	auth.POST("/report/show", ShowReport)
 	auth.POST("/report/download", DownloadReport)
 
+	// Plan and manage federation
+	auth.POST("/federator/self/create", CreateSelfFederator)
+	auth.POST("/federator/self/update", UpdateSelfFederator)
+	auth.POST("/federator/self/delete", DeleteSelfFederator)
+	auth.POST("/federator/self/show", ShowSelfFederator)
+	auth.POST("/federator/self/generateapikey", GenerateSelfFederatorAPIKey)
+	auth.POST("/federator/self/zone/create", CreateSelfFederatorZone)
+	auth.POST("/federator/self/zone/delete", DeleteSelfFederatorZone)
+	auth.POST("/federator/self/zone/show", ShowSelfFederatorZone)
+	auth.POST("/federator/self/zone/share", ShareSelfFederatorZone)
+	auth.POST("/federator/self/zone/unshare", UnshareSelfFederatorZone)
+	auth.POST("/federator/partner/zone/register", RegisterPartnerFederatorZone)
+	auth.POST("/federator/partner/zone/deregister", DeregisterPartnerFederatorZone)
+	auth.POST("/federation/create", CreateFederation)
+	auth.POST("/federation/delete", DeleteFederation)
+	auth.POST("/federation/register", RegisterFederation)
+	auth.POST("/federation/deregister", DeregisterFederation)
+	auth.POST("/federation/partner/setapikey", SetPartnerFederationAPIKey)
+	auth.POST("/federation/show", ShowFederation)
+	auth.POST("/federation/self/zone/show", ShowFederatedSelfZone)
+	auth.POST("/federation/partner/zone/show", ShowFederatedPartnerZone)
+
 	// Generate new short-lived token to authenticate websocket connections
 	// Note: Web-client should not store auth token as part of local storage,
 	//       instead browser should store it as secure cookies.
@@ -870,6 +932,35 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		}
 	}()
 
+	if config.FederationAddr != "" {
+		// Global Operator Platform Federation
+		federationEcho := echo.New()
+		federationEcho.HideBanner = true
+		federationEcho.Binder = &CustomBinder{}
+
+		// RateLimit based on partner's federation ID if present or else use partner's IP
+		federationEcho.Use(logger, federation.AuthAPIKey, FederationRateLimit)
+		server.federationEcho = federationEcho
+
+		partnerApi := federation.PartnerApi{
+			Database:  database,
+			ConnCache: connCache,
+		}
+		partnerApi.InitAPIs(federationEcho)
+
+		go func() {
+			if config.ApiTlsCertFile != "" {
+				err = federationEcho.StartTLS(config.FederationAddr, config.ApiTlsCertFile, config.ApiTlsKeyFile)
+			} else {
+				err = federationEcho.Start(config.FederationAddr)
+			}
+			if err != nil && err != http.ErrServerClosed {
+				server.Stop()
+				log.FatalLog("Failed to serve federation", "err", err)
+			}
+		}()
+	}
+
 	gitlabSync = GitlabNewSync()
 	artifactorySync = ArtifactoryNewSync()
 
@@ -882,6 +973,7 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	artifactorySync.Start(server.done)
 	if AlertManagerServer != nil {
 		AlertManagerServer.Start()
+		server.alertMgrStarted = true
 	}
 	sqlListener, err := initSqlListener(ctx, server.done)
 	if err != nil {
@@ -929,6 +1021,12 @@ func (s *Server) Stop() {
 	if s.echo != nil {
 		s.echo.Close()
 	}
+	if s.federationEcho != nil {
+		s.federationEcho.Close()
+	}
+	if connCache != nil {
+		connCache.Finish()
+	}
 	if s.database != nil {
 		s.database.Close()
 	}
@@ -948,7 +1046,9 @@ func (s *Server) Stop() {
 		s.notifyClient.Stop()
 	}
 	if AlertManagerServer != nil {
-		AlertManagerServer.Stop()
+		if s.alertMgrStarted {
+			AlertManagerServer.Stop()
+		}
 		AlertManagerServer = nil
 	}
 	nodeMgr.Finish()
@@ -959,7 +1059,7 @@ func ShowVersion(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	if err := authorized(ctx, claims.Username, "", ResourceConfig, ActionView); err != nil {
 		return err
@@ -1013,7 +1113,7 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 		}
 
 		// Set ws on echo context
-		SetWs(c, ws)
+		ormutil.SetWs(c, ws)
 
 		// call next handler
 		err = next(c)
@@ -1029,7 +1129,7 @@ func (s *Server) websocketUpgrade(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 			writeErr := writeWS(c, ws, &wsPayload)
 			if writeErr != nil {
-				ctx := GetContext(c)
+				ctx := ormutil.GetContext(c)
 				log.SpanLog(ctx, log.DebugLevelApi, "Failed to write error to websocket stream", "err", err, "writeErr", writeErr)
 			}
 		}
@@ -1049,40 +1149,92 @@ func ReadConn(c echo.Context, in interface{}) ([]byte, error) {
 	// Mark stream API
 	c.Set(StreamAPITag, true)
 
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		_, dat, err = ws.ReadMessage()
 		if err == nil {
-			LogWsRequest(c, dat)
+			ormutil.LogWsRequest(c, dat)
 		}
 	} else {
 		// This plus json.Umarshal is the equivalent of c.Bind()
 		dat, err = ioutil.ReadAll(c.Request().Body)
 	}
 	if err == nil {
-		err = json.Unmarshal(dat, in)
-		if err != nil {
-			// this is a copy of error handling from c.Bind()
-			if ute, ok := err.(*json.UnmarshalTypeError); ok {
-				err = echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Unmarshal type error: expected=%v, got=%v, field=%v, offset=%v", ute.Type, ute.Value, ute.Field, ute.Offset))
-			} else if se, ok := err.(*json.SyntaxError); ok {
-				err = echo.NewHTTPError(http.StatusBadRequest, fmt.Sprintf("Syntax error: offset=%v, error=%v", se.Offset, se.Error()))
-			}
-		}
-		err = util.NiceTimeParseError(err)
+		err = BindJson(dat, in)
 	}
 
 	if err != nil {
 		if err == io.EOF || err == io.ErrUnexpectedEOF {
 			return nil, fmt.Errorf("Invalid data")
 		}
-		return nil, bindErr(err)
+		return nil, err
 	}
 
 	return dat, nil
 }
 
+// Override the echo.DefaultBinder so we can have better error messages.
+// It's also slightly more secure in that it only accepts JSON.
+type CustomBinder struct{}
+
+func (s *CustomBinder) Bind(i interface{}, c echo.Context) error {
+	// reference echo.DefaultBinder
+	req := c.Request()
+	if req.ContentLength == 0 {
+		return fmt.Errorf("Request body can't be empty")
+	}
+	// we only accept JSON
+	ctype := req.Header.Get(echo.HeaderContentType)
+	switch {
+	case strings.HasPrefix(ctype, echo.MIMEApplicationJSON):
+		dat, err := ioutil.ReadAll(req.Body)
+		if err != nil {
+			return err
+		}
+		return BindJson(dat, i)
+	default:
+		return echo.ErrUnsupportedMediaType
+	}
+}
+
+func BindJson(js []byte, i interface{}) error {
+	err := json.Unmarshal(js, i)
+	if err == nil {
+		return nil
+	}
+	// Unfortunately, if the json library hits an error using
+	// a custom unmarshaler, it simply passes that error up instead
+	// of wrapping it in a custom error type that would include the
+	// field and offset. Therefore we have subpar error messages
+	// for custom unmarshalers (time, duration) that do not include
+	// the field and offset. The only way to fix this would be to
+	// fork the json package, and add a new CustomUnmarshalTypeError
+	// that would include the original time.ParseError plus the
+	// field and offset.
+
+	switch e := err.(type) {
+	case *json.UnmarshalTypeError:
+		errType, help, _ := cli.GetParseHelp(e.Type)
+		// offset may be unspecified for custom unmarshaling errors
+		offsetStr := ""
+		if e.Offset != 0 {
+			offsetStr = fmt.Sprintf(" at offset %d", e.Offset)
+		}
+		err = fmt.Errorf("Unmarshal error: expected %v, but got %v for field %q%s%s", errType, e.Value, e.Field, offsetStr, help)
+	case *json.SyntaxError:
+		err = fmt.Errorf("Syntax error at offset %v, %v", e.Offset, e.Error())
+	case *time.ParseError:
+		val := e.Value
+		if valuq, err := strconv.Unquote(val); err == nil {
+			val = valuq
+		}
+		errType, help, _ := cli.GetParseHelp(reflect.TypeOf(time.Time{}))
+		err = fmt.Errorf("Unmarshal %s %q failed%s", errType, val, help)
+	}
+	return fmt.Errorf("Invalid JSON data: %v", err)
+}
+
 func WaitForConnClose(c echo.Context, serverClosed chan bool) {
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		clientClosed := make(chan error)
 		go func() {
 			// Handling close events from client is different here
@@ -1111,13 +1263,13 @@ func WaitForConnClose(c echo.Context, serverClosed chan bool) {
 func writeWS(c echo.Context, ws *websocket.Conn, wsPayload *ormapi.WSStreamPayload) error {
 	out, err := json.Marshal(wsPayload)
 	if err == nil {
-		LogWsResponse(c, string(out))
+		ormutil.LogWsResponse(c, string(out))
 	}
 	return ws.WriteJSON(wsPayload)
 }
 
 func WriteStream(c echo.Context, payload *ormapi.StreamPayload) error {
-	if ws := GetWs(c); ws != nil {
+	if ws := ormutil.GetWs(c); ws != nil {
 		wsPayload := ormapi.WSStreamPayload{
 			Code: http.StatusOK,
 			Data: (*payload).Data,

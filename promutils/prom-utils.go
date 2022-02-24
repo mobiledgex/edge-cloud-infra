@@ -1,6 +1,7 @@
 package promutils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/log"
+	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 var ClusterPrometheusAppLabel = "label_" + cloudcommon.MexAppNameLabel
@@ -29,10 +32,16 @@ const (
 	PromQUdpRecvPktsClust   = "node_netstat_Udp_InDatagrams"
 	PromQUdpRecvErr         = "node_netstat_Udp_InErrors"
 
+	PromQCloudletCpuTotal  = "sum(machine_cpu_cores)"
+	PromQCloudletMemUse    = `sum(container_memory_working_set_bytes{id="/"})`
+	PromQCloudletMemTotal  = "sum(machine_memory_bytes)"
+	PromQCloudletDiskUse   = `sum(container_fs_usage_bytes{device=~"^/dev/[sv]d[a-z][1-9]$",id="/"})`
+	PromQCloudletDiskTotal = `sum(container_fs_limit_bytes{device=~"^/dev/[sv]d[a-z][1-9]$",id="/"})`
+
 	// This is a template which takes a pod query and adds instance label to it
 	PromQAppLabelsWrapperFmt = "max(kube_pod_labels%s)by(label_mexAppName,label_mexAppVersion,pod)*on(pod)group_right(label_mexAppName,label_mexAppVersion)(%s)"
 
-	PromQCpuPod         = `sum(rate(container_cpu_usage_seconds_total{image!=""}[1m]))by(pod)`
+	PromQCpuPod         = `sum(rate(container_cpu_usage_seconds_total{image!=""}[1m])) by (pod) / ignoring (pod) group_left sum(machine_cpu_cores) * 100 `
 	PromQMemPod         = `sum(container_memory_working_set_bytes{image!=""})by(pod)`
 	PromQMemPercentPod  = `sum(container_memory_working_set_bytes{image!=""})by(pod) / ignoring (pod) group_left sum( machine_memory_bytes{}) * 100`
 	PromQDiskPod        = `sum(container_fs_usage_bytes{image!=""})by(pod)`
@@ -42,6 +51,8 @@ const (
 
 	PromQAutoScaleCpuTotalU = "stabilized_max_total_worker_node_cpu_utilisation"
 	PromQAutoScaleMemTotalU = "stabilized_max_total_worker_node_mem_utilisation"
+
+	PromQConnections = "envoy_cluster_upstream_cx_active"
 )
 
 // Url-encoded strings, so we don't have to encode them every time
@@ -56,6 +67,13 @@ var (
 	PromQUdpSentPktsClustUrlEncoded   = url.QueryEscape(PromQUdpSentPktsClust)
 	PromQUdpRecvPktsClustUrlEncoded   = url.QueryEscape(PromQUdpRecvPktsClust)
 	PromQUdpRecvErrUrlEncoded         = url.QueryEscape(PromQUdpRecvErr)
+
+	// For bare metal k8s CloudletMetrics
+	PromQCloudletCpuTotalEncoded  = url.QueryEscape(PromQCloudletCpuTotal)
+	PromQCloudletMemUseEncoded    = url.QueryEscape(PromQCloudletMemUse)
+	PromQCloudletMemTotalEncoded  = url.QueryEscape(PromQCloudletMemTotal)
+	PromQCloudletDiskUseEncoded   = url.QueryEscape(PromQCloudletDiskUse)
+	PromQCloudletDiskTotalEncoded = url.QueryEscape(PromQCloudletDiskTotal)
 
 	// For Pod metrics we need to join them with k8s pod labels
 	PromQCpuPodUrlEncoded         = url.QueryEscape(GetPromQueryWithK8sLabels(PromLabelsAllMobiledgeXApps, PromQCpuPod))
@@ -136,4 +154,19 @@ func ParseTime(timeFloat float64) *types.Timestamp {
 // Function also takes an optional label filter string of form "{label1="val1",label2="val2",..}"
 func GetPromQueryWithK8sLabels(labelFilter, podQuery string) string {
 	return fmt.Sprintf(PromQAppLabelsWrapperFmt, labelFilter, podQuery)
+}
+
+func GetPromMetrics(ctx context.Context, addr string, query string, client ssh.Client) (*PromResp, error) {
+	reqURI := "'http://" + addr + "/api/v1/query?query=" + query + "'"
+	resp, err := client.Output("curl -s -S " + reqURI)
+	if err != nil {
+		log.ForceLogSpan(log.SpanFromContext(ctx))
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to get prom metrics", "reqURI", reqURI, "err", err, "resp", resp)
+		return nil, err
+	}
+	PromResp := &PromResp{}
+	if err = json.Unmarshal([]byte(resp), PromResp); err != nil {
+		return nil, err
+	}
+	return PromResp, nil
 }

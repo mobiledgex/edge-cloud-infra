@@ -6,8 +6,11 @@ import (
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/util"
 )
 
 var clusterEventFields = []string{
@@ -47,34 +50,46 @@ func getEventFields(eventType string) string {
 }
 
 // Query is a template with a specific set of if/else
-func AppInstEventsQuery(obj *ormapi.RegionAppInstEvents) string {
+func AppInstEventsQuery(obj *ormapi.RegionAppInstEvents, cloudletList []string) string {
 	arg := influxQueryArgs{
 		Selector:     getEventFields(EVENT_APPINST),
 		Measurement:  EVENT_APPINST,
 		AppInstName:  k8smgmt.NormalizeName(obj.AppInst.AppKey.Name),
-		OrgField:     "apporg",
-		ApiCallerOrg: obj.AppInst.AppKey.Organization,
-		CloudletName: obj.AppInst.ClusterInstKey.CloudletKey.Name,
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		CloudletOrg:  obj.AppInst.ClusterInstKey.CloudletKey.Organization,
-		Last:         obj.Last,
+		CloudletList: generateCloudletList(cloudletList),
 	}
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	if obj.AppInst.AppKey.Organization != "" {
+		arg.OrgField = "apporg"
+		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
+		arg.CloudletOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+	} else {
+		arg.OrgField = "cloudletorg"
+		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
+		arg.AppOrg = obj.AppInst.AppKey.Organization
+	}
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
-func ClusterEventsQuery(obj *ormapi.RegionClusterInstEvents) string {
+func ClusterEventsQuery(obj *ormapi.RegionClusterInstEvents, cloudletList []string) string {
 	arg := influxQueryArgs{
 		Selector:     getEventFields(EVENT_CLUSTERINST),
 		Measurement:  EVENT_CLUSTERINST,
-		OrgField:     "org",
-		ApiCallerOrg: obj.ClusterInst.Organization,
-		CloudletName: obj.ClusterInst.CloudletKey.Name,
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
-		CloudletOrg:  obj.ClusterInst.CloudletKey.Organization,
-		Last:         obj.Last,
+		CloudletList: generateCloudletList(cloudletList),
 	}
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	if obj.ClusterInst.Organization != "" {
+		arg.OrgField = "clusterorg"
+		arg.ApiCallerOrg = obj.ClusterInst.Organization
+		arg.CloudletOrg = obj.ClusterInst.CloudletKey.Organization
+	} else {
+		arg.OrgField = "cloudletorg"
+		arg.ApiCallerOrg = obj.ClusterInst.CloudletKey.Organization
+		arg.ClusterOrg = obj.ClusterInst.Organization
+	}
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -86,9 +101,9 @@ func CloudletEventsQuery(obj *ormapi.RegionCloudletEvents) string {
 		ApiCallerOrg: obj.Cloudlet.Organization,
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
-		Last:         obj.Last,
 	}
-	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
 // Common method to handle both app and cluster metrics
@@ -101,7 +116,7 @@ func GetEventsCommon(c echo.Context) error {
 		return err
 	}
 	rc.claims = claims
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 
 	if strings.HasSuffix(c.Path(), "events/app") {
 		in := ormapi.RegionAppInstEvents{}
@@ -109,38 +124,38 @@ func GetEventsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		// Developer name has to be specified
-		if in.AppInst.AppKey.Organization == "" {
-			return fmt.Errorf("App details must be present")
-		}
-		rc.region = in.Region
-		org = in.AppInst.AppKey.Organization
-
-		cmd = AppInstEventsQuery(&in)
-
-		// Check the developer against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceAppAnalytics, ActionView); err != nil {
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
+			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
+		if err != nil {
 			return err
 		}
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.AppInst.GetTags()); err != nil {
+			return err
+		}
+
+		rc.region = in.Region
+
+		cmd = AppInstEventsQuery(&in, cloudletList)
 	} else if strings.HasSuffix(c.Path(), "events/cluster") {
 		in := ormapi.RegionClusterInstEvents{}
 		_, err := ReadConn(c, &in)
 		if err != nil {
 			return err
 		}
-		// Developer org name has to be specified
-		if in.ClusterInst.Organization == "" {
-			return fmt.Errorf("Cluster details must be present")
-		}
-		rc.region = in.Region
-		org = in.ClusterInst.Organization
-
-		cmd = ClusterEventsQuery(&in)
-
-		// Check the developer org against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceClusterAnalytics, ActionView); err != nil {
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.ClusterInst.GetTags()); err != nil {
 			return err
 		}
+
+		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.ClusterInst.Organization},
+			ResourceClusterAnalytics, []edgeproto.CloudletKey{in.ClusterInst.CloudletKey})
+		if err != nil {
+			return err
+		}
+		rc.region = in.Region
+
+		cmd = ClusterEventsQuery(&in, cloudletList)
 	} else if strings.HasSuffix(c.Path(), "events/cloudlet") {
 		in := ormapi.RegionCloudletEvents{}
 		_, err := ReadConn(c, &in)
@@ -151,6 +166,11 @@ func GetEventsCommon(c echo.Context) error {
 		if in.Cloudlet.Organization == "" {
 			return fmt.Errorf("Cloudlet details must be present")
 		}
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
+			return err
+		}
+
 		rc.region = in.Region
 		org = in.Cloudlet.Organization
 

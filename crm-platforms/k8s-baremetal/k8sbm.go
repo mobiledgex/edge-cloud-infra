@@ -3,10 +3,13 @@ package k8sbm
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/redundancy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
@@ -17,6 +20,12 @@ import (
 
 var k8sControlHostNodeType = "k8sbmcontrolhost"
 
+var DockerUser string
+
+// The K8sBareMetalPlatform is a single Kubernetes cluster running on
+// bare metal. The Controller will create a single ClusterInst that
+// represents this entire Cloudlet. The ClusterInst may either be multi-tenant,
+// or (TODO) it may be non-MT but dedicated to a single organization.
 type K8sBareMetalPlatform struct {
 	commonPf           infracommon.CommonPlatform
 	caches             *platform.Caches
@@ -24,18 +33,30 @@ type K8sBareMetalPlatform struct {
 	sharedLBName       string
 	cloudletKubeConfig string
 	externalIps        []string
-	internalIps        []string
 }
 
+func (k *K8sBareMetalPlatform) GetDefaultCluster(cloudletKey *edgeproto.CloudletKey) *edgeproto.ClusterInst {
+	defCluster := edgeproto.ClusterInst{
+		Key: edgeproto.ClusterInstKey{
+			CloudletKey: *cloudletKey,
+			ClusterKey: edgeproto.ClusterKey{
+				Name: cloudcommon.DefaultClust,
+			},
+		},
+	}
+	return &defCluster
+}
+
+// GetCloudletKubeConfig returns the kconf for the default cluster
 func (k *K8sBareMetalPlatform) GetCloudletKubeConfig(cloudletKey *edgeproto.CloudletKey) string {
-	return fmt.Sprintf("%s-%s", cloudletKey.Name, "cloudlet-kubeconfig")
+	return k8smgmt.GetKconfName(k.GetDefaultCluster(cloudletKey))
 }
 
 func (o *K8sBareMetalPlatform) GetFeatures() *platform.Features {
-	// Note: cannot support multi-tenant from Controller because they
-	// underlying bare-metal cluster is already multi-tenant.
 	return &platform.Features{
-		SupportsKubernetesOnly: true,
+		SupportsKubernetesOnly:     true,
+		IsSingleKubernetesCluster:  true,
+		SupportsAppInstDedicatedIP: true,
 	}
 }
 
@@ -43,7 +64,28 @@ func (k *K8sBareMetalPlatform) IsCloudletServicesLocal() bool {
 	return false
 }
 
-func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+func platformName() string {
+	return platform.GetType(edgeproto.PlatformType_PLATFORM_TYPE_K8S_BARE_METAL.String())
+}
+
+func UpdateDockerUser(ctx context.Context, client ssh.Client) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "update docker user")
+	cmd := "id -u"
+	out, err := client.Output(cmd)
+	if err != nil {
+		return fmt.Errorf("Fail to get docker user id: %s - %v", out, err)
+	}
+	// we keep id as a string but make sure it parses as an int
+	_, err = strconv.ParseUint(out, 10, 64)
+	if err != nil {
+		return fmt.Errorf("Fail to parse docker user id: %s - %v", out, err)
+	}
+	DockerUser = out
+	log.SpanLog(ctx, log.DebugLevelInfra, "set docker user", "DockerUser", DockerUser)
+	return nil
+}
+
+func (k *K8sBareMetalPlatform) InitCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Init start")
 	k.caches = caches
 	if err := k.commonPf.InitInfraCommon(ctx, platformConfig, k8sbmProps); err != nil {
@@ -54,16 +96,7 @@ func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platfor
 		return err
 	}
 	k.externalIps = externalIps
-	internalIps, err := infracommon.ParseIpRanges(k.GetInternalIpRanges())
-	if err != nil {
-		return err
-	}
-	if len(externalIps) > len(internalIps) {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Not enough internal IPs", "numexternal", len(externalIps), "numinternal", len(internalIps))
-		return fmt.Errorf("Number of internal IPs defined in K8S_INTERNAL_IP_RANGES must be at least as many as K8S_EXTERNAL_IP_RANGES")
-	}
-	k.internalIps = internalIps
-	k.sharedLBName = k.GetSharedLBName(ctx, platformConfig.CloudletKey)
+	k.sharedLBName = platformConfig.RootLBFQDN
 	k.cloudletKubeConfig = k.GetCloudletKubeConfig(platformConfig.CloudletKey)
 
 	if !platformConfig.TestMode {
@@ -78,6 +111,10 @@ func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platfor
 	if err != nil {
 		return err
 	}
+	err = UpdateDockerUser(ctx, client)
+	if err != nil {
+		return err
+	}
 	err = k.SetupLb(ctx, client, k.sharedLBName)
 	if err != nil {
 		return err
@@ -85,10 +122,22 @@ func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platfor
 	return nil
 }
 
+func (k *K8sBareMetalPlatform) InitHAConditional(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	return nil
+}
+
+func (k *K8sBareMetalPlatform) GetInitHAConditionalCompatibilityVersion(ctx context.Context) string {
+	return "k8s-baremetal-1.0"
+}
+
 func (k *K8sBareMetalPlatform) GatherCloudletInfo(ctx context.Context, info *edgeproto.CloudletInfo) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GatherCloudletInfo")
 	var err error
 	info.Flavors, err = k.GetFlavorList(ctx)
+	if err != nil {
+		return err
+	}
+	info.NodeInfos, err = k.GetNodeInfos(ctx)
 	return err
 }
 
@@ -129,19 +178,32 @@ func (k *K8sBareMetalPlatform) GetClusterPlatformClient(ctx context.Context, clu
 
 func (k *K8sBareMetalPlatform) GetNodePlatformClient(ctx context.Context, node *edgeproto.CloudletMgmtNode, ops ...pc.SSHClientOp) (ssh.Client, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetNodePlatformClient", "node", node)
-	if node == nil || node.Name == "" {
-		return nil, fmt.Errorf("cannot GetNodePlatformClient, node details are empty")
+	if node == nil {
+		return nil, fmt.Errorf("cannot GetNodePlatformClient, as node details are empty")
+	}
+	nodeName := node.Name
+	if nodeName == "" && node.Type == cloudcommon.CloudletNodeSharedRootLB {
+		nodeName = k.commonPf.PlatformConfig.RootLBFQDN
+	}
+	if nodeName == "" {
+		return nil, fmt.Errorf("cannot GetNodePlatformClient, must specify node name")
 	}
 	controlIp := k.GetControlAccessIp()
 	return k.commonPf.GetSSHClientFromIPAddr(ctx, controlIp, ops...)
 }
 
-// TODO
 func (k *K8sBareMetalPlatform) ListCloudletMgmtNodes(ctx context.Context, clusterInsts []edgeproto.ClusterInst, vmAppInsts []edgeproto.AppInst) ([]edgeproto.CloudletMgmtNode, error) {
-	return []edgeproto.CloudletMgmtNode{}, nil
+	log.SpanLog(ctx, log.DebugLevelInfra, "ListCloudletMgmtNodes", "clusterInsts", clusterInsts, "vmAppInsts", vmAppInsts)
+	mgmt_nodes := []edgeproto.CloudletMgmtNode{
+		{
+			Type: "platformhost",
+			Name: k.commonPf.PlatformConfig.CloudletKey.Name,
+		},
+	}
+	return mgmt_nodes, nil
 }
 
-func (k *K8sBareMetalPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (string, error) {
+func (k *K8sBareMetalPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst) (string, error) {
 	return "", fmt.Errorf("GetConsoleUrl not supported on BareMetal")
 }
 
@@ -168,8 +230,8 @@ func (k *K8sBareMetalPlatform) runDebug(ctx context.Context, req *edgeproto.Debu
 	return "runDebug TODO on bare metal"
 }
 
-func (k *K8sBareMetalPlatform) SyncControllerCache(ctx context.Context, caches *platform.Caches, cloudletState dme.CloudletState) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "state", cloudletState)
+func (k *K8sBareMetalPlatform) PerformUpgrades(ctx context.Context, caches *platform.Caches, cloudletState dme.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "PerformUpgrades", "state", cloudletState)
 	return nil
 }
 

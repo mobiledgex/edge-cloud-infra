@@ -74,6 +74,7 @@
     policies:
       - approle.login.v1
       - certs.read.v1
+      - sessionsapi.read.v1
       - "{{ region_prefix }}.dme-jwtkeys.read.v1"
       - "{{ region_prefix }}.pki-regional.issue.v1"
     token_type: batch
@@ -83,5 +84,15 @@
     name: "{{ region_prefix }}.edgeturn.v1"
     policies:
       - approle.login.v1
+      - "{{ region_prefix }}.pki-regional.issue.v1"
+    token_type: batch
+
+- name: "Install {{ region_prefix }}.frm.v1 role"
+  vault_role:
+    name: "{{ region_prefix }}.frm.v1"
+    policies:
+      - approle.login.v1
+      - federation.read.v1
+      - mexenv.read.v1
       - "{{ region_prefix }}.pki-regional.issue.v1"
     token_type: batch

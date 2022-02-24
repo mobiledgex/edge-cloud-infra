@@ -30,7 +30,7 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Description: "currently unused",
 	},
 	"MEX_ENABLE_VCD_DISK_RESIZE": {
-		Description: "VM disks cloned from the VDC template will be resized based on flavor if set to \"true\".  Must be set to \"false\" if fast provisioning is enabled in the VDC or VM creation will fail.",
+		Description: "VM disks cloned from the VDC template will be resized based on flavor if set to \"true\" or \"yes\".  Set to \"false\" if fast provisioning is enabled in the VDC or VM creation will fail.",
 		Value:       "true",
 	},
 	"VCDVerbose": {
@@ -62,8 +62,17 @@ var VcdProps = map[string]*edgeproto.PropertyInfo{
 		Value:       "3600",
 	},
 	"VCD_VM_APP_INTERNAL_DHCP_SERVER": {
-		Description: "If true sets up an internal DHCP server for VM Apps, otherwise uses VCD server",
-		Value:       "false",
+		Description: "If \"true\" or \"yes\" sets up an internal DHCP server for VM Apps, otherwise uses VCD server",
+		Value:       "true",
+		Internal:    true,
+	},
+	"VCD_TEMPLATE_ARTIFACTORY_IMPORT_ENABLED": {
+		Description: "If \"true\" or \"yes\" VCD templates are stored in Artifactory and imported to VCD.  Otherwise, templates must already exist in the catalog",
+		Value:       "true",
+	},
+	"VCD_VM_HREF_CACHE_ENABLED": {
+		Description: "If \"true\" or \"yes\" caching of VCD VM HREFs is enabled",
+		Value:       "true",
 		Internal:    true,
 	},
 }
@@ -178,7 +187,7 @@ func (v *VcdPlatform) GetCatalogName() string {
 
 func (v *VcdPlatform) GetEnableVcdDiskResize() bool {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("MEX_ENABLE_VCD_DISK_RESIZE")
-	return strings.ToLower(val) == "true"
+	return strings.ToLower(val) == "true" || strings.ToLower(val) == "yes"
 }
 
 // the normal methods of querying this seem sometimes unreliable e.g. vdc.IsNsxv()
@@ -193,7 +202,7 @@ func (v *VcdPlatform) GetNsxType() string {
 // the normal methods of querying this seem sometimes unreliable e.g. vdc.IsNsxv()
 func (v *VcdPlatform) GetCleanupOrphanedNetworks() bool {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_CLEANUP_ORPHAN_NETS")
-	return strings.ToLower(val) == "true"
+	return strings.ToLower(val) == "true" || strings.ToLower(val) == "yes"
 }
 
 func (v *VcdPlatform) GetVmAppStatsVdcMaxCacheTime() (uint64, error) {
@@ -210,7 +219,7 @@ func (v *VcdPlatform) GetVmAppStatsVdcMaxCacheTime() (uint64, error) {
 
 func (v *VcdPlatform) GetVmAppInternalDhcpServer() bool {
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_VM_APP_INTERNAL_DHCP_SERVER")
-	return strings.ToLower(val) == "true"
+	return strings.ToLower(val) == "true" || strings.ToLower(val) == "yes"
 }
 
 // start fetching access  bits from vault
@@ -224,7 +233,7 @@ func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, accessApi pla
 	if v.GetVcdOauthSgwUrl() != "" {
 		log.SpanLog(ctx, log.DebugLevelInfra, "Need to get oauth token", "Stage", stage)
 		switch stage {
-		case vmlayer.ProviderInitPlatformStartCrm:
+		case vmlayer.ProviderInitPlatformStartCrmConditional:
 			fallthrough
 		case vmlayer.ProviderInitCreateCloudletDirect:
 			fallthrough
@@ -233,7 +242,7 @@ func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, accessApi pla
 			if err != nil {
 				return fmt.Errorf("UpdateOauthToken failed - %v", err)
 			}
-			if stage == vmlayer.ProviderInitPlatformStartCrm {
+			if stage == vmlayer.ProviderInitPlatformStartCrmConditional {
 				go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
 			}
 		case vmlayer.ProviderInitPlatformStartShepherd:
@@ -244,6 +253,7 @@ func (v *VcdPlatform) InitApiAccessProperties(ctx context.Context, accessApi pla
 		}
 
 	}
+	v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr, stage)
 	return nil
 }
 
@@ -272,15 +282,25 @@ func (v *VcdPlatform) GetVcpuSpeedOverride(ctx context.Context) int64 {
 func (v *VcdPlatform) GetLeaseOverride() bool {
 	if v.TestMode {
 		or := os.Getenv("VCD_OVERRIDE_LEASE_DISABLE")
-		if or == "true" {
+		if or == "true" || or == "yes" {
 			return true
 		}
 		return false
 	}
 	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_OVERRIDE_LEASE_DISABLE")
-	if val == "true" {
+	if strings.ToLower(val) == "true" || strings.ToLower(val) == "yes" {
 		return true
 	} else {
 		return false
 	}
+}
+
+func (v *VcdPlatform) GetTemplateArtifactoryImportEnabled() bool {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_TEMPLATE_ARTIFACTORY_IMPORT_ENABLED")
+	return strings.ToLower(val) == "true" || strings.ToLower(val) == "yes"
+}
+
+func (v *VcdPlatform) GetHrefCacheEnabled() bool {
+	val, _ := v.vmProperties.CommonPf.Properties.GetValue("VCD_VM_HREF_CACHE_ENABLED")
+	return strings.ToLower(val) == "true" || strings.ToLower(val) == "yes"
 }

@@ -40,13 +40,10 @@ var NoDnsOverride = ""
 // will use different IPs and patching.
 func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, overrideDns string, getSvcAction GetDnsSvcActionFunc) error {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "createAppDNS")
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateAppDNSAndPatchKubeSvc")
 
-	if kubeNames.AppURI == "" {
-		log.SpanLog(ctx, log.DebugLevelInfra, "URI not specified, no DNS entries to create")
-		return nil
-	}
-	if !kubeNames.IsUriIPAddr {
+	// Validate URI just once
+	if kubeNames.AppURI != "" && !kubeNames.IsUriIPAddr {
 		err := validateDomain(kubeNames.AppURI)
 		if err != nil {
 			return err
@@ -60,8 +57,6 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 		return fmt.Errorf("no load balancer services for %s", kubeNames.AppURI)
 	}
 
-	fqdnBase := uri2fqdn(kubeNames.AppURI)
-
 	for _, svc := range svcs {
 		if kubeNames.DeploymentType != cloudcommon.DeploymentTypeDocker && svc.Spec.Type != v1.ServiceTypeLoadBalancer {
 			continue
@@ -70,6 +65,10 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 			continue
 		}
 		sn := svc.ObjectMeta.Name
+		namespace := svc.ObjectMeta.Namespace
+		if namespace == "" {
+			namespace = k8smgmt.DefaultNamespace
+		}
 
 		action, err := getSvcAction(svc)
 		if err != nil {
@@ -83,12 +82,16 @@ func (c *CommonPlatform) CreateAppDNSAndPatchKubeSvc(ctx context.Context, client
 			if patchIP == "" {
 				patchIP = action.ExternalIP
 			}
-			err = KubePatchServiceIP(ctx, client, kubeNames, sn, patchIP)
+			err = KubePatchServiceIP(ctx, client, kubeNames, sn, patchIP, namespace)
 			if err != nil {
 				return err
 			}
 		}
 		if action.AddDNS {
+			if kubeNames.AppURI == "" {
+				return fmt.Errorf("URI not specified")
+			}
+			fqdnBase := uri2fqdn(kubeNames.AppURI)
 			mappedAddr := c.GetMappedExternalIP(action.ExternalIP)
 			fqdn := cloudcommon.ServiceFQDN(sn, fqdnBase)
 			if overrideDns != "" {
@@ -166,10 +169,10 @@ func (c *CommonPlatform) DeleteDNSRecords(ctx context.Context, fqdn string) erro
 
 // KubePatchServiceIP updates the service to have the given external ip.  This is done locally and not thru
 // an ssh client
-func KubePatchServiceIP(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, servicename string, ipaddr string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "patch service IP", "servicename", servicename, "ipaddr", ipaddr)
+func KubePatchServiceIP(ctx context.Context, client ssh.Client, kubeNames *k8smgmt.KubeNames, servicename, ipaddr, namespace string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "patch service IP", "servicename", servicename, "ipaddr", ipaddr, "namespace", namespace)
 
-	cmd := fmt.Sprintf(`%s kubectl patch svc %s -p '{"spec":{"externalIPs":["%s"]}}'`, kubeNames.KconfEnv, servicename, ipaddr)
+	cmd := fmt.Sprintf(`%s kubectl patch svc %s -n %s -p '{"spec":{"externalIPs":["%s"]}}'`, kubeNames.KconfEnv, servicename, namespace, ipaddr)
 	out, err := client.Output(cmd)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "patch svc failed",

@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: autoprov
-        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        image: "{{ edge_cloud_image }}-autoprov:{{ edge_cloud_version }}"
         imagePullPolicy: Always
         resources:
           requests:
@@ -32,7 +32,7 @@ spec:
          - "-influxAddr"
          - "https://{{ influxdb_dns }}.{{ cloudflare_zone }}:8086"
          - "--notifyAddrs"
-         - "{{ controller_hostname }}:37001"
+         - "{{ controller_hostname }}:{{ controller_notify_port }}"
          - "--region"
          - "{{ region }}"
          - "--vaultAddr"

@@ -4,14 +4,19 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strconv"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 // NetworkTypeVLAN is an OpenStack provider network type
 const NetworkTypeVLAN string = "vlan"
+
+// CommonInternalCIDRDefault is default if the platform uses a common internal network between the shared LB and all clusters
+const CommonInternalCIDRDefault = "10.201.0.0/16"
 
 // ServerIP is an IP address for a given network on a port.  In the case of floating IPs, there are both
 // internal and external addresses which are associated via NAT.   In the non floating case, the external and internal are the same
@@ -30,29 +35,33 @@ type RouterDetail struct {
 }
 
 type NetSpecInfo struct {
-	CIDR                  string
-	NetworkType           string
-	NetworkAddress        string
-	NetmaskBits           string
-	Octets                []string
-	MasterIPLastOctet     string
-	DelimiterOctet        int // this is the X
-	FloatingIPNet         string
-	FloatingIPSubnet      string
-	FloatingIPExternalNet string
-	VnicType              string
-	RouterGatewayIP       string
+	CIDR                          string
+	NetworkType                   string
+	NetworkAddress                string
+	NetmaskBits                   string
+	Octets                        []string
+	MasterIPLastOctet             string
+	DelimiterOctet                int // this is the X
+	FloatingIPNet                 string
+	FloatingIPSubnet              string
+	FloatingIPExternalNet         string
+	VnicType                      string
+	RouterGatewayIP               string
+	CommonInternalCIDR            string
+	CommonInternalNetworkAddress  string
+	CommonInternalNetworkMaskBits int
 }
 
 var SupportedSchemes = map[string]string{
-	"name":             "Deprecated",
-	"cidr":             "XXX.XXX.XXX.XXX/XX",
-	"floatingipnet":    "Floating IP Network Name",
-	"floatingipsubnet": "Floating IP Subnet Name",
-	"floatingipextnet": "Floating IP External Network Name",
-	"vnictype":         "VNIC Type",
-	"routergateway":    "Router Gateway IP",
-	"networktype":      "Network Type: " + NetworkTypeVLAN,
+	"name":              "Deprecated",
+	"cidr":              "XXX.XXX.XXX.XXX/XX",
+	"floatingipnet":     "Floating IP Network Name",
+	"floatingipsubnet":  "Floating IP Subnet Name",
+	"floatingipextnet":  "Floating IP External Network Name",
+	"vnictype":          "VNIC Type",
+	"routergateway":     "Router Gateway IP",
+	"networktype":       "Network Type: " + NetworkTypeVLAN,
+	"commoninternalnet": "XXX.XXX.XXX.XXX/XX",
 }
 
 func GetSupportedSchemesStr() string {
@@ -101,6 +110,8 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 			ni.RouterGatewayIP = v
 		case "networktype":
 			ni.NetworkType = v
+		case "commoninternalnet":
+			ni.CommonInternalCIDR = v
 		default:
 			return nil, fmt.Errorf("unknown netspec item key: %s", k)
 		}
@@ -114,7 +125,23 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 	}
 	ni.NetworkAddress = sits[0]
 	ni.NetmaskBits = sits[1]
-
+	if ni.CommonInternalCIDR == "" {
+		ni.CommonInternalCIDR = CommonInternalCIDRDefault
+	}
+	cids := strings.Split(ni.CommonInternalCIDR, "/")
+	if len(cids) < 2 {
+		return nil, fmt.Errorf("invalid common internal CIDR, no net mask")
+	}
+	ni.CommonInternalNetworkAddress = cids[0]
+	b, err := strconv.ParseInt(cids[1], 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid CommonInternalNetworkMaskBits - %v", err)
+	}
+	ni.CommonInternalNetworkMaskBits = int(b)
+	// currently only support /16
+	if ni.CommonInternalNetworkMaskBits != 16 {
+		return nil, fmt.Errorf("CommonInternalNetworkMaskBits must be 16")
+	}
 	ni.Octets = strings.Split(ni.NetworkAddress, ".")
 	for i, it := range ni.Octets {
 		if it == "X" {
@@ -134,73 +161,15 @@ func ParseNetSpec(ctx context.Context, netSpec string) (*NetSpecInfo, error) {
 	return ni, nil
 }
 
-// serverIsNetplanEnabled checks for the existence of netplan, in which case there are no ifcfg files.  The current
-// baseimage uses netplan, but CRM can still run on older rootLBs.
-func ServerIsNetplanEnabled(ctx context.Context, client ssh.Client) bool {
-	cmd := "netplan info"
-	_, err := client.Output(cmd)
-	return err == nil
-}
-
-func getNetplanContents(portName, ifName string, ipAddr string) string {
-	return fmt.Sprintf(`## config for %s
-network:
-    version: 2
-    ethernets:
-        %s:
-            dhcp4: no
-            dhcp6: no
-            addresses:
-             - %s
-`, portName, ifName, ipAddr)
-}
-
-// GetNetworkFileDetailsForIP returns interfaceFileName, fileMatchPattern, contents based on whether netplan is enabled
-func GetNetworkFileDetailsForIP(ctx context.Context, portName string, ifName string, ipAddr string, netPlanEnabled bool) (string, string, string) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworkFileDetailsForIP", "portName", portName, "ifName", ifName, "ipAddr", ipAddr, "netPlanEnabled", netPlanEnabled)
-	fileName := "/etc/network/interfaces.d/" + portName + ".cfg"
-	fileMatch := "/etc/network/interfaces.d/*-port.cfg"
-	contents := fmt.Sprintf("auto %s\niface %s inet static\n   address %s/24", ifName, ifName, ipAddr)
-	if netPlanEnabled {
-		fileName = "/etc/netplan/" + portName + ".yaml"
-		fileMatch = "/etc/netplan/*-port.yaml"
-		contents = getNetplanContents(portName, ifName, ipAddr+"/24")
-	}
-	return fileName, fileMatch, contents
-}
-
-func (v *VMPlatform) AddRouteToServer(ctx context.Context, client ssh.Client, serverName string, cidr string) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AddRouteToServer", "serverName", serverName, "cidr", cidr)
-
-	ni, err := ParseNetSpec(ctx, v.VMProperties.GetCloudletNetworkScheme())
-	if err != nil {
-		return err
-	}
-	if ni.FloatingIPNet != "" {
-		// For now we do nothing when we have a floating IP because it means we are using the
-		// openstack router to get everywhere anyway.
-		log.SpanLog(ctx, log.DebugLevelInfra, "No route changes needed due to floating IP")
-		return nil
-	}
+func (vp *VMProperties) AddRouteToServer(ctx context.Context, client ssh.Client, serverName, cidr, nextHop, interfaceName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AddRouteToServer", "serverName", serverName, "cidr", cidr, "nextHop", nextHop, "interfaceName", interfaceName)
 
 	ip, netw, err := net.ParseCIDR(cidr)
 	if err != nil {
-		return fmt.Errorf("Invalid cidr for SetupVMRoute %s - %v", cidr, err)
+		return fmt.Errorf("Invalid cidr for AddRouteToServer %s - %v", cidr, err)
 	}
-	maskStr := net.IP(netw.Mask)
-	rtr := v.VMProperties.GetCloudletExternalRouter()
-	gatewayIP := ni.RouterGatewayIP
-
-	if gatewayIP == "" && rtr != NoConfigExternalRouter && rtr != NoExternalRouter {
-		rd, err := v.VMProvider.GetRouterDetail(ctx, v.VMProperties.GetCloudletExternalRouter())
-		if err != nil {
-			return err
-		}
-		gatewayIP = rd.ExternalIP
-	}
-
-	if gatewayIP != "" {
-		cmd := fmt.Sprintf("sudo ip route add %s via %s", netw.String(), gatewayIP)
+	if nextHop != "" {
+		cmd := fmt.Sprintf("sudo ip route add %s via %s", netw.String(), nextHop)
 		log.SpanLog(ctx, log.DebugLevelInfra, "Add route to network", "cmd", cmd)
 		out, err := client.Output(cmd)
 		if err != nil {
@@ -211,27 +180,33 @@ func (v *VMPlatform) AddRouteToServer(ctx context.Context, client ssh.Client, se
 			}
 		}
 
-		netplanEnabled := ServerIsNetplanEnabled(ctx, client)
-		// make the route persist by adding the following line if not already present via grep.
-		routeAddText := fmt.Sprintf("up route add -net %s netmask %s gw %s", ip, maskStr, gatewayIP)
+		if !infracommon.ServerIsNetplanEnabled(ctx, client) {
+			// we no longer expect non-netplan enabled servers with our baseimage. Persisting routes has never been implemented properly
+			// for non-netplan, so this should just fail
+			return fmt.Errorf("Netplan not enabled on server: %s", serverName)
+		}
+
 		maskLen, _ := netw.Mask.Size()
-		if netplanEnabled {
-			routeAddText = fmt.Sprintf(`
+		interfacesFile := GetCloudletNetworkIfaceFile()
+		routeAddText := fmt.Sprintf(`
+        %s:
             routes:
             - to: %s/%d
-              via: %s`, ip, maskLen, gatewayIP)
-		}
-		interfacesFile := GetCloudletNetworkIfaceFile(netplanEnabled)
-		cmd = fmt.Sprintf("grep -l '%s' %s", gatewayIP, interfacesFile)
+              via: %s`, interfaceName, ip, maskLen, nextHop)
+
+		cmd = fmt.Sprintf("grep -l '%s' %s", nextHop, interfacesFile)
 		out, err = client.Output(cmd)
 		if err != nil {
-			// grep failed so not there already
-			log.SpanLog(ctx, log.DebugLevelInfra, "adding route to interfaces file", "route", routeAddText, "file", interfacesFile)
-			cmd = fmt.Sprintf("echo '%s'|sudo tee -a %s", routeAddText, interfacesFile)
+			// grep failed so the route is not there already.
+			// Append the new route addition and also the version is at the top after the network tag
+			routeAddText = strings.ReplaceAll(routeAddText, "\n", "\\n")
+			cmd = fmt.Sprintf("sudo sed -e '$ a\\ %s' -e '/version: 2/d' -e 's/^network:/network:\\n    version: 2/' -i %s ", routeAddText, interfacesFile)
+			log.SpanLog(ctx, log.DebugLevelInfra, "Running sed to update interfaces file", "cmd", cmd)
 			out, err = client.Output(cmd)
 			if err != nil {
-				return fmt.Errorf("can't add route to interfaces file: %v", err)
+				return fmt.Errorf("Failed to update interfaces file: %s - %v", out, err)
 			}
+			log.SpanLog(ctx, log.DebugLevelInfra, "Updated interfaces file", "out", out)
 		} else {
 			log.SpanLog(ctx, log.DebugLevelInfra, "route already present in interfaces file", "file", interfacesFile)
 		}
@@ -239,7 +214,9 @@ func (v *VMPlatform) AddRouteToServer(ctx context.Context, client ssh.Client, se
 	return nil
 }
 
-func (v *VMProperties) GetInternalNetworkRoute(ctx context.Context) (string, error) {
+func (v *VMProperties) GetInternalNetworkRoute(ctx context.Context, commonSharedNetwork bool) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetInternalNetworkRoute", "commonSharedNetwork", commonSharedNetwork)
+
 	netSpec, err := ParseNetSpec(ctx, v.GetCloudletNetworkScheme())
 	if err != nil {
 		return "", err
@@ -248,6 +225,9 @@ func (v *VMProperties) GetInternalNetworkRoute(ctx context.Context) (string, err
 	// Only the 3rd octet is supported for delimiter so the route is always /16
 	netaddr := strings.ToUpper(netSpec.NetworkAddress)
 	netaddr = strings.Replace(netaddr, "X", "0", 1)
+	if commonSharedNetwork {
+		netaddr = netSpec.CommonInternalNetworkAddress
+	}
 	return netaddr + "/16", nil
 }
 
@@ -260,4 +240,31 @@ func MaskLenToMask(maskLen string) (string, error) {
 		return "", err
 	}
 	return ipnet.IP.String(), nil
+}
+
+// GetLastHostAddressForCidr requires either 8,16 or 24 bit mask
+func GetLastHostAddressForCidr(cidr string) (string, error) {
+	cs := strings.Split(cidr, "/")
+	if len(cs) != 2 {
+		return "", fmt.Errorf("invalid cidr - %s", cidr)
+	}
+	net := cs[0]
+	nets := strings.Split(net, ".")
+	if len(nets) != 4 {
+		return "", fmt.Errorf("invalid network address - %s", net)
+	}
+	mask := cs[1]
+	switch mask {
+	case "8":
+		nets[1] = "255"
+		fallthrough
+	case "16":
+		nets[2] = "255"
+		fallthrough
+	case "24":
+		nets[3] = "254"
+	default:
+		return "", fmt.Errorf("invalid mask bit len - %s", mask)
+	}
+	return strings.Join(nets, "."), nil
 }

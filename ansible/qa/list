@@ -15,7 +15,7 @@ vault_vm_hostname=vault-{{ deploy_environ }}.mobiledgex.net
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 vault_port=443
 monitor_version=latest
-letsencrypt_env=production
+letsencrypt_env=staging
 locver_url="http://mexdemo.locsim.mobiledgex.net:8889/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
 dme_carrier=GDDT
@@ -26,8 +26,8 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 etcd_quota_backend="150 MB"
 etcd_auto_compaction_retention=2
-controller_replicas=1
-gitlab_version=13.8.7-ee.0
+billing_platform=chargify
+federated_mc=true
 
 [notifyroot]
 notifyroot-qa.mobiledgex.net

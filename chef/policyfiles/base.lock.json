@@ -1,5 +1,5 @@
 {
-  "revision_id": "b04df466974667c540481857ea737c8762374e5dc8250ef76a4c5ee4bc4b9b39",
+  "revision_id": "f350ad52687a2a61c27cd46b26a7df1817cca6189f81d477797f92f4bb378fac",
   "name": "base",
   "run_list": [
     "recipe[runstatus_handler::default]",
@@ -44,6 +44,17 @@
         "version": "1.0.0"
       }
     },
+    "setup_teleport": {
+      "version": "1.1.0",
+      "identifier": "30d6ee9312a2a3be676ba1ea5b1b3372276e4118",
+      "dotted_decimal_identifier": "13747119040144035.53593957550676763.56565380825368",
+      "cache_key": "setup_teleport-1.1.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "1.1.0"
+      }
+    },
     "upgrade_mobiledgex_package": {
       "version": "1.0.11",
       "identifier": "4eaffa86e3516f3e233e62828e793bf749adbedb",
@@ -77,6 +88,10 @@
         "= 1.0.0"
       ],
       [
+        "setup_teleport",
+        "= 1.1.0"
+      ],
+      [
         "upgrade_mobiledgex_package",
         "= 1.0.11"
       ]
@@ -89,6 +104,9 @@
 
       ],
       "set_security_policies (1.0.0)": [
+
+      ],
+      "setup_teleport (1.1.0)": [
 
       ],
       "upgrade_mobiledgex_package (1.0.11)": [

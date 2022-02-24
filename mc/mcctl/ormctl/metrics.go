@@ -15,8 +15,8 @@ func init() {
 		Use:          "app",
 		Short:        "View App metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricRequiredArgs...), " "),
-		OptionalArgs: strings.Join(AppMetricOptionalArgs, " "),
-		AliasArgs:    strings.Join(AppMetricAliasArgs, " "),
+		OptionalArgs: strings.Join(append(MetricsCommonArgs, AppMetricOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(AppMetricAliasArgs, MetricsCommonAliasArgs...), " "),
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricComments),
 		ReqData:      &ormapi.RegionAppInstMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
@@ -26,8 +26,8 @@ func init() {
 		Use:          "cluster",
 		Short:        "View ClusterInst metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClusterMetricRequiredArgs...), " "),
-		OptionalArgs: strings.Join(ClusterMetricOptionalArgs, " "),
-		AliasArgs:    strings.Join(ClusterMetricAliasArgs, " "),
+		OptionalArgs: strings.Join(append(MetricsCommonArgs, ClusterMetricOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(ClusterMetricAliasArgs, MetricsCommonAliasArgs...), " "),
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), ClusterMetricComments),
 		ReqData:      &ormapi.RegionClusterInstMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
@@ -37,8 +37,8 @@ func init() {
 		Use:          "cloudlet",
 		Short:        "View Cloudlet metrics",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
-		OptionalArgs: strings.Join(CloudletMetricOptionalArgs, " "),
-		AliasArgs:    strings.Join(CloudletMetricAliasArgs, " "),
+		OptionalArgs: strings.Join(append(MetricsCommonArgs, CloudletMetricOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(CloudletMetricAliasArgs, MetricsCommonAliasArgs...), " "),
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletMetricComments),
 		ReqData:      &ormapi.RegionCloudletMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
@@ -48,9 +48,9 @@ func init() {
 		Use:          "cloudletusage",
 		Short:        "View Cloudlet usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, CloudletMetricRequiredArgs...), " "),
-		OptionalArgs: strings.Join(CloudletMetricOptionalArgs, " "),
-		AliasArgs:    strings.Join(CloudletMetricAliasArgs, " "),
-		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletUsageMetricComments),
+		OptionalArgs: strings.Join(append(MetricsCommonArgs, CloudletMetricOptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(CloudletMetricAliasArgs, MetricsCommonAliasArgs...), " "),
+		Comments:     mergeMetricComments(CloudletMetricComments, mergeMetricComments(addRegionComment(MetricCommentsCommon), CloudletUsageMetricComments)),
 		ReqData:      &ormapi.RegionCloudletMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
 		Path:         "/auth/metrics/cloudlet/usage",
@@ -59,7 +59,7 @@ func init() {
 		Use:          "clientapiusage",
 		Short:        "View client API usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientApiUsageMetricRequiredArgs...), " "),
-		OptionalArgs: strings.Join(ClientApiUsageMetricOptionalArgs, " "),
+		OptionalArgs: strings.Join(append(MetricsCommonArgs, ClientApiUsageMetricOptionalArgs...), " "),
 		AliasArgs:    strings.Join(append(ClientApiUsageMetricAliasArgs, MetricsCommonAliasArgs...), " "),
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), ClientApiUsageMetricComments),
 		ReqData:      &ormapi.RegionClientApiUsageMetrics{},
@@ -70,7 +70,7 @@ func init() {
 		Use:          "clientappusage",
 		Short:        "View client App usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientAppUsageMetricRequiredArgs...), " "),
-		OptionalArgs: strings.Join(ClientAppUsageMetricOptionalArgs, " "),
+		OptionalArgs: strings.Join(append(MetricsCommonArgs, ClientAppUsageMetricOptionalArgs...), " "),
 		AliasArgs:    strings.Join(append(ClientAppUsageMetricAliasArgs, MetricsCommonAliasArgs...), " "),
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), getClientTypeUsageMetricComments("app")),
 		ReqData:      &ormapi.RegionClientAppUsageMetrics{},
@@ -81,14 +81,62 @@ func init() {
 		Use:          "clientcloudletusage",
 		Short:        "View client Cloudlet usage",
 		RequiredArgs: strings.Join(append([]string{"region"}, ClientCloudletUsageMetricRequiredArgs...), " "),
-		OptionalArgs: strings.Join(ClientCloudletUsageMetricOptionalArgs, " "),
+		OptionalArgs: strings.Join(append(MetricsCommonArgs, ClientCloudletUsageMetricOptionalArgs...), " "),
 		AliasArgs:    strings.Join(append(ClientCloudletUsageMetricAliasArgs, MetricsCommonAliasArgs...), " "),
 		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), getClientTypeUsageMetricComments("cloudlet")),
 		ReqData:      &ormapi.RegionClientCloudletUsageMetrics{},
 		ReplyData:    &ormapi.AllMetrics{},
 		Path:         "/auth/metrics/clientcloudletusage",
+	}, &ApiCommand{
+		Name:         "ShowAppV2Metrics",
+		Use:          "appv2",
+		Short:        "View App metrics(v2 format)",
+		RequiredArgs: strings.Join(append([]string{"region"}, AppMetricV2RequiredArgs...), " "),
+		OptionalArgs: strings.Join(append(MetricV2CommonArgs, AppMetricV2OptionalArgs...), " "),
+		AliasArgs:    strings.Join(append(AppMetricAliasArgs, MetricsCommonAliasArgs...), " "),
+		Comments:     mergeMetricComments(addRegionComment(MetricCommentsCommon), AppMetricV2Comments),
+		ReqData:      &ormapi.RegionCustomAppMetrics{},
+		ReplyData:    &ormapi.AllMetrics{},
+		Path:         "/auth/metrics/app/v2",
 	}}
 	AllApis.AddGroup(MetricsGroup, "View metrics", cmds)
+}
+
+var AppMetricV2OptionalArgs = []string{
+	"appname",
+	"apporg",
+	"appvers",
+	"cluster",
+	"clusterorg",
+	"cloudlet",
+	"cloudletorg",
+	"port",
+	"aggrfunction",
+}
+
+var AppMetricV2Comments = map[string]string{
+	"apporg":       "Organization or Company name of the App(Deprecated)",
+	"appname":      "App name",
+	"appvers":      "App version",
+	"cluster":      "Cluster name",
+	"cloudletorg":  "Company or Organization name of the cloudlet",
+	"cloudlet":     "Name of the cloudlet",
+	"clusterorg":   "Organization or Company Name that a Cluster is used by",
+	"measurement":  "Measurement to view. Available measurements: \"connections\"",
+	"port":         "Port for which to show the data(valid for \"connections\" measurement)",
+	"aggrfunction": "Aggregate function. \"sum\" - will add all connections together across all ports",
+}
+
+var AppMetricV2RequiredArgs = []string{
+	"measurement",
+}
+
+var MetricV2CommonArgs = []string{
+	"numsamples",
+	"starttime",
+	"endtime",
+	"startage",
+	"endage",
 }
 
 var AppMetricRequiredArgs = []string{
@@ -97,36 +145,55 @@ var AppMetricRequiredArgs = []string{
 
 var AppMetricOptionalArgs = []string{
 	"appname",
-	"app-org",
+	"apporg",
 	"appvers",
 	"cluster",
-	"cluster-org",
+	"clusterorg",
 	"cloudlet",
-	"cloudlet-org",
-	"last",
-	"starttime",
-	"endtime",
+	"cloudletorg",
+	"appinsts:#.apporg",
+	"appinsts:#.appname",
+	"appinsts:#.appvers",
+	"appinsts:#.cluster",
+	"appinsts:#.clusterorg",
+	"appinsts:#.cloudletorg",
+	"appinsts:#.cloudlet",
 }
 
 var AppMetricAliasArgs = []string{
-	"app-org=appinst.appkey.organization",
+	"apporg=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
 	"cluster=appinst.clusterinstkey.clusterkey.name",
-	"cluster-org=appinst.clusterinstkey.organization",
-	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
+	"clusterorg=appinst.clusterinstkey.organization",
+	"cloudletorg=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
-	"appinsts:#.app-org=appinsts:#.appkey.organization",
+	"appinsts:#.apporg=appinsts:#.appkey.organization",
 	"appinsts:#.appname=appinsts:#.appkey.name",
 	"appinsts:#.appvers=appinsts:.appkey.version",
 	"appinsts:#.cluster=appinsts:#.clusterinstkey.clusterkey.name",
-	"appinsts:#.cluster-org=appinsts:#.clusterinstkey.organization",
-	"appinsts:#.cloudlet-org=appinsts:#.clusterinstkey.cloudletkey.organization",
+	"appinsts:#.clusterorg=appinsts:#.clusterinstkey.organization",
+	"appinsts:#.cloudletorg=appinsts:#.clusterinstkey.cloudletkey.organization",
 	"appinsts:#.cloudlet=appinsts:#.clusterinstkey.cloudletkey.name",
+	"aggrfunction=aggrfunction",
 }
 
 var AppMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.AppSelectors, "\", \"") + "\"",
+	"apporg":                 "Organization or Company name of the App(Deprecated)",
+	"appname":                "App name(Deprecated)",
+	"appvers":                "App version(Deprecated)",
+	"cluster":                "Cluster name(Deprecated)",
+	"cloudletorg":            "Company or Organization name of the cloudlet(Deprecated)",
+	"cloudlet":               "Name of the cloudlet(Deprecated)",
+	"clusterorg":             "Organization or Company Name that a Cluster is used by(Deprecated)",
+	"appinsts:#.apporg":      "Organization or Company name of the App",
+	"appinsts:#.appname":     "App name",
+	"appinsts:#.appvers":     "App version",
+	"appinsts:#.cluster":     "Cluster name",
+	"appinsts:#.clusterorg":  "Organization or Company Name that a Cluster is used by",
+	"appinsts:#.cloudletorg": "Company or Organization name of the cloudlet",
+	"appinsts:#.cloudlet":    "Name of the cloudlet",
+	"selector":               "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.AppSelectors, "\", \"") + "\"",
 }
 
 var ClusterMetricRequiredArgs = []string{
@@ -135,43 +202,62 @@ var ClusterMetricRequiredArgs = []string{
 
 var ClusterMetricOptionalArgs = []string{
 	"cluster",
-	"cluster-org",
-	"cloudlet-org",
+	"clusterorg",
+	"cloudletorg",
 	"cloudlet",
-	"last",
-	"starttime",
-	"endtime",
+	"clusterinsts:#.cluster",
+	"clusterinsts:#.clusterorg",
+	"clusterinsts:#.cloudletorg",
+	"clusterinsts:#.cloudlet",
 }
 
 var ClusterMetricAliasArgs = []string{
-	"cluster-org=clusterinst.organization",
+	"clusterorg=clusterinst.organization",
 	"cluster=clusterinst.clusterkey.name",
-	"cloudlet-org=clusterinst.cloudletkey.organization",
+	"cloudletorg=clusterinst.cloudletkey.organization",
 	"cloudlet=clusterinst.cloudletkey.name",
+	"clusterinsts:#.cluster=clusterinsts:#.clusterkey.name",
+	"clusterinsts:#.clusterorg=clusterinsts:#.organization",
+	"clusterinsts:#.cloudletorg=clusterinsts:#.cloudletkey.organization",
+	"clusterinsts:#.cloudlet=clusterinsts:#.cloudletkey.name",
 }
 
 var ClusterMetricComments = map[string]string{
-	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.ClusterSelectors, "\", \"") + "\"",
+	"cluster":                    "Cluster name(Deprecated)",
+	"cloudletorg":                "Company or Organization name of the cloudlet(Deprecated)",
+	"cloudlet":                   "Name of the cloudlet(Deprecated)",
+	"clusterorg":                 "Organization or Company Name that a Cluster is used by(Deprecated)",
+	"clusterinsts:#.cluster":     "Cluster name",
+	"clusterinsts:#.clusterorg":  "Organization or Company Name that a Cluster is used by",
+	"clusterinsts:#.cloudletorg": "Company or Organization name of the cloudlet",
+	"clusterinsts:#.cloudlet":    "Name of the cloudlet",
+	"selector":                   "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.ClusterSelectors, "\", \"") + "\"",
 }
 
 var CloudletMetricRequiredArgs = []string{
-	"cloudlet-org",
 	"selector",
 }
 
 var CloudletMetricOptionalArgs = []string{
 	"cloudlet",
-	"last",
-	"starttime",
-	"endtime",
+	"cloudletorg",
+	"cloudlets:#.cloudletorg",
+	"cloudlets:#.cloudlet",
 }
 
 var CloudletMetricAliasArgs = []string{
-	"cloudlet-org=cloudlet.organization",
+	"cloudletorg=cloudlet.organization",
 	"cloudlet=cloudlet.name",
+	"cloudlets:#.cloudletorg=cloudlets:#.organization",
+	"cloudlets:#.cloudlet=cloudlets:#.name",
 }
 
 var CloudletMetricComments = map[string]string{
+	"cloudletorg":             "Company or Organization name of the cloudlet(Deprecated)",
+	"cloudlet":                "Name of the cloudlet(Deprecated)",
+	"cloudlets:#.cloudletorg": "Company or Organization name of the cloudlet",
+	"cloudlets:#.cloudlet":    "Name of the cloudlet",
+
 	"selector": "Comma separated list of metrics to view. Available metrics: \"" + strings.Join(ormapi.CloudletSelectors, "\", \"") + "\"",
 }
 
@@ -186,35 +272,29 @@ var ClientApiUsageMetricRequiredArgs = []string{
 var ClientApiUsageMetricOptionalArgs = []string{
 	"appname",
 	"appvers",
-	"app-org",
-	"cluster",
-	"cluster-org",
+	"apporg",
 	"cloudlet",
-	"cloudlet-org",
+	"cloudletorg",
+	"dmecloudlet",
+	"dmeorg",
 	"method",
-	"cellid",
-	"limit",
-	"numsamples",
-	"starttime",
-	"endtime",
-	"startage",
-	"endage",
 }
 
 var ClientApiUsageMetricAliasArgs = []string{
-	"app-org=appinst.appkey.organization",
+	"apporg=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
-	"cluster=appinst.clusterinstkey.clusterkey.name",
-	"cluster-org=appinst.clusterinstkey.organization",
-	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
+	"cloudletorg=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
+	"dmecloudlet=dmecloudlet",
+	"dmeorg=dmecloudletorg",
 }
 
 var ClientApiUsageMetricComments = map[string]string{
-	"method":   "Api call method, one of: FindCloudlet, PlatformFindCloudlet, RegisterClient, VerifyLocation",
-	"cellid":   "Cell tower Id(experimental)",
-	"selector": "Comma separated list of metrics to view. Currently only \"api\" is supported.",
+	"method":      "Api call method, one of: FindCloudlet, PlatformFindCloudlet, RegisterClient, VerifyLocation",
+	"selector":    "Comma separated list of metrics to view. Currently only \"api\" is supported.",
+	"dmecloudlet": "Cloudlet name where DME is running",
+	"dmeorg":      "Operator org where DME is running",
 }
 
 var ClientAppUsageMetricRequiredArgs = []string{
@@ -224,36 +304,30 @@ var ClientAppUsageMetricRequiredArgs = []string{
 var ClientAppUsageMetricOptionalArgs = []string{
 	"appname",
 	"appvers",
-	"app-org",
+	"apporg",
 	"cluster",
-	"cluster-org",
+	"clusterorg",
 	"cloudlet",
-	"cloudlet-org",
+	"cloudletorg",
 	"locationtile",
 	"deviceos",
 	"devicemodel",
 	"devicecarrier",
 	"datanetworktype",
-	"limit",
-	"numsamples",
-	"starttime",
-	"endtime",
-	"startage",
-	"endage",
 }
 
 var ClientAppUsageMetricAliasArgs = []string{
-	"app-org=appinst.appkey.organization",
+	"apporg=appinst.appkey.organization",
 	"appname=appinst.appkey.name",
 	"appvers=appinst.appkey.version",
 	"cluster=appinst.clusterinstkey.clusterkey.name",
-	"cluster-org=appinst.clusterinstkey.organization",
-	"cloudlet-org=appinst.clusterinstkey.cloudletkey.organization",
+	"clusterorg=appinst.clusterinstkey.organization",
+	"cloudletorg=appinst.clusterinstkey.cloudletkey.organization",
 	"cloudlet=appinst.clusterinstkey.cloudletkey.name",
 }
 
 var ClientCloudletUsageMetricRequiredArgs = []string{
-	"cloudlet-org",
+	"cloudletorg",
 	"selector",
 }
 
@@ -264,6 +338,14 @@ var ClientCloudletUsageMetricOptionalArgs = []string{
 	"devicemodel",
 	"devicecarrier",
 	"datanetworktype",
+}
+
+var ClientCloudletUsageMetricAliasArgs = []string{
+	"cloudletorg=cloudlet.organization",
+	"cloudlet=cloudlet.name",
+}
+
+var MetricsCommonArgs = []string{
 	"limit",
 	"numsamples",
 	"starttime",
@@ -272,26 +354,20 @@ var ClientCloudletUsageMetricOptionalArgs = []string{
 	"endage",
 }
 
-var ClientCloudletUsageMetricAliasArgs = []string{
-	"cloudlet-org=cloudlet.organization",
-	"cloudlet=cloudlet.name",
-}
-
 var MetricCommentsCommon = map[string]string{
-	"app-org":      "Organization or Company name of the App",
-	"appname":      "App name",
-	"appvers":      "App version",
-	"cluster":      "Cluster name",
-	"cloudlet-org": "Company or Organization name of the cloudlet",
-	"cloudlet":     "Name of the cloudlet",
-	"cluster-org":  "Organization or Company Name that a Cluster is used by",
-	"last":         "Display the last X metrics",
-	"limit":        "Display the last X metrics",
-	"numsamples":   "Display X samples spaced out evenly over start and end times",
-	"starttime":    "Time to start displaying stats from in RFC3339 format (ex. 2002-12-31T15:00:00Z)",
-	"endtime":      "Time up to which to display stats in RFC3339 format (ex. 2002-12-31T10:00:00-05:00)",
-	"startage":     "Relative age from now of search range start (default 48h)",
-	"endage":       "Relative age from now of search range end (default 0)",
+	"apporg":      "Organization or Company name of the App",
+	"appname":     "App name",
+	"appvers":     "App version",
+	"cluster":     "Cluster name",
+	"cloudletorg": "Company or Organization name of the cloudlet",
+	"cloudlet":    "Name of the cloudlet",
+	"clusterorg":  "Organization or Company Name that a Cluster is used by",
+	"limit":       "Display the last X metrics",
+	"numsamples":  "Display X samples spaced out evenly over start and end times",
+	"starttime":   "Time to start displaying stats from in RFC3339 format (ex. 2002-12-31T15:00:00Z)",
+	"endtime":     "Time up to which to display stats in RFC3339 format (ex. 2002-12-31T10:00:00-05:00)",
+	"startage":    "Relative age from now of search range start (default 48h)",
+	"endage":      "Relative age from now of search range end (default 0)",
 }
 
 var MetricsCommonAliasArgs = []string{
@@ -328,7 +404,7 @@ func getClientTypeUsageMetricComments(typ string) map[string]string {
 
 	switch typ {
 	case "app":
-		locationtileSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency")
+		locationtileSelectorPermission = fmt.Sprintf(baseSelectorPermission, "latency, deviceinfo")
 		deviceosSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		devicemodelSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")
 		devicecarrierSelectorPermission = fmt.Sprintf(baseSelectorPermission, "deviceinfo")

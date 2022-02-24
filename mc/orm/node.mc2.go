@@ -4,17 +4,17 @@
 package orm
 
 import (
-	"context"
 	fmt "fmt"
 	_ "github.com/gogo/googleapis/google/api"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"io"
 	math "math"
 )
 
@@ -26,87 +26,42 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func ShowNode(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionNode{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.Node.GetKey().GetTags())
 
-	err = ShowNodeStream(ctx, rc, &in.Node, func(res *edgeproto.Node) error {
+	obj := &in.Node
+	var authz *AuthzShow
+	if !rc.SkipAuthz {
+		authz, err = newShowAuthz(ctx, rc.Region, rc.Username, ResourceConfig, ActionView)
+		if err != nil {
+			return err
+		}
+	}
+
+	cb := func(res *edgeproto.Node) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
-	})
+	}
+	err = ctrlclient.ShowNodeStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-func ShowNodeStream(ctx context.Context, rc *RegionContext, obj *edgeproto.Node, cb func(res *edgeproto.Node) error) error {
-	var authz *AuthzShow
-	var err error
-	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceConfig, ActionView)
-		if err != nil {
-			return err
-		}
-	}
-	if rc.conn == nil {
-		conn, err := connectNotifyRoot(ctx)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
-	}
-	api := edgeproto.NewNodeApiClient(rc.conn)
-	stream, err := api.ShowNode(ctx, obj)
-	if err != nil {
-		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		if !rc.skipAuthz {
-			if !authz.Ok("") {
-				continue
-			}
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func ShowNodeObj(ctx context.Context, rc *RegionContext, obj *edgeproto.Node) ([]edgeproto.Node, error) {
-	arr := []edgeproto.Node{}
-	err := ShowNodeStream(ctx, rc, obj, func(res *edgeproto.Node) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
 }

@@ -8,14 +8,14 @@ import (
 	"sync"
 
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
 )
 
 var ipLock sync.Mutex
-var maxSecondaryInterfaces = 100
 
-func (k *K8sBareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, addr, dev string) error {
+func (k *K8sBareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, addr, dev, name string) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveIp", "addr", addr, "dev", dev)
 	cmd := fmt.Sprintf("sudo ip address del %s/32 dev %s", addr, dev)
 	out, err := client.Output(cmd)
@@ -24,6 +24,11 @@ func (k *K8sBareMetalPlatform) RemoveIp(ctx context.Context, client ssh.Client, 
 		if !strings.Contains(out, "Cannot assign") {
 			return fmt.Errorf("Error deleting ip: %s - %s - %v", addr, out, err)
 		}
+	}
+	filename := infracommon.GetNetplanFilename(name)
+	err = pc.DeleteFile(client, filename, pc.SudoOn)
+	if err != nil {
+		return fmt.Errorf("unable to delete network config file: %s -- %v", filename, err)
 	}
 	return nil
 }
@@ -38,7 +43,7 @@ func (k *K8sBareMetalPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, 
 	}
 	usedIps := make(map[string]string)
 	lines := strings.Split(out, "\n")
-	ifPattern := fmt.Sprintf("inet (\\d+\\.\\d+\\.\\d+\\.\\d+)/\\d+ .*(%s:\\d+)", devname)
+	ifPattern := fmt.Sprintf("inet (\\d+\\.\\d+\\.\\d+\\.\\d+)/\\d+ .*(%s)", devname)
 	ifReg := regexp.MustCompile(ifPattern)
 	for _, line := range lines {
 		if ifReg.MatchString(line) {
@@ -52,22 +57,19 @@ func (k *K8sBareMetalPlatform) GetUsedSecondaryIpAddresses(ctx context.Context, 
 	return usedIps, nil
 }
 
-// AssignFreeLbIp returns secondarydevname, externalIp, internalIp
-func (k *K8sBareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Client) (string, string, string, error) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "AssignFreeLbIp")
+// AssignFreeLbIp returns externalIp
+func (k *K8sBareMetalPlatform) AssignFreeLbIp(ctx context.Context, name string, client ssh.Client) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "AssignFreeLbIp", "name", name)
 	ipLock.Lock()
 	defer ipLock.Unlock()
 	extDevName := k.GetExternalEthernetInterface()
-	intDevName := k.GetInternalEthernetInterface()
-
 	accessIp := k.GetControlAccessIp()
 	usedIps, err := k.GetUsedSecondaryIpAddresses(ctx, client, extDevName)
 	if err != nil {
-		return "", "", "", err
+		return "", err
 	}
 	freeExternalIp := ""
-	internalIp := ""
-	for ipidx, addr := range k.externalIps {
+	for _, addr := range k.externalIps {
 		if addr == accessIp {
 			continue
 		}
@@ -76,48 +78,22 @@ func (k *K8sBareMetalPlatform) AssignFreeLbIp(ctx context.Context, client ssh.Cl
 			continue
 		}
 		freeExternalIp = addr
-		// there are always at least as many internal IPs as external
-		internalIp = k.internalIps[ipidx]
-		break
 	}
 	if freeExternalIp == "" {
-		return "", "", "", fmt.Errorf("No free LB IP Found")
+		return "", fmt.Errorf("No free LB IP Found")
 	}
-	newSecondaryExternalDev := ""
-	newSecondaryInternalDev := ""
-
-	// find free secondary device label.  The label is the part after ":", e.g. eno2:0 is label "0"
-	labelsUsed := make(map[string]string)
-	for _, dev := range usedIps {
-		devParts := strings.Split(dev, ":")
-		if len(devParts) != 2 {
-			return "", "", "", fmt.Errorf("Unable to parse device label: %s", dev)
-		}
-		labelsUsed[devParts[1]] = devParts[1]
-	}
-	for l := 0; l < maxSecondaryInterfaces; l++ {
-		label := fmt.Sprintf("%d", l)
-		_, labelUsed := labelsUsed[label]
-		if !labelUsed {
-			newSecondaryExternalDev = extDevName + ":" + label
-			newSecondaryInternalDev = intDevName + ":" + label
-			break
-		}
-	}
-	if newSecondaryExternalDev == "" {
-		return "", "", "", fmt.Errorf("Unable to find free secondary device label")
-	}
-	out, err := client.Output(fmt.Sprintf("sudo ip address add %s/32 dev %s label %s", freeExternalIp, extDevName, newSecondaryExternalDev))
+	out, err := client.Output(fmt.Sprintf("sudo ip address add %s/32 dev %s", freeExternalIp, extDevName))
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Error adding external ip", "ip", freeExternalIp, "devName", extDevName, "label", newSecondaryExternalDev, "out", out, "err", err)
-		return "", "", "", fmt.Errorf("Error assigning new external IP: %s - %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "Error adding external ip", "ip", freeExternalIp, "devName", extDevName, "out", out, "err", err)
+		return "", fmt.Errorf("Error assigning new external IP: %s - %v", out, err)
 	}
-	out, err = client.Output(fmt.Sprintf("sudo ip address add %s/32 dev %s label %s", internalIp, intDevName, newSecondaryInternalDev))
+	// persist the ip address
+	filename, _, contents := infracommon.GenerateNetworkFileDetailsForIP(ctx, name, extDevName, freeExternalIp, 32, true)
+	err = pc.WriteFile(client, filename, contents, "netconfig", pc.SudoOn)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Error adding internal ip", "ip", internalIp, "devName", intDevName, "label", newSecondaryInternalDev, "out", out, "err", err)
-		return "", "", "", fmt.Errorf("Error assigning new internal IP: %s - %v", out, err)
+		return "", fmt.Errorf("unable to write network config file: %s -- %v", filename, err)
 	}
-	return newSecondaryExternalDev, freeExternalIp, internalIp, nil
+	return freeExternalIp, nil
 }
 
 func (k *K8sBareMetalPlatform) WhitelistSecurityRules(ctx context.Context, client ssh.Client, wlParams *infracommon.WhiteListParams) error {

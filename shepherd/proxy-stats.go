@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 	"sync"
@@ -74,7 +75,7 @@ type ProxyScrapePoint struct {
 	LastConnectAttempt time.Time
 	Client             ssh.Client
 	ProxyContainer     string
-	ListenIP           string
+	ListenEndpoint     string
 }
 
 var ProxyMap map[string]ProxyScrapePoint
@@ -116,25 +117,31 @@ func StartProxyScraper(done chan bool) {
 	go ProxyScraper(done)
 }
 
-// Figure out envoy proxy container name and network type
-func getProxyContainerAndNetworkType(ctx context.Context, scrapePoint ProxyScrapePoint) (string, DockerNetworkType, error) {
+// Figure out envoy proxy container name and metrics endpoint which can be an IP address or unix domain socket (UDS)
+func getProxyContainerAndMetricEndpoint(ctx context.Context, appInst *edgeproto.AppInst, scrapePoint ProxyScrapePoint) (string, string, error) {
 	pfType := pf.GetType(*platformName)
 	log.SpanLog(ctx, log.DebugLevelMetrics, "getProxyContainerName", "type", pfType)
 	if pfType == "fake" {
-		return "fakeEnvoy", DockerNetworkHost, nil
+		return "fakeEnvoy", cloudcommon.ProxyMetricsDefaultListenIP, nil
 	}
-	container := proxy.GetEnvoyContainerName(scrapePoint.App)
+	// for baremetal k8s has a cluster prefix
+	container := ""
+	if pfType == "k8sbaremetal" {
+		container += k8smgmt.GetKconfName(&edgeproto.ClusterInst{Key: scrapePoint.ClusterInstKey})
+	}
+	container += "-" + dockermgmt.GetContainerName(&scrapePoint.Key.AppKey)
+	container = proxy.GetEnvoyContainerName(container)
 	request := fmt.Sprintf("docker exec %s echo hello", container)
 	resp, err := scrapePoint.Client.Output(request)
 	if err != nil && strings.Contains(resp, "No such container") {
 		// try the docker name if it fails
 		container = proxy.GetEnvoyContainerName(dockermgmt.GetContainerName(&scrapePoint.Key.AppKey))
-		request = fmt.Sprintf("docker exec %s echo hello", container)
+		request := fmt.Sprintf("docker exec %s echo hello", container)
 		resp, err = scrapePoint.Client.Output(request)
 		// Perhaps this is nginx
 		if err != nil && strings.Contains(resp, "No such container") {
 			container = "nginx"
-			request := fmt.Sprintf("docker exec %s echo hello", scrapePoint.App)
+			request = fmt.Sprintf("docker exec %s echo hello", scrapePoint.App)
 			resp, err = scrapePoint.Client.Output(request)
 		}
 	}
@@ -143,20 +150,40 @@ func getProxyContainerAndNetworkType(ctx context.Context, scrapePoint ProxyScrap
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find envoy proxy for app", "scrapepoint", scrapePoint.Key, "err", err, "resp", resp)
 		return "", "", err
 	}
-
-	log.SpanLog(ctx, log.DebugLevelMetrics, "finding network type for container", "container", container)
-
-	out, err := scrapePoint.Client.Output("docker inspect -f '{{ .NetworkSettings.Networks }}' " + container)
+	cmd := fmt.Sprintf("docker inspect -f '{{ .Config.Labels.%s }}' %s", cloudcommon.MexMetricEndpoint, container)
+	log.SpanLog(ctx, log.DebugLevelMetrics, "finding metrics endpoint in labels for container", "container", container, "cmd", cmd)
+	out, err := scrapePoint.Client.Output(cmd)
 	if err != nil {
-		return "", DockerNetworkHost, fmt.Errorf("Unable to find proxy docker network type - %s, %v", out, err)
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find metrics endpoint label", "out", out, "err", err)
+	} else {
+		endpoint := strings.TrimSpace(out)
+		if endpoint == cloudcommon.ProxyMetricsListenUDS {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Metrics endpoint is a UDS socket", "out", out, "err", err)
+			return container, endpoint, nil
+		}
+		// see if it is a parsable address
+		ip := net.ParseIP(endpoint)
+		if ip != nil {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Found metrics ip via label", "metricsIp", endpoint)
+			return container, endpoint, nil
+		} else {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to parse metrics ip label", "out", out)
+		}
+	}
+
+	// this can be an existing appInst which was created before adding the metrics IP label
+	log.SpanLog(ctx, log.DebugLevelMetrics, "did not find metrics ip from container, find container network type", "container", container)
+	out, err = scrapePoint.Client.Output("docker inspect -f '{{ .NetworkSettings.Networks }}' " + container)
+	if err != nil {
+		return "", cloudcommon.ProxyMetricsDefaultListenIP, fmt.Errorf("Unable to find proxy docker network type - %s, %v", out, err)
 	}
 	if strings.Contains(out, "host:") {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "docker host network", "container", container)
-		return container, DockerNetworkHost, nil
+		return container, infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts), nil
 	}
-	// all proxies are started in host mode, but existing proxies may exist running in bridge
+	// all proxies are started in host mode, but existing proxies may exist running in bridge. Use the default metrics ip
 	log.SpanLog(ctx, log.DebugLevelMetrics, "docker bridge network - legacy case", "container", container)
-	return container, DockerNetworkBridge, nil
+	return container, cloudcommon.ProxyMetricsDefaultListenIP, nil
 }
 
 // Init cluster client for a scrape point
@@ -166,7 +193,7 @@ func initClient(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppI
 	// record last connection attempt
 	scrapePoint.LastConnectAttempt = time.Now()
 	if app.Deployment == cloudcommon.DeploymentTypeVM && app.AccessType != edgeproto.AccessType_ACCESS_TYPE_DIRECT {
-		scrapePoint.Client, err = myPlatform.GetVmAppRootLbClient(ctx, &appInst.Key)
+		scrapePoint.Client, err = myPlatform.GetVmAppRootLbClient(ctx, appInst)
 		if err != nil {
 			// If we cannot get a platform client no point in trying to get metrics
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to acquire platform client", "VmApp", appInst.Key, "error", err)
@@ -181,19 +208,12 @@ func initClient(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppI
 		}
 	}
 	// Now that we have a client - figure out what container name we should ping
-	var netType DockerNetworkType
-	scrapePoint.ProxyContainer, netType, err = getProxyContainerAndNetworkType(ctx, *scrapePoint)
+	scrapePoint.ProxyContainer, scrapePoint.ListenEndpoint, err = getProxyContainerAndMetricEndpoint(ctx, appInst, *scrapePoint)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to find envoy proxy for app", "scrapepoint", scrapePoint.Key,
 			"LastConnectAttempt", scrapePoint.LastConnectAttempt, "err", err)
 		scrapePoint.Client.StopPersistentConn()
 		return err
-	}
-	if netType == DockerNetworkHost {
-		scrapePoint.ListenIP = infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)
-	} else {
-		// legacy case
-		scrapePoint.ListenIP = cloudcommon.ProxyMetricsDefaultListenIP
 	}
 	return nil
 }
@@ -376,6 +396,9 @@ func ProxyScraper(done chan bool) {
 		// check if there are any new apps we need to start/stop scraping for
 		select {
 		case <-time.After(rootLbScrapeInterval):
+			if !shepherd_common.ShepherdPlatformActive {
+				continue
+			}
 			scrapePoints := copyMapValues()
 			for _, v := range scrapePoints {
 				if !clientReady(v) {
@@ -414,11 +437,14 @@ func ProxyScraper(done chan bool) {
 
 func getProxyMetricsRequest(target *ProxyScrapePoint, path string) string {
 	execStr := ""
-	if target.ListenIP == cloudcommon.ProxyMetricsDefaultListenIP {
+	if target.ListenEndpoint == cloudcommon.ProxyMetricsListenUDS {
+		return fmt.Sprintf("docker exec %s curl -s -S --unix-socket /var/tmp/metrics.sock http://localhost/%s", target.ProxyContainer, path)
+	}
+	if target.ListenEndpoint == cloudcommon.ProxyMetricsDefaultListenIP {
 		// legacy case, need to exec into the container
 		execStr = "docker exec " + target.ProxyContainer
 	}
-	return fmt.Sprintf("%s curl -s -S http://%s:%d/%s", execStr, target.ListenIP, cloudcommon.ProxyMetricsPort, path)
+	return fmt.Sprintf("%s curl -s -S http://%s:%d/%s", execStr, target.ListenEndpoint, cloudcommon.ProxyMetricsPort, path)
 }
 
 func QueryProxy(ctx context.Context, scrapePoint *ProxyScrapePoint) (*shepherd_common.ProxyMetrics, error) {
@@ -733,7 +759,7 @@ func MarshallTcpProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.
 		metric.AddTag("apporg", scrapePoint.Key.AppKey.Organization)
 		metric.AddTag("app", util.DNSSanitize(scrapePoint.Key.AppKey.Name))
 		metric.AddTag("ver", util.DNSSanitize(scrapePoint.Key.AppKey.Version))
-		metric.AddIntVal("port", uint64(port))
+		metric.AddTag("port", fmt.Sprintf("%d", port))
 
 		metric.AddIntVal("active", data.EnvoyTcpStats[port].ActiveConn)
 		metric.AddIntVal("accepts", data.EnvoyTcpStats[port].Accepts)
@@ -763,7 +789,7 @@ func MarshallUdpProxyMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.
 		metric.AddTag("apporg", scrapePoint.Key.AppKey.Organization)
 		metric.AddTag("app", util.DNSSanitize(scrapePoint.Key.AppKey.Name))
 		metric.AddTag("ver", util.DNSSanitize(scrapePoint.Key.AppKey.Version))
-		metric.AddIntVal("port", uint64(port))
+		metric.AddTag("port", fmt.Sprintf("%d", port))
 
 		metric.AddIntVal("bytesSent", data.EnvoyUdpStats[port].SentBytes)
 		metric.AddIntVal("bytesRecvd", data.EnvoyUdpStats[port].RecvBytes)
@@ -791,6 +817,7 @@ func MarshallNginxMetric(scrapePoint ProxyScrapePoint, data *shepherd_common.Pro
 	metric.AddTag("apporg", scrapePoint.Key.AppKey.Organization)
 	metric.AddTag("app", util.DNSSanitize(scrapePoint.Key.AppKey.Name))
 	metric.AddTag("ver", util.DNSSanitize(scrapePoint.Key.AppKey.Version))
+	metric.AddTag("port", "")
 
 	metric.AddIntVal("active", data.ActiveConn)
 	metric.AddIntVal("accepts", data.Accepts)

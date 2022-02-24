@@ -10,7 +10,9 @@ type MC struct {
 	process.Common          `yaml:",inline"`
 	process.NodeCommon      `yaml:",inline"`
 	Addr                    string
+	FederationAddr          string
 	SqlAddr                 string
+	NotifyAddrs             string
 	RolesFile               string
 	LdapAddr                string
 	NotifySrvAddr           string
@@ -23,6 +25,7 @@ type MC struct {
 	ApiTlsCert              string
 	ApiTlsKey               string
 	StaticDir               string
+	TestMode                bool
 	cmd                     *exec.Cmd
 }
 type Sql struct {
@@ -47,6 +50,7 @@ type Shepherd struct {
 	Region             string
 	AppDNSRoot         string
 	ChefServerPath     string
+	ThanosRecvAddr     string
 }
 type AutoProv struct {
 	process.Common     `yaml:",inline"`
@@ -96,5 +100,34 @@ type AlertmanagerSidecar struct {
 	HttpAddr       string
 	LocalTest      bool
 	TLS            process.TLSCerts
+	cmd            *exec.Cmd
+}
+
+type FRM struct {
+	process.Common     `yaml:",inline"`
+	process.NodeCommon `yaml:",inline"`
+	NotifyAddrs        string
+	Region             string
+	cmd                *exec.Cmd
+}
+
+type ThanosQuery struct {
+	process.DockerGeneric `yaml:",inline"`
+	Region                string
+	HttpPort              int
+	Stores                []string
+}
+
+type ThanosReceive struct {
+	process.DockerGeneric `yaml:",inline"`
+	Region                string
+	GrpcPort              int
+	HttpPort              int
+	RemoteWritePort       int
+}
+
+type QosSesSrvSim struct {
+	process.Common `yaml:",inline"`
+	Port           int
 	cmd            *exec.Cmd
 }

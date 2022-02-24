@@ -72,6 +72,7 @@ type DeploymentData struct {
 	K8sDeployment       []*K8sDeploymentStep              `yaml:"k8s-deployment"`
 	Mcs                 []*intprocess.MC                  `yaml:"mcs"`
 	Sqls                []*intprocess.Sql                 `yaml:"sqls"`
+	Frms                []*intprocess.FRM                 `yaml:"frms"`
 	Shepherds           []*intprocess.Shepherd            `yaml:"shepherds"`
 	AutoProvs           []*intprocess.AutoProv            `yaml:"autoprovs"`
 	Cloudflare          CloudflareDNS                     `yaml:"cloudflare"`
@@ -81,6 +82,9 @@ type DeploymentData struct {
 	Alertmanagers       []*intprocess.Alertmanager        `yaml:"alertmanagers"`
 	Maildevs            []*intprocess.Maildev             `yaml:"maildevs"`
 	AlertmgrSidecars    []*intprocess.AlertmanagerSidecar `yaml:"alertmanagersidecars"`
+	ThanosQueries       []*intprocess.ThanosQuery         `yaml:"thanosqueries"`
+	ThanosReceives      []*intprocess.ThanosReceive       `yaml:"thanosreceives"`
+	Qossessims          []*intprocess.QosSesSrvSim        `yaml:"qossessims"`
 }
 
 // a comparison and yaml friendly version of AllMetrics for e2e-tests
@@ -93,7 +97,7 @@ type MetricsCompare struct {
 type OptimizedMetricsCompare struct {
 	Name    string
 	Tags    map[string]string
-	Values  [][]float64
+	Values  [][]string
 	Columns []string
 }
 
@@ -192,6 +196,9 @@ func GetAllProcesses() []process.Process {
 	for _, p := range Deployment.Mcs {
 		all = append(all, p)
 	}
+	for _, p := range Deployment.Frms {
+		all = append(all, p)
+	}
 	for _, p := range Deployment.Shepherds {
 		all = append(all, p)
 	}
@@ -208,6 +215,15 @@ func GetAllProcesses() []process.Process {
 		all = append(all, p)
 	}
 	for _, p := range Deployment.Maildevs {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.ThanosQueries {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.ThanosReceives {
+		all = append(all, p)
+	}
+	for _, p := range Deployment.Qossessims {
 		all = append(all, p)
 	}
 	return all
@@ -332,6 +348,13 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 			return false
 		}
 	}
+	for _, p := range Deployment.Frms {
+		opts = append(opts, process.WithRolesFile(rolesfile))
+		opts = append(opts, process.WithDebug("api,infra,notify"))
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
 	for _, p := range Deployment.Shepherds {
 		opts = append(opts, process.WithRolesFile(rolesfile))
 		opts = append(opts, process.WithDebug("metrics,events"))
@@ -364,6 +387,21 @@ func StartProcesses(processName string, args []string, outputDir string) bool {
 		}
 	}
 	for _, p := range Deployment.Maildevs {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.ThanosQueries {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.ThanosReceives {
+		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
+			return false
+		}
+	}
+	for _, p := range Deployment.Qossessims {
 		if !setupmex.StartLocal(processName, outputDir, p, opts...) {
 			return false
 		}
@@ -431,8 +469,19 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 			actionArgs = actionArgs[1:]
 		}
 		if actionSubtype == "crm" {
+			// extract the action param and action args
+			actionArgs = setupmex.GetActionArgs(actionParam)
+			actionParam = actionArgs[0]
+			actionArgs = actionArgs[1:]
+			ctrlName := ""
+
+			// We can specify controller to connect to
+			if len(actionArgs) > 0 {
+				ctrlName = setupmex.GetCtrlNameFromCrmStartArgs(actionArgs)
+			}
+
 			// read the apifile and start crm with the details
-			err := apis.StartCrmsLocal(ctx, actionParam, spec.ApiFile, spec.ApiFileVars, outputDir)
+			err := apis.StartCrmsLocal(ctx, actionParam, ctrlName, spec.ApiFile, spec.ApiFileVars, outputDir)
 			if err != nil {
 				errors = append(errors, err.Error())
 			}
@@ -463,7 +512,7 @@ func RunAction(ctx context.Context, actionSpec, outputDir string, config *e2eapi
 		}
 	case "stop":
 		if actionSubtype == "crm" {
-			if err := apis.StopCrmsLocal(ctx, actionParam, spec.ApiFile, spec.ApiFileVars); err != nil {
+			if err := apis.StopCrmsLocal(ctx, actionParam, spec.ApiFile, spec.ApiFileVars, process.HARoleAll); err != nil {
 				errors = append(errors, err.Error())
 			}
 		} else {

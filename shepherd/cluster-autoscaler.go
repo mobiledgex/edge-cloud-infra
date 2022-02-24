@@ -29,6 +29,9 @@ type ClusterAutoScaler struct {
 }
 
 func (s *ClusterAutoScaler) updateClusterStats(ctx context.Context, key edgeproto.ClusterInstKey, stats *shepherd_common.ClusterMetrics) {
+	if stats == nil {
+		return
+	}
 	needsWork := false
 	s.mux.Lock()
 	if s.lastStabilizedTotalCpu != float32(stats.AutoScaleCpu) {
@@ -120,7 +123,7 @@ func checkClusterAutoScale(ctx context.Context, k interface{}) {
 			reason = fmt.Sprintf("stabilized total active connections %f, target %d per node", autoScaler.lastStabilizedActiveConns, policy.TargetActiveConnections)
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelApi, "checkClusterAutoScale calculations", "autoScaler", autoScaler, "policy", policy, "desiredNodesRaw", desiredNodesRaw, "curNumNodes", cinst.NumNodes, "reason", reason)
+	log.SpanLog(ctx, log.DebugLevelApi, "checkClusterAutoScale calculations", "key", key, "autoScaler", fmt.Sprintf("%+v", autoScaler), "policy", policy, "desiredNodesRaw", desiredNodesRaw, "curNumNodes", cinst.NumNodes, "reason", reason)
 	autoScaler.mux.Unlock()
 	if desiredNodesRaw == 0 {
 		log.SpanLog(ctx, log.DebugLevelApi, "checkClusterAutoScale no metrics to scale on")

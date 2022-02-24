@@ -3,12 +3,9 @@
     msg: "Backing up etcd data from cluster '{{ k8s_cluster_name }}' (region: '{{ region }}')"
 
 - name: Retrieve kube config
-  azure_rm_aks_facts:
-    name: "{{ k8s_cluster_name }}"
-    resource_group: "{{ resource_group }}"
-    show_kubeconfig: admin
-  register: aks_facts
-  check_mode: no
+  import_role:
+    name: load-vault-creds
+    tasks_from: kubeconfig
 
 - name: Create temporary kubeconfig file
   tempfile:
@@ -20,7 +17,7 @@
 
 - name: Store kubeconfig data in file
   copy:
-    content: "{{ aks_facts.aks[0].kube_config }}"
+    content: "{{ kubeconfig }}"
     dest: "{{ kubeconfig_file.path }}"
   changed_when: false
   check_mode: no
@@ -28,3 +25,26 @@
 - import_role:
     name: controller
     tasks_from: etcd-backup
+
+- block:
+  - name: Copy compact script to host
+    copy:
+      src: etcd-compact.sh
+      dest: /tmp/etcd-compact.sh
+    register: compact_script
+
+  - name: Copy compact script to etcd pod
+    command: "kubectl --kubeconfig {{ kubeconfig_file.path }} cp {{ compact_script.dest }} mex-etcd-0:{{ etcd_compact_script_path }}"
+    changed_when: false
+
+  - name: Compact etcd database
+    command: "kubectl --kubeconfig {{ kubeconfig_file.path }} exec mex-etcd-0 -- sh {{ etcd_compact_script_path }}"
+    register: compact_out
+
+  - debug:
+      msg: "{{ compact_out.stdout }}"
+
+  - debug:
+      msg: "STDERR: {{ compact_out.stderr }}"
+
+  when: etcd_compact_after_backup|bool

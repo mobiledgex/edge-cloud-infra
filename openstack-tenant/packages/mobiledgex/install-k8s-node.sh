@@ -2,17 +2,24 @@
 # must be run as root
 #  on all nodes
 set -x
-if [ $# -lt 3 ]; then
+if [ $# -lt 1 ]; then
 	echo "Insufficient arguments"
-	echo "Need interface-name master-ip my-ip"
+	echo "Need master-ip"
 	exit 1
 fi
-INTF=$1
-MASTERIP=$2
-MYIP=$3
-echo "Interface $INTF"
-echo "Master IP $MASTERIP"
-echo "My IP Address: $MYIP"
+MASTERIP=$1
+HOSTNAME=`hostname`
+# replace 127.0.0.1 with the internal IP address in /etc/hosts. This is needed
+# if there are multiple networks on the node. To find the IP address derive from 
+# the master which we get from metadata
+echo "Master IP $MASTERIP HostName $HOSTNAME"
+SUBNET=`echo $MASTERIP|awk -F"." '{print $1 "." $2 "." $3}'`
+echo "subnet $SUBNET"
+
+MYIP=`ip addr show |grep $SUBNET|awk '{print $2}'|awk -F"/" '{print $1}'`
+echo "My IP $MYIP"
+sed -i s/"127.0.0.1 $HOSTNAME"/"$MYIP $HOSTNAME"/g /etc/hosts 
+echo "replaced localhost with $MYIP in /etc/hosts"
 
 systemctl is-active --quiet kubelet
 if [ $? -ne 0 ]; then
@@ -20,25 +27,6 @@ if [ $? -ne 0 ]; then
   systemctl enable kubelet
 fi
 
-#nohup consul agent -data-dir=/tmp/consul -node=`hostname` -syslog -config-dir=/etc/consul/conf.d -bind=$MYIP &
-#consul info
-#while [ $? -ne 0 ] ; do
-#	echo Waiting for local consul
-#	sleep 7
-#	consul info
-#done
-#consul join $MASTERIP
-#if [ $? -ne 0 ]; then
-#	echo consul join to $MASTERIP failed
-#	exit 1
-#fi
-#consul members
-#JOIN=`consul kv get join-cmd`
-#while [ $? -ne 0 ]; do
-#	echo waiting for join-cmd
-#	sleep 7
-#	JOIN=`consul kv get join-cmd`
-#done
 echo installing k8s node, wait...
 cd /tmp
 

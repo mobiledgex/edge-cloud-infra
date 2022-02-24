@@ -60,7 +60,7 @@ var promHealthCheckAlerts = `groups:
     expr: up == 0
     for: 15s
     labels:
-      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(dme.HealthCheck_HEALTH_CHECK_FAIL_ROOTLB_OFFLINE)) + `
+      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(dme.HealthCheck_HEALTH_CHECK_ROOTLB_OFFLINE)) + `
       ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp + `
     annotations:
       ` + cloudcommon.AlertAnnotationTitle + ": " + cloudcommon.AlertAppInstDown + `
@@ -68,7 +68,7 @@ var promHealthCheckAlerts = `groups:
   - alert: ` + cloudcommon.AlertAppInstDown + `
     expr: envoy_cluster_health_check_healthy == 0
     labels:
-      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(dme.HealthCheck_HEALTH_CHECK_FAIL_SERVER_FAIL)) + `
+      ` + cloudcommon.AlertHealthCheckStatus + ": " + strconv.Itoa(int(dme.HealthCheck_HEALTH_CHECK_SERVER_FAIL)) + `
       ` + cloudcommon.AlertScopeTypeTag + ": " + cloudcommon.AlertScopeApp + `
     annotations:
       ` + cloudcommon.AlertAnnotationTitle + ": " + cloudcommon.AlertAppInstDown + `
@@ -98,7 +98,7 @@ func init() {
 }
 
 func updateCloudletPrometheusConfig(ctx context.Context, promScrapeInterval *time.Duration, alertEvalInterval *edgeproto.Duration) error {
-	err := intprocess.WriteCloudletPromConfig(ctx, &metricsScrapingInterval, (*time.Duration)(&settings.ShepherdAlertEvaluationInterval))
+	err := intprocess.WriteCloudletPromConfig(ctx, *thanosRecvAddr, &metricsScrapingInterval, (*time.Duration)(&settings.ShepherdAlertEvaluationInterval))
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfo, "Failed to write cloudlet prometheus config", "err", err)
 		return err
@@ -144,6 +144,10 @@ func writePrometheusTargetsFile(ctx context.Context, key interface{}) {
 		if err == nil {
 			targets += promTargetJson
 		}
+	}
+	if len(proxyScrapePoints) == 0 {
+		// empty set required
+		targets += "{}"
 	}
 	targets += "]"
 	err := ioutil.WriteFile(*promTargetsFile, []byte(targets), 0644)
@@ -240,6 +244,15 @@ func metricsProxy(w http.ResponseWriter, r *http.Request) {
 	if app != "" {
 		// Search ProxyMap for the names
 		target := getProxyScrapePoint(app)
+		if target == nil {
+			// no corresponding AppInst proxy, this happens after
+			// deletion, because cache gets updated before prometheus
+			// gets reloaded without the target. Write back empty
+			// data so that prometheus doesn't generate spurious
+			// offline alert.
+			w.Write([]byte{})
+			return
+		}
 		if target.Client == nil {
 			// if client is not initialized trigger health-check failure
 			http.Error(w, "Client is not initialized", http.StatusInternalServerError)
@@ -377,16 +390,16 @@ func writePrometheusAlertRuleForAppInst(ctx context.Context, k interface{}) {
 	}
 
 	// add user-defined alerts for this app Inst as well
-	if len(app.UserDefinedAlerts) > 0 {
-		userAlerts := []edgeproto.UserAlert{}
-		for _, alertName := range app.UserDefinedAlerts {
-			userAlert := edgeproto.UserAlert{
-				Key: edgeproto.UserAlertKey{
+	if len(app.AlertPolicies) > 0 {
+		userAlerts := []edgeproto.AlertPolicy{}
+		for _, alertName := range app.AlertPolicies {
+			userAlert := edgeproto.AlertPolicy{
+				Key: edgeproto.AlertPolicyKey{
 					Name:         alertName,
 					Organization: app.Key.Organization,
 				},
 			}
-			found := UserAlertCache.Get(&userAlert.Key, &userAlert)
+			found := AlertPolicyCache.Get(&userAlert.Key, &userAlert)
 			if !found {
 				continue
 			}

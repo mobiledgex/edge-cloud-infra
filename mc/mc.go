@@ -14,6 +14,7 @@ import (
 )
 
 var addr = flag.String("addr", "127.0.0.1:9900", "REST listener address")
+var federationAddr = flag.String("federationAddr", "", "REST listener address for multi-operator platform federation")
 var sqlAddr = flag.String("sqlAddr", "127.0.0.1:5432", "Postgresql address")
 var localSql = flag.Bool("localSql", false, "Run local postgres db")
 var consoleProxyAddr = flag.String("consoleproxyaddr", "127.0.0.1:6080", "Console proxy address")
@@ -29,7 +30,7 @@ var jaegerAddr = flag.String("jaegerAddr", "127.0.0.1:16686", "Jaeger server add
 var pingInterval = flag.Duration("pingInterval", 20*time.Second, "SQL database ping keep-alive interval")
 var skipVerifyEmail = flag.Bool("skipVerifyEmail", false, "skip email verification, for testing only")
 var skipOriginCheck = flag.Bool("skipOriginCheck", false, "skip origin check constraint, for testing only")
-var notifyAddrs = flag.String("notifyAddrs", "127.0.0.1:53001", "Parent notify listener addresses")
+var notifyAddrs = flag.String("notifyAddrs", "", "Parent notify listener addresses")
 var notifySrvAddr = flag.String("notifySrvAddr", "127.0.0.1:52001", "Notify listener address")
 var alertMgrAddr = flag.String("alertMgrApiAddr", "http://127.0.0.1:9094", "Global Alertmanager api address")
 
@@ -39,6 +40,7 @@ var billingPlatform = flag.String("billingPlatform", "fake", "Billing platform t
 var usageCollectionInterval = flag.Duration("usageCollectionInterval", -1*time.Second, "Collection interval")
 var usageCheckpointInterval = flag.String("usageCheckpointInterval", "MONTH", "Checkpointing interval(must be same as controller's checkpointInterval)")
 var staticDir = flag.String("staticDir", "/", "Path to static data")
+var controllerNotifyPort = flag.String("controllerNotifyPort", "50001", "Controller notify listener port to connect to")
 
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
@@ -56,6 +58,7 @@ func main() {
 		ServAddr:                *addr,
 		SqlAddr:                 *sqlAddr,
 		VaultAddr:               nodeMgr.VaultAddr,
+		FederationAddr:          *federationAddr,
 		RunLocal:                *localSql,
 		InitLocal:               *initSql,
 		LocalVault:              *localVault,
@@ -80,6 +83,7 @@ func main() {
 		DomainName:              nodeMgr.CommonName(),
 		StaticDir:               *staticDir,
 		DeploymentTag:           nodeMgr.DeploymentTag,
+		ControllerNotifyPort:    *controllerNotifyPort,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {

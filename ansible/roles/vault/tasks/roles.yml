@@ -11,7 +11,6 @@
       - auth-approle.write.v1
       - auth-approle.destroy.v1
       - auth-github-config.read.v1
-      - auth-ldap-config.read.v1
       - azure-aks-creds.read.v1
       - azure-config.read.v1
       - azure-roles.read.v1
@@ -26,6 +25,7 @@
       - influxdb.read.v1
       - influxdb-internal.read.v1
       - mexenv.read.v1
+      - noreplyemail.read.v1
       - pki-global-config.read.v1
       - pki-global-roles.read.v1
       - pki-regional-cloudlet-config.read.v1
@@ -45,7 +45,8 @@
       - sys-plugins-catalog.read.v1
       - sys-plugins-certs-config.read.v1
       - sys-policies.read.v1
-      - noreplyemail.read.v1
+      - transit-etcd-backup.encrypt.v1
+      - transit-keys.list.v1
     token_type: batch
     token_ttl: 5400   # seconds = 90 minutes
 
@@ -55,6 +56,7 @@
     policies:
       - approle.login.v1
       - chargify.read.v1
+      - federation.write.v1
       - gcs.read.v1
       - gcp-operator-reports-bucket-access-token.read.v1
       - influxdb.read.v1
@@ -91,6 +93,13 @@
     name: snapshot.v1
     policies:
       - sys-storage-raft-snapshot.read.v1
+
+- name: teleport.v1 role
+  vault_role:
+    name: teleport.v1
+    policies:
+      - kubeconfigs.write.v1
+      - teleport-node-token.write.v1
 
 - include_role:
     name: vault

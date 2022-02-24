@@ -1,0 +1,28 @@
+---
+- set_fact:
+    creds_filename: "{{ vault_roles_dir.path }}/{{ setup.key }}.json"
+
+- name: "Look up vault approle creds file for {{ setup.key }} vault"
+  stat:
+    path: "{{ creds_filename }}"
+  register: creds_file
+  become: yes
+
+- name: "Make sure vault approle creds are present for {{ setup.key }} vault"
+  assert:
+    that: creds_file.stat.exists
+    msg: "{{ creds_filename }} not found"
+
+- name: "Set up {{ setup.key }} kubeconfig publish cronjob"
+  template:
+    src: ci_kubeconfigs.sh.j2
+    dest: "/etc/cron.daily/{{ setup.key }}-kubeconfigs-publish"
+    mode: "0500"
+  become: yes
+
+- name: Set up {{ setup.key }} node token publish cronjob
+  template:
+    src: node_token_publish.sh.j2
+    dest: "/etc/cron.hourly/{{ setup.key }}-node-token-publish"
+    mode: "0500"
+  become: yes

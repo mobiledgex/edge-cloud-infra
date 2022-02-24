@@ -1,4 +1,21 @@
 - labels:
+    alertname: AppInstDown
+    app: someapplication1
+    apporg: AcmeAppCo
+    appver: "1.0"
+    cloudlet: dmuus-cloud-1
+    cloudletorg: dmuus
+    cluster: SmallCluster
+    clusterorg: AcmeAppCo
+    federatedorg: ""
+    region: local
+    scope: Application
+    status: "4"
+  annotations:
+    description: AppInst down due to cloudlet offline
+    title: AppInstDown
+  state: firing
+- labels:
     alertname: CloudletDown
     cloudlet: dmuus-cloud-1
     cloudletorg: dmuus
@@ -8,7 +25,3 @@
     description: Cloudlet resource manager is offline
     title: CloudletDown
   state: firing
-  activeat:
-    seconds: 1614751858
-    nanos: 325065000
-  controller: Ashishs-MacBook-Pro-2.local@127.0.0.1:55001

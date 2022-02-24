@@ -2,7 +2,6 @@ package orm
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +11,7 @@ import (
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/billing"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -25,10 +25,10 @@ func CreateBillingOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
@@ -37,7 +37,7 @@ func CreateBillingOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, Msg("Billing Organization created"))
+	return ormutil.SetReply(c, ormutil.Msg("Billing Organization created"))
 }
 
 // Parent billing orgs will have a billing Group, self billing orgs will just use the existing developer group from the org
@@ -77,7 +77,7 @@ func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 		orgCheck.Parent = org.Name
 		err = db.Save(&orgCheck).Error
 		if err != nil {
-			return fmt.Errorf("Unable to set billing org in Organization: %v", dbErr(err))
+			return fmt.Errorf("Unable to set billing org in Organization: %v", ormutil.DbErr(err))
 		}
 	} else if org.Type == billing.CUSTOMER_TYPE_PARENT {
 		if orgCheck != nil {
@@ -92,7 +92,7 @@ func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"organizations_pkey") {
 			return fmt.Errorf("Billing Organization with name %s (case-insensitive) already exists", org.Name)
 		}
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 
 	// If its a self billing org, just use the same group that was created for the regular org.
@@ -101,7 +101,7 @@ func CreateBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 		psub := rbac.GetCasbinGroup(org.Name, claims.Username)
 		err = enforcer.AddGroupingPolicy(ctx, psub, RoleBillingManager)
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 	}
 
@@ -151,13 +151,13 @@ func createBillingAccount(ctx context.Context, info *ormapi.BillingOrganization)
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"accountinfo_pkey") {
 			return fmt.Errorf("AccountInfo with name %s (case-insensitive) already exists", info.Name)
 		}
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	return nil
 }
 
 func UpdateBillingOrg(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -167,9 +167,9 @@ func UpdateBillingOrg(c echo.Context) error {
 	// modified fields.
 	body, err := ioutil.ReadAll(c.Request().Body)
 	in := ormapi.BillingOrganization{}
-	err = json.Unmarshal(body, &in)
+	err = BindJson(body, &in)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	if in.Name == "" {
 		return fmt.Errorf("BillingOrganization name not specified")
@@ -185,7 +185,7 @@ func UpdateBillingOrg(c echo.Context) error {
 		return fmt.Errorf("BillingOrganization not found")
 	}
 	if res.Error != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(res.Error).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(res.Error).Error())
 	}
 	oldType := org.Type
 
@@ -194,9 +194,9 @@ func UpdateBillingOrg(c echo.Context) error {
 	}
 
 	// apply specified fields
-	err = json.Unmarshal(body, &org)
+	err = BindJson(body, &org)
 	if err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	if org.Type != oldType {
 		return fmt.Errorf("Cannot change BillingOrganization type")
@@ -209,7 +209,7 @@ func UpdateBillingOrg(c echo.Context) error {
 
 	err = db.Save(&org).Error
 	if err != nil {
-		return newHTTPError(http.StatusInternalServerError, dbErr(err).Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, ormutil.DbErr(err).Error())
 	}
 	return nil
 }
@@ -219,10 +219,10 @@ func AddChildOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
@@ -231,7 +231,7 @@ func AddChildOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, Msg("Organization added"))
+	return ormutil.SetReply(c, ormutil.Msg("Organization added"))
 }
 
 func AddChildOrgObj(ctx context.Context, claims *UserClaims, parentOrg *ormapi.BillingOrganization) error {
@@ -293,11 +293,11 @@ func addChild(ctx context.Context, child *ormapi.Organization, parent *ormapi.Bi
 	db := loggedDB(ctx)
 	err = db.Save(&child).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	err = db.Save(&parent).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	return nil
 }
@@ -307,10 +307,10 @@ func RemoveChildOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
@@ -319,7 +319,7 @@ func RemoveChildOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, Msg("Organization removed"))
+	return ormutil.SetReply(c, ormutil.Msg("Organization removed"))
 }
 
 func RemoveChildOrgObj(ctx context.Context, claims *UserClaims, billing *ormapi.BillingOrganization) error {
@@ -381,11 +381,11 @@ func removeChild(ctx context.Context, child *ormapi.Organization, parent *ormapi
 	db := loggedDB(ctx)
 	err := db.Save(&child).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	err = db.Save(&parent).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 
 	err = deleteBillingAccount(ctx, child.Name, deleteTypeChild)
@@ -401,10 +401,10 @@ func DeleteBillingOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("billing org", org.Name)
@@ -413,7 +413,7 @@ func DeleteBillingOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, Msg("Billing Organization deleted"))
+	return ormutil.SetReply(c, ormutil.Msg("Billing Organization deleted"))
 }
 
 func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) error {
@@ -453,7 +453,7 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 		if undoerr != nil {
 			log.SpanLog(ctx, log.DebugLevelApi, "undo mark org for delete", "undoerr", undoerr)
 		}
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 
 	err = deleteBillingAccount(ctx, org.Name, deleteTypeSelf)
@@ -465,7 +465,7 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 	if orgDetails.Type == billing.CUSTOMER_TYPE_PARENT {
 		groups, err := enforcer.GetGroupingPolicy()
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 		for _, grp := range groups {
 			if len(grp) < 2 {
@@ -475,7 +475,7 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 			if len(strs) == 2 && strs[0] == org.Name {
 				err = enforcer.RemoveGroupingPolicy(ctx, grp[0], grp[1])
 				if err != nil {
-					return dbErr(err)
+					return ormutil.DbErr(err)
 				}
 			}
 		}
@@ -492,7 +492,7 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 		org.Parent = ""
 		err = db.Save(&org).Error
 		if err != nil {
-			return dbErr(err)
+			return ormutil.DbErr(err)
 		}
 	}
 	return nil
@@ -500,7 +500,7 @@ func DeleteBillingOrgObj(ctx context.Context, claims *UserClaims, org *ormapi.Bi
 
 // Show BillingOrganizations that current user belongs to.
 func ShowBillingOrg(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -509,7 +509,7 @@ func ShowBillingOrg(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, orgs)
+	return ormutil.SetReply(c, orgs)
 }
 
 func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.BillingOrganization, error) {
@@ -524,7 +524,7 @@ func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Billin
 		// super user, show all orgs
 		err := db.Find(&orgs).Error
 		if err != nil {
-			return nil, dbErr(err)
+			return nil, ormutil.DbErr(err)
 		}
 	} else {
 		// show orgs for current user
@@ -540,7 +540,7 @@ func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Billin
 				if regErr == nil {
 					show = false
 				} else {
-					return nil, dbErr(err)
+					return nil, ormutil.DbErr(err)
 				}
 			}
 			if show {
@@ -552,7 +552,7 @@ func ShowBillingOrgObj(ctx context.Context, claims *UserClaims) ([]ormapi.Billin
 }
 
 func ShowAccountInfo(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -561,7 +561,7 @@ func ShowAccountInfo(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, accs)
+	return ormutil.SetReply(c, accs)
 }
 
 func ShowAccountInfoObj(ctx context.Context, claims *UserClaims) ([]ormapi.AccountInfo, error) {
@@ -576,7 +576,7 @@ func ShowAccountInfoObj(ctx context.Context, claims *UserClaims) ([]ormapi.Accou
 		// super user, show all accs
 		err := db.Find(&accs).Error
 		if err != nil {
-			return nil, dbErr(err)
+			return nil, ormutil.DbErr(err)
 		}
 	} else {
 		// show accs for current user
@@ -592,7 +592,7 @@ func ShowAccountInfoObj(ctx context.Context, claims *UserClaims) ([]ormapi.Accou
 				if regErr == nil {
 					show = false
 				} else {
-					return nil, dbErr(err)
+					return nil, ormutil.DbErr(err)
 				}
 			}
 			if show {
@@ -608,16 +608,16 @@ func ShowPaymentInfo(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	org := ormapi.BillingOrganization{}
 	if err := c.Bind(&org); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	profiles, err := ShowPaymentInfoObj(ctx, claims, &org)
 	if err != nil {
 		return err
 	}
-	return setReply(c, profiles)
+	return ormutil.SetReply(c, profiles)
 }
 
 func ShowPaymentInfoObj(ctx context.Context, claims *UserClaims, org *ormapi.BillingOrganization) ([]billing.PaymentProfile, error) {
@@ -645,16 +645,16 @@ func DeletePaymentInfo(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	profile := ormapi.PaymentProfileDeletion{}
 	if err := c.Bind(&profile); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	err = deletePaymentProfileObj(ctx, claims, &profile)
 	if err != nil {
 		return err
 	}
-	return setReply(c, nil)
+	return ormutil.SetReply(c, nil)
 }
 
 func deletePaymentProfileObj(ctx context.Context, claims *UserClaims, profile *ormapi.PaymentProfileDeletion) error {
@@ -722,7 +722,7 @@ func deleteBillingAccount(ctx context.Context, orgName, deleteType string) error
 	db := loggedDB(ctx)
 	err = db.Delete(info).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	if deleteType == deleteTypeSelf {
 		err = serverConfig.BillingService.DeleteCustomer(ctx, info)
@@ -777,7 +777,7 @@ func markBillingOrgForDelete(db *gorm.DB, name string, mark bool) (reterr error)
 		return fmt.Errorf("org not found")
 	}
 	if res.Error != nil {
-		return newHTTPError(http.StatusInternalServerError, res.Error.Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, res.Error.Error())
 	}
 	if mark {
 		if findOrg.DeleteInProgress {
@@ -789,7 +789,7 @@ func markBillingOrgForDelete(db *gorm.DB, name string, mark bool) (reterr error)
 	}
 	err := tx.Save(&findOrg).Error
 	if err != nil {
-		return newHTTPError(http.StatusInternalServerError, err.Error())
+		return ormutil.NewHTTPError(http.StatusInternalServerError, err.Error())
 	}
 	return tx.Commit().Error
 }
@@ -876,11 +876,11 @@ func linkChildAccount(ctx context.Context, parent *ormapi.BillingOrganization, c
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint \"accountinfo_pkey") {
 			return fmt.Errorf("AccountInfo with name %s (case-insensitive) already exists", child)
 		}
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	err = db.Save(parentAcc).Error
 	if err != nil {
-		return dbErr(err)
+		return ormutil.DbErr(err)
 	}
 	return nil
 }
@@ -923,10 +923,10 @@ func GetInvoice(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	req := ormapi.InvoiceRequest{}
 	if err := c.Bind(&req); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	span := log.SpanFromContext(ctx)
 	span.SetTag("invoice", req.Name)
@@ -941,5 +941,5 @@ func GetInvoice(c echo.Context) error {
 	if err != nil {
 		return err
 	}
-	return setReply(c, invoice)
+	return ormutil.SetReply(c, invoice)
 }

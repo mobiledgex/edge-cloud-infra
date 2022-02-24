@@ -3,7 +3,7 @@ package orm
 import (
 	"bytes"
 	fmt "fmt"
-	"strconv"
+	"regexp"
 	"strings"
 	"text/template"
 	"time"
@@ -35,8 +35,9 @@ type influxClientMetricsQueryArgs struct {
 	ClusterOrg   string
 	AppOrg       string
 	// ClientApi metric query args
-	Method string
-	CellId string
+	Method           string
+	FoundCloudlet    string
+	FoundCloudletOrg string
 	// ClientAppUsage and ClientCloudletUsage metric query args
 	DeviceCarrier   string
 	DataNetworkType string
@@ -54,32 +55,21 @@ var ClientApiUsageTags = []string{
 	"\"cloudletorg\"",
 	"\"cloudlet\"",
 	"\"dmeId\"",
-	"\"cellID\"",
 	"\"method\"",
-	"\"foundCloudlet\"",
-	"\"foundOperator\"",
 }
 
 var ApiFields = []string{
 	"\"reqs\"",
 	"\"errs\"",
-	"\"0s\"",
-	"\"5ms\"",
-	"\"10ms\"",
-	"\"25ms\"",
-	"\"50ms\"",
-	"\"100ms\"",
+	"\"foundCloudlet\"",
+	"\"foundOperator\"",
 }
 
 var ClientApiAggregationFunctions = map[string]string{
-	"reqs":  "sum(\"reqs\")",
-	"errs":  "sum(\"errs\")",
-	"0s":    "sum(\"0s\")",
-	"5ms":   "sum(\"5ms\")",
-	"10ms":  "sum(\"10ms\")",
-	"25ms":  "sum(\"25ms\")",
-	"50ms":  "sum(\"50ms\")",
-	"100ms": "sum(\"100ms\")",
+	"reqs":          "last(\"reqs\")",
+	"errs":          "last(\"errs\")",
+	"foundCloudlet": "last(\"foundCloudlet\")",
+	"foundOperator": "last(\"foundOperator\")",
 }
 
 var ClientAppUsageTags = []string{
@@ -143,12 +133,15 @@ var DeviceInfoFields = []string{
 }
 
 const (
-	CLIENT_APIUSAGE      = "dme"
-	CLIENT_APPUSAGE      = "clientappusage"
-	CLIENT_CLOUDLETUSAGE = "clientcloudletusage"
+	CLIENT_APIUSAGE                 = "dme"
+	CLIENT_APPUSAGE                 = "clientappusage"
+	CLIENT_CLOUDLETUSAGE            = "clientcloudletusage"
+	CLIENT_APP_ORG_FIELD            = "apporg"
+	CLIENT_CLOUDLET_ORG_FIELD       = "cloudletorg"
+	CLIENT_FOUND_CLOUDLET_ORG_FIELD = "foundOperator"
 )
 
-var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
+var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
 	` WHERE "{{.OrgField}}"='{{.ApiCallerOrg}}'` +
 	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
 	`{{if .AppOrg}} AND "apporg"='{{.AppOrg}}'{{end}}` +
@@ -158,19 +151,20 @@ var devInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
 	`{{if .CloudletList}} AND ({{.CloudletList}}){{end}}` +
 	`{{if .CloudletOrg}} AND "cloudletorg"='{{.CloudletOrg}}'{{end}}` +
 	`{{if .Method}} AND "method"='{{.Method}}'{{end}}` +
-	`{{if .CellId}} AND "cellID"='{{.CellId}}'{{end}}` +
 	`{{if .DeviceCarrier}} AND "devicecarrier"='{{.DeviceCarrier}}'{{end}}` +
 	`{{if .DataNetworkType}} AND "datanetworktype"='{{.DataNetworkType}}'{{end}}` +
 	`{{if .DeviceOs}} AND "deviceos"='{{.DeviceOs}}'{{end}}` +
 	`{{if .DeviceModel}} AND "devicemodel"='{{.DeviceModel}}'{{end}}` +
 	`{{if .LocationTile}} AND "locationtile"='{{.LocationTile}}'{{end}}` +
+	`{{if .FoundCloudlet}} AND "foundCloudlet"='{{.FoundCloudlet}}'{{end}}` +
+	`{{if .FoundCloudletOrg}} AND "foundOperator"='{{.FoundCloudletOrg}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
 	`{{if or .TimeDefinition .TagSet}} group by {{end}}` +
 	`{{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}{{.TagSet}}` +
 	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
 
-var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
+var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
 	` WHERE "cloudletorg"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .DeviceCarrier}} AND "devicecarrier"='{{.DeviceCarrier}}'{{end}}` +
@@ -183,6 +177,8 @@ var operatorInfluxClientMetricsDBT = `SELECT {{.Selector}} from /{{.Measurement}
 	`{{if or .TimeDefinition .TagSet}} group by {{end}}` +
 	`{{if .TimeDefinition}}time({{.TimeDefinition}}),{{end}}{{.TagSet}}` +
 	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
+
+var locationTileFormatMatch = regexp.MustCompile(`^[0-9-][0-9_.,-]+$`)
 
 func init() {
 	devInfluxClientMetricsDBTemplate = template.Must(template.New("influxquery").Parse(devInfluxClientMetricsDBT))
@@ -198,6 +194,26 @@ func getInfluxClientMetricsQueryCmd(q *influxClientMetricsQueryArgs, tmpl *templ
 	return buf.String()
 }
 
+func validateMethodString(obj *ormapi.RegionClientApiUsageMetrics) error {
+	switch obj.Method {
+	case "RegisterClient":
+		fallthrough
+	case "VerifyLocation":
+		if obj.AppInst.ClusterInstKey.CloudletKey.Name != "" ||
+			obj.AppInst.ClusterInstKey.CloudletKey.Organization != "" {
+			return fmt.Errorf("Cloudlet and Cloudlet org can be specified only for FindCloudlet or PlatformFindCloudlet")
+		}
+		return nil
+	case "":
+		fallthrough
+	case "FindCloudlet":
+		fallthrough
+	case "PlatformFindCloudlet":
+		return nil
+	}
+	return fmt.Errorf("Method is invalid, must be one of FindCloudlet,PlatformFindCloudlet,RegisterClient,VerifyLocation")
+}
+
 func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudletList []string, settings *edgeproto.Settings) string {
 	// get time definition
 	minTimeDef := DefaultClientUsageTimeWindow
@@ -206,31 +222,28 @@ func ClientApiUsageMetricsQuery(obj *ormapi.RegionClientApiUsageMetrics, cloudle
 	}
 	definition := getTimeDefinitionDuration(&obj.MetricsCommon, minTimeDef)
 	arg := influxClientMetricsQueryArgs{
-		Selector:     getClientMetricsSelector(obj.Selector, CLIENT_APIUSAGE, definition, ClientApiAggregationFunctions),
-		Measurement:  getMeasurementString(obj.Selector, CLIENT_APIUSAGE),
-		AppInstName:  obj.AppInst.AppKey.Name,
-		AppVersion:   obj.AppInst.AppKey.Version,
-		ApiCallerOrg: obj.AppInst.AppKey.Organization,
-		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
-		CloudletList: generateCloudletList(cloudletList),
-		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
-		Method:       obj.Method,
-		TagSet:       getTagSet(CLIENT_APIUSAGE, obj.Selector),
+		Selector:         getClientMetricsSelector(obj.Selector, CLIENT_APIUSAGE, definition, ClientApiAggregationFunctions),
+		Measurement:      fmt.Sprintf("%q", getMeasurementString(obj.Selector, CLIENT_APIUSAGE)),
+		AppInstName:      obj.AppInst.AppKey.Name,
+		AppVersion:       obj.AppInst.AppKey.Version,
+		ApiCallerOrg:     obj.AppInst.AppKey.Organization,
+		CloudletList:     generateDmeApiUsageCloudletList(cloudletList),
+		CloudletName:     obj.DmeCloudlet,
+		CloudletOrg:      obj.DmeCloudletOrg,
+		FoundCloudlet:    obj.AppInst.ClusterInstKey.CloudletKey.Name,
+		FoundCloudletOrg: obj.AppInst.ClusterInstKey.CloudletKey.Organization,
+		Method:           obj.Method,
+		TagSet:           getTagSet(CLIENT_APIUSAGE, obj.Selector),
 	}
 	if obj.AppInst.AppKey.Organization != "" {
-		arg.OrgField = "apporg"
+		arg.OrgField = CLIENT_APP_ORG_FIELD
 		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
-		arg.CloudletOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 	} else {
-		arg.OrgField = "cloudletorg"
+		arg.OrgField = CLIENT_FOUND_CLOUDLET_ORG_FIELD
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
-		arg.AppOrg = obj.AppInst.AppKey.Organization
-	}
-	if obj.CellId != 0 {
-		arg.CellId = strconv.FormatUint(uint64(obj.CellId), 10)
 	}
 	// set MetricsCommonQueryArgs
-	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxClientMetricsDBTemplate, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
 	return getInfluxClientMetricsQueryCmd(&arg, devInfluxClientMetricsDBTemplate)
 }
 
@@ -262,16 +275,16 @@ func ClientAppUsageMetricsQuery(obj *ormapi.RegionClientAppUsageMetrics, cloudle
 		TagSet:          getTagSet(CLIENT_APPUSAGE, obj.Selector),
 	}
 	if obj.AppInst.AppKey.Organization != "" {
-		arg.OrgField = "apporg"
+		arg.OrgField = CLIENT_APP_ORG_FIELD
 		arg.ApiCallerOrg = obj.AppInst.AppKey.Organization
 		arg.CloudletOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 	} else {
-		arg.OrgField = "cloudletorg"
+		arg.OrgField = CLIENT_CLOUDLET_ORG_FIELD
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
 	// set MetricsCommonQueryArgs
-	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxClientMetricsDBTemplate, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
 	return getInfluxClientMetricsQueryCmd(&arg, devInfluxClientMetricsDBTemplate), db
 }
 
@@ -299,7 +312,7 @@ func ClientCloudletUsageMetricsQuery(obj *ormapi.RegionClientCloudletUsageMetric
 		TagSet:          getTagSet(CLIENT_CLOUDLETUSAGE, obj.Selector),
 	}
 	// set MetricsCommonQueryArgs
-	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, devInfluxClientMetricsDBTemplate, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, definition.String(), 0) // TODO: PULL MIN from settings
 	return getInfluxClientMetricsQueryCmd(&arg, operatorInfluxClientMetricsDBTemplate), db
 }
 
@@ -347,7 +360,7 @@ func getClientMetricsSelector(selector string, measurementType string, definitio
 			field = strings.ReplaceAll(field, `"`, ``)
 			function, ok := selectorFuncMap[field]
 			if ok {
-				function = fmt.Sprintf("%s AS \"%s\"", function, field)
+				function = fmt.Sprintf("%s AS %q", function, field)
 				fieldsWithFuncs = append(fieldsWithFuncs, function)
 			}
 		}
@@ -371,54 +384,57 @@ func getMeasurementAndDbAndMapFromClientUsageReq(settings *edgeproto.Settings, s
 		lookupMap = influxq.DeviceInfoAggregationFunctions
 	}
 
-	// Get downsampled measurement if time definition is greater than a cq interval (ie. "latency-metric-10s")
-	measurement = basemeasurement
-	if definition != 0 {
-		measurement = getClientMetricsMeasurementString(settings, basemeasurement, definition)
+	optCi := getOptimalCollectionInterval(settings, basemeasurement, definition)
+	if optCi == nil { // raw data
+		db = cloudcommon.EdgeEventsMetricsDbName
+		measurement = fmt.Sprintf("%q", basemeasurement)
+	} else { // downsampled data
+		db = cloudcommon.DownsampledMetricsDbName
+		measurement = influxq.CreateInfluxFullyQualifiedMeasurementName(db, basemeasurement, time.Duration(optCi.Interval), time.Duration(optCi.Retention))
 	}
 
-	// Get db from measurement (either EdgeEventsMetricsDb or DownsampledMetricsDb)
-	if measurement == basemeasurement {
-		db = cloudcommon.EdgeEventsMetricsDbName
-	} else {
-		db = cloudcommon.DownsampledMetricsDbName
-	}
 	return measurement, db, lookupMap
 }
 
 /*
- * Get the correct measurement string for already downsampled data for specified time definition
- * For example, if the time definition is 1.5 hr and we have continuous queries that aggregate hourly, daily, and weekly, this function will return the hourly measurement.
- * If the duration is 25 hours, this function will return the daily measurement
+ * Get the correct collection interval for already downsampled data for specified time definition
+ * The optimal interval will be the interval that is less than the time definition and closest to the time definition
+ * For example, if the time definition is 1.5 hr and we have continuous queries that aggregate hourly, daily, and weekly, this function will return the hourly collection interval.
+ * If the duration is 25 hours, this function will return the daily collection interval
  */
-func getClientMetricsMeasurementString(settings *edgeproto.Settings, baseMeasurement string, definition time.Duration) string {
+func getOptimalCollectionInterval(settings *edgeproto.Settings, baseMeasurement string, definition time.Duration) *edgeproto.CollectionInterval {
 	if settings == nil {
-		return baseMeasurement
+		return nil
 	}
 	// Find Continuous Query interval that is closest to definition but less than definition (ie. finer granularity)
-	var optimalInterval time.Duration = 0
 	var minDiff time.Duration = 0
-	for _, cqs := range settings.EdgeEventsMetricsContinuousQueriesCollectionIntervals {
-		diff := definition - time.Duration(cqs.Interval)
+	var optCi *edgeproto.CollectionInterval
+	for _, cq := range settings.EdgeEventsMetricsContinuousQueriesCollectionIntervals {
+		diff := definition - time.Duration(cq.Interval)
 		if diff >= 0 {
 			if diff < minDiff || minDiff == 0 {
 				minDiff = diff
-				optimalInterval = time.Duration(cqs.Interval)
+				optCi = cq
 			}
 		}
 	}
 
-	if optimalInterval == 0 {
+	if optCi == nil {
 		log.DebugLog(log.DebugLevelMetrics, "Unable find interval with finer granularity than time definition - using raw data", "definition", definition)
-		return baseMeasurement
 	}
-	return cloudcommon.CreateInfluxMeasurementName(baseMeasurement, optimalInterval)
+	return optCi
 }
 
 // TODO: HANDLE selector == "*"
 // Make sure correct optional fields are provided for ClientAppUsage
 // eg. DeviceOS is not allowed for latency selector/metric
 func validateClientAppUsageMetricReq(req *ormapi.RegionClientAppUsageMetrics, selector string) error {
+	// validate LocationTile format
+	if req.LocationTile != "" {
+		if !locationTileFormatMatch.MatchString(req.LocationTile) {
+			return fmt.Errorf("Invalid format for the location tile.")
+		}
+	}
 	switch selector {
 	case "latency":
 		if req.DeviceOs != "" {
@@ -431,11 +447,9 @@ func validateClientAppUsageMetricReq(req *ormapi.RegionClientAppUsageMetrics, se
 			return fmt.Errorf("DeviceCarrier not allowed for appinst latency metric")
 		}
 	case "deviceinfo":
-		if req.LocationTile != "" {
-			return fmt.Errorf("LocationTile not allowed for appinst deviceinfo metric")
-		}
+		// all options are valid for deviceinfo
 	default:
-		return fmt.Errorf("Provided selector \"%s\" is not valid. Must provide only one of \"%s\"", selector, strings.Join(ormapi.ClientAppUsageSelectors, "\", \""))
+		return fmt.Errorf("Provided selector \"%s\" is not valid, must provide only one of \"%s\"", selector, strings.Join(ormapi.ClientAppUsageSelectors, "\", \""))
 	}
 	return nil
 }
@@ -456,7 +470,7 @@ func validateClientCloudletUsageMetricReq(req *ormapi.RegionClientCloudletUsageM
 			return fmt.Errorf("DataNetworkType not allowed for cloudlet deviceinfo metric")
 		}
 	default:
-		return fmt.Errorf("Provided selector \"%s\" is not valid. Must provide only one of \"%s\"", selector, strings.Join(ormapi.ClientCloudletUsageSelectors, "\", \""))
+		return fmt.Errorf("Provided selector \"%s\" is not valid, must provide only one of \"%s\"", selector, strings.Join(ormapi.ClientCloudletUsageSelectors, "\", \""))
 	}
 	return nil
 }

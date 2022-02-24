@@ -27,9 +27,17 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--addr")
 		args = append(args, p.Addr)
 	}
+	if p.FederationAddr != "" {
+		args = append(args, "--federationAddr")
+		args = append(args, p.FederationAddr)
+	}
 	if p.SqlAddr != "" {
 		args = append(args, "--sqlAddr")
 		args = append(args, p.SqlAddr)
+	}
+	if p.NotifyAddrs != "" {
+		args = append(args, "--notifyAddrs")
+		args = append(args, p.NotifyAddrs)
 	}
 	if p.TLS.ClientCert != "" {
 		args = append(args, "--clientCert")
@@ -75,6 +83,9 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 	}
 	if p.StaticDir != "" {
 		args = append(args, "--staticDir", p.StaticDir)
+	}
+	if p.TestMode {
+		args = append(args, "--testMode")
 	}
 	args = append(args, "--hostname", p.Name)
 	options := process.StartOptions{}
@@ -301,7 +312,10 @@ func (p *Shepherd) GetArgs(opts ...process.StartOp) []string {
 		args = append(args, "--chefServerPath")
 		args = append(args, p.ChefServerPath)
 	}
-
+	if p.ThanosRecvAddr != "" {
+		args = append(args, "--thanosRecvAddr")
+		args = append(args, p.ThanosRecvAddr)
+	}
 	options := process.StartOptions{}
 	options.ApplyStartOptions(opts...)
 	if options.Debug != "" {
@@ -409,6 +423,8 @@ type VaultRoles struct {
 type VaultRegionRoles struct {
 	AutoProvRoleID   string `json:"autoprovroleid"`
 	AutoProvSecretID string `json:"autoprovsecretid"`
+	FrmRoleID        string `json:"frmroleid"`
+	FrmSecretID      string `json:"frmsecretid"`
 }
 
 func (s *VaultRoles) GetRegionRoles(region string) *VaultRegionRoles {
@@ -469,20 +485,25 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 	p.GetAppRole("", "rotator", &roles.RotatorRoleID, &roles.RotatorSecretID, &err)
 	p.PutSecret("", "mcorm", mcormSecret+"-old", &err)
 	p.PutSecret("", "mcorm", mcormSecret, &err)
-	// Set up local mexenv.json in the vault to allow local edgebox to run
-	localMexenv := gopath + "/src/github.com/mobiledgex/edge-cloud-infra/mgmt/cloudlets/mexenv.json"
-	p.Run("vault", fmt.Sprintf("write %s @%s", "/secret/data/cloudlet/openstack/mexenv.json", localMexenv), &err)
-	if err != nil {
-		return &roles, err
-	}
 
-	// Setup up dummy key to be used with local chef server to provision cloudlets
+	// Set up dummy key to be used with local chef server to provision cloudlets
 	chefApiKeyPath := "/tmp/dummyChefApiKey.json"
 	err = GetDummyPrivateKey(chefApiKeyPath)
 	if err != nil {
 		return &roles, err
 	}
 	p.Run("vault", fmt.Sprintf("kv put %s @%s", "/secret/accounts/chef", chefApiKeyPath), &err)
+	if err != nil {
+		return &roles, err
+	}
+
+	// Set up dummy API key to be used to call the GDDT QOS Priority Sessions API.
+	fileName := gopath + "/src/github.com/mobiledgex/edge-cloud-infra/e2e-tests/data/gddt_qos_session_api_key.txt"
+	// The vault path for "kv put" omits the /data portion.
+	// To read this key with vault.GetData(), use path=/secret/data/accounts/gddt/sessionsapi
+	path := "/secret/accounts/gddt/sessionsapi"
+	p.Run("vault", fmt.Sprintf("kv put %s @%s", path, fileName), &err)
+	log.Printf("PutQosApiKeyToVault at path %s, err=%s", path, err)
 	if err != nil {
 		return &roles, err
 	}
@@ -499,6 +520,7 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 		}
 		rr := VaultRegionRoles{}
 		p.GetAppRole(region, "autoprov", &rr.AutoProvRoleID, &rr.AutoProvSecretID, &err)
+		p.GetAppRole(region, "frm", &rr.FrmRoleID, &rr.FrmSecretID, &err)
 		roles.RegionRoles[region] = &rr
 	}
 	options := process.StartOptions{}
@@ -696,4 +718,112 @@ func (p *AlertmanagerSidecar) GetExeName() string { return "alertmgr-sidecar" }
 
 func (p *AlertmanagerSidecar) LookupArgs() string {
 	return fmt.Sprintf("--httpAddr %s --alertmgrAddr %s", p.HttpAddr, p.AlertmgrAddr)
+}
+
+func (p *FRM) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := p.GetNodeMgrArgs()
+	if p.NotifyAddrs != "" {
+		args = append(args, "--notifyAddrs")
+		args = append(args, p.NotifyAddrs)
+	}
+	if p.TLS.ClientCert != "" {
+		args = append(args, "--clientCert")
+		args = append(args, p.TLS.ClientCert)
+	}
+	if p.Region != "" {
+		args = append(args, "--region")
+		args = append(args, p.Region)
+	}
+	args = append(args, "--hostname", p.Name)
+	options := process.StartOptions{}
+	options.ApplyStartOptions(opts...)
+	if options.Debug != "" {
+		args = append(args, "-d")
+		args = append(args, options.Debug)
+	}
+	envs := p.GetEnv()
+	if options.RolesFile != "" {
+		dat, err := ioutil.ReadFile(options.RolesFile)
+		if err != nil {
+			return err
+		}
+		roles := VaultRoles{}
+		err = yaml.Unmarshal(dat, &roles)
+		if err != nil {
+			return err
+		}
+		rr := roles.GetRegionRoles(p.Region)
+		envs = append(envs,
+			fmt.Sprintf("VAULT_ROLE_ID=%s", rr.FrmRoleID),
+			fmt.Sprintf("VAULT_SECRET_ID=%s", rr.FrmSecretID),
+		)
+	}
+
+	var err error
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, envs, logfile)
+	return err
+}
+
+func (p *FRM) StopLocal() {
+	process.StopLocal(p.cmd)
+}
+
+func (p *FRM) GetExeName() string { return "frm" }
+
+func (p *FRM) LookupArgs() string { return p.Name }
+
+func (p *ThanosQuery) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := p.GetRunArgs()
+	args = append(args,
+		"-p", fmt.Sprintf("%d:%d", p.HttpPort, p.HttpPort),
+		"quay.io/thanos/thanos:v0.20.0",
+		"query",
+		"--http-address",
+		fmt.Sprintf(":%d", p.HttpPort),
+	)
+	for ii := range p.Stores {
+		args = append(args, "--store", p.Stores[ii])
+	}
+
+	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	p.SetCmd(cmd)
+	return err
+}
+
+func (p *ThanosReceive) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := p.GetRunArgs()
+	args = append(args,
+		"-p", fmt.Sprintf("%d:%d", p.GrpcPort, p.GrpcPort),
+		"-p", fmt.Sprintf("%d:%d", p.RemoteWritePort, p.RemoteWritePort),
+		"quay.io/thanos/thanos:v0.20.0",
+		"receive",
+		"--label",
+		fmt.Sprintf("region=\"%s\"", p.Region),
+		"--grpc-address",
+		fmt.Sprintf(":%d", p.GrpcPort),
+		"--remote-write.address",
+		fmt.Sprintf(":%d", p.RemoteWritePort),
+	)
+
+	cmd, err := process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	p.SetCmd(cmd)
+	return err
+}
+
+//DT QOS Sessions API server simulator
+func (p *QosSesSrvSim) StartLocal(logfile string, opts ...process.StartOp) error {
+	args := []string{"-port", fmt.Sprintf("%d", p.Port)}
+	var err error
+	p.cmd, err = process.StartLocal(p.Name, p.GetExeName(), args, p.GetEnv(), logfile)
+	return err
+}
+
+func (p *QosSesSrvSim) StopLocal() {
+	process.StopLocal(p.cmd)
+}
+
+func (p *QosSesSrvSim) GetExeName() string { return "sessions-srv-sim" }
+
+func (p *QosSesSrvSim) LookupArgs() string {
+	return fmt.Sprintf("-port %d", p.Port)
 }

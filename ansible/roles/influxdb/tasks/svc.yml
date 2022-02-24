@@ -1,0 +1,18 @@
+---
+- name: Load list of kubernetes source IPs
+  import_role:
+    name: mexplat_k8s
+    tasks_from: source-ips
+
+- name: Look up console IP
+  set_fact:
+    console_ip: "{{ lookup('dig', console_vm_hostname) }}"
+
+- set_fact:
+    mexplat_k8s_source_ips: "{{ mexplat_k8s_source_ips + [ console_ip ] }}"
+
+- name: Deploy InfluxDB LB
+  k8s:
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    namespace: default
+    definition: "{{ lookup('template', 'influxdb-svc.yml.j2') }}"

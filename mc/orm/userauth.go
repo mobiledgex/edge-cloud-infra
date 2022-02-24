@@ -2,9 +2,6 @@ package orm
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/sha256"
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -16,19 +13,15 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
-	"golang.org/x/crypto/pbkdf2"
 )
 
 var PasswordMinLength = 8
 var PasswordMaxLength = 4096
 
-// As computing power grows, we should increase iter and salt bytes
-var PasshashIter = 10000
-var PasshashKeyBytes = 32
-var PasshashSaltBytes = 8
 var BruteForceGuessesPerSecond = 1000000
 
 var JWTShortDuration = 4 * time.Hour
@@ -62,28 +55,6 @@ func ValidPassword(pw string) error {
 	}
 	// Todo: dictionary check; related strings (email, etc) check.
 	return nil
-}
-
-func Passhash(pw, salt []byte, iter int) []byte {
-	return pbkdf2.Key(pw, salt, iter, PasshashKeyBytes, sha256.New)
-}
-
-func NewPasshash(password string) (passhash, salt string, iter int) {
-	saltb := make([]byte, PasshashSaltBytes)
-	rand.Read(saltb)
-	pass := Passhash([]byte(password), saltb, PasshashIter)
-	return base64.StdEncoding.EncodeToString(pass),
-		base64.StdEncoding.EncodeToString(saltb), PasshashIter
-}
-
-func PasswordMatches(password, passhash, salt string, iter int) (bool, error) {
-	sa, err := base64.StdEncoding.DecodeString(salt)
-	if err != nil {
-		return false, err
-	}
-	ph := Passhash([]byte(password), sa, iter)
-	phenc := base64.StdEncoding.EncodeToString(ph)
-	return phenc == passhash, nil
 }
 
 type UserClaims struct {
@@ -150,7 +121,7 @@ func GenerateCookie(user *ormapi.User, apiKeyId, domain string) (*http.Cookie, e
 
 func getClaims(c echo.Context) (*UserClaims, error) {
 	user := c.Get("user")
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	if user == nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "get claims: no user")
 		return nil, echo.ErrUnauthorized
@@ -182,51 +153,55 @@ func getClaims(c echo.Context) (*UserClaims, error) {
 
 func AuthCookie(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		auth := c.Request().Header.Get(echo.HeaderAuthorization)
-		scheme := "Bearer"
-		l := len(scheme)
-		cookie := ""
-		if len(auth) > len(scheme) && strings.HasPrefix(auth, scheme) {
-			cookie = auth[l+1:]
-		} else {
-			// if no token provided as part of request headers,
-			// then check if it is part of http cookie
-			for _, httpCookie := range c.Request().Cookies() {
-				if httpCookie.Name == "token" {
-					cookie = httpCookie.Value
-					break
+		api := c.Path()
+		if strings.Contains(api, "/auth/") && !strings.Contains(api, "/ws/") {
+			auth := c.Request().Header.Get(echo.HeaderAuthorization)
+			scheme := "Bearer"
+			l := len(scheme)
+			cookie := ""
+			if len(auth) > len(scheme) && strings.HasPrefix(auth, scheme) {
+				cookie = auth[l+1:]
+			} else {
+				// if no token provided as part of request headers,
+				// then check if it is part of http cookie
+				for _, httpCookie := range c.Request().Cookies() {
+					if httpCookie.Name == "token" {
+						cookie = httpCookie.Value
+						break
+					}
 				}
 			}
-		}
 
-		if cookie == "" {
-			//if no token found, return a 400 err
-			return &echo.HTTPError{
-				Code:     http.StatusBadRequest,
-				Message:  "no bearer token found",
-				Internal: fmt.Errorf("no token found for Authorization Bearer"),
+			if cookie == "" {
+				//if no token found, return a 400 err
+				return &echo.HTTPError{
+					Code:     http.StatusBadRequest,
+					Message:  "no bearer token found",
+					Internal: fmt.Errorf("no token found for Authorization Bearer"),
+				}
 			}
-		}
 
-		claims := UserClaims{}
-		token, err := Jwks.VerifyCookie(cookie, &claims)
-		if err == nil && token.Valid {
-			c.Set("user", token)
-			return next(c)
-		}
-		// display error regarding token valid time/expired
-		if err != nil && strings.Contains(err.Error(), "expired") {
+			claims := UserClaims{}
+			token, err := Jwks.VerifyCookie(cookie, &claims)
+			if err == nil && token.Valid {
+				c.Set("user", token)
+				return next(c)
+			}
+			// display error regarding token valid time/expired
+			if err != nil && strings.Contains(err.Error(), "expired") {
+				return &echo.HTTPError{
+					Code:     http.StatusBadRequest,
+					Message:  err.Error(),
+					Internal: err,
+				}
+			}
 			return &echo.HTTPError{
-				Code:     http.StatusBadRequest,
-				Message:  err.Error(),
+				Code:     http.StatusUnauthorized,
+				Message:  "invalid or expired jwt",
 				Internal: err,
 			}
 		}
-		return &echo.HTTPError{
-			Code:     http.StatusUnauthorized,
-			Message:  "invalid or expired jwt",
-			Internal: err,
-		}
+		return next(c)
 	}
 }
 
@@ -264,41 +239,41 @@ func authorized(ctx context.Context, sub, org, obj, act string, ops ...authOp) e
 	if !allow {
 		return echo.ErrForbidden
 	}
-
-	if opts.requiresOrg != "" && !opts.showAudit {
-		if err := checkRequiresOrg(ctx, opts.requiresOrg, obj, admin, opts.noEdgeboxOnly); err != nil {
-			return err
+	if !opts.showAudit {
+		if opts.requiresOrg != "" {
+			if err := checkRequiresOrg(ctx, opts.requiresOrg, obj, admin, opts.noEdgeboxOnly); err != nil {
+				return err
+			}
+		}
+		for _, refOrg := range opts.refOrgs {
+			if refOrg.org == "" {
+				continue
+			}
+			if _, err := checkReferenceOrg(ctx, refOrg.org, refOrg.orgType); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
 }
 
+// Returns error if required org is not found or invalid.
+// If not present, hides not found error with Forbidden to prevent
+// fishing for org names.
 func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgeboxOnly bool) error {
-	// make sure org actually exists, and is not in the
-	// process of being deleted.
-	lookup, err := orgExists(ctx, org)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "org exists check failed", "err", err)
-		if !admin {
-			return echo.ErrForbidden
-		}
-		if strings.Contains(err.Error(), "not found") {
-			return err
-		}
-		return fmt.Errorf("Org %s lookup failed: %v", org, err)
-	}
-	if lookup.DeleteInProgress {
-		return fmt.Errorf("Operation not allowed for org with delete in progress")
-	}
-	// see if resource is only for a specific type of org
-	orgType := ""
+	orgType := OrgTypeAny
 	if _, ok := DeveloperResourcesMap[resource]; ok {
 		orgType = OrgTypeDeveloper
 	} else if _, ok := OperatorResourcesMap[resource]; ok {
 		orgType = OrgTypeOperator
 	}
-	if orgType != "" && lookup.Type != orgType {
-		return fmt.Errorf("Operation only allowed for organizations of type %s", orgType)
+	lookup, err := checkReferenceOrg(ctx, org, orgType)
+	if err != nil {
+		if _, ok := err.(OrgLookupError); ok && !admin {
+			// prevent bad actors from fishing for org names
+			return echo.ErrForbidden
+		}
+		return err
 	}
 	// make sure only edgebox cloudlets are created for edgebox org
 	if lookup.EdgeboxOnly && noEdgeboxOnly {
@@ -307,12 +282,51 @@ func checkRequiresOrg(ctx context.Context, org, resource string, admin, noEdgebo
 	return nil
 }
 
+type OrgLookupError struct {
+	Err error
+}
+
+func (e OrgLookupError) Error() string {
+	return e.Err.Error()
+}
+
+// Returns error if referenced org is not found or invalid.
+func checkReferenceOrg(ctx context.Context, org, orgType string) (*ormapi.Organization, error) {
+	// make sure org actually exists, and is not in the
+	// process of being deleted.
+	lookup, err := orgExists(ctx, org)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelApi, "org exists check failed", "err", err)
+		if !strings.Contains(err.Error(), "not found") {
+			err = fmt.Errorf("Org %s lookup failed: %v", org, err)
+		}
+		lookupErr := OrgLookupError{
+			Err: err,
+		}
+		return nil, lookupErr
+	}
+	if lookup.DeleteInProgress {
+		return lookup, fmt.Errorf("Operation not allowed for org %s with delete in progress", org)
+	}
+	// see if resource is only for a specific type of org
+	if orgType != OrgTypeAny && lookup.Type != orgType {
+		return lookup, fmt.Errorf("Operation only allowed for organizations of type %s", orgType)
+	}
+	return lookup, nil
+}
+
 type authOptions struct {
 	showAudit          bool
 	requiresOrg        string
 	noEdgeboxOnly      bool
 	requiresBillingOrg string
 	targetCloudlet     *edgeproto.Cloudlet
+	refOrgs            []refOrg
+}
+
+type refOrg struct {
+	org     string
+	orgType string
 }
 
 type authOp func(opts *authOptions)
@@ -323,6 +337,16 @@ func withShowAudit() authOp {
 
 func withRequiresOrg(org string) authOp {
 	return func(opts *authOptions) { opts.requiresOrg = org }
+}
+
+func withReferenceOrg(org, orgType string) authOp {
+	return func(opts *authOptions) {
+		ro := refOrg{
+			org:     org,
+			orgType: orgType,
+		}
+		opts.refOrgs = append(opts.refOrgs, ro)
+	}
 }
 
 func withNoEdgeboxOnly() authOp {

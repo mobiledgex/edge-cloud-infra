@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,19 +22,16 @@ var VmHardwareVersion = 14
 var ResolvedStateMaxWait = 4 * 60 // 4 mins
 var ResolvedStateTickTime time.Duration = time.Second * 3
 
+const VappResourceXmlType = "application/vnd.vmware.vcloud.vApp+xml"
+
 // Compose a new vapp from the given template, using vmgrp orch params
 // Creates one or more vms.
-func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTemplate, vmgp *vmlayer.VMGroupOrchestrationParams, description string, vcdClient *govcd.VCDClient, updateCallback edgeproto.CacheUpdateCallback) (*govcd.VApp, error) {
+func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTemplate, vmgp *vmlayer.VMGroupOrchestrationParams, description string, vcdClient *govcd.VCDClient, vdc *govcd.Vdc, updateCallback edgeproto.CacheUpdateCallback) (*govcd.VApp, error) {
 
 	var vapp *govcd.VApp
 	var err error
 
 	numVMs := len(vmgp.VMs)
-
-	vdc, err := v.GetVdc(ctx, vcdClient)
-	if err != nil {
-		return nil, err
-	}
 	storRef := types.Reference{}
 	// Nil ref wins default storage policy
 	createStart := time.Now()
@@ -100,12 +98,12 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	updateCallback(edgeproto.UpdateTask, "Updating vApp Ports")
 	updatePortsStart := time.Now()
 	// Get the VApp network(s) in place.
-	nextCidr, err := v.AddPortsToVapp(ctx, vapp, *vmgp, updateCallback, vcdClient)
+	err = v.AddPortsToVapp(ctx, vapp, vmgp, updateCallback, vcdClient, vdc)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "AddPortsToVapp failed", "VAppName", vmgp.GroupName, "error", err)
 		return nil, err
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp nextCidr for vapp internal net", "Cidr", nextCidr, "vmRole", vmRole, "vmType", vmType)
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVapp added ports", "vmRole", vmRole, "vmType", vmType)
 
 	vmtmplName := vapp.VApp.Children.VM[0].Name
 	_, err = vapp.GetVMByName(vmtmplName, false)
@@ -122,7 +120,11 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp composed adding VMs for ", "GroupName", vmgp.GroupName, "count", numVMs)
 	addVMStart := time.Now()
 
-	vmsToCustomize, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, nextCidr, vdc, vcdClient, updateCallback)
+	netMap, err := v.getVappNetworkInfoMap(ctx, vapp, vmgp, vcdClient, vdc, vmlayer.ActionCreate)
+	if err != nil {
+		return nil, err
+	}
+	vmsToCustomize, err := v.AddVMsToVApp(ctx, vapp, vmgp, vappTmpl, netMap, vdc, vcdClient, updateCallback)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "CreateVApp AddVMsToVApp failed", "error", err)
 		return nil, err
@@ -133,6 +135,30 @@ func (v *VcdPlatform) CreateVApp(ctx context.Context, vappTmpl *govcd.VAppTempla
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Add VMs to VApp time %s",
 			cloudcommon.FormatDuration(time.Since(addVMStart), 2)))
 	}
+
+	// even if anti affinity is not enabled in the cloudlet, create the rule but disable it. This allows
+	// us to test the creation and deletion of anti affinity rules in a host limited environment
+	if vmgp.AntiAffinitySpecified {
+		var vmReferences []*types.Reference
+		for _, vm := range vmsToCustomize {
+			vmReferences = append(vmReferences, &types.Reference{HREF: vm.VM.HREF})
+		}
+		aRuleDef := types.VmAffinityRule{
+			Name: vmgp.GroupName + "-anti-affinity", Polarity: types.PolarityAntiAffinity,
+			IsEnabled:   TakeBoolPointer(vmgp.AntiAffinityEnabledInCloudlet),
+			IsMandatory: TakeBoolPointer(false),
+			VmReferences: []*types.VMs{
+				{
+					VMReference: vmReferences,
+				},
+			}}
+		log.SpanLog(ctx, log.DebugLevelInfra, "creating anti affinity rule", "def", aRuleDef)
+		_, err = vdc.CreateVmAffinityRule(&aRuleDef)
+		if err != nil {
+			return nil, fmt.Errorf("Error creating anti affinity rule - %v", err)
+		}
+	}
+
 	updateCallback(edgeproto.UpdateTask, "Powering on VMs")
 	powerOnStart := time.Now()
 	err = v.powerOnVmsAndForceCustomization(ctx, vmsToCustomize)
@@ -194,18 +220,30 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 
 	// are we being asked to delete vm or vapp (do we ever get asked to delete a single VM?)
 	vappName := vapp.VApp.Name
-
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp", "name", vappName)
+
 	vdc, err := v.GetVdc(ctx, vcdClient)
 	if err != nil {
 		return fmt.Errorf("GetVdc Failed - %v", err)
 	}
-	// First, does this guy even exist?
-	// If not, ok, its deleted
-	vapp, err = v.FindVApp(ctx, vappName, vcdClient, vdc)
+	affinityRule, err := vdc.GetVmAffinityRuleById(vappName + "-anti-affinity")
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp vapp not found return success", "vapp", vappName)
-		return nil
+		if !govcd.ContainsNotFound(err) {
+			return fmt.Errorf("error finding affinity rule for vapp - %v", err)
+		}
+	} else {
+		log.SpanLog(ctx, log.DebugLevelInfra, "deleting affinity rule for vapp")
+		err = affinityRule.Delete()
+		if err != nil {
+			return fmt.Errorf("error deleting affinity rule for vapp - %v", err)
+		}
+	}
+	// cleanup VM HREF cache
+	if v.GetHrefCacheEnabled() {
+		for _, vm := range vapp.VApp.Children.VM {
+			// delete from cache
+			v.DeleteVmHrefFromCache(ctx, vm.Name)
+		}
 	}
 
 	// handle deletion of an iso orgvdcnet of the client of a shared LB
@@ -213,17 +251,18 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 	// because it's still in use, possibly by this vapp (shared clusterInst)
 
 	// Notes on deletion order related to isolated Org VDC networks:
-	// - GetVappIsoNetwork must happen before VMs are deleted or the network will not be found
+	// - network retrieval must happen before VMs are deleted or the network will not be found
 	// - VMs are deleted next
 	// - The network must then be removed from the vApp (RemoveAllNetworks) and then the vApp is deleted. This
 	//   ensures that the vApp is not associated with the network, so it can be deleted
 	// - Deleting the network (RemoveOrgVdcNetworkIfExists) must happen last, as if there
-	//   are any users of the network this will fail
+	//   are any users of the network this will fail. This is only done for legacy iso networks (created 3.1 and prior)
 
 	// find the org vcd isolated network if one exists.  Do this before deleting VMs
-	netName, err := v.GetVappIsoNetwork(ctx, vdc, vapp)
+	internalSubnetName := v.vappNameToInternalSubnet(ctx, vapp.VApp.Name)
+	networkMetadataType, mappedNetName, err := v.GetNetworkMetadataForInternalSubnet(ctx, internalSubnetName, vcdClient, vdc)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "unable to get org VCD net", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "error getting metadata", "err", err)
 	}
 
 	task, err := vapp.Undeploy()
@@ -291,46 +330,35 @@ func (v *VcdPlatform) DeleteVapp(ctx context.Context, vapp *govcd.VApp, vcdClien
 			return err
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName, "netName", netName)
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp deleted", "Vapp", vappName, "mappedNetName", mappedNetName)
 	// check if we're using a isolated orgvdcnetwork /  sharedLB
-	if netName != "" {
+	if networkMetadataType == NetworkMetadataLegacyPerClusterIsoNet {
 		if v.GetNsxType() == NSXV {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-v removing isoNetworks if exists", "vapp", vappName, "netName", netName, "isNsxt?", vdc.IsNsxt(), "isNsxv?", vdc.IsNsxv())
-			err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, netName)
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-v removing isoNetworks if exists", "vapp", vappName, "mappedNetName", mappedNetName, "isNsxt?", vdc.IsNsxt(), "isNsxv?", vdc.IsNsxv())
+			err = govcd.RemoveOrgVdcNetworkIfExists(*vdc, mappedNetName)
 			if err != nil {
 				if err != nil {
-					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists failed for", "netName", netName, "error", err)
+					log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists failed for", "netName", mappedNetName, "error", err)
 					return err
 				}
 			}
 		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-t marking network free", "vapp", vappName, "netName", netName)
-
-			// place the network on the free list for resue. Should be an nsx-t backed vdc
-			orgvdcnetwork, err := vdc.GetOrgVdcNetworkByName(netName, false)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetOrgVdcNetworkByName failed for", "netName", netName)
-				return err
-			}
-			v.FreeIsoNets[netName] = orgvdcnetwork
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp RemoveOrgVdcNetworkIfExists nsx-t, add to free list for reuse", "vapp", vappName, "netName", netName, "err", err)
-
+			// there are no non-lab NSX-T deployments using legacy ISO networks, and in any case we will not reuse them going forward
+			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp nsx-t no action for legacy isonet", "vapp", vappName, "mappedNetName", mappedNetName)
 		}
 
 	} else if err != nil {
-		// If GetVappIsoNetwork actually fails
 		// don't fail the delete cluster operation here, dedicated LBs don't use type 2 orgvcdnetworks.
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "netName", netName, "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp GetVappIsoNetwork failed ignoring", "vapp", vappName, "mappedNetName", mappedNetName, "err", err)
 	}
-
-	if netName != "" {
+	if networkMetadataType != NetworkMetadataNone {
 		// finally, remove the IsoNamesMap entry for shared LBs.
-		key, err := v.updateIsoNamesMap(ctx, IsoMapActionDelete, "", netName)
+		err := v.DeleteMetadataForInternalSubnet(ctx, internalSubnetName, vcdClient, vdc)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp updateIsoNamesMap", "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "error deleting network metadata", "error", err)
 			return err
 		}
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp removed namemap entry ", "cidr", netName, "subnetId", key)
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteVapp removed network metadata ", internalSubnetName, internalSubnetName)
 	}
 	return nil
 
@@ -339,6 +367,9 @@ func (v *VcdPlatform) FindVApp(ctx context.Context, vappName string, vcdClient *
 	log.SpanLog(ctx, log.DebugLevelInfra, "FindVApp", "vappName", vappName)
 
 	vapp, err := vdc.GetVAppByName(vappName, true)
+	if err != nil && strings.Contains(err.Error(), "NotFound") {
+		return nil, fmt.Errorf(vmlayer.ServerDoesNotExistError)
+	}
 	return vapp, err
 }
 
@@ -381,9 +412,9 @@ func makeMetaMap(ctx context.Context, mexmeta string) map[string]string {
 func vcdMetaDataFormatter(instring string) string {
 	return instring
 }
-func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, vmparams *vmlayer.VMOrchestrationParams) (*types.ProductSectionList, error) {
+func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, vmparams *vmlayer.VMOrchestrationParams, masterIP string) (*types.ProductSectionList, error) {
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "vm", vm.VM.Name)
+	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "vm", vm.VM.Name, "masterIP", masterIP)
 	command := ""
 	manifest := ""
 	// format vmparams.CloudConfigParams into yaml format, which we'll then base64 encode for the ovf datasource
@@ -405,38 +436,8 @@ func (v *VcdPlatform) populateProductSection(ctx context.Context, vm *govcd.VM, 
 		log.SpanLog(ctx, log.DebugLevelInfra, "SetGuestCustomizationSection failed", "err", err)
 		return nil, err
 	}
-	// find the master, which can be either the first or second vm in the vapp, or none
-	masterIP := ""
-	if vmparams.Role == vmlayer.RoleK8sNode { // k8s-node
-		log.SpanLog(ctx, log.DebugLevelInfra, "Have k8s-node find masterIP ", "vm", vm.VM.Name)
-		vapp, err := vm.GetParentVApp()
-
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Could not GetParentVapp for", "vm", vm.VM.Name, "err", err)
-			return nil, err
-		}
-		for _, child := range vapp.VApp.Children.VM {
-			log.SpanLog(ctx, log.DebugLevelInfra, "found child VM in vapp", "child", child.Name)
-			if !strings.Contains(child.Name, vmlayer.ClusterTypeKubernetesMasterLabel) {
-				continue
-			}
-			tvm, err := vapp.GetVMByName(child.Name, false)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "GetVMByName failed for", "vm", child.Name, "err", err)
-				return nil, err
-			}
-			ips, err := v.GetIntAddrsOfVM(ctx, tvm)
-			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection failed to retrieve master ip for k8s-master", "vm", child.Name, "err", err)
-				return nil, err
-			}
-			if len(ips) != 0 {
-				log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection retrieve master ip for k8s-master", "vm", child.Name, "maserIP", masterIP)
-				masterIP = ips[0]
-			} else {
-				return nil, fmt.Errorf("No IPs on master: %s", child.Name)
-			}
-		}
+	if (vmparams.Role == vmlayer.RoleMaster || vmparams.Role == vmlayer.RoleK8sNode) && masterIP == "" {
+		return nil, fmt.Errorf("empty master IP provided")
 	}
 	mexMetadata := vmlayer.GetVMMetaData(vmparams.Role, masterIP, vcdMetaDataFormatter)
 	log.SpanLog(ctx, log.DebugLevelInfra, "populateProductSection", "masterIP", masterIP, "vmMetadata", mexMetadata)
@@ -502,7 +503,7 @@ func (v *VcdPlatform) GetAllVMsInVApp(ctx context.Context, vapp *govcd.VApp) (VM
 	}
 	var err error
 	for _, child := range vapp.VApp.Children.VM {
-		vm, err := vapp.GetVMByName(child.Name, true)
+		vm, err := vapp.GetVMByName(child.Name, false)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "GetAllVMsInVApp child vm not found ", "Vapp", vapp.VApp.Name, "vm", child.Name, "err", err)
 			return vmMap, err
@@ -559,4 +560,93 @@ func (v *VcdPlatform) BlockWhileStatusWithTickTime(ctx context.Context, vapp *go
 			}
 		}
 	}
+}
+func (v *VcdPlatform) DumpVapps(ctx context.Context, matchPattern string) (string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DumpVapps", "matchPattern", matchPattern)
+
+	rc := ""
+	if matchPattern == "all" {
+		matchPattern = ".*"
+	}
+	reg, err := regexp.Compile(matchPattern)
+	if err != nil {
+		return "", fmt.Errorf("invalid regexp match pattern: %s - %v", matchPattern, err)
+	}
+	ctx, result, err := v.InitOperationContext(ctx, vmlayer.OperationInitStart)
+	if err != nil {
+		return "", err
+	}
+	if result == vmlayer.OperationNewlyInitialized {
+		defer v.InitOperationContext(ctx, vmlayer.OperationInitComplete)
+	}
+	vcdClient := v.GetVcdClientFromContext(ctx)
+	if vcdClient == nil {
+		return "", fmt.Errorf(NoVCDClientInContext)
+	}
+	vdc, err := v.GetVdc(ctx, vcdClient)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DumpVapps unable to retrieve current vdc", "err", err)
+		return "", err
+	}
+	if v.vmProperties == nil { // paranoid check because this runs in debug
+		return "", fmt.Errorf("nil vmProperties")
+	}
+	// For all vapps in vdc
+	for _, r := range vdc.Vdc.ResourceEntities {
+		for _, res := range r.ResourceEntity {
+
+			if res.Type == VappResourceXmlType {
+				if !reg.MatchString(res.Name) {
+					log.SpanLog(ctx, log.DebugLevelInfra, "vapp did not match pattern", "res.Name", res.Name)
+					continue
+				}
+				vapp, err := vdc.GetVAppByName(res.Name, false)
+				if err != nil {
+					log.SpanLog(ctx, log.DebugLevelInfra, "GetVAppByName could not find vapp", "err", err)
+					continue
+				}
+				log.SpanLog(ctx, log.DebugLevelInfra, "found vapp", "name", res.Name)
+				rc += "VAPP: " + res.Name + "\n"
+				if vapp.VApp == nil {
+					rc += " - nil VApp\n"
+					log.SpanLog(ctx, log.DebugLevelInfra, "nil vapp", "name", res.Name)
+					continue
+				}
+				if vapp.VApp.NetworkConfigSection != nil {
+					netNames := vapp.VApp.NetworkConfigSection.NetworkNames()
+					log.SpanLog(ctx, log.DebugLevelInfra, "found vapp networks", "netNames", netNames)
+					for _, n := range netNames {
+						rc += "- Network: " + n + "\n"
+					}
+				}
+				if res.Name == v.getSharedVappName() {
+					meta, err := vapp.GetMetadata()
+					if err != nil {
+						log.SpanLog(ctx, log.DebugLevelInfra, "failed to get metadata for shared lb", "err", err)
+					} else {
+						rc += "- Shared LB Metadata:\n"
+						for _, me := range meta.MetadataEntry {
+							if me.TypedValue == nil {
+								log.SpanLog(ctx, log.DebugLevelInfra, "nil metadata value", "err", err)
+							} else {
+								rc += "    Key: " + me.Key + " Value: " + me.TypedValue.Value + "\n"
+							}
+						}
+					}
+				}
+				if vapp.VApp.Children != nil {
+					for _, vm := range vapp.VApp.Children.VM {
+						log.SpanLog(ctx, log.DebugLevelInfra, "found vm", "vapp", res.Name, "vm", vm.Name)
+						rc += fmt.Sprintf("- VM: %s Status: %s Deployed: %t\n", vm.Name, types.VAppStatuses[vm.Status], vm.Deployed)
+						if vm.NetworkConnectionSection != nil {
+							for _, nc := range vm.NetworkConnectionSection.NetworkConnection {
+								rc += "   - Net Connection: " + nc.Network + " IP: " + nc.IPAddress + "\n"
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return rc, nil
 }

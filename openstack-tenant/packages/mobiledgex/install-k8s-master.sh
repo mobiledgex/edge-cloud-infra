@@ -2,17 +2,19 @@
 # must run as root
 # on the master
 set -x
-if [ $# -lt 3 ]; then
+if [ $# -lt 1 ]; then
 	echo "Insufficient arguments"
-	echo "Need interface-name master-ip my-ip"
+	echo "master-ip"
 	exit 1
 fi
-INTF=$1
-MASTERIP=$2
-MYIP=$3
-echo "Interface $INTF"
+MASTERIP=$1
 echo "Master IP $MASTERIP"
-echo "My IP Address: $MYIP"
+HOSTNAME=`hostname`
+# replace 127.0.0.1 with the internal IP address in /etc/hosts. This is needed
+# if there are multiple networks on the node. 
+sed -i s/"127.0.0.1 $HOSTNAME"/"$MASTERIP $HOSTNAME"/g /etc/hosts 
+echo "replaced localhost with $MASTERIP in /etc/hosts"
+
 
 systemctl is-active --quiet kubelet
 if [ $? -ne 0 ]; then
@@ -25,9 +27,7 @@ if [ $? -ne 0 ]; then
     echo missing kubeadm
     exit 1
 fi
-#nohup consul agent -server -bootstrap-expect=1 -data-dir=/tmp/consul -node=`hostname` -bind=$MYIP -syslog -config-dir=/etc/consul/conf.d  &
-#kubeadm init --apiserver-advertise-address=$MYIP --pod-network-cidr=10.244.0.0/16 --ignore-preflight-errors=all
-kubeadm init --apiserver-advertise-address=$MYIP --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=all
+kubeadm init --apiserver-advertise-address=$MASTERIP --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=all
 if [ $? -ne 0 ]; then
     echo  kubeadm exited with error
     exit 1

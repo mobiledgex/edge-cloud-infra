@@ -67,6 +67,10 @@ func (e *EdgeboxPlatform) CreateAppInst(ctx context.Context, clusterInst *edgepr
 			if err != nil {
 				return err
 			}
+			err = k8smgmt.CreateAllNamespaces(ctx, client, names)
+			if err != nil {
+				return err
+			}
 			err = infracommon.CreateDockerRegistrySecret(ctx, client, k8smgmt.GetKconfName(clusterInst), imagePath, e.commonPf.PlatformConfig.AccessApi, names, existingCreds)
 			if err != nil {
 				return err
@@ -150,6 +154,10 @@ func (e *EdgeboxPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgepr
 			if err != nil {
 				return err
 			}
+			err = k8smgmt.CreateAllNamespaces(ctx, client, names)
+			if err != nil {
+				return err
+			}
 			err = infracommon.CreateDockerRegistrySecret(ctx, client, kconf, imagePath, e.commonPf.PlatformConfig.AccessApi, names, existingCreds)
 			if err != nil {
 				return err
@@ -173,8 +181,8 @@ func (e *EdgeboxPlatform) GetContainerCommand(ctx context.Context, clusterInst *
 	return e.generic.GetContainerCommand(ctx, clusterInst, app, appInst, req)
 }
 
-func (e *EdgeboxPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App) (string, error) {
-	return e.generic.GetConsoleUrl(ctx, app)
+func (e *EdgeboxPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst) (string, error) {
+	return e.generic.GetConsoleUrl(ctx, app, appInst)
 }
 
 func (e *EdgeboxPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {

@@ -240,7 +240,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 		if role == vmlayer.RoleMaster {
 			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Setting up kubernetes master node"))
 			log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, setup kubernetes master node", "masterAddr", masterAddr)
-			cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-master.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
+			cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-master.sh \"%s\"", masterAddr)
 			out, err := client.Output(cmd)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s master", "masterAddr", masterAddr, "nodename", vm.InternalName, "out", out, "err", err)
@@ -283,7 +283,7 @@ func (o *VMPoolPlatform) createVMsInternal(ctx context.Context, markedVMs map[st
 			wg.Add(1)
 			go func(clientIn ssh.Client, nodeName string, wg *sync.WaitGroup) {
 				log.SpanLog(ctx, log.DebugLevelInfra, "CreateVMs, setup kubernetes worker node", "masterAddr", masterAddr, "nodename", nodeName)
-				cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-node.sh \"ens3\" \"%s\" \"%s\"", masterAddr, masterAddr)
+				cmd := fmt.Sprintf("sudo sh -x /etc/mobiledgex/install-k8s-node.sh \"%s\"", masterAddr)
 				out, err := clientIn.Output(cmd)
 				if err != nil {
 					log.SpanLog(ctx, log.DebugLevelInfra, "failed to setup k8s node", "masterAddr", masterAddr, "nodename", nodeName, "out", out, "err", err)
@@ -324,7 +324,7 @@ func (o *VMPoolPlatform) CreateVMs(ctx context.Context, vmGroupOrchestrationPara
 		vmSpec := edgeproto.VMSpec{}
 		vmSpec.InternalName = vm.Name
 		for _, p := range vm.Ports {
-			if p.NetworkType == vmlayer.NetTypeExternal {
+			if p.NetType == vmlayer.NetworkTypeExternalPrimary {
 				vmSpec.ExternalNetwork = true
 				break
 			}
@@ -491,7 +491,7 @@ func (o *VMPoolPlatform) updateVMsInternal(ctx context.Context, vmGroupOrchestra
 		vmSpec := edgeproto.VMSpec{}
 		vmSpec.InternalName = vm.Name
 		for _, p := range vm.Ports {
-			if p.NetworkType == vmlayer.NetTypeExternal {
+			if p.NetType == vmlayer.NetworkTypeExternalPrimary {
 				vmSpec.ExternalNetwork = true
 				break
 			}
@@ -597,12 +597,12 @@ func (o *VMPoolPlatform) SyncVMs(ctx context.Context, vmGroupOrchestrationParams
 	return nil
 }
 
-func (s *VMPoolPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
+func (s *VMPoolPlatform) GetVMStats(ctx context.Context, appInst *edgeproto.AppInst) (*vmlayer.VMMetrics, error) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "GetVMStats not supported")
 	return &vmlayer.VMMetrics{}, nil
 }
 
-func (s *VMPoolPlatform) VmAppChangedCallback(ctx context.Context) {
+func (s *VMPoolPlatform) VmAppChangedCallback(ctx context.Context, appInst *edgeproto.AppInst, newState edgeproto.TrackedState) {
 }
 
 func (s *VMPoolPlatform) GetPlatformResourceInfo(ctx context.Context) (*vmlayer.PlatformResources, error) {

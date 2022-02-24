@@ -98,39 +98,42 @@ func init() {
 }
 
 var RunCommandRequiredArgs = []string{
-	"app-org",
+	"apporg",
 	"appname",
 	"appvers",
 	"cluster",
-	"cloudlet-org",
+	"cloudletorg",
 	"cloudlet",
 	"command",
 }
 var RunCommandOptionalArgs = []string{
-	"cluster-org",
+	"federatedorg",
+	"clusterorg",
 	"containerid",
 }
 var RunConsoleRequiredArgs = []string{
-	"app-org",
+	"apporg",
 	"appname",
 	"appvers",
-	"cloudlet-org",
+	"cloudletorg",
 	"cloudlet",
 }
 var RunConsoleOptionalArgs = []string{
 	"cluster",
-	"cluster-org",
+	"federatedorg",
+	"clusterorg",
 }
 var ShowLogsRequiredArgs = []string{
-	"app-org",
+	"apporg",
 	"appname",
 	"appvers",
 	"cluster",
-	"cloudlet-org",
+	"cloudletorg",
 	"cloudlet",
 }
 var ShowLogsOptionalArgs = []string{
-	"cluster-org",
+	"federatedorg",
+	"clusterorg",
 	"containerid",
 	"since",
 	"tail",
@@ -138,48 +141,51 @@ var ShowLogsOptionalArgs = []string{
 	"follow",
 }
 var AccessCloudletRequiredArgs = []string{
-	"cloudlet-org",
+	"cloudletorg",
 	"cloudlet",
 }
 var AccessCloudletOptionalArgs = []string{
+	"federatedorg",
 	"command",
-	"node-type",
-	"node-name",
+	"nodetype",
+	"nodename",
 }
 var ExecRequestRequiredArgs = []string{
-	"app-org",
+	"apporg",
 	"appname",
 	"appvers",
 	"cluster",
-	"cloudlet-org",
+	"cloudletorg",
 	"cloudlet",
-	"cluster-org",
+	"clusterorg",
 }
 var ExecRequestOptionalArgs = []string{
+	"federatedorg",
 	"containerid",
 	"command",
-	"node-type",
-	"node-name",
+	"nodetype",
+	"nodename",
 	"since",
 	"tail",
 	"timestamps",
 	"follow",
 }
 var ExecRequestAliasArgs = []string{
-	"app-org=execrequest.appinstkey.appkey.organization",
+	"apporg=execrequest.appinstkey.appkey.organization",
 	"appname=execrequest.appinstkey.appkey.name",
 	"appvers=execrequest.appinstkey.appkey.version",
 	"cluster=execrequest.appinstkey.clusterinstkey.clusterkey.name",
-	"cloudlet-org=execrequest.appinstkey.clusterinstkey.cloudletkey.organization",
+	"cloudletorg=execrequest.appinstkey.clusterinstkey.cloudletkey.organization",
 	"cloudlet=execrequest.appinstkey.clusterinstkey.cloudletkey.name",
-	"cluster-org=execrequest.appinstkey.clusterinstkey.organization",
+	"federatedorg=execrequest.appinstkey.clusterinstkey.cloudletkey.federatedorganization",
+	"clusterorg=execrequest.appinstkey.clusterinstkey.organization",
 	"containerid=execrequest.containerid",
 	"offer=execrequest.offer",
 	"answer=execrequest.answer",
 	"err=execrequest.err",
 	"command=execrequest.cmd.command",
-	"node-type=execrequest.cmd.cloudletmgmtnode.type",
-	"node-name=execrequest.cmd.cloudletmgmtnode.name",
+	"nodetype=execrequest.cmd.cloudletmgmtnode.type",
+	"nodename=execrequest.cmd.cloudletmgmtnode.name",
 	"since=execrequest.log.since",
 	"tail=execrequest.log.tail",
 	"timestamps=execrequest.log.timestamps",
@@ -190,20 +196,21 @@ var ExecRequestAliasArgs = []string{
 	"edgeturnaddr=execrequest.edgeturnaddr",
 }
 var ExecRequestComments = map[string]string{
-	"app-org":      "App developer organization",
+	"apporg":       "App developer organization",
 	"appname":      "App name",
 	"appvers":      "App version",
 	"cluster":      "Cluster name",
-	"cloudlet-org": "Organization of the cloudlet site",
+	"cloudletorg":  "Organization of the cloudlet site",
 	"cloudlet":     "Name of the cloudlet",
-	"cluster-org":  "Name of Developer organization that this cluster belongs to",
+	"federatedorg": "Federated operator organization who shared this cloudlet",
+	"clusterorg":   "Name of Developer organization that this cluster belongs to",
 	"containerid":  "ContainerId is the name or ID of the target container, if applicable",
 	"offer":        "Offer",
 	"answer":       "Answer",
 	"err":          "Any error message",
 	"command":      "Command or Shell",
-	"node-type":    "Type of Cloudlet Mgmt Node",
-	"node-name":    "Name of Cloudlet Mgmt Node",
+	"nodetype":     "Type of Cloudlet Mgmt Node",
+	"nodename":     "Name of Cloudlet Mgmt Node",
 	"since":        "Show logs since either a duration ago (5s, 2m, 3h) or a timestamp (RFC3339)",
 	"tail":         "Show only a recent number of lines",
 	"timestamps":   "Show timestamps",

@@ -1,0 +1,22 @@
+federatedselfzones:
+# Share dmuus/SA zones
+- selfoperatorid: dmuus
+  federationname: dmuus-SA-{{partnertag}}-{{region}}-fed
+  zoneid: dmuus-cloud-1
+- selfoperatorid: dmuus
+  federationname: dmuus-SA-{{partnertag}}-{{region}}-fed
+  zoneid: dmuus-cloud-2
+- selfoperatorid: dmuus
+  federationname: dmuus-SB-{{partnertag}}-{{region}}-fed
+  zoneid: dmuus-cloud-3
+- selfoperatorid: dmuus
+  federationname: dmuus-SB-{{partnertag}}-{{region}}-fed
+  zoneid: dmuus-cloud-4
+# Share enterprise/SA zones
+- selfoperatorid: enterprise
+  federationname: enterprise-SA-{{partnertag}}-{{region}}-fed
+  zoneid: enterprise-1
+# Share enterprise/SB zones
+- selfoperatorid: enterprise
+  federationname: enterprise-SB-{{partnertag}}-{{region}}-fed
+  zoneid: enterprise-2

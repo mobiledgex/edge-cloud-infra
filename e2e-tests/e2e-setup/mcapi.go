@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,6 +93,8 @@ func RunMcAPI(api, mcname, apiFile string, apiFileVars map[string]string, curUse
 		return runMcAddUserAlertToApp(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData)
 	} else if api == "removeuseralert" {
 		return runMcRemoveUserAlertFromApp(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData)
+	} else if strings.HasPrefix(api, "mcratelimit") {
+		return runMcRateLimit(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData)
 	}
 
 	return runMcDataAPI(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData, retry)
@@ -125,6 +128,7 @@ func runMcUsersAPI(api, uri, apiFile, curUserFile, outputDir string, mods []stri
 		}
 		users, status, err := mcClient.ShowUser(uri, token, filter)
 		checkMcErr("ShowUser", status, err, &rc)
+		cmpFilterUsers(users)
 		util.PrintToYamlFile("show-commands.yml", outputDir, users, true)
 		return rc
 	}
@@ -203,6 +207,104 @@ func runMcConfig(api, uri, apiFile, curUserFile, outputDir string, mods []string
 	return rc
 }
 
+func runMcRateLimit(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string) bool {
+	log.Printf("Applying MC ratelimit via APIs for %s\n", apiFile)
+	token, rc := loginCurUser(uri, curUserFile, vars, sharedData)
+	if !rc {
+		return false
+	}
+
+	if api == "mcratelimitshow" {
+		filter := &ormapi.McRateLimitSettings{}
+		settings, st, err := mcClient.ShowRateLimitSettingsMc(uri, token, filter)
+		checkMcErr("ShowRateLimitSettingsMc", st, err, &rc)
+		cmpFilterRateLimit(settings)
+		util.PrintToYamlFile("show-commands.yml", outputDir, settings, true)
+		return rc
+	} else if api == "mcratelimitflowshow" {
+		filter := &ormapi.McRateLimitFlowSettings{}
+		settings, st, err := mcClient.ShowFlowRateLimitSettingsMc(uri, token, filter)
+		checkMcErr("ShowFlowRateLimitSettingsMc", st, err, &rc)
+		cmpFilterRateLimitFlow(settings)
+		util.PrintToYamlFile("show-commands.yml", outputDir, settings, true)
+		return rc
+	} else if api == "mcratelimitmaxreqsshow" {
+		filter := &ormapi.McRateLimitMaxReqsSettings{}
+		settings, st, err := mcClient.ShowMaxReqsRateLimitSettingsMc(uri, token, filter)
+		checkMcErr("ShowMaxReqsRateLimitSettingsMc", st, err, &rc)
+		cmpFilterRateLimitMaxReqs(settings)
+		util.PrintToYamlFile("show-commands.yml", outputDir, settings, true)
+		return rc
+	}
+
+	if apiFile == "" {
+		log.Println("Error: Cannot run MC config APIs without API file")
+		return false
+	}
+
+	switch api {
+	case "mcratelimitflowcreate":
+		fallthrough
+	case "mcratelimitflowdelete":
+		in := &ormapi.McRateLimitFlowSettings{}
+		err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
+		if err != nil && !util.IsYamlOk(err, "mcratelimitflowsettings") {
+			log.Printf("error in unmarshal ormapi.McRateLimitFlowSettings for %s: %v\n", apiFile, err)
+			return false
+		}
+		if api == "mcratelimitflowcreate" {
+			st, err := mcClient.CreateFlowRateLimitSettingsMc(uri, token, in)
+			checkMcErr("CreateFlowRateLimitSettingsMc", st, err, &rc)
+		} else {
+			st, err := mcClient.DeleteFlowRateLimitSettingsMc(uri, token, in)
+			checkMcErr("DeleteFlowRateLimitSettingsMc", st, err, &rc)
+		}
+
+	case "mcratelimitmaxreqscreate":
+		fallthrough
+	case "mcratelimitmaxreqsdelete":
+		in := &ormapi.McRateLimitMaxReqsSettings{}
+		err := util.ReadYamlFile(apiFile, in, util.WithVars(vars), util.ValidateReplacedVars())
+		if err != nil && !util.IsYamlOk(err, "mcratelimitmaxreqssettings") {
+			log.Printf("error in unmarshal ormapi.McRateLimitMaxReqsSettings for %s: %v\n", apiFile, err)
+			return false
+		}
+		if api == "mcratelimitmaxreqscreate" {
+			st, err := mcClient.CreateMaxReqsRateLimitSettingsMc(uri, token, in)
+			checkMcErr("CreateMaxReqsRateLimitSettingsMc", st, err, &rc)
+		} else {
+			st, err := mcClient.DeleteMaxReqsRateLimitSettingsMc(uri, token, in)
+			checkMcErr("DeleteMaxReqsRateLimitSettingsMc", st, err, &rc)
+		}
+
+	case "mcratelimitflowupdate":
+		fallthrough
+	case "mcratelimitmaxreqsupdate":
+		data := make(map[string]interface{})
+		err := util.ReadYamlFile(apiFile, data, util.WithVars(vars), util.ValidateReplacedVars())
+		mdata := &cli.MapData{
+			Namespace: cli.ArgsNamespace,
+			Data:      data,
+		}
+		if api == "mcratelimitflowupdate" {
+			if err != nil && !util.IsYamlOk(err, "mcratelimitflowsettings") {
+				log.Printf("error in unmarshal ormapi.McRateLimitFlowSettings for %s: %v\n", apiFile, err)
+				return false
+			}
+			st, err := mcClient.UpdateFlowRateLimitSettingsMc(uri, token, mdata)
+			checkMcErr("UpdateFlowRateLimitSettingsMc", st, err, &rc)
+		} else {
+			if err != nil && !util.IsYamlOk(err, "mcratelimitmaxreqssettings") {
+				log.Printf("error in unmarshal ormapi.McRateLimitMaxReqsSettings for %s: %v\n", apiFile, err)
+				return false
+			}
+			st, err := mcClient.UpdateMaxReqsRateLimitSettingsMc(uri, token, mdata)
+			checkMcErr("UpdateMaxReqsRateLimitSettingsMc", st, err, &rc)
+		}
+	}
+	return rc
+}
+
 func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string, retry *bool) bool {
 	log.Printf("Applying MC data via APIs for %s mods %v vars %v\n", apiFile, mods, vars)
 	// Data APIs are all run by a given user.
@@ -224,6 +326,11 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 	if api == "show" {
 		var showData *ormapi.AllData
 		showData = showMcData(uri, token, tag, &rc)
+		if tag == "" {
+			cmpFilterAllData(showData)
+		} else if tag == "noignore" {
+			cmpFilterAllDataNoIgnore(showData)
+		}
 		util.PrintToYamlFile("show-commands.yml", outputDir, showData, true)
 		*retry = true
 		return rc
@@ -260,6 +367,7 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 				time.Sleep(100 * time.Millisecond)
 			}
 		}
+		cmpFilterMetrics(*parsedMetrics)
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		*retry = true
 		return rc
@@ -271,6 +379,7 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		var parsedMetrics *[]OptimizedMetricsCompare
 		showClientApiMetrics = showMcClientApiMetrics(uri, token, targets, &rc)
 		parsedMetrics = parseOptimizedMetrics(showClientApiMetrics)
+		cmpFilterApiMetricData(*parsedMetrics)
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		*retry = true
 		return rc
@@ -282,6 +391,7 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		var parsedMetrics *[]OptimizedMetricsCompare
 		showClientAppMetrics = showMcClientAppMetrics(uri, token, targets, &rc)
 		parsedMetrics = parseOptimizedMetrics(showClientAppMetrics)
+		cmpFilterApiMetricData(*parsedMetrics)
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
 		*retry = true
 		return rc
@@ -293,7 +403,105 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		var parsedMetrics *[]OptimizedMetricsCompare
 		showClientCloudletMetrics = showMcClientCloudletMetrics(uri, token, targets, &rc)
 		parsedMetrics = parseOptimizedMetrics(showClientCloudletMetrics)
+		cmpFilterApiMetricData(*parsedMetrics)
 		util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		*retry = true
+		return rc
+	}
+
+	if api == "showselffederators" {
+		showFilter := &cli.MapData{
+			Namespace: cli.StructNamespace,
+			Data:      map[string]interface{}{},
+		}
+		selfFederators, status, err := mcClient.ShowSelfFederator(uri, token, showFilter)
+		checkMcErr("ShowSelfFederator", status, err, &rc)
+		showData := ormapi.AllData{
+			Federators: selfFederators,
+		}
+		cmpFilterAllData(&showData)
+		util.PrintToYamlFile("show-commands.yml", outputDir, &showData, true)
+		*retry = true
+		return rc
+	}
+
+	if api == "showselffederatorzones" {
+		showFilter := &cli.MapData{
+			Namespace: cli.StructNamespace,
+			Data:      map[string]interface{}{},
+		}
+		selfFederatorZones, status, err := mcClient.ShowSelfFederatorZone(uri, token, showFilter)
+		checkMcErr("ShowSelfFederatorZone", status, err, &rc)
+		showData := ormapi.AllData{
+			FederatorZones: selfFederatorZones,
+		}
+		cmpFilterAllData(&showData)
+		util.PrintToYamlFile("show-commands.yml", outputDir, &showData, true)
+		*retry = true
+		return rc
+	}
+
+	if api == "showfederations" {
+		showFilter := &cli.MapData{
+			Namespace: cli.StructNamespace,
+			Data:      map[string]interface{}{},
+		}
+		federations, status, err := mcClient.ShowFederation(uri, token, showFilter)
+		checkMcErr("ShowFederation", status, err, &rc)
+		showData := ormapi.AllData{
+			Federations: federations,
+		}
+		cmpFilterAllData(&showData)
+		util.PrintToYamlFile("show-commands.yml", outputDir, &showData, true)
+		*retry = true
+		return rc
+	}
+
+	if api == "showfederatedselfzones" {
+		showFilter := &cli.MapData{
+			Namespace: cli.StructNamespace,
+			Data:      map[string]interface{}{},
+		}
+		federatedSelfZones, status, err := mcClient.ShowFederatedSelfZone(uri, token, showFilter)
+		checkMcErr("ShowFederatedSelfZone", status, err, &rc)
+		showData := ormapi.AllData{
+			FederatedSelfZones: federatedSelfZones,
+		}
+		cmpFilterAllData(&showData)
+		util.PrintToYamlFile("show-commands.yml", outputDir, &showData, true)
+		*retry = true
+		return rc
+	}
+
+	if api == "showfederatedpartnerzones" {
+		showFilter := &cli.MapData{
+			Namespace: cli.StructNamespace,
+			Data:      map[string]interface{}{},
+		}
+		federatedPartnerZones, status, err := mcClient.ShowFederatedPartnerZone(uri, token, showFilter)
+		checkMcErr("ShowFederatedPartnerZone", status, err, &rc)
+		showData := ormapi.AllData{
+			FederatedPartnerZones: federatedPartnerZones,
+		}
+		cmpFilterAllData(&showData)
+		util.PrintToYamlFile("show-commands.yml", outputDir, &showData, true)
+		*retry = true
+		return rc
+	}
+
+	if strings.HasPrefix(api, "showcustommetrics") {
+		query := readMcCustomMetricTargetsFile(apiFile, vars)
+		metrics, status, err := mcClient.ShowAppV2Metrics(uri, token, query)
+		checkMcErr("ShowAppV2Metrics", status, err, &rc)
+		if !rc {
+			return rc
+		}
+		// convert showMetrics into something yml compatible
+		parsedMetrics := removeTimestampFromPromData(metrics)
+		if parsedMetrics != nil {
+			cmpFilterMetrics(*parsedMetrics)
+			util.PrintToYamlFile("show-commands.yml", outputDir, parsedMetrics, true)
+		}
 		*retry = true
 		return rc
 	}
@@ -307,14 +515,52 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 
 	var errs []Err
 	switch api {
+	case "registerfederation":
+		output := &AllDataOut{}
+		for ii, fd := range data.Federations {
+			_, st, err := mcClient.RegisterFederation(uri, token, &fd)
+			outMcErr(output, fmt.Sprintf("RegisterFederation[%d]", ii), st, err)
+		}
+		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
+		errs = output.Errors
+	case "deregisterfederation":
+		output := &AllDataOut{}
+		for ii, fd := range data.Federations {
+			_, st, err := mcClient.DeregisterFederation(uri, token, &fd)
+			outMcErr(output, fmt.Sprintf("DeregisterFederation[%d]", ii), st, err)
+		}
+		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
+		errs = output.Errors
+	case "setfederationapikey":
+		output := &AllDataOut{}
+		for ii, fd := range data.Federations {
+			if partnerApiKey, found := sharedData[fd.FederationId]; found {
+				fd.ApiKey = partnerApiKey
+			}
+			_, st, err := mcClient.SetPartnerFederationAPIKey(uri, token, &fd)
+			outMcErr(output, fmt.Sprintf("SetPartnerFederationAPIKey[%d]", ii), st, err)
+		}
+		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
+		errs = output.Errors
+	case "share":
+		fallthrough
+	case "unshare":
+		fallthrough
+	case "register":
+		fallthrough
+	case "deregister":
+		output := &AllDataOut{}
+		manageFederatorZoneData(api, uri, token, tag, data, dataMap, output, &rc)
+		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
+		errs = output.Errors
 	case "create":
 		output := &AllDataOut{}
-		createMcData(uri, token, tag, data, dataMap, output, &rc)
+		createMcData(uri, token, tag, data, dataMap, sharedData, output, &rc)
 		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
 		errs = output.Errors
 	case "delete":
 		output := &AllDataOut{}
-		deleteMcData(uri, token, tag, data, dataMap, output, &rc)
+		deleteMcData(uri, token, tag, data, dataMap, sharedData, output, &rc)
 		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
 		errs = output.Errors
 	case "add":
@@ -327,9 +573,25 @@ func runMcDataAPI(api, uri, apiFile, curUserFile, outputDir string, mods []strin
 		util.PrintToYamlFile("api-output.yml", outputDir, output, true)
 		errs = output.Errors
 	case "showfiltered":
-		dataOut := showMcDataFiltered(uri, token, tag, data, &rc)
-		util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
-		*retry = true
+		dataOut, errs := showMcDataFiltered(uri, token, tag, data, &rc)
+		if tag == "" {
+			cmpFilterAllData(dataOut)
+		} else if tag == "noignore" {
+			cmpFilterAllDataNoIgnore(dataOut)
+		}
+		cmpFilterErrs(errs)
+		// write both files so we don't accidentally pick up older results
+		if errs == nil || len(errs) == 0 {
+			dataOut.Sort()
+			util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
+			util.PrintToYamlFile("api-output.yml", outputDir, "", true)
+		} else {
+			util.PrintToYamlFile("api-output.yml", outputDir, errs, true)
+			util.PrintToYamlFile("show-commands.yml", outputDir, "", true)
+		}
+		if tag != "expecterr" {
+			*retry = true
+		}
 	case "stream":
 		dataOut := streamMcData(uri, token, tag, data, &rc)
 		util.PrintToYamlFile("show-commands.yml", outputDir, dataOut, true)
@@ -449,6 +711,18 @@ func readMCMetricTargetsFile(file string, vars map[string]string) *MetricTargets
 		}
 	}
 	return &targets
+}
+
+func readMcCustomMetricTargetsFile(file string, vars map[string]string) *ormapi.RegionCustomAppMetrics {
+	filter := ormapi.RegionCustomAppMetrics{}
+	err := util.ReadYamlFile(file, &filter, util.WithVars(vars), util.ValidateReplacedVars())
+	if err != nil {
+		if !util.IsYamlOk(err, "mcdata") {
+			fmt.Fprintf(os.Stderr, "error in unmarshal for file %s\n", file)
+			os.Exit(1)
+		}
+	}
+	return &filter
 }
 
 func loginCurUser(uri, curUserFile string, vars, sharedData map[string]string) (string, bool) {
@@ -574,7 +848,7 @@ func showMcData(uri, token, tag string, rc *bool) *ormapi.AllData {
 	return showData
 }
 
-func showMcDataFiltered(uri, token, tag string, data *ormapi.AllData, rc *bool) *ormapi.AllData {
+func showMcDataFiltered(uri, token, tag string, data *ormapi.AllData, rc *bool) (*ormapi.AllData, []edgetestutil.Err) {
 	dataOut := &ormapi.AllData{}
 
 	// currently only controller APIs support filtering
@@ -594,10 +868,14 @@ func showMcDataFiltered(uri, token, tag string, data *ormapi.AllData, rc *bool) 
 		}
 		run := edgetestutil.NewRun(&client, context.Background(), "showfiltered", rc)
 		edgetestutil.RunAllDataShowApis(run, filter, &rd.AppData)
-		run.CheckErrs(fmt.Sprintf("show-filtered region %s", region), tag)
+		if tag == "expecterr" {
+			return nil, run.Errs
+		} else {
+			run.CheckErrs(fmt.Sprintf("show-filtered region %s", region), tag)
+		}
 		dataOut.RegionData = append(dataOut.RegionData, rd)
 	}
-	return dataOut
+	return dataOut, nil
 }
 
 func getRegionAppDataFromMap(regionDataMap interface{}) map[string]interface{} {
@@ -641,7 +919,7 @@ func runRegionDataApi(mcClient *mctestclient.Client, uri, token, tag string, rd 
 	return output
 }
 
-func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
+func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, sharedData map[string]string, output *AllDataOut, rc *bool) {
 	for ii, ctrl := range data.Controllers {
 		st, err := mcClient.CreateController(uri, token, &ctrl)
 		outMcErr(output, fmt.Sprintf("CreateController[%d]", ii), st, err)
@@ -703,9 +981,27 @@ func createMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.CreateAlertReceiver(uri, token, &ar)
 		outMcErr(output, fmt.Sprintf("CreateAlertReceiver[%d]", ii), st, err)
 	}
+	for ii, fd := range data.Federators {
+		fedOut, st, err := mcClient.CreateSelfFederator(uri, token, &fd)
+		if err == nil {
+			sharedData[fd.FederationId] = fedOut.ApiKey
+		}
+		outMcErr(output, fmt.Sprintf("CreateSelfFederator[%d]", ii), st, err)
+	}
+	for ii, fd := range data.FederatorZones {
+		_, st, err := mcClient.CreateSelfFederatorZone(uri, token, &fd)
+		outMcErr(output, fmt.Sprintf("CreateSelfFederatorZone[%d]", ii), st, err)
+	}
+	for ii, fd := range data.Federations {
+		if partnerApiKey, found := sharedData[fd.FederationId]; found {
+			fd.ApiKey = partnerApiKey
+		}
+		_, st, err := mcClient.CreateFederation(uri, token, &fd)
+		outMcErr(output, fmt.Sprintf("CreateFederation[%d]", ii), st, err)
+	}
 }
 
-func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
+func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, sharedData map[string]string, output *AllDataOut, rc *bool) {
 	for ii, ar := range data.AlertReceivers {
 		st, err := mcClient.DeleteAlertReceiver(uri, token, &ar)
 		outMcErr(output, fmt.Sprintf("DeleteAlertReceiver[%d]", ii), st, err)
@@ -760,6 +1056,56 @@ func deleteMcData(uri, token, tag string, data *ormapi.AllData, dataMap map[stri
 		st, err := mcClient.DeleteController(uri, token, &ctrl)
 		outMcErr(output, fmt.Sprintf("DeleteController[%d]", ii), st, err)
 	}
+	for ii, fd := range data.Federations {
+		_, st, err := mcClient.DeleteFederation(uri, token, &fd)
+		if err == nil {
+			delete(sharedData, fd.SelfFederationId)
+		}
+		outMcErr(output, fmt.Sprintf("DeleteFederation[%d]", ii), st, err)
+	}
+	for ii, fd := range data.FederatorZones {
+		_, st, err := mcClient.DeleteSelfFederatorZone(uri, token, &fd)
+		outMcErr(output, fmt.Sprintf("DeleteSelfFederatorZone[%d]", ii), st, err)
+	}
+	for ii, fd := range data.Federators {
+		_, st, err := mcClient.DeleteSelfFederator(uri, token, &fd)
+		outMcErr(output, fmt.Sprintf("DeleteSelfFederator[%d]", ii), st, err)
+	}
+}
+
+func manageFederatorZoneData(mode, uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
+	switch mode {
+	case "share":
+		for ii, zone := range data.FederatedSelfZones {
+			_, st, err := mcClient.ShareSelfFederatorZone(uri, token, &zone)
+			outMcErr(output, fmt.Sprintf("ShareSelfFederatorZone[%d]", ii), st, err)
+		}
+	case "unshare":
+		for ii, zone := range data.FederatedSelfZones {
+			_, st, err := mcClient.UnshareSelfFederatorZone(uri, token, &zone)
+			outMcErr(output, fmt.Sprintf("UnshareSelfFederatorZone[%d]", ii), st, err)
+		}
+	case "register":
+		for ii, zone := range data.FederatedPartnerZones {
+			zoneReq := ormapi.FederatedZoneRegRequest{
+				SelfOperatorId: zone.SelfOperatorId,
+				FederationName: zone.FederationName,
+				Zones:          []string{zone.ZoneId},
+			}
+			_, st, err := mcClient.RegisterPartnerFederatorZone(uri, token, &zoneReq)
+			outMcErr(output, fmt.Sprintf("RegisterPartnerFederatorZone[%d]", ii), st, err)
+		}
+	case "deregister":
+		for ii, zone := range data.FederatedPartnerZones {
+			zoneReq := ormapi.FederatedZoneRegRequest{
+				SelfOperatorId: zone.SelfOperatorId,
+				FederationName: zone.FederationName,
+				Zones:          []string{zone.ZoneId},
+			}
+			_, st, err := mcClient.DeRegisterPartnerFederatorZone(uri, token, &zoneReq)
+			outMcErr(output, fmt.Sprintf("DeregisterPartnerFederatorZone[%d]", ii), st, err)
+		}
+	}
 }
 
 func updateMcData(mode, uri, token, tag string, data *ormapi.AllData, dataMap map[string]interface{}, output *AllDataOut, rc *bool) {
@@ -786,7 +1132,9 @@ func showMcMetricsAll(uri, token string, targets *MetricTargets, rc *bool) *orma
 		Region:   "local",
 		AppInst:  targets.AppInstKey,
 		Selector: "*",
-		Last:     1,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	appMetrics, status, err := mcClient.ShowAppMetrics(uri, token, &appQuery)
 	checkMcErr("ShowAppMetrics", status, err, rc)
@@ -794,7 +1142,9 @@ func showMcMetricsAll(uri, token string, targets *MetricTargets, rc *bool) *orma
 		Region:      "local",
 		ClusterInst: targets.ClusterInstKey,
 		Selector:    "*",
-		Last:        1,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	clusterMetrics, status, err := mcClient.ShowClusterMetrics(uri, token, &clusterQuery)
 	checkMcErr("ShowClusterMetrics", status, err, rc)
@@ -807,21 +1157,27 @@ func showMcEvents(uri, token string, targets *MetricTargets, rc *bool) *ormapi.A
 	appQuery := ormapi.RegionAppInstEvents{
 		Region:  "local",
 		AppInst: targets.AppInstKey,
-		Last:    1,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	appMetrics, status, err := mcClient.ShowAppEvents(uri, token, &appQuery)
 	checkMcErr("ShowAppEvents", status, err, rc)
 	clusterQuery := ormapi.RegionClusterInstEvents{
 		Region:      "local",
 		ClusterInst: targets.ClusterInstKey,
-		Last:        1,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	clusterMetrics, status, err := mcClient.ShowClusterEvents(uri, token, &clusterQuery)
 	checkMcErr("ShowClusterEvents", status, err, rc)
 	cloudletQuery := ormapi.RegionCloudletEvents{
 		Region:   "local",
 		Cloudlet: targets.CloudletKey,
-		Last:     1,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	cloudletMetrics, status, err := mcClient.ShowCloudletEvents(uri, token, &cloudletQuery)
 	checkMcErr("ShowCloudletEvents", status, err, rc)
@@ -838,7 +1194,9 @@ func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *orma
 	appQuery := ormapi.RegionAppInstMetrics{
 		Region:  "local",
 		AppInst: targets.AppInstKey,
-		Last:    1,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	for _, selector := range E2eAppSelectors {
 		appQuery.Selector = selector
@@ -850,7 +1208,9 @@ func showMcMetricsSep(uri, token string, targets *MetricTargets, rc *bool) *orma
 	clusterQuery := ormapi.RegionClusterInstMetrics{
 		Region:      "local",
 		ClusterInst: targets.ClusterInstKey,
-		Last:        1,
+		MetricsCommon: ormapi.MetricsCommon{
+			Limit: 1,
+		},
 	}
 	for _, selector := range E2eClusterSelectors {
 		clusterQuery.Selector = selector
@@ -897,7 +1257,7 @@ func showMcClientAppMetrics(uri, token string, targets *MetricTargets, rc *bool)
 		if selector == "latency" {
 			clientAppUsageQuery.LocationTile = targets.LocationTileLatency
 		} else {
-			clientAppUsageQuery.LocationTile = ""
+			clientAppUsageQuery.LocationTile = targets.LocationTileDeviceInfo
 		}
 		clientAppUsageQuery.Selector = selector
 		clientAppUsageMetric, status, err := mcClient.ShowClientAppUsageMetrics(uri, token, &clientAppUsageQuery)
@@ -1065,10 +1425,12 @@ func runMcAudit(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 	case "auditorg":
 		resp, status, err := mcClient.ShowAuditOrg(uri, token, &query)
 		checkMcErr("ShowAuditOrg", status, err, &rc)
+		cmpFilterAudit(resp)
 		util.PrintToYamlFile("show-commands.yml", outputDir, resp, true)
 	case "auditself":
 		resp, status, err := mcClient.ShowAuditSelf(uri, token, &query)
 		checkMcErr("ShowAuditSelf", status, err, &rc)
+		cmpFilterAudit(resp)
 		util.PrintToYamlFile("show-commands.yml", outputDir, resp, true)
 	}
 	*retry = true
@@ -1136,6 +1498,7 @@ func runMcEvents(api, uri, apiFile, curUserFile, outputDir string, mods []string
 				Results: resp,
 			})
 		}
+		cmpFilterEventData(results)
 		util.PrintToYamlFile("show-commands.yml", outputDir, results, true)
 	case "eventsfind":
 		var results []EventSearch
@@ -1164,6 +1527,7 @@ func runMcEvents(api, uri, apiFile, curUserFile, outputDir string, mods []string
 				Terms:  resp,
 			})
 		}
+		cmpFilterEventTerms(results)
 		util.PrintToYamlFile("show-commands.yml", outputDir, results, true)
 	default:
 		log.Printf("invalid mcapi action %s\n", api)
@@ -1246,6 +1610,7 @@ func runMcSpans(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 				Results: resp,
 			})
 		}
+		cmpFilterSpans(results)
 		util.PrintToYamlFile("show-commands.yml", outputDir, results, true)
 	case "spansshowverbose":
 		var results []SpanSearchVerbose
@@ -1280,6 +1645,7 @@ func runMcSpans(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 				Terms:  resp,
 			})
 		}
+		cmpFilterSpanTerms(results)
 		util.PrintToYamlFile("show-commands.yml", outputDir, results, true)
 	default:
 		log.Printf("invalid mcapi action %s\n", api)
@@ -1287,6 +1653,35 @@ func runMcSpans(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 	}
 	*retry = true
 	return rc
+}
+
+// Get a comparable metrics data type
+func removeTimestampFromPromData(allMetrics *ormapi.AllMetrics) *[]MetricsCompare {
+	result := make([]MetricsCompare, 0)
+	for _, data := range allMetrics.Data {
+		for _, series := range data.Series {
+			measurement := MetricsCompare{Name: series.Name, Tags: make(map[string]string), Values: make(map[string]float64)}
+			// prometheus returns two values - first is measurement and second is a timestamp(remove it)
+			if len(series.Values) != 1 {
+				return nil
+			}
+			// copy tags
+			for k, v := range series.Tags {
+				measurement.Tags[k] = v
+			}
+
+			// add the first value
+			val := series.Values[0][0]
+			if floatVal, ok := val.(float64); ok {
+				measurement.Values[series.Name] = floatVal
+				// if its an int cast it to a float to make comparing easier
+			} else if intVal, ok := val.(int); ok {
+				measurement.Values[series.Name] = float64(intVal)
+			}
+			result = append(result, measurement)
+		}
+	}
+	return &result
 }
 
 func parseMetrics(allMetrics *ormapi.AllMetrics) *[]MetricsCompare {
@@ -1326,7 +1721,7 @@ func parseOptimizedMetrics(allMetrics *ormapi.AllMetrics) *[]OptimizedMetricsCom
 	result := make([]OptimizedMetricsCompare, 0)
 	for _, data := range allMetrics.Data {
 		for _, series := range data.Series {
-			measurement := OptimizedMetricsCompare{Name: series.Name, Columns: make([]string, 0), Tags: make(map[string]string), Values: make([][]float64, 0)}
+			measurement := OptimizedMetricsCompare{Name: series.Name, Columns: make([]string, 0), Tags: make(map[string]string), Values: make([][]string, 0)}
 			// e2e tests only grabs the latest measurement so there should only be one
 			if len(series.Values) != 1 {
 				return nil
@@ -1347,15 +1742,17 @@ func parseOptimizedMetrics(allMetrics *ormapi.AllMetrics) *[]OptimizedMetricsCom
 				if series.Columns[i] == "time" || series.Columns[i] == "metadata" || series.Columns[i] == "other" {
 					continue
 				}
-				values := make([]float64, 0)
+				values := make([]string, 0)
 				// add column associated with value
 				measurement.Columns = append(measurement.Columns, series.Columns[i])
 				// add value as a float64
 				if floatVal, ok := val.(float64); ok {
-					values = append(values, floatVal)
+					values = append(values, strconv.FormatFloat(floatVal, 'f', -1, 64))
 				} else if intVal, ok := val.(int); ok {
 					// if its an int cast it to a float to make comparing easier
-					values = append(values, float64(intVal))
+					values = append(values, strconv.Itoa(intVal))
+				} else if strVal, ok := val.(string); ok {
+					values = append(values, strVal)
 				}
 				measurement.Values = append(measurement.Values, values)
 			}
@@ -1377,17 +1774,18 @@ func runMcShowNode(uri, curUserFile, outputDir string, vars, sharedData map[stri
 
 	appdata := edgeproto.NodeData{}
 	appdata.Nodes = nodes
+	util.FilterNodeData(&appdata)
 	util.PrintToYamlFile("show-commands.yml", outputDir, appdata, true)
 	return rc
 }
 
-func runMcAppUserAlertApi(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string, apiFunc func(string, string, *ormapi.RegionAppUserDefinedAlert) (*edgeproto.Result, int, error)) bool {
+func runMcAppUserAlertApi(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string, apiFunc func(string, string, *ormapi.RegionAppAlertPolicy) (*edgeproto.Result, int, error)) bool {
 	rc := true
 	token, rc := loginCurUser(uri, curUserFile, vars, sharedData)
 	if !rc {
 		return false
 	}
-	userDefAlerts := []ormapi.RegionAppUserDefinedAlert{}
+	userDefAlerts := []ormapi.RegionAppAlertPolicy{}
 	err := util.ReadYamlFile(apiFile, &userDefAlerts, util.WithVars(vars), util.ValidateReplacedVars())
 	if err != nil {
 		log.Printf("error in unmarshal for file %s, %v\n", apiFile, err)
@@ -1404,11 +1802,11 @@ func runMcAppUserAlertApi(api, uri, apiFile, curUserFile, outputDir string, mods
 }
 
 func runMcAddUserAlertToApp(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string) bool {
-	return runMcAppUserAlertApi(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData, mcClient.AddAppUserDefinedAlert)
+	return runMcAppUserAlertApi(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData, mcClient.AddAppAlertPolicy)
 }
 
 func runMcRemoveUserAlertFromApp(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string) bool {
-	return runMcAppUserAlertApi(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData, mcClient.RemoveAppUserDefinedAlert)
+	return runMcAppUserAlertApi(api, uri, apiFile, curUserFile, outputDir, mods, vars, sharedData, mcClient.RemoveAppAlertPolicy)
 }
 
 func runMcDebug(api, uri, apiFile, curUserFile, outputDir string, mods []string, vars, sharedData map[string]string) bool {
@@ -1457,6 +1855,16 @@ func runMcDebug(api, uri, apiFile, curUserFile, outputDir string, mods []string,
 			output.Requests = append(output.Requests, replies)
 		}
 	}
+	output.Sort()
+	clearTags := map[string]struct{}{
+		"nocmp":     struct{}{},
+		"timestamp": struct{}{},
+	}
+	for ii := range output.Requests {
+		for jj := range output.Requests[ii] {
+			output.Requests[ii][jj].ClearTagged(clearTags)
+		}
+	}
 	util.PrintToYamlFile("api-output.yml", outputDir, output, true)
 	return rc
 }
@@ -1482,6 +1890,7 @@ func showMcAlerts(uri, apiFile, curUserFile, outputDir string, vars, sharedData 
 	alerts, status, err := mcClient.ShowAlert(uri, token, &filter)
 	checkMcErr("ShowAlert", status, err, &rc)
 
+	util.FilterAlerts(alerts)
 	util.PrintToYamlFile("show-commands.yml", outputDir, alerts, true)
 	return rc
 }
@@ -1500,6 +1909,7 @@ func showMcAlertReceivers(uri, curUserFile, outputDir string, vars, sharedData m
 	showData.AlertReceivers, status, err = mcClient.ShowAlertReceiver(uri, token, &ormapi.AlertReceiver{})
 	checkMcErr("ShowAlertReceiver", status, err, &rc)
 
+	cmpFilterAllData(&showData)
 	util.PrintToYamlFile("show-commands.yml", outputDir, showData, true)
 	return rc
 }

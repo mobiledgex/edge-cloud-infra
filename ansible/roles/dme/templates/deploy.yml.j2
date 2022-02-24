@@ -5,7 +5,7 @@ metadata:
   labels:
     app: dme
 spec:
-  replicas: {{ dme_replicas }}
+  replicas: 1
   selector:
     matchLabels:
       app: dme
@@ -16,33 +16,42 @@ spec:
     spec:
       containers:
       - name: dme
-        image: "{{ edge_cloud_image }}:{{ edge_cloud_version }}"
+        image: "{{ edge_cloud_image }}-dme:{{ edge_cloud_version }}"
         imagePullPolicy: Always
         resources:
           requests:
-            cpu: "150m"
-            memory: "100Mi"
+            cpu: "{{ dme_cpu_request }}"
+            memory: "{{ dme_memory_request | human_to_bytes }}"
           limits:
-            cpu: "300m"
-            memory: "200Mi"
+            cpu: "{{ dme_cpu_limit }}"
+            memory: "{{ dme_memory_limit | human_to_bytes }}"
         command:
-         - "/bin/bash"
-         - "-ecx"
-         - |
-           exec dme-server \
-             --commonName "{{ dme_dns }}.{{ cloudflare_zone }}" \
-             --region "{{ region }}" \
-             --apiAddr 0.0.0.0:50051 \
-             --httpAddr 0.0.0.0:38001 \
-             --notifyAddrs {{ controller_hostname }}:37001 \
-             --vaultAddr "{{ vault_address }}" \
-             --useVaultPki \
-             --deploymentTag "{{ deployment_tag_override | default(deploy_environ) }}" \
-             --locverurl "{{ locver_url }}" \
-             --carrier "{{ dme_carrier }}" \
-             --cloudletKey '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}' \
-             --toksrvurl "{{ toksrv_url }}" \
-             -d locapi,dmedb,dmereq,notify
+         - "dme-server"
+         - "--commonName"
+         - "{{ dme_dns }}.{{ cloudflare_zone }}"
+         - "--region"
+         - "{{ region }}"
+         - "--apiAddr"
+         - "0.0.0.0:50051"
+         - "--httpAddr"
+         - "0.0.0.0:38001"
+         - "--notifyAddrs"
+         - "{{ controller_hostname }}:{{ controller_notify_port }}"
+         - "--vaultAddr"
+         - "{{ vault_address }}"
+         - "--useVaultPki"
+         - "--deploymentTag"
+         - "{{ deployment_tag_override | default(deploy_environ) }}"
+         - "--locverurl"
+         - "{{ locver_url }}"
+         - "--carrier"
+         - "{{ dme_carrier }}"
+         - "--cloudletKey"
+         - '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}'
+         - "--toksrvurl"
+         - "{{ toksrv_url }}"
+         - "-d"
+         - "locapi,dmedb,dmereq,notify"
         env:
          - name: LOCAPI_USER
            value: "{{ locapi_user }}"

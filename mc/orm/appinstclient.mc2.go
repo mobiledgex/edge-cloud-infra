@@ -4,18 +4,18 @@
 package orm
 
 import (
-	"context"
 	fmt "fmt"
 	_ "github.com/gogo/googleapis/google/api"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	_ "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"io"
 	math "math"
 )
 
@@ -27,82 +27,43 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func ShowAppInstClient(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionAppInstClientKey{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.AppInstClientKey.GetKey().GetTags())
 	span.SetTag("org", in.AppInstClientKey.AppInstKey.AppKey.Organization)
 
-	err = ShowAppInstClientStream(ctx, rc, &in.AppInstClientKey, func(res *edgeproto.AppInstClient) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func ShowAppInstClientStream(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstClientKey, cb func(res *edgeproto.AppInstClient) error) error {
+	obj := &in.AppInstClientKey
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.AppInstKey.AppKey.Organization,
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, obj.AppInstKey.AppKey.Organization,
 			ResourceAppAnalytics, ActionView); err != nil {
 			return err
 		}
 	}
-	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
+
+	cb := func(res *edgeproto.AppInstClient) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
 	}
-	api := edgeproto.NewAppInstClientApiClient(rc.conn)
-	stream, err := api.ShowAppInstClient(ctx, obj)
+	err = ctrlclient.ShowAppInstClientStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
 	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
-	}
 	return nil
-}
-
-func ShowAppInstClientObj(ctx context.Context, rc *RegionContext, obj *edgeproto.AppInstClientKey) ([]edgeproto.AppInstClient, error) {
-	arr := []edgeproto.AppInstClient{}
-	err := ShowAppInstClientStream(ctx, rc, obj, func(res *edgeproto.AppInstClient) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
 }

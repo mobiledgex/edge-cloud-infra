@@ -39,7 +39,8 @@ RUN apt-get update && apt-get install -y \
 	tzdata \
 	unzip \
 	vim-tiny \
-	wget
+	wget \
+	jq
 
 # Turn off auto-upgrades
 RUN sed -i 's/"1"/"0"/' /etc/apt/apt.conf.d/20auto-upgrades
@@ -56,7 +57,7 @@ RUN apt-get update && apt-get install -y \
 	azure-cli=2.0.75-1~bionic \
 	google-cloud-sdk=267.0.0-0 \
 	kubectl=1.16.2-00 \
-	qemu-utils=1:2.11+dfsg-1ubuntu7.36
+	qemu-utils=1:2.11+dfsg-1ubuntu7.38
 
 COPY --from=python /python/ /
 
@@ -64,6 +65,12 @@ COPY --from=python /python/ /
 RUN curl -sL https://github.com/vmware/govmomi/releases/download/v0.23.0/govc_linux_amd64.gz \
 	| gunzip >/usr/local/bin/govc \
 	&& chmod ug+rx /usr/local/bin/govc
+
+## VCD CLI
+RUN curl -sL -u apt:mobiledgex -O "https://artifactory.mobiledgex.net:443/artifactory/downloads/vcd/vcd-cli_24.0.1-1_amd64.deb" \
+  && dpkg -i vcd-cli_24.0.1-1_amd64.deb \
+  && export LC_ALL=C.UTF-8 \
+  && export LANG=C.UTF-8
 
 ## AWS CLI 
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \

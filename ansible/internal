@@ -25,3 +25,12 @@ chef.mobiledgex.net
 
 [monitor]
 monitor.mobiledgex.net
+
+[teleport]
+teleport.mobiledgex.net
+
+[trivy]
+trivy.mobiledgex.net
+
+[gvm]
+gvm.mobiledgex.net

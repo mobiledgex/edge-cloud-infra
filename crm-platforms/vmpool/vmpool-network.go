@@ -18,10 +18,14 @@ func (o *VMPoolPlatform) GetInternalPortPolicy() vmlayer.InternalPortAttachPolic
 	return vmlayer.AttachPortNotSupported
 }
 
-func (o *VMPoolPlatform) ValidateAdditionalNetworks(ctx context.Context, additionalNets []string) error {
+func (o *VMPoolPlatform) ValidateAdditionalNetworks(ctx context.Context, additionalNets map[string]vmlayer.NetworkType) error {
 	return fmt.Errorf("Additional networks not supported in VMPool cloudlets")
 }
 
 func (v *VMPoolPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egressRestricted bool, TrustPolicy *edgeproto.TrustPolicy, rootlbClients map[string]ssh.Client, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
 	return nil
+}
+
+func (v *VMPoolPlatform) ConfigureTrustPolicyExceptionSecurityRules(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, rootLbClients map[string]ssh.Client, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
+	return fmt.Errorf("Platform not supported for TrustPolicyException SecurityRules")
 }

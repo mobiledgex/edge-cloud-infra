@@ -14,6 +14,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/fake"
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/redundancy"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/integration/process"
@@ -26,25 +27,43 @@ type Platform struct {
 	mux    sync.Mutex
 }
 
-func (s *Platform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, updateCallback edgeproto.CacheUpdateCallback) error {
+func (s *Platform) InitCommon(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
 	s.envoys = make(map[edgeproto.AppInstKey]*exec.Cmd)
-	return s.Platform.Init(ctx, platformConfig, caches, updateCallback)
+	return s.Platform.InitCommon(ctx, platformConfig, caches, haMgr, updateCallback)
 }
 
-func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
-	err := s.Platform.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
+func (s *Platform) InitHAConditional(ctx context.Context, platformConfig *platform.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
+	return s.Platform.InitHAConditional(ctx, platformConfig, updateCallback)
+}
+
+func (s *Platform) GetInitHAConditionalCompatibilityVersion(ctx context.Context) string {
+	return "fakeinfra-1.0"
+}
+
+func (s *Platform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
+	cloudletResourcesCreated, err := s.Platform.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
 	if err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
 	if err = ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback); err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
-	return CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
+	if err = CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback); err != nil {
+		return cloudletResourcesCreated, err
+	}
+	return cloudletResourcesCreated, nil
 }
 
 func (s *Platform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	err := s.Platform.DeleteCloudlet(ctx, cloudlet, pfConfig, caches, accessApi, updateCallback)
 	if err != nil {
+		return err
+	}
+	// Cloudlet prometheus needs to be stopped when Shepherd is stopped,
+	// otherwise it can erroneously trigger alerts during e2e-tests, when
+	// it is unable to scrape Shepherd.
+	log.SpanLog(ctx, log.DebugLevelApi, "Stopping Cloudlet Prometheus")
+	if err := intprocess.StopCloudletPrometheus(ctx); err != nil {
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
@@ -61,7 +80,7 @@ func CloudletPrometheusStartup(ctx context.Context, cloudlet *edgeproto.Cloudlet
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Starting Cloudlet Monitoring")
-	return intprocess.StartCloudletPrometheus(ctx, cloudlet, caches.SettingsCache.Singular())
+	return intprocess.StartCloudletPrometheus(ctx, pfConfig.ThanosRecvAddr, cloudlet, caches.SettingsCache.Singular())
 }
 
 func ShepherdStartup(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -101,8 +120,12 @@ func (s *Platform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.Clu
 
 		args := []string{
 			"--sockfile", envoySock,
-			"--cluster", clusterInst.Key.ClusterKey.Name,
 		}
+		for _, port := range appInst.MappedPorts {
+			args = append(args, "--port")
+			args = append(args, fmt.Sprintf("%d", port.InternalPort))
+		}
+
 		log.SpanLog(ctx, log.DebugLevelInfra, "start fake_envoy_exporter", "AppInst", appInst.Key)
 		cmd, err := process.StartLocal(name, "fake_envoy_exporter", args, nil, envoyLog)
 		if err != nil {

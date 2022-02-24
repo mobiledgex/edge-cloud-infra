@@ -27,11 +27,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
-var MaxDockerSeedWait = 1 * time.Minute
-
-var qcowConvertTimeout = 15 * time.Minute
-
-var FileDownloadDir = "/var/tmp/"
+const (
+	MaxDockerSeedWait                   = 1 * time.Minute
+	qcowConvertTimeout                  = 15 * time.Minute
+	FileDownloadDir                     = "/var/tmp/"
+	cleanupNonVMAppinstRetryWaitSeconds = 10
+	cleanupVMAppinstRetryWaitSeconds    = 60
+)
 
 type ProxyDnsSecOpts struct {
 	AddProxy              bool
@@ -53,7 +55,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	if err != nil {
 		return &orchVals, err
 	}
-	objName := cloudcommon.GetAppFQN(&app.Key)
+	objName := appInst.UniqueId
 	var imageInfo infracommon.ImageInfo
 	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
 	imageInfo.LocalImageName = imageName + "-" + md5Sum
@@ -71,12 +73,10 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	if err != nil {
 		return &orchVals, err
 	}
-
 	err = v.VMProvider.AddImageIfNotPresent(ctx, &imageInfo, updateCallback)
 	if err != nil {
 		return &orchVals, err
 	}
-
 	deploymentVars := crmutil.DeploymentReplaceVars{
 		Deployment: crmutil.CrmReplaceVars{
 			CloudletName: k8smgmt.NormalizeName(appInst.Key.ClusterInstKey.CloudletKey.Name),
@@ -90,11 +90,13 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	var vms []*VMRequestSpec
 	orchVals.externalServerName = objName
 
-	orchVals.lbName = cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
+	orchVals.lbName = appInst.Uri
 	orchVals.externalServerName = orchVals.lbName
 	orchVals.newSubnetName = objName + "-subnet"
 	tags := v.GetChefClusterTags(appInst.ClusterInstKey(), cloudcommon.VMTypeRootLB)
-	lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, tags, updateCallback)
+	nets := make(map[string]NetworkType)
+	routes := make(map[string][]edgeproto.Route)
+	lbVm, err := v.GetVMSpecForRootLB(ctx, orchVals.lbName, orchVals.newSubnetName, tags, nets, routes, updateCallback)
 	if err != nil {
 		return &orchVals, err
 	}
@@ -112,7 +114,7 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 		WithSubnetConnection(orchVals.newSubnetName),
 		WithDeploymentManifest(app.DeploymentManifest),
 		WithCommand(app.Command),
-		WithImageFolder(cloudcommon.GetAppFQN(&app.Key)),
+		WithImageFolder(appInst.UniqueId),
 		WithVmAppOsType(app.VmAppOsType),
 	)
 	if err != nil {
@@ -172,14 +174,16 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 		setupStage := v.VMProvider.GetGPUSetupStage(ctx)
-		if appInst.OptRes == "gpu" && setupStage == AppInstStage {
+		if appInst.OptRes == "gpu" && !cloudcommon.IsSideCarApp(app) && setupStage == AppInstStage {
 			// setup GPU drivers
 			err = v.setupGPUDrivers(ctx, client, clusterInst, updateCallback, ActionCreate)
 			if err != nil {
 				return fmt.Errorf("failed to install GPU drivers on appInst cluster VMs: %v", err)
 			}
-			// setup GPU operator helm repo
-			v.manageGPUOperator(ctx, client, clusterInst, updateCallback, ActionCreate)
+			if clusterInst.Deployment == cloudcommon.DeploymentTypeKubernetes {
+				// setup GPU operator helm repo
+				v.manageGPUOperator(ctx, client, clusterInst, updateCallback, ActionCreate)
+			}
 		}
 	}
 
@@ -195,6 +199,10 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
+		if err != nil {
+			return err
+		}
+		err = k8smgmt.CreateAllNamespaces(ctx, client, names)
 		if err != nil {
 			return err
 		}
@@ -248,7 +256,25 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				appWaitChan <- ""
 			}
 		}()
-
+		useMetalLb := v.VMProperties.GetUsesMetalLb()
+		patchIp := ""
+		if useMetalLb {
+			// generally MetalLB should already be installed, but if the cluster is pre-existing it is
+			// possible that the install was not yet done
+			lbIpRange, err := v.VMProperties.GetMetalLBIp3rdOctetRangeFromMasterIp(ctx, masterIP.ExternalAddr)
+			if err != nil {
+				return err
+			}
+			if err := infracommon.InstallAndConfigMetalLbIfNotInstalled(ctx, client, clusterInst, lbIpRange); err != nil {
+				return err
+			}
+			err = k8smgmt.PopulateAppInstLoadBalancerIps(ctx, client, names, appInst)
+			if err != nil {
+				return err
+			}
+		} else {
+			patchIp = masterIP.ExternalAddr
+		}
 		features := v.VMProvider.GetFeatures()
 		// set up DNS
 		var rootLBIPaddr *ServerIP
@@ -256,8 +282,8 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err == nil {
 			getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 				action := infracommon.DnsSvcAction{}
-				action.PatchKube = true
-				action.PatchIP = masterIP.ExternalAddr
+				action.PatchKube = !useMetalLb
+				action.PatchIP = patchIp
 				action.ExternalIP = rootLBIPaddr.ExternalAddr
 				// Should only add DNS for external ports
 				// and if ips are per service.
@@ -278,7 +304,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 					Ports:       appInst.MappedPorts,
 					DestIP:      infracommon.DestIPUnspecified,
 				}
-				err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerNetwork("host"), proxy.WithMetricIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
+				err = v.VMProperties.CommonPf.AddProxySecurityRulesAndPatchDNS(ctx, client, names, app, appInst, getDnsAction, v.VMProvider.WhitelistSecurityRules, &wlParams, cloudcommon.IPAddrAllInterfaces, masterIP.ExternalAddr, ops, proxy.WithDockerNetwork("host"), proxy.WithMetricEndpoint(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
 			}
 		}
 
@@ -290,7 +316,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 	case cloudcommon.DeploymentTypeVM:
-		objName := cloudcommon.GetAppFQN(&app.Key)
+		objName := appInst.UniqueId
 		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, updateCallback)
 		if err != nil {
 			return err
@@ -301,7 +327,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 		updateCallback(edgeproto.UpdateTask, "Setting Up Load Balancer")
 		pp := edgeproto.TrustPolicy{}
-		err = v.SetupRootLB(ctx, orchVals.lbName, orchVals.lbName, &clusterInst.Key.CloudletKey, &pp, false, updateCallback)
+		err = v.SetupRootLB(ctx, orchVals.lbName, orchVals.lbName, &clusterInst.Key.CloudletKey, &pp, updateCallback)
 		if err != nil {
 			return err
 		}
@@ -310,14 +336,14 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		if err != nil {
 			return err
 		}
-		proxycerts.NewDedicatedLB(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
+		proxycerts.SetupTLSCerts(ctx, &appInst.Key.ClusterInstKey.CloudletKey, orchVals.lbName, client, v.VMProperties.CommonPf.PlatformConfig.NodeMgr)
 		// clusterInst is empty but that is ok here
 		names, err := k8smgmt.GetKubeNames(clusterInst, app, appInst)
 		if err != nil {
 			return fmt.Errorf("get kube names failed: %s", err)
 		}
 		proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
-		proxyOps = append(proxyOps, proxy.WithMetricIP(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
+		proxyOps = append(proxyOps, proxy.WithMetricEndpoint(infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)))
 
 		getDnsAction := func(svc v1.Service) (*infracommon.DnsSvcAction, error) {
 			action := infracommon.DnsSvcAction{}
@@ -356,7 +382,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 				return err
 			}
 			attachPort := v.VMProvider.GetInternalPortPolicy() == AttachPortAfterCreate
-			internalIfName, err = v.AttachAndEnableRootLBInterface(ctx, client, orchVals.lbName, attachPort, orchVals.newSubnetName, GetPortName(orchVals.lbName, orchVals.newSubnetName), gw)
+			internalIfName, err = v.AttachAndEnableRootLBInterface(ctx, client, orchVals.lbName, attachPort, orchVals.newSubnetName, GetPortName(orchVals.lbName, orchVals.newSubnetName), gw, ActionCreate)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "AttachAndEnableRootLBInterface failed", "err", err)
 				return err
@@ -434,7 +460,7 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		var proxyOps []proxy.Op
 		loopbackIp := infracommon.GetUniqueLoopbackIp(ctx, appInst.MappedPorts)
 		proxyOps = append(proxyOps, proxy.WithDockerNetwork("host"))
-		proxyOps = append(proxyOps, proxy.WithMetricIP(loopbackIp))
+		proxyOps = append(proxyOps, proxy.WithMetricEndpoint(loopbackIp))
 		ops := infracommon.ProxyDnsSecOpts{AddProxy: true, AddDnsAndPatchKubeSvc: true, AddSecurityRules: true}
 		wlParams := infracommon.WhiteListParams{
 			SecGrpName:  infracommon.GetServerSecurityGroupName(rootLBName),
@@ -454,7 +480,33 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 	return err
 }
 
-func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) cleanupAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "cleanupAppInst", "appinst", appInst)
+
+	var err error
+	retryTimeout := cleanupNonVMAppinstRetryWaitSeconds
+	if app.Deployment == cloudcommon.DeploymentTypeVM {
+		retryTimeout = cleanupVMAppinstRetryWaitSeconds
+	}
+	for tryNum := 0; tryNum <= v.VMProperties.NumCleanupRetries; tryNum++ {
+		err = v.cleanupAppInstInternal(ctx, clusterInst, app, appInst, updateCallback)
+		if err == nil {
+			return nil
+		}
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to cleanup appinst", "appInst", appInst, "tryNum", tryNum, "retries", v.VMProperties.NumCleanupRetries, "err", err)
+		if tryNum < v.VMProperties.NumCleanupRetries {
+			log.SpanLog(ctx, log.DebugLevelInfra, "sleeping and retrying cleanup", "retryTimeout", retryTimeout)
+			time.Sleep(time.Second * time.Duration(retryTimeout))
+			updateCallback(edgeproto.UpdateTask, "Retrying cleanup")
+		}
+	}
+	v.VMProperties.CommonPf.PlatformConfig.NodeMgr.Event(ctx, "Failed to clean up appInst", app.Key.Organization, appInst.Key.GetTags(), err)
+	return fmt.Errorf("Failed to cleanup appinst - %v", err)
+}
+
+func (v *VMPlatform) cleanupAppInstInternal(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "cleanupAppInstInternal", "appinst", appInst)
+
 	chefClient := v.VMProperties.GetChefClient()
 	if chefClient == nil {
 		return fmt.Errorf("Chef client is not initialized")
@@ -553,19 +605,18 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 		}
 
 	case cloudcommon.DeploymentTypeVM:
-		objName := cloudcommon.GetAppFQN(&app.Key)
+		objName := appInst.UniqueId
 		log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM", "stackName", objName)
 		err := v.VMProvider.DeleteVMs(ctx, objName)
-		if err != nil {
+		if err != nil && err.Error() != ServerDoesNotExistError {
 			return fmt.Errorf("DeleteVMAppInst error: %v", err)
 		}
-		lbName := cloudcommon.GetVMAppFQDN(&appInst.Key, &appInst.Key.ClusterInstKey.CloudletKey, v.VMProperties.CommonPf.PlatformConfig.AppDNSRoot)
+		lbName := appInst.Uri
 		clientName := v.GetChefClientName(lbName)
 		err = chefmgmt.ChefClientDelete(ctx, chefClient, clientName)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete client from Chef Server", "clientName", clientName, "err", err)
 		}
-		proxycerts.RemoveDedicatedLB(ctx, lbName)
 		DeleteServerIpFromCache(ctx, lbName)
 
 		imgName, err := cloudcommon.GetFileName(app.ImagePath)
@@ -579,9 +630,9 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 			localImageName = localImageName + "-" + appInst.Flavor.Name
 		}
 		if v.VMProperties.GetVMAppCleanupImageOnDelete() {
-			err = v.VMProvider.DeleteImage(ctx, cloudcommon.GetAppFQN(&app.Key), localImageName)
+			err = v.VMProvider.DeleteImage(ctx, appInst.UniqueId, localImageName)
 			if err != nil {
-				log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete image", "localImageName", localImageName)
+				log.SpanLog(ctx, log.DebugLevelInfra, "cannot delete image", "folder", appInst.UniqueId, "localImageName", localImageName)
 			}
 		} else {
 			log.SpanLog(ctx, log.DebugLevelInfra, "skipping image cleanup due to MEX_VM_APP_IMAGE_CLEANUP_ON_DELETE setting")
@@ -657,6 +708,11 @@ func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.C
 
 }
 
+func (v *VMPlatform) DeleteAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, updateCallback edgeproto.CacheUpdateCallback) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteAppInst", "appInst", appInst)
+	return v.cleanupAppInst(ctx, clusterInst, app, appInst, updateCallback)
+}
+
 func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.ClusterInst, app *edgeproto.App, appInst *edgeproto.AppInst, flavor *edgeproto.Flavor, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	var err error
@@ -701,6 +757,10 @@ func (v *VMPlatform) UpdateAppInst(ctx context.Context, clusterInst *edgeproto.C
 		for _, imagePath := range names.ImagePaths {
 			// secret may have changed, so delete and re-create
 			err = infracommon.DeleteDockerRegistrySecret(ctx, client, kconf, imagePath, v.VMProperties.CommonPf.PlatformConfig.AccessApi, names, nil)
+			if err != nil {
+				return err
+			}
+			err = k8smgmt.CreateAllNamespaces(ctx, client, names)
 			if err != nil {
 				return err
 			}

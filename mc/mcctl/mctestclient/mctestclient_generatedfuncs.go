@@ -31,6 +31,76 @@ func (s *Client) ShowAlert(uri string, token string, in *ormapi.RegionAlert) ([]
 	return out, rundata.RetStatus, rundata.RetError
 }
 
+// Generating group AlertPolicy
+
+func (s *Client) CreateAlertPolicy(uri string, token string, in *ormapi.RegionAlertPolicy) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateAlertPolicy")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteAlertPolicy(uri string, token string, in *ormapi.RegionAlertPolicy) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteAlertPolicy")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateAlertPolicy(uri string, token string, in *ormapi.RegionAlertPolicy) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
+	if err != nil {
+		return nil, 0, err
+	}
+	rundata.In = mm
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdateAlertPolicy")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowAlertPolicy(uri string, token string, in *ormapi.RegionAlertPolicy) ([]edgeproto.AlertPolicy, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.AlertPolicy
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowAlertPolicy")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
 // Generating group AlertReceiver
 
 func (s *Client) CreateAlertReceiver(uri string, token string, in *ormapi.AlertReceiver) (int, error) {
@@ -212,7 +282,7 @@ func (s *Client) RemoveAppAutoProvPolicy(uri string, token string, in *ormapi.Re
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) AddAppUserDefinedAlert(uri string, token string, in *ormapi.RegionAppUserDefinedAlert) (*edgeproto.Result, int, error) {
+func (s *Client) AddAppAlertPolicy(uri string, token string, in *ormapi.RegionAppAlertPolicy) (*edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -220,7 +290,7 @@ func (s *Client) AddAppUserDefinedAlert(uri string, token string, in *ormapi.Reg
 	var out edgeproto.Result
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("AddAppUserDefinedAlert")
+	apiCmd := ormctl.MustGetCommand("AddAppAlertPolicy")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
@@ -228,7 +298,7 @@ func (s *Client) AddAppUserDefinedAlert(uri string, token string, in *ormapi.Reg
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
-func (s *Client) RemoveAppUserDefinedAlert(uri string, token string, in *ormapi.RegionAppUserDefinedAlert) (*edgeproto.Result, int, error) {
+func (s *Client) RemoveAppAlertPolicy(uri string, token string, in *ormapi.RegionAppAlertPolicy) (*edgeproto.Result, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
 	rundata.Token = token
@@ -236,7 +306,7 @@ func (s *Client) RemoveAppUserDefinedAlert(uri string, token string, in *ormapi.
 	var out edgeproto.Result
 	rundata.Out = &out
 
-	apiCmd := ormctl.MustGetCommand("RemoveAppUserDefinedAlert")
+	apiCmd := ormctl.MustGetCommand("RemoveAppAlertPolicy")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
@@ -968,6 +1038,38 @@ func (s *Client) RemoveCloudletResMapping(uri string, token string, in *ormapi.R
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) AddCloudletAllianceOrg(uri string, token string, in *ormapi.RegionCloudletAllianceOrg) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("AddCloudletAllianceOrg")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) RemoveCloudletAllianceOrg(uri string, token string, in *ormapi.RegionCloudletAllianceOrg) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("RemoveCloudletAllianceOrg")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
 func (s *Client) FindFlavorMatch(uri string, token string, in *ormapi.RegionFlavorMatch) (*edgeproto.FlavorMatch, int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
@@ -993,6 +1095,22 @@ func (s *Client) ShowFlavorsForCloudlet(uri string, token string, in *ormapi.Reg
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("ShowFlavorsForCloudlet")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) GetOrganizationsOnCloudlet(uri string, token string, in *ormapi.RegionCloudletKey) ([]edgeproto.Organization, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.Organization
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("GetOrganizationsOnCloudlet")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
@@ -1500,6 +1618,17 @@ func (s *Client) CreateController(uri string, token string, in *ormapi.Controlle
 	return rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) UpdateController(uri string, token string, in *cli.MapData) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("UpdateController")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
 func (s *Client) DeleteController(uri string, token string, in *ormapi.Controller) (int, error) {
 	rundata := RunData{}
 	rundata.Uri = uri
@@ -1789,6 +1918,332 @@ func (s *Client) AccessCloudlet(uri string, token string, in *ormapi.RegionExecR
 		return nil, rundata.RetStatus, rundata.RetError
 	}
 	return &out, rundata.RetStatus, rundata.RetError
+}
+
+// Generating group Federation
+
+func (s *Client) CreateFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) SetPartnerFederationAPIKey(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("SetPartnerFederationAPIKey")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) RegisterFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("RegisterFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeregisterFederation(uri string, token string, in *ormapi.Federation) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeregisterFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowFederation(uri string, token string, in *cli.MapData) ([]ormapi.Federation, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.Federation
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowFederation")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+// Generating group Federator
+
+func (s *Client) CreateSelfFederator(uri string, token string, in *ormapi.Federator) (*ormapi.Federator, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Federator
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateSelfFederator")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateSelfFederator(uri string, token string, in *cli.MapData) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdateSelfFederator")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteSelfFederator(uri string, token string, in *ormapi.Federator) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteSelfFederator")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowSelfFederator(uri string, token string, in *cli.MapData) ([]ormapi.Federator, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.Federator
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowSelfFederator")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) GenerateSelfFederatorAPIKey(uri string, token string, in *ormapi.Federator) (*ormapi.Federator, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Federator
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("GenerateSelfFederatorAPIKey")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+// Generating group FederatorZone
+
+func (s *Client) CreateSelfFederatorZone(uri string, token string, in *ormapi.FederatorZone) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateSelfFederatorZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteSelfFederatorZone(uri string, token string, in *ormapi.FederatorZone) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteSelfFederatorZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowSelfFederatorZone(uri string, token string, in *cli.MapData) ([]ormapi.FederatorZone, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.FederatorZone
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowSelfFederatorZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShareSelfFederatorZone(uri string, token string, in *ormapi.FederatedSelfZone) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShareSelfFederatorZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UnshareSelfFederatorZone(uri string, token string, in *ormapi.FederatedSelfZone) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UnshareSelfFederatorZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) RegisterPartnerFederatorZone(uri string, token string, in *ormapi.FederatedZoneRegRequest) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("RegisterPartnerFederatorZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeRegisterPartnerFederatorZone(uri string, token string, in *ormapi.FederatedZoneRegRequest) (*ormapi.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeRegisterPartnerFederatorZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowFederatedSelfZone(uri string, token string, in *cli.MapData) ([]ormapi.FederatedSelfZone, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.FederatedSelfZone
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowFederatedSelfZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowFederatedPartnerZone(uri string, token string, in *cli.MapData) ([]ormapi.FederatedPartnerZone, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.FederatedPartnerZone
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowFederatedPartnerZone")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
 }
 
 // Generating group Flavor
@@ -2125,6 +2580,92 @@ func (s *Client) ShowClientCloudletUsageMetrics(uri string, token string, in *or
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) ShowAppV2Metrics(uri string, token string, in *ormapi.RegionCustomAppMetrics) (*ormapi.AllMetrics, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out ormapi.AllMetrics
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowAppV2Metrics")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+// Generating group Network
+
+func (s *Client) CreateNetwork(uri string, token string, in *ormapi.RegionNetwork) ([]edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateNetwork")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteNetwork(uri string, token string, in *ormapi.RegionNetwork) ([]edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteNetwork")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateNetwork(uri string, token string, in *ormapi.RegionNetwork) ([]edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
+	if err != nil {
+		return nil, 0, err
+	}
+	rundata.In = mm
+	var out []edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdateNetwork")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowNetwork(uri string, token string, in *ormapi.RegionNetwork) ([]edgeproto.Network, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.Network
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowNetwork")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
 // Generating group Node
 
 func (s *Client) ShowNode(uri string, token string, in *ormapi.RegionNode) ([]edgeproto.Node, int, error) {
@@ -2273,6 +2814,276 @@ func (s *Client) ShowOrgCloudletInfo(uri string, token string, in *ormapi.OrgClo
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("ShowOrgCloudletInfo")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+// Generating group RateLimitSettings
+
+func (s *Client) ShowRateLimitSettings(uri string, token string, in *ormapi.RegionRateLimitSettings) ([]edgeproto.RateLimitSettings, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.RateLimitSettings
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) CreateFlowRateLimitSettings(uri string, token string, in *ormapi.RegionFlowRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateFlowRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateFlowRateLimitSettings(uri string, token string, in *ormapi.RegionFlowRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
+	if err != nil {
+		return nil, 0, err
+	}
+	rundata.In = mm
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdateFlowRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteFlowRateLimitSettings(uri string, token string, in *ormapi.RegionFlowRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteFlowRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowFlowRateLimitSettings(uri string, token string, in *ormapi.RegionFlowRateLimitSettings) ([]edgeproto.FlowRateLimitSettings, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.FlowRateLimitSettings
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowFlowRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) CreateMaxReqsRateLimitSettings(uri string, token string, in *ormapi.RegionMaxReqsRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateMaxReqsRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateMaxReqsRateLimitSettings(uri string, token string, in *ormapi.RegionMaxReqsRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
+	if err != nil {
+		return nil, 0, err
+	}
+	rundata.In = mm
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdateMaxReqsRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteMaxReqsRateLimitSettings(uri string, token string, in *ormapi.RegionMaxReqsRateLimitSettings) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteMaxReqsRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowMaxReqsRateLimitSettings(uri string, token string, in *ormapi.RegionMaxReqsRateLimitSettings) ([]edgeproto.MaxReqsRateLimitSettings, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.MaxReqsRateLimitSettings
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowMaxReqsRateLimitSettings")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+// Generating group RateLimitSettingsMc
+
+func (s *Client) ShowRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitSettings) ([]ormapi.McRateLimitSettings, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.McRateLimitSettings
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) CreateFlowRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitFlowSettings) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("CreateFlowRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateFlowRateLimitSettingsMc(uri string, token string, in *cli.MapData) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("UpdateFlowRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteFlowRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitFlowSettings) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("DeleteFlowRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowFlowRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitFlowSettings) ([]ormapi.McRateLimitFlowSettings, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.McRateLimitFlowSettings
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowFlowRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) CreateMaxReqsRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitMaxReqsSettings) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("CreateMaxReqsRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateMaxReqsRateLimitSettingsMc(uri string, token string, in *cli.MapData) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("UpdateMaxReqsRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteMaxReqsRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitMaxReqsSettings) (int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+
+	apiCmd := ormctl.MustGetCommand("DeleteMaxReqsRateLimitSettingsMc")
+	s.ClientRun.Run(apiCmd, &rundata)
+	return rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowMaxReqsRateLimitSettingsMc(uri string, token string, in *ormapi.McRateLimitMaxReqsSettings) ([]ormapi.McRateLimitMaxReqsSettings, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []ormapi.McRateLimitMaxReqsSettings
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowMaxReqsRateLimitSettingsMc")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError
@@ -2856,6 +3667,76 @@ func (s *Client) ShowTrustPolicy(uri string, token string, in *ormapi.RegionTrus
 	return out, rundata.RetStatus, rundata.RetError
 }
 
+// Generating group TrustPolicyException
+
+func (s *Client) CreateTrustPolicyException(uri string, token string, in *ormapi.RegionTrustPolicyException) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("CreateTrustPolicyException")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) UpdateTrustPolicyException(uri string, token string, in *ormapi.RegionTrustPolicyException) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
+	if err != nil {
+		return nil, 0, err
+	}
+	rundata.In = mm
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("UpdateTrustPolicyException")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) DeleteTrustPolicyException(uri string, token string, in *ormapi.RegionTrustPolicyException) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("DeleteTrustPolicyException")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) ShowTrustPolicyException(uri string, token string, in *ormapi.RegionTrustPolicyException) ([]edgeproto.TrustPolicyException, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out []edgeproto.TrustPolicyException
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("ShowTrustPolicyException")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return out, rundata.RetStatus, rundata.RetError
+}
+
 // Generating group Usage
 
 func (s *Client) ShowAppUsage(uri string, token string, in *ormapi.RegionAppInstUsage) (*ormapi.AllMetrics, int, error) {
@@ -3068,76 +3949,6 @@ func (s *Client) ShowUserApiKey(uri string, token string, in *ormapi.CreateUserA
 	rundata.Out = &out
 
 	apiCmd := ormctl.MustGetCommand("ShowUserApiKey")
-	s.ClientRun.Run(apiCmd, &rundata)
-	if rundata.RetError != nil {
-		return nil, rundata.RetStatus, rundata.RetError
-	}
-	return out, rundata.RetStatus, rundata.RetError
-}
-
-// Generating group UserAlert
-
-func (s *Client) CreateUserAlert(uri string, token string, in *ormapi.RegionUserAlert) (*edgeproto.Result, int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	rundata.In = in
-	var out edgeproto.Result
-	rundata.Out = &out
-
-	apiCmd := ormctl.MustGetCommand("CreateUserAlert")
-	s.ClientRun.Run(apiCmd, &rundata)
-	if rundata.RetError != nil {
-		return nil, rundata.RetStatus, rundata.RetError
-	}
-	return &out, rundata.RetStatus, rundata.RetError
-}
-
-func (s *Client) DeleteUserAlert(uri string, token string, in *ormapi.RegionUserAlert) (*edgeproto.Result, int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	rundata.In = in
-	var out edgeproto.Result
-	rundata.Out = &out
-
-	apiCmd := ormctl.MustGetCommand("DeleteUserAlert")
-	s.ClientRun.Run(apiCmd, &rundata)
-	if rundata.RetError != nil {
-		return nil, rundata.RetStatus, rundata.RetError
-	}
-	return &out, rundata.RetStatus, rundata.RetError
-}
-
-func (s *Client) UpdateUserAlert(uri string, token string, in *ormapi.RegionUserAlert) (*edgeproto.Result, int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	mm, err := ormutil.GetRegionObjStructMapForUpdate(in)
-	if err != nil {
-		return nil, 0, err
-	}
-	rundata.In = mm
-	var out edgeproto.Result
-	rundata.Out = &out
-
-	apiCmd := ormctl.MustGetCommand("UpdateUserAlert")
-	s.ClientRun.Run(apiCmd, &rundata)
-	if rundata.RetError != nil {
-		return nil, rundata.RetStatus, rundata.RetError
-	}
-	return &out, rundata.RetStatus, rundata.RetError
-}
-
-func (s *Client) ShowUserAlert(uri string, token string, in *ormapi.RegionUserAlert) ([]edgeproto.UserAlert, int, error) {
-	rundata := RunData{}
-	rundata.Uri = uri
-	rundata.Token = token
-	rundata.In = in
-	var out []edgeproto.UserAlert
-	rundata.Out = &out
-
-	apiCmd := ormctl.MustGetCommand("ShowUserAlert")
 	s.ClientRun.Run(apiCmd, &rundata)
 	if rundata.RetError != nil {
 		return nil, rundata.RetStatus, rundata.RetError

@@ -10,7 +10,6 @@ import (
 
 	"github.com/gogo/protobuf/types"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	ssh "github.com/mobiledgex/golang-ssh"
@@ -42,7 +41,13 @@ func (o *OpenstackPlatform) GetServerDetail(ctx context.Context, serverName stri
 func (o *OpenstackPlatform) UpdateServerIPs(ctx context.Context, addresses string, ports []OSPort, serverDetail *vmlayer.ServerDetail) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateServerIPs", "addresses", addresses, "serverDetail", serverDetail, "ports", ports)
 
-	externalNetMap := o.VMProperties.GetExternalNetworks(vmlayer.ExternalNetworkAll)
+	netTypes := []vmlayer.NetworkType{
+		vmlayer.NetworkTypeExternalAdditionalPlatform,
+		vmlayer.NetworkTypeExternalAdditionalRootLb,
+		vmlayer.NetworkTypeExternalAdditionalClusterNode,
+		vmlayer.NetworkTypeExternalPrimary,
+	}
+	externalNetMap := o.VMProperties.GetNetworksByType(ctx, netTypes)
 	its := strings.Split(addresses, ";")
 
 	for _, it := range its {
@@ -153,18 +158,19 @@ func (s *OpenstackPlatform) goGetMetricforId(ctx context.Context, id string, mea
 	return waitChan
 }
 
-func (s *OpenstackPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppInstKey) (*vmlayer.VMMetrics, error) {
-	var Cpu, Mem, Disk, NetSent, NetRecv OSMetricMeasurement
+func (s *OpenstackPlatform) GetVMStats(ctx context.Context, appInst *edgeproto.AppInst) (*vmlayer.VMMetrics, error) {
+	var Cpu, Mem, NetSent, NetRecv OSMetricMeasurement
 	netSentChan := make(chan string)
 	netRecvChan := make(chan string)
-	diskChan := make(chan string)
 	vmMetrics := vmlayer.VMMetrics{}
+	// note disk stats are available via disk.device.usage, but they are useless for our purposes, as they do not reflect
+	// OS usage inside the VM, rather the disk metrics measure the size of various VM files on the datastore
 
-	if key == nil {
-		return &vmMetrics, fmt.Errorf("Nil App passed")
+	if appInst == nil {
+		return &vmMetrics, fmt.Errorf("Nil AppInst passed")
 	}
 
-	server, err := s.GetActiveServerDetails(ctx, cloudcommon.GetAppFQN(&key.AppKey))
+	server, err := s.GetActiveServerDetails(ctx, appInst.UniqueId)
 	if err != nil {
 		return &vmMetrics, err
 	}
@@ -172,16 +178,6 @@ func (s *OpenstackPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppIn
 	// Get a bunch of the results in parallel as it might take a bit of time
 	cpuChan := s.goGetMetricforId(ctx, server.ID, "cpu_util", &Cpu)
 	memChan := s.goGetMetricforId(ctx, server.ID, "memory.usage", &Mem)
-
-	// For disk we get all instance_disk type and vda one, that's associated with the instance
-	disk, err := s.OSFindResourceByInstId(ctx, "instance_disk", server.ID, "vda")
-	if err == nil {
-		diskChan = s.goGetMetricforId(ctx, disk.Id, "disk.device.usage", &Disk)
-	} else {
-		go func() {
-			diskChan <- "Unavailable"
-		}()
-	}
 
 	// For network we try to get the id of the instance_network_interface for an instance
 	netIf, err := s.OSFindResourceByInstId(ctx, "instance_network_interface", server.ID, "")
@@ -196,7 +192,6 @@ func (s *OpenstackPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppIn
 	}
 	cpuErr := <-cpuChan
 	memErr := <-memChan
-	diskErr := <-diskChan
 	netInErr := <-netRecvChan
 	netOutErr := <-netSentChan
 
@@ -214,13 +209,6 @@ func (s *OpenstackPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppIn
 			// Openstack gives it to us in MB
 			vmMetrics.Mem = uint64(Mem.Value * 1024 * 1024)
 			vmMetrics.MemTS, _ = types.TimestampProto(time)
-		}
-	}
-	if diskErr == "" {
-		time, err := time.Parse(time.RFC3339, Disk.Timestamp)
-		if err == nil {
-			vmMetrics.Disk = uint64(Disk.Value)
-			vmMetrics.DiskTS, _ = types.TimestampProto(time)
 		}
 	}
 	if netInErr == "" {
@@ -241,7 +229,7 @@ func (s *OpenstackPlatform) GetVMStats(ctx context.Context, key *edgeproto.AppIn
 	return &vmMetrics, nil
 }
 
-func (o *OpenstackPlatform) VmAppChangedCallback(ctx context.Context) {
+func (o *OpenstackPlatform) VmAppChangedCallback(ctx context.Context, appInst *edgeproto.AppInst, newState edgeproto.TrackedState) {
 }
 
 // Given pool ranges return total number of available ip addresses
@@ -401,7 +389,13 @@ func (o *OpenstackPlatform) GetServerGroupResources(ctx context.Context, name st
 			Status:      svr.Status,
 			InfraFlavor: svr.Flavor,
 		}
-		externalNetMap := o.VMProperties.GetExternalNetworks(vmlayer.ExternalNetworkAll)
+		netTypes := []vmlayer.NetworkType{
+			vmlayer.NetworkTypeExternalAdditionalPlatform,
+			vmlayer.NetworkTypeExternalAdditionalRootLb,
+			vmlayer.NetworkTypeExternalAdditionalClusterNode,
+			vmlayer.NetworkTypeExternalPrimary,
+		}
+		externalNetMap := o.VMProperties.GetNetworksByType(ctx, netTypes)
 		for _, sip := range sd.Addresses {
 			vmip := edgeproto.IpAddr{}
 			_, isExternal := externalNetMap[sip.Network]

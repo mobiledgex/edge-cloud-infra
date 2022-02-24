@@ -16,10 +16,10 @@ spec:
      name: http
      protocol: TCP
      targetPort: 36001
-   - port: 37001
+   - port: {{ controller_notify_port }}
      name: notify
      protocol: TCP
-     targetPort: 37001
+     targetPort: {{ controller_notify_port }}
    - port: 41001
      name: accesskey
      protocol: TCP

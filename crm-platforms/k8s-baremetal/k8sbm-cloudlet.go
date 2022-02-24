@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/k8smgmt"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform/pc"
 	"github.com/mobiledgex/edge-cloud/util"
 
@@ -59,24 +60,25 @@ func (k *K8sBareMetalPlatform) GetChefClientName(ckey *edgeproto.CloudletKey) st
 	return k.commonPf.DeploymentTag + "-" + k.commonPf.PlatformConfig.Region + "-" + name
 }
 
-func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudlet", "cloudlet", cloudlet)
 
+	cloudletResourcesCreated := false
 	err := k.commonPf.InitCloudletSSHKeys(ctx, accessApi)
 	if err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
 
 	k.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
 	if err := k.commonPf.InitInfraCommon(ctx, k.commonPf.PlatformConfig, k8sbmProps); err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
 
 	// edge-cloud image already contains the certs
 	if pfConfig.TlsCertFile != "" {
 		crtFile, err := infracommon.GetDockerCrtFile(pfConfig.TlsCertFile)
 		if err != nil {
-			return err
+			return cloudletResourcesCreated, err
 		}
 		pfConfig.TlsCertFile = crtFile
 	}
@@ -89,48 +91,58 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 	}
 	chefApi := chefmgmt.ChefApiAccess{}
 
-	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, "platform", &chefApi)
+	// TODO, we should switch bare metal k8s to use k8s chef policy
+	nodeInfo := chefmgmt.ChefNodeInfo{
+		NodeName: "baremetal-controller",
+		NodeType: cloudcommon.VMTypePlatform,
+		Policy:   chefmgmt.ChefPolicyDocker,
+	}
+	chefAttributes, err := chefmgmt.GetChefPlatformAttributes(ctx, cloudlet, pfConfig, &nodeInfo, &chefApi, nil)
 	if err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
 	if k.commonPf.ChefClient == nil {
-		return fmt.Errorf("Chef client is not initialized")
+		return cloudletResourcesCreated, fmt.Errorf("Chef client is not initialized")
 	}
 
 	chefPolicy := chefmgmt.ChefPolicyDocker
 	if cloudlet.Deployment == cloudcommon.DeploymentTypeKubernetes {
 		chefPolicy = chefmgmt.ChefPolicyK8s
 	}
-	cloudlet.ChefClientKey = make(map[string]string)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
-		return fmt.Errorf("Restricted access not yet supported on BareMetal")
+		return cloudletResourcesCreated, fmt.Errorf("Restricted access not yet supported on BareMetal")
 	}
 	clientName := k.GetChefClientName(&cloudlet.Key)
 	chefParams := k.GetChefParams(clientName, "", chefPolicy, chefAttributes)
 
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating Chef Client %s with cloudlet attributes", clientName))
-	clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
-	if err != nil {
-		return err
-	}
-	// Store client key in cloudlet obj
-	cloudlet.ChefClientKey[clientName] = clientKey
 	sshClient, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
 	if err != nil {
-		return fmt.Errorf("Failed to get ssh client to control host: %v", err)
+		return cloudletResourcesCreated, fmt.Errorf("Failed to get ssh client to control host: %v", err)
 	}
 	if pfConfig.CrmAccessPrivateKey != "" {
 		err = pc.WriteFile(sshClient, " /root/accesskey/accesskey.pem", pfConfig.CrmAccessPrivateKey, "accesskey", pc.SudoOn)
 		if err != nil {
-			return fmt.Errorf("Write access key fail: %v", err)
+			return cloudletResourcesCreated, fmt.Errorf("Write access key fail: %v", err)
 		}
 	}
+	// once we get here, we require cleanup on failure because we have accessed the control node
+	cloudletResourcesCreated = true
+
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating Chef Client %s with cloudlet attributes", clientName))
+	clientKey, err := chefmgmt.ChefClientCreate(ctx, k.commonPf.ChefClient, chefParams)
+	if err != nil {
+		return cloudletResourcesCreated, err
+	}
+	// Store client key in cloudlet obj
+	cloudlet.ChefClientKey = make(map[string]string)
+	cloudlet.ChefClientKey[clientName] = clientKey
+
 	// install chef
 	err = k.SetupChefOnServer(ctx, sshClient, clientName, cloudlet, chefParams)
 	if err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
-	return chefmgmt.GetChefRunStatus(ctx, k.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
+	return cloudletResourcesCreated, chefmgmt.GetChefRunStatus(ctx, k.commonPf.ChefClient, clientName, cloudlet, pfConfig, accessApi, updateCallback)
 }
 
 func (k *K8sBareMetalPlatform) SetupChefOnServer(ctx context.Context, sshClient ssh.Client, clientName string, cloudlet *edgeproto.Cloudlet, chefParams *chefmgmt.ServerChefParams) error {
@@ -179,6 +191,14 @@ func (k *K8sBareMetalPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolic
 	return fmt.Errorf("UpdateTrustPolicy TODO")
 }
 
+func (k *K8sBareMetalPlatform) UpdateTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, clusterInstKey *edgeproto.ClusterInstKey) error {
+	return fmt.Errorf("UpdateTrustPolicyException TODO")
+}
+
+func (k *K8sBareMetalPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey, clusterInstKey *edgeproto.ClusterInstKey) error {
+	return fmt.Errorf("DeleteTrustPolicyException TODO")
+}
+
 func (k *K8sBareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudlet")
 	updateCallback(edgeproto.UpdateTask, "Deleting cloudlet")
@@ -196,24 +216,20 @@ func (k *K8sBareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edg
 	}
 
 	updateCallback(edgeproto.UpdateTask, "Deleting Shared RootLB")
-	sharedLbName := k.GetSharedLBName(ctx, &cloudlet.Key)
-	lbInfo, err := k.GetLbInfo(ctx, sshClient, sharedLbName)
+	sharedLbName := cloudlet.RootLbFqdn
+	externalDev := k.GetExternalEthernetInterface()
+	addr, err := infracommon.GetIPAddressFromNetplan(ctx, sshClient, sharedLbName)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "Failed to get shared LB info", "sharedLbName", sharedLbName, "err", err)
+		if strings.Contains(err.Error(), infracommon.NetplanFileNotFound) {
+			log.SpanLog(ctx, log.DebugLevelInfra, "netplan file does not exist", "sharedLbName", sharedLbName)
+		} else {
+			return fmt.Errorf("unexpected error getting ip address from netplan for lb: %s - %v", sharedLbName, err)
+		}
 	} else {
-		externalDev := k.GetExternalEthernetInterface()
-		internalDev := k.GetInternalEthernetInterface()
-		err = k.RemoveIp(ctx, sshClient, lbInfo.ExternalIpAddr, externalDev)
+		err = k.RemoveIp(ctx, sshClient, addr, externalDev, sharedLbName)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.ExternalIpAddr", lbInfo.ExternalIpAddr)
-		}
-		err = k.RemoveIp(ctx, sshClient, lbInfo.InternalIpAddr, internalDev)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "Remove IP Fail", "lbInfo.InternalIpAddr", lbInfo.InternalIpAddr)
-		}
-		err = k.DeleteLbInfo(ctx, sshClient, sharedLbName)
-		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "error deleting lbinfo", "err", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "remove IP failed", "addr", addr, "err", err)
+			return fmt.Errorf("failed to remove shared LB IP: %s - %v", addr, err)
 		}
 	}
 
@@ -225,18 +241,18 @@ func (k *K8sBareMetalPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edg
 			if strings.Contains(err.Error(), "No such container") {
 				log.SpanLog(ctx, log.DebugLevelInfra, "container does not exist", "plat", p)
 			} else {
-				return fmt.Errorf("Error removing platform service: %s - %s - %v", p, out, err)
+				return fmt.Errorf("error removing platform service: %s - %s - %v", p, out, err)
 			}
 		}
 	}
 	// kill chef add other cleanup
-	out, err := sshClient.Output(fmt.Sprintf("sudo systemctl stop chef-client"))
+	out, err := sshClient.Output("sudo systemctl stop chef-client")
 	log.SpanLog(ctx, log.DebugLevelInfra, "chef stop results", "out", out, "err", err)
-	out, err = sshClient.Output(fmt.Sprintf("sudo systemctl disable chef-client"))
+	out, err = sshClient.Output("sudo systemctl disable chef-client")
 	log.SpanLog(ctx, log.DebugLevelInfra, "chef disable results", "out", out, "err", err)
-	out, err = sshClient.Output(fmt.Sprintf("sudo rm -f /root/accesskey/*"))
+	out, err = sshClient.Output("sudo rm -f /root/accesskey/*")
 	log.SpanLog(ctx, log.DebugLevelInfra, "accesskey rm results", "out", out, "err", err)
-	out, err = sshClient.Output(fmt.Sprintf("sudo rm -f /etc/chef/client.pem"))
+	out, err = sshClient.Output("sudo rm -f /etc/chef/client.pem")
 	log.SpanLog(ctx, log.DebugLevelInfra, "chef pem rm results", "out", out, "err", err)
 	return nil
 }
@@ -272,4 +288,17 @@ func (k *K8sBareMetalPlatform) GetFlavorList(ctx context.Context) ([]*edgeproto.
 		}
 	}
 	return flavors, nil
+}
+
+func (k *K8sBareMetalPlatform) GetNodeInfos(ctx context.Context) ([]*edgeproto.NodeInfo, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNodeInfos")
+	client, err := k.GetNodePlatformClient(ctx, &edgeproto.CloudletMgmtNode{Name: k.commonPf.PlatformConfig.CloudletKey.String(), Type: k8sControlHostNodeType})
+	if err != nil {
+		return nil, err
+	}
+	return k8smgmt.GetNodeInfos(ctx, client, "KUBECONFIG="+k.cloudletKubeConfig)
+}
+
+func (k *K8sBareMetalPlatform) ActiveChanged(ctx context.Context, platformActive bool) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged")
 }

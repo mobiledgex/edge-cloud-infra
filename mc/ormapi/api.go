@@ -1,11 +1,11 @@
 package ormapi
 
 import (
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/mobiledgex/edge-cloud/edgeproto"
-	"github.com/mobiledgex/edge-cloud/util"
 )
 
 // Data saved to persistent sql db, also used for API calls
@@ -48,6 +48,14 @@ type User struct {
 	TOTPSharedKey string
 	// Metadata
 	Metadata string
+	// Last successful login time
+	// read only: true
+	LastLogin time.Time `json:",omitempty"`
+	// Last failed login time
+	// read only: true
+	LastFailedLogin time.Time `json:",omitempty"`
+	// Number of failed login attempts since last successful login
+	FailedLogins int
 }
 
 type CreateUserApiKey struct {
@@ -156,6 +164,7 @@ type BillingOrganization struct {
 	CreatedAt time.Time `json:",omitempty"`
 	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
+	// Delete of this BillingOrganization is in progress
 	// read only: true
 	DeleteInProgress bool `json:",omitempty"`
 }
@@ -186,8 +195,15 @@ type Controller struct {
 	// Controller notify address or URL
 	NotifyAddr string `gorm:"type:text"`
 	// InfluxDB address
-	InfluxDB  string    `gorm:"type:text"`
+	InfluxDB string `gorm:"type:text"`
+	// Thanos Query URL
+	ThanosMetrics string `gorm:"type:text"`
+	// Unique DNS label for the region
+	// read only: true
+	DnsRegion string `gorm:"unique;not null"`
+	// read only: true
 	CreatedAt time.Time `json:",omitempty"`
+	// read only: true
 	UpdatedAt time.Time `json:",omitempty"`
 }
 
@@ -210,6 +226,63 @@ type Config struct {
 	UserApiKeyCreateLimit int
 	// Toggle for enabling billing (primarily for testing purposes)
 	BillingEnable bool
+	// Toggle to enable and disable MC API rate limiting
+	DisableRateLimit bool
+	// Maximum number of IPs tracked per API group for rate limiting at MC
+	RateLimitMaxTrackedIps int
+	// Maximum number of users tracked per API group for rate limiting at MC
+	RateLimitMaxTrackedUsers int
+	// Failed login lockout threshold 1, after this count, lockout time 1 is enabled (default 3)
+	FailedLoginLockoutThreshold1 int
+	// Number of seconds to lock account from logging in after threshold 1 is hit (default 60)
+	FailedLoginLockoutTimeSec1 int
+	// Failed login lockout threshold 2, after this count, lockout time 2 is enabled (default 10)
+	FailedLoginLockoutThreshold2 int
+	// Number of seconds to lock account from logging in after threshold 2 is hit (default 300)
+	FailedLoginLockoutTimeSec2 int
+}
+
+type McRateLimitFlowSettings struct {
+	// Unique name for FlowSettings
+	// required: true
+	FlowSettingsName string `gorm:"primary_key;type:citext"`
+	// Name of API Path (eg. /api/v1/usercreate)
+	ApiName string
+	// RateLimitTarget (AllRequests, PerIp, or PerUser)
+	RateLimitTarget edgeproto.RateLimitTarget
+	// Flow Algorithm (TokenBucketAlgorithm or LeakyBucketAlgorithm)
+	FlowAlgorithm edgeproto.FlowRateLimitAlgorithm
+	// Number of requests per second
+	ReqsPerSecond float64
+	// Number of requests allowed at once
+	BurstSize int64
+}
+
+type McRateLimitMaxReqsSettings struct {
+	// Unique name for MaxReqsSettings
+	// required: true
+	MaxReqsSettingsName string `gorm:"primary_key;type:citext"`
+	// Name of API Path (eg. /api/v1/usercreate)
+	ApiName string
+	// RateLimitTarget (AllRequests, PerIp, or PerUser)
+	RateLimitTarget edgeproto.RateLimitTarget
+	// MaxReqs Algorithm (FixedWindowAlgorithm)
+	MaxReqsAlgorithm edgeproto.MaxReqsRateLimitAlgorithm
+	// Maximum number of requests for the specified interval
+	MaxRequests int64
+	// Time interval
+	Interval edgeproto.Duration
+}
+
+type McRateLimitSettings struct {
+	// Name of API Path (eg. /api/v1/usercreate)
+	ApiName string
+	// RateLimitTarget (AllRequests, PerIp, or PerUser)
+	RateLimitTarget edgeproto.RateLimitTarget
+	// Map of Flow Settings name to FlowSettings
+	FlowSettings map[string]edgeproto.FlowSettings
+	// Map of MaxReqs Settings name to MaxReqsSettings
+	MaxReqsSettings map[string]edgeproto.MaxReqsSettings
 }
 
 type OrgCloudletPool struct {
@@ -258,8 +331,10 @@ type Role struct {
 }
 
 type OrgCloudlet struct {
+	// Region name
 	Region string `json:"region,omitempty"`
-	Org    string `form:"org" json:"org"`
+	// Org that has permissions for cloudlets
+	Org string `form:"org" json:"org"`
 }
 
 type ShowUser struct {
@@ -277,11 +352,11 @@ type UserLogin struct {
 	// User's password
 	// required: true
 	Password string `form:"password" json:"password"`
-	// read only: true
+	// Temporary one-time password if 2-factor authentication is enabled
 	TOTP string `form:"totp" json:"totp"`
-	// read only: true
+	// API key ID if logging in using API key
 	ApiKeyId string `form:"apikeyid" json:"apikeyid"`
-	// read only: true
+	// API key if logging in using API key
 	ApiKey string `form:"apikey" json:"apikey"`
 }
 
@@ -290,17 +365,18 @@ type NewPassword struct {
 }
 
 type CreateUser struct {
-	User   `json:",inline"`
+	User `json:",inline"`
+	// Client information to include in verification email request, used mainly by Web UI client
 	Verify EmailRequest `json:"verify"` // for verifying email
 }
 
 type AuditQuery struct {
-	Username       string `json:"username"`
-	Org            string `form:"org" json:"org"`
-	Limit          int    `json:"limit"`
-	util.TimeRange `json:",inline"`
-	Operation      string            `json:"operation"`
-	Tags           map[string]string `json:"tags"`
+	Username            string `json:"username"`
+	Org                 string `form:"org" json:"org"`
+	Limit               int    `json:"limit"`
+	edgeproto.TimeRange `json:",inline"`
+	Operation           string            `json:"operation"`
+	Tags                map[string]string `json:"tags"`
 }
 
 type AuditResponse struct {
@@ -322,6 +398,7 @@ type AuditResponse struct {
 // verification email. It contains the information need to send
 // some kind of email to the user.
 type EmailRequest struct {
+	// User's email address
 	// read only: true
 	Email string `form:"email" json:"email"`
 	// read only: true
@@ -390,25 +467,33 @@ type RegionObjWithFields interface {
 // all data is for full create/delete
 
 type AllData struct {
-	Controllers                   []Controller          `json:"controllers,omitempty"`
-	BillingOrgs                   []BillingOrganization `json:"billingorgs,omitempty"`
-	AlertReceivers                []AlertReceiver       `json:"alertreceivers,omitempty"`
-	Orgs                          []Organization        `json:"orgs,omitempty"`
-	Roles                         []Role                `json:"roles,omitempty"`
-	CloudletPoolAccessInvitations []OrgCloudletPool     `json:"cloudletpoolaccessinvitations,omitempty"`
-	CloudletPoolAccessResponses   []OrgCloudletPool     `json:"cloudletpoolaccessresponses,omitempty"`
-	RegionData                    []RegionData          `json:"regiondata,omitempty"`
+	Controllers                   []Controller           `json:"controllers,omitempty"`
+	BillingOrgs                   []BillingOrganization  `json:"billingorgs,omitempty"`
+	AlertReceivers                []AlertReceiver        `json:"alertreceivers,omitempty"`
+	Orgs                          []Organization         `json:"orgs,omitempty"`
+	Roles                         []Role                 `json:"roles,omitempty"`
+	CloudletPoolAccessInvitations []OrgCloudletPool      `json:"cloudletpoolaccessinvitations,omitempty"`
+	CloudletPoolAccessResponses   []OrgCloudletPool      `json:"cloudletpoolaccessresponses,omitempty"`
+	RegionData                    []RegionData           `json:"regiondata,omitempty"`
+	Federators                    []Federator            `json:"federators,omitempty"`
+	FederatorZones                []FederatorZone        `json:"federatorzones,omitempty"`
+	Federations                   []Federation           `json:"federations,omitempty"`
+	FederatedSelfZones            []FederatedSelfZone    `json:"federatedselfzones,omitempty"`
+	FederatedPartnerZones         []FederatedPartnerZone `json:"federatedpartnerzones,omitempty"`
 }
 
 type RegionData struct {
+	// Region name
 	Region  string            `json:"region,omitempty"`
 	AppData edgeproto.AllData `json:"appdata,omitempty"`
 }
 
 type MetricsCommon struct {
-	util.TimeRange `json:",inline"`
-	NumSamples     int `json:",omitempty"`
-	Limit          int `json:",omitempty"`
+	edgeproto.TimeRange `json:",inline"`
+	// Display X samples spaced out evenly over start and end times
+	NumSamples int `json:",omitempty"`
+	// Display the last X metrics
+	Limit int `json:",omitempty"`
 }
 
 // Metrics data
@@ -428,117 +513,180 @@ type MetricSeries struct {
 }
 
 type RegionAppInstMetrics struct {
-	Region    string
-	Selector  string
-	AppInst   edgeproto.AppInstKey   `json:",omitempty"`
-	AppInsts  []edgeproto.AppInstKey `json:",omitempty"`
-	StartTime time.Time              `json:",omitempty"`
-	EndTime   time.Time              `json:",omitempty"`
-	Last      int                    `json:",omitempty"`
+	// Region name
+	Region string
+	// Comma separated list of metrics to view. Available metrics: utilization, network, ipusage
+	Selector string
+	// Application instance to filter for metrics
+	AppInst edgeproto.AppInstKey `json:",omitempty"`
+	// Application instances to filter for metrics
+	AppInsts      []edgeproto.AppInstKey `json:",omitempty"`
+	MetricsCommon `json:",inline"`
+}
+
+type RegionCustomAppMetrics struct {
+	Region        string
+	Measurement   string
+	AppInst       edgeproto.AppInstKey `json:",omitempty"`
+	Port          string               `json:",omitempty"`
+	AggrFunction  string               `json:",omitempty"`
+	MetricsCommon `json:",inline"`
 }
 
 type RegionClusterInstMetrics struct {
-	Region      string
-	ClusterInst edgeproto.ClusterInstKey
-	Selector    string
-	StartTime   time.Time `json:",omitempty"`
-	EndTime     time.Time `json:",omitempty"`
-	Last        int       `json:",omitempty"`
+	// Region name
+	Region string
+	// Cluster instance key for metrics
+	ClusterInst edgeproto.ClusterInstKey `json:",omitempty"`
+	// Cluster instance keys for metrics
+	ClusterInsts []edgeproto.ClusterInstKey `json:",omitempty"`
+	// Comma separated list of metrics to view. Available metrics: utilization, network, ipusage
+	Selector      string
+	MetricsCommon `json:",inline"`
 }
 
 type RegionCloudletMetrics struct {
-	Region       string
-	Cloudlet     edgeproto.CloudletKey
-	Selector     string
-	PlatformType string
-	StartTime    time.Time `json:",omitempty"`
-	EndTime      time.Time `json:",omitempty"`
-	Last         int       `json:",omitempty"`
+	// Region name
+	Region string
+	// Cloudlet key for metrics
+	Cloudlet edgeproto.CloudletKey `json:",omitempty"`
+	// Cloudlet keys for metrics
+	Cloudlets []edgeproto.CloudletKey `json:",omitempty"`
+	// Comma separated list of metrics to view. Available metrics: utilization, network, ipusage
+	Selector      string
+	PlatformType  string
+	MetricsCommon `json:",inline"`
 }
 
 type RegionClientApiUsageMetrics struct {
-	Region        string
-	AppInst       edgeproto.AppInstKey
-	Method        string `json:",omitempty"`
-	CellId        int    `json:",omitempty"`
+	// Region name
+	Region string
+	// Application instance key for usage
+	AppInst edgeproto.AppInstKey
+	// API call method, one of: FindCloudlet, PlatformFindCloudlet, RegisterClient, VerifyLocation
+	Method string `json:",omitempty"`
+	// Cloudlet name where DME is running
+	DmeCloudlet string `json:",omitempty"`
+	// Operator organization where DME is running
+	DmeCloudletOrg string `json:",omitempty"`
+	// Comma separated list of metrics to view. Available metrics: utilization, network, ipusage
 	Selector      string
 	MetricsCommon `json:",inline"`
 }
 
 type RegionClientAppUsageMetrics struct {
-	Region          string
-	AppInst         edgeproto.AppInstKey
-	Selector        string
-	DeviceCarrier   string `json:",omitempty"`
+	// Region name
+	Region string
+	// Application instance key for usage
+	AppInst edgeproto.AppInstKey
+	// Comma separated list of metrics to view. Available metrics: utilization, network, ipusage
+	Selector string
+	// Device carrier. Can be used for selectors: latency, deviceinfo
+	DeviceCarrier string `json:",omitempty"`
+	// Data network type used by client device. Can be used for selectors: latency
 	DataNetworkType string `json:",omitempty"`
-	DeviceModel     string `json:",omitempty"`
-	DeviceOs        string `json:",omitempty"`
-	SignalStrength  string `json:",omitempty"`
-	LocationTile    string `json:",omitempty"`
-	MetricsCommon   `json:",inline"`
+	// Device model. Can be used for selectors: deviceinfo
+	DeviceModel string `json:",omitempty"`
+	// Device operating system. Can be used for selectors: deviceinfo
+	DeviceOs       string `json:",omitempty"`
+	SignalStrength string `json:",omitempty"`
+	// Provides the range of GPS coordinates for the location tile/square.
+	// Format is: 'LocationUnderLongitude,LocationUnderLatitude_LocationOverLongitude,LocationOverLatitude_LocationTileLength'.
+	// LocationUnder are the GPS coordinates of the corner closest to (0,0) of the location tile.
+	// LocationOver are the GPS coordinates of the corner farthest from (0,0) of the location tile.
+	// LocationTileLength is the length (in kilometers) of one side of the location tile square
+	LocationTile  string `json:",omitempty"`
+	MetricsCommon `json:",inline"`
 }
 
 type RegionClientCloudletUsageMetrics struct {
-	Region          string
-	Cloudlet        edgeproto.CloudletKey
-	Selector        string
-	DeviceCarrier   string `json:",omitempty"`
+	// Region name
+	Region string
+	// Cloudlet key for metrics
+	Cloudlet edgeproto.CloudletKey
+	// Comma separated list of metrics to view. Available metrics: utilization, network, ipusage
+	Selector string
+	// Device carrier. Can be used for selectors: latency, deviceinfo
+	DeviceCarrier string `json:",omitempty"`
+	// Data network type used by client device. Can be used for selectors: latency
 	DataNetworkType string `json:",omitempty"`
-	DeviceModel     string `json:",omitempty"`
-	DeviceOs        string `json:",omitempty"`
-	SignalStrength  string `json:",omitempty"`
-	LocationTile    string `json:",omitempty"`
-	MetricsCommon   `json:",inline"`
+	// Device model. Can be used for selectors: deviceinfo
+	DeviceModel string `json:",omitempty"`
+	// Device operating system. Can be used for selectors: deviceinfo
+	DeviceOs       string `json:",omitempty"`
+	SignalStrength string `json:",omitempty"`
+	// Provides the range of GPS coordinates for the location tile/square.
+	// Format is: 'LocationUnderLongitude,LocationUnderLatitude_LocationOverLongitude,LocationOverLatitude_LocationTileLength'.
+	// LocationUnder are the GPS coordinates of the corner closest to (0,0) of the location tile.
+	// LocationOver are the GPS coordinates of the corner farthest from (0,0) of the location tile.
+	// LocationTileLength is the length (in kilometers) of one side of the location tile square
+	LocationTile  string `json:",omitempty"`
+	MetricsCommon `json:",inline"`
 }
 
 type RegionAppInstEvents struct {
-	Region    string
-	AppInst   edgeproto.AppInstKey
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
+	// Region name
+	Region string
+	// Application instance key for events
+	AppInst       edgeproto.AppInstKey
+	MetricsCommon `json:",inline"`
 }
 
 type RegionClusterInstEvents struct {
-	Region      string
-	ClusterInst edgeproto.ClusterInstKey
-	StartTime   time.Time `json:",omitempty"`
-	EndTime     time.Time `json:",omitempty"`
-	Last        int       `json:",omitempty"`
+	// Region name
+	Region string
+	// Cluster instance key for events
+	ClusterInst   edgeproto.ClusterInstKey
+	MetricsCommon `json:",inline"`
 }
 
 type RegionCloudletEvents struct {
-	Region    string
-	Cloudlet  edgeproto.CloudletKey
-	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	Last      int       `json:",omitempty"`
+	// Region name
+	Region string
+	// Cloudlet key for events
+	Cloudlet      edgeproto.CloudletKey
+	MetricsCommon `json:",inline"`
 }
 
 type RegionAppInstUsage struct {
-	Region    string
-	AppInst   edgeproto.AppInstKey
+	// Region name
+	Region string
+	// Application instance key for usage
+	AppInst edgeproto.AppInstKey
+	// Time to start displaying stats from
 	StartTime time.Time `json:",omitempty"`
-	EndTime   time.Time `json:",omitempty"`
-	VmOnly    bool      `json:",omitempty"`
+	// Time up to which to display stats
+	EndTime time.Time `json:",omitempty"`
+	// Show only VM-based apps
+	VmOnly bool `json:",omitempty"`
 }
 
 type RegionClusterInstUsage struct {
-	Region      string
+	// Region name
+	Region string
+	// Cluster instances key for usage
 	ClusterInst edgeproto.ClusterInstKey
-	StartTime   time.Time `json:",omitempty"`
-	EndTime     time.Time `json:",omitempty"`
+	// Time to start displaying stats from
+	StartTime time.Time `json:",omitempty"`
+	// Time up to which to display stats
+	EndTime time.Time `json:",omitempty"`
 }
 
 type RegionCloudletPoolUsage struct {
-	Region         string
-	CloudletPool   edgeproto.CloudletPoolKey
-	StartTime      time.Time `json:",omitempty"`
-	EndTime        time.Time `json:",omitempty"`
-	ShowVmAppsOnly bool      `json:",omitempty"`
+	// Region name
+	Region string
+	// Cloudlet pool key for usage
+	CloudletPool edgeproto.CloudletPoolKey
+	// Time to start displaying stats from
+	StartTime time.Time `json:",omitempty"`
+	// Time up to which to display stats
+	EndTime time.Time `json:",omitempty"`
+	// Show only VM-based apps
+	ShowVmAppsOnly bool `json:",omitempty"`
 }
 
 type RegionCloudletPoolUsageRegister struct {
+	// Region name
 	Region          string
 	CloudletPool    edgeproto.CloudletPoolKey
 	UpdateFrequency time.Duration
@@ -646,4 +794,61 @@ func GetInfoFromReportFileName(fileName string) (string, string) {
 		return parts[0], parts[1]
 	}
 	return "", ""
+}
+
+func (s *AlertReceiver) GetKeyString() string {
+	return s.Region + "," + s.Type + "," + s.Name
+}
+
+func (s *Role) GetKeyString() string {
+	return s.Username + "," + s.Org + "," + s.Role
+}
+
+func (s *OrgCloudletPool) GetKeyString() string {
+	return s.Region + "," + s.Org + "," + s.CloudletPoolOrg + "," + s.CloudletPool + "," + s.Type
+}
+
+func (s *AllData) Sort() {
+	sort.Slice(s.Controllers, func(i, j int) bool {
+		return s.Controllers[i].Region < s.Controllers[j].Region
+	})
+	sort.Slice(s.BillingOrgs, func(i, j int) bool {
+		return s.BillingOrgs[i].Name < s.BillingOrgs[j].Name
+	})
+	sort.Slice(s.AlertReceivers, func(i, j int) bool {
+		return s.AlertReceivers[i].GetKeyString() < s.AlertReceivers[j].GetKeyString()
+	})
+	sort.Slice(s.Orgs, func(i, j int) bool {
+		return s.Orgs[i].Name < s.Orgs[j].Name
+	})
+	sort.Slice(s.Roles, func(i, j int) bool {
+		return s.Roles[i].GetKeyString() < s.Roles[j].GetKeyString()
+	})
+	sort.Slice(s.CloudletPoolAccessInvitations, func(i, j int) bool {
+		return s.CloudletPoolAccessInvitations[i].GetKeyString() < s.CloudletPoolAccessInvitations[j].GetKeyString()
+	})
+	sort.Slice(s.CloudletPoolAccessResponses, func(i, j int) bool {
+		return s.CloudletPoolAccessResponses[i].GetKeyString() < s.CloudletPoolAccessResponses[j].GetKeyString()
+	})
+	sort.Slice(s.RegionData, func(i, j int) bool {
+		return s.RegionData[i].Region < s.RegionData[j].Region
+	})
+	for ii := range s.RegionData {
+		s.RegionData[ii].AppData.Sort()
+	}
+	sort.Slice(s.Federators, func(i, j int) bool {
+		return s.Federators[i].FederationId < s.Federators[j].FederationId
+	})
+	sort.Slice(s.FederatorZones, func(i, j int) bool {
+		return s.FederatorZones[i].ZoneId < s.FederatorZones[j].ZoneId
+	})
+	sort.Slice(s.Federations, func(i, j int) bool {
+		return s.Federations[i].Name < s.Federations[j].Name
+	})
+	sort.Slice(s.FederatedSelfZones, func(i, j int) bool {
+		return s.FederatedSelfZones[i].ZoneId < s.FederatedSelfZones[j].ZoneId
+	})
+	sort.Slice(s.FederatedPartnerZones, func(i, j int) bool {
+		return s.FederatedPartnerZones[i].FederatorZone.ZoneId < s.FederatedPartnerZones[j].FederatorZone.ZoneId
+	})
 }

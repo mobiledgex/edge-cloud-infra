@@ -67,6 +67,9 @@
   import_playbook: vault-setup.yml
   tags: vault-setup
 
+- name: Harden system
+  import_playbook: harden.yml
+
 - hosts: platform
   tasks:
     - import_role:
@@ -140,8 +143,14 @@
 - hosts: gitlab
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
+    - import_role:
+        name: teleport
+        tasks_from: node
     - name: Update Gitlab GPG key
       apt_key:
         url: https://packages.gitlab.com/gpg.key
@@ -160,8 +169,14 @@
 - hosts: postgres
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
+    - import_role:
+        name: teleport
+        tasks_from: node
     - import_role:
         name: load-vault-creds
         tasks_from: mc
@@ -176,12 +191,18 @@
 - hosts: crms
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
         name: vault
         tasks_from: load-token
       delegate_to: localhost
+    - import_role:
+        name: teleport
+        tasks_from: node
     - import_role:
         name: telegraf
       tags: monitoring
@@ -202,8 +223,14 @@
 - hosts: stun
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
+    - import_role:
+        name: teleport
+        tasks_from: node
     - import_role:
         name: telegraf
       tags: monitoring
@@ -213,8 +240,14 @@
 - hosts: alertmanager
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
+    - import_role:
+        name: teleport
+        tasks_from: node
     - import_role:
         name: docker
       tags: setup
@@ -225,12 +258,18 @@
 - hosts: console
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
         name: vault
         tasks_from: load-token
       delegate_to: localhost
+    - import_role:
+        name: teleport
+        tasks_from: node
     - name: Install kafkacat
       apt:
         name: kafkacat
@@ -263,12 +302,18 @@
 - hosts: notifyroot
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
         name: vault
         tasks_from: load-token
       delegate_to: localhost
+    - import_role:
+        name: teleport
+        tasks_from: node
     - import_role:
         name: telegraf
       tags: [ 'monitoring', 'setup' ]
@@ -277,6 +322,9 @@
 
 - hosts: registry_replicas
   tasks:
+    - import_role:
+        name: ntp
+      tags: setup
     - import_role:
         name: vault
         tasks_from: vault-ssh
@@ -300,11 +348,22 @@
 - hosts: jaeger
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+
+    - import_role:
         name: vault
         tasks_from: vault-ssh
 
     - import_role:
+        name: teleport
+        tasks_from: node
+
+    - import_role:
         name: telegraf
+      vars:
+        telegraf_additional_config:
+          - input/jaeger-metrics.conf.j2
       tags:
         - monitoring
         - setup
@@ -319,8 +378,16 @@
 - hosts: esproxy
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+
+    - import_role:
         name: vault
         tasks_from: vault-ssh
+
+    - import_role:
+        name: teleport
+        tasks_from: node
 
     - import_role:
         name: telegraf
@@ -334,9 +401,17 @@
 - hosts: kafka
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+
+    - import_role:
         name: vault
         tasks_from: vault-ssh
       tags: setup
+
+    - import_role:
+        name: teleport
+        tasks_from: node
 
     - import_role:
         name: telegraf

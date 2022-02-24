@@ -13,17 +13,17 @@ import (
 	"github.com/mobiledgex/edge-cloud/vault"
 )
 
-func (e *EdgeboxPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
+func (e *EdgeboxPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "create cloudlet for edgebox")
-	err := e.generic.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, nil, accessApi, updateCallback)
+	cloudletResourcesCreated, err := e.generic.CreateCloudlet(ctx, cloudlet, pfConfig, flavor, nil, accessApi, updateCallback)
 	if err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
 	if err = fakeinfra.ShepherdStartup(ctx, cloudlet, pfConfig, updateCallback); err != nil {
-		return err
+		return cloudletResourcesCreated, err
 	}
 
-	return fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
+	return cloudletResourcesCreated, fakeinfra.CloudletPrometheusStartup(ctx, cloudlet, pfConfig, caches, updateCallback)
 }
 
 func (e *EdgeboxPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
@@ -38,6 +38,16 @@ func (e *EdgeboxPlatform) UpdateTrustPolicy(ctx context.Context, TrustPolicy *ed
 	return nil
 }
 
+func (e *EdgeboxPlatform) UpdateTrustPolicyException(ctx context.Context, TrustPolicyException *edgeproto.TrustPolicyException, clusterInstKey *edgeproto.ClusterInstKey) error {
+	log.DebugLog(log.DebugLevelInfra, "update edgebox TrustPolicyException", "policy", TrustPolicyException)
+	return nil
+}
+
+func (e *EdgeboxPlatform) DeleteTrustPolicyException(ctx context.Context, TrustPolicyExceptionKey *edgeproto.TrustPolicyExceptionKey, clusterInstKey *edgeproto.ClusterInstKey) error {
+	log.DebugLog(log.DebugLevelInfra, "delete edgebox TrustPolicyException", "policyKey", TrustPolicyExceptionKey)
+	return nil
+}
+
 func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, caches *pf.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "delete cloudlet for edgebox")
 	err := e.generic.DeleteCloudlet(ctx, cloudlet, pfConfig, caches, accessApi, updateCallback)
@@ -45,7 +55,9 @@ func (e *EdgeboxPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeprot
 		return err
 	}
 	updateCallback(edgeproto.UpdateTask, "Stopping Cloudlet Monitoring")
-	intprocess.StartCloudletPrometheus(ctx, cloudlet, edgeproto.GetDefaultSettings())
+	if err := intprocess.StopCloudletPrometheus(ctx); err != nil {
+		return err
+	}
 	updateCallback(edgeproto.UpdateTask, "Stopping Shepherd")
 	return intprocess.StopShepherdService(ctx, cloudlet)
 }
@@ -60,8 +72,8 @@ func (e *EdgeboxPlatform) DeleteCloudletAccessVars(ctx context.Context, cloudlet
 	return nil
 }
 
-func (e *EdgeboxPlatform) SyncControllerCache(ctx context.Context, caches *pf.Caches, cloudletState dme.CloudletState) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "SyncControllerCache", "cloudletState", cloudletState)
+func (e *EdgeboxPlatform) PerformUpgrades(ctx context.Context, caches *pf.Caches, cloudletState dme.CloudletState) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "PerformUpgrades", "cloudletState", cloudletState)
 	return nil
 }
 

@@ -9,9 +9,12 @@ import (
 	"text/template"
 	"time"
 
+	client "github.com/influxdata/influxdb/client/v2"
 	influxdb "github.com/influxdata/influxdb/client/v2"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	pf "github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/cloudcommon/influxsup"
@@ -35,6 +38,7 @@ type InfluxDBContext struct {
 }
 
 type influxQueryArgs struct {
+	metricsCommonQueryArgs
 	Selector       string
 	Measurement    string
 	AppInstName    string
@@ -46,16 +50,12 @@ type influxQueryArgs struct {
 	CloudletOrg    string
 	ClusterOrg     string
 	AppOrg         string
-	StartTime      string
-	EndTime        string
-	Last           int
 	DeploymentType string
 	CloudletList   string
 	QueryFilter    string
-	TimeDefinition string
+	GroupFields    string
 }
 
-// TODO: embed this into influxQueryArgs
 type metricsCommonQueryArgs struct {
 	StartTime      string
 	EndTime        string
@@ -171,7 +171,12 @@ var IpUsageFields = []string{
 }
 
 var ResourceUsageFields = []string{
-	"*",
+	"vcpusUsed",
+	"ramUsed",
+	"instancesUsed",
+	"gpusUsed",
+	"externalIpsUsed",
+	"floatingIpsUsed",
 }
 
 var FlavorUsageFields = []string{
@@ -186,11 +191,12 @@ const (
 	CLOUDLETUSAGE = "cloudletusage"
 )
 
-var devInfluxDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
+var devInfluxDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
 	` WHERE "{{.OrgField}}"='{{.ApiCallerOrg}}'` +
 	`{{if .AppInstName}} AND "app"='{{.AppInstName}}'{{end}}` +
 	`{{if .AppOrg}} AND "apporg"='{{.AppOrg}}'{{end}}` +
 	`{{if .ClusterName}} AND "cluster"='{{.ClusterName}}'{{end}}` +
+	`{{if .ClusterOrg}} AND "clusterorg"='{{.ClusterOrg}}'{{end}}` +
 	`{{if .AppVersion}} AND "ver"='{{.AppVersion}}'{{end}}` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .CloudletOrg}} AND "cloudletorg"='{{.CloudletOrg}}'{{end}}` +
@@ -198,14 +204,14 @@ var devInfluxDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
 	`{{if .DeploymentType}} AND deployment = '{{.DeploymentType}}'{{end}}` +
 	`{{if .CloudletList}} AND ({{.CloudletList}}){{end}}` +
-	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
 
-var operatorInfluxDBT = `SELECT {{.Selector}} from /{{.Measurement}}/` +
+var operatorInfluxDBT = `SELECT {{.Selector}} from {{.Measurement}}` +
 	` WHERE "cloudletorg"='{{.CloudletOrg}}'` +
 	`{{if .CloudletName}} AND "cloudlet"='{{.CloudletName}}'{{end}}` +
 	`{{if .StartTime}} AND time >= '{{.StartTime}}'{{end}}` +
 	`{{if .EndTime}} AND time <= '{{.EndTime}}'{{end}}` +
-	` order by time desc{{if ne .Last 0}} limit {{.Last}}{{end}}`
+	` order by time desc{{if ne .Limit 0}} limit {{.Limit}}{{end}}`
 
 type InfluxDbConnCache struct {
 	sync.RWMutex
@@ -296,19 +302,19 @@ func getInfluxDBAddrForRegion(ctx context.Context, region string) (string, error
 	return ctrl.InfluxDB, nil
 }
 
-func getSettings(ctx context.Context, idc *InfluxDBContext) (*edgeproto.Settings, error) {
+func getSettings(ctx context.Context, region string) (*edgeproto.Settings, error) {
 	// Grab settings for specified region
 	in := &edgeproto.Settings{}
-	rc := &RegionContext{
-		username: idc.claims.Username,
-		region:   idc.region,
+	rc := &ormutil.RegionContext{
+		Region:    region,
+		SkipAuthz: true, // this is internal call, so no auth needed
+		Database:  database,
 	}
-	return ShowSettingsObj(ctx, rc, in)
+	return ctrlclient.ShowSettingsObj(ctx, rc, in, connCache)
 }
 
-// TODO: replace calls to fillTimeAndGetCmd with this function and getInfluxQueryCmd when all metrics structs embed MetricsCommon
 // Fill in MetricsCommonQueryArgs: Depending on if the user specified "Limit", "NumSamples", "StartTime", and "EndTime", adjust the query
-func fillMetricsCommonQueryArgs(m *metricsCommonQueryArgs, tmpl *template.Template, c *ormapi.MetricsCommon, timeDefinition string, minTimeWindow time.Duration) {
+func fillMetricsCommonQueryArgs(m *metricsCommonQueryArgs, c *ormapi.MetricsCommon, timeDefinition string, minTimeWindow time.Duration) {
 	// Set one of Last or TimeDefinition
 	if c.Limit != 0 {
 		m.Limit = c.Limit
@@ -340,31 +346,14 @@ func getInfluxQueryCmd(q *influxQueryArgs, tmpl *template.Template) string {
 	return buf.String()
 }
 
-func fillTimeAndGetCmd(q *influxQueryArgs, tmpl *template.Template, start *time.Time, end *time.Time) string {
-	// Figure out the start/end time range for the query
-	if !start.IsZero() {
-		buf, err := start.MarshalText()
-		if err == nil {
-			q.StartTime = string(buf)
-		}
+func addQuotesToMeasurementNames(measurement string) string {
+	// add quotes to measurement names for exact matching
+	measurementNames := []string{}
+	measurements := strings.Split(measurement, ",")
+	for _, m := range measurements {
+		measurementNames = append(measurementNames, `"`+m+`"`)
 	}
-	if !end.IsZero() {
-		buf, err := end.MarshalText()
-		if err == nil {
-			q.EndTime = string(buf)
-		}
-	}
-	// We set max number of responses we will get from InfluxDB
-	if q.Last == 0 {
-		q.Last = maxEntriesFromInfluxDb
-	}
-	// now that we know all the details of the query - build it
-	buf := bytes.Buffer{}
-	if err := tmpl.Execute(&buf, q); err != nil {
-		log.DebugLog(log.DebugLevelApi, "Failed to run template", "tmpl", tmpl, "args", q, "error", err)
-		return ""
-	}
-	return buf.String()
+	return strings.Join(measurementNames, ",")
 }
 
 // Query is a template with a specific set of if/else
@@ -375,8 +364,8 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, cloudletList []string
 		AppInstName:  util.DNSSanitize(obj.AppInst.AppKey.Name),
 		AppVersion:   util.DNSSanitize(obj.AppInst.AppKey.Version),
 		ClusterName:  obj.AppInst.ClusterInstKey.ClusterKey.Name,
+		ClusterOrg:   obj.AppInst.ClusterInstKey.Organization,
 		CloudletList: generateCloudletList(cloudletList),
-		Last:         obj.Last,
 	}
 	if obj.AppInst.AppKey.Organization != "" {
 		arg.OrgField = "apporg"
@@ -387,7 +376,8 @@ func AppInstMetricsQuery(obj *ormapi.RegionAppInstMetrics, cloudletList []string
 		arg.ApiCallerOrg = obj.AppInst.ClusterInstKey.CloudletKey.Organization
 		arg.AppOrg = obj.AppInst.AppKey.Organization
 	}
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -397,7 +387,6 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, cloudletList []st
 		Measurement:  getMeasurementString(obj.Selector, CLUSTER),
 		ClusterName:  obj.ClusterInst.ClusterKey.Name,
 		CloudletList: generateCloudletList(cloudletList),
-		Last:         obj.Last,
 	}
 	if obj.ClusterInst.Organization != "" {
 		arg.OrgField = "clusterorg"
@@ -408,7 +397,8 @@ func ClusterMetricsQuery(obj *ormapi.RegionClusterInstMetrics, cloudletList []st
 		arg.ApiCallerOrg = obj.ClusterInst.CloudletKey.Organization
 		arg.ClusterOrg = obj.ClusterInst.Organization
 	}
-	return fillTimeAndGetCmd(&arg, devInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, devInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -418,9 +408,9 @@ func CloudletMetricsQuery(obj *ormapi.RegionCloudletMetrics) string {
 		Measurement:  getMeasurementString(obj.Selector, CLOUDLET),
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
-		Last:         obj.Last,
 	}
-	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
 // Query is a template with a specific set of if/else
@@ -430,14 +420,17 @@ func CloudletUsageMetricsQuery(obj *ormapi.RegionCloudletMetrics, platformTypes 
 		Measurement:  getCloudletUsageMeasurementString(obj.Selector, platformTypes),
 		CloudletName: obj.Cloudlet.Name,
 		CloudletOrg:  obj.Cloudlet.Organization,
-		Last:         obj.Last,
 	}
-	return fillTimeAndGetCmd(&arg, operatorInfluxDBTemplate, &obj.StartTime, &obj.EndTime)
+	fillMetricsCommonQueryArgs(&arg.metricsCommonQueryArgs, &obj.MetricsCommon, "", 0)
+	return getInfluxMetricsQueryCmd(&arg, operatorInfluxDBTemplate)
 }
 
 // TODO: This function should be a streaming function, but currently client library for influxDB
 // doesn't implement it in a way could really be using it
 func influxStream(ctx context.Context, rc *InfluxDBContext, databases []string, dbQuery string, cb func(Data interface{}) error) error {
+	log.SpanLog(ctx, log.DebugLevelApi, "start influxDB api", "region", rc.region)
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish influxDB api")
+
 	if rc.conn == nil {
 		conn, err := ConnectInfluxDB(ctx, rc.region)
 		if err != nil {
@@ -506,7 +499,14 @@ func validateSelectorString(selector, metricType string) error {
 	selectors := strings.Split(selector, ",")
 	for _, s := range selectors {
 		if !Contains(validSelectors, s) {
-			return fmt.Errorf("Invalid %s selector: %s", metricType, s)
+			helpStr := strings.Join(validSelectors, "\", \"")
+			if len(validSelectors) > 1 {
+				helpStr = "must be one of \"" + helpStr + "\""
+			} else {
+				helpStr = "only \"" + helpStr + "\" is supported"
+			}
+
+			return fmt.Errorf("Invalid %s selector: %s, %s", metricType, s, helpStr)
 		}
 	}
 	return nil
@@ -528,7 +528,7 @@ func getMeasurementString(selector, measurementType string) string {
 		measurements = strings.Split(selector, ",")
 	}
 	prefix := measurementType + "-"
-	return prefix + strings.Join(measurements, "|"+prefix)
+	return prefix + strings.Join(measurements, ","+prefix)
 }
 
 func getCloudletUsageMeasurementString(selector string, platformTypes map[string]struct{}) string {
@@ -548,7 +548,7 @@ func getCloudletUsageMeasurementString(selector string, platformTypes map[string
 			measurements = append(measurements, cSelector)
 		}
 	}
-	return strings.Join(measurements, "|")
+	return strings.Join(measurements, ",")
 }
 
 func getFields(selector, measurementType string) string {
@@ -630,15 +630,20 @@ func getFieldsSlice(selector, measurementType string) []string {
 	return fields
 }
 
-func getCloudletPlatformTypes(ctx context.Context, username, region string, key *edgeproto.CloudletKey) (map[string]struct{}, error) {
+func getCloudletPlatformTypes(ctx context.Context, username, region string, keys []edgeproto.CloudletKey) (map[string]struct{}, error) {
 	platformTypes := make(map[string]struct{})
-	rc := &RegionContext{}
-	rc.username = username
-	rc.region = region
-	obj := edgeproto.Cloudlet{
-		Key: *key,
-	}
-	err := ShowCloudletStream(ctx, rc, &obj, func(res *edgeproto.Cloudlet) error {
+	rc := &ormutil.RegionContext{}
+	rc.Username = username
+	rc.Region = region
+	rc.Database = database
+
+	err := ctrlclient.ShowCloudletStream(ctx, rc, &edgeproto.Cloudlet{}, connCache, nil, func(res *edgeproto.Cloudlet) error {
+		// only process the passed in cloudlets
+		for ii := range keys {
+			if !res.Key.Matches(&keys[ii], edgeproto.MatchFilter()) {
+				return nil
+			}
+		}
 		pfType := pf.GetType(res.PlatformType.String())
 		platformTypes[pfType] = struct{}{}
 		return nil
@@ -646,7 +651,39 @@ func getCloudletPlatformTypes(ctx context.Context, username, region string, key 
 	if err != nil {
 		return nil, err
 	}
+
+	if len(platformTypes) == 0 {
+		return nil, fmt.Errorf("Cloudlet does not exist")
+	}
 	return platformTypes, nil
+}
+
+func getClientApiUsageMetricsArgs(in *ormapi.RegionClientApiUsageMetrics) map[string]string {
+	args := in.AppInst.GetTags()
+	args["method"] = in.Method
+	args["dme cloudlet"] = in.DmeCloudlet
+	args["dme cloudlet org"] = in.DmeCloudletOrg
+	return args
+}
+
+func getClientAppUsageMetricsArgs(in *ormapi.RegionClientAppUsageMetrics) map[string]string {
+	args := in.AppInst.GetTags()
+	args["device carrier"] = in.DeviceCarrier
+	args["data network type"] = in.DataNetworkType
+	args["device model"] = in.DeviceModel
+	args["device os"] = in.DeviceOs
+	args["signal strength"] = in.SignalStrength
+	return args
+}
+
+func getClientCloudletUsageMetricsArgs(in *ormapi.RegionClientCloudletUsageMetrics) map[string]string {
+	args := in.Cloudlet.GetTags()
+	args["device carrier"] = in.DeviceCarrier
+	args["data network type"] = in.DataNetworkType
+	args["device model"] = in.DeviceModel
+	args["device os"] = in.DeviceOs
+	args["signal strength"] = in.SignalStrength
+	return args
 }
 
 // Common method to handle both app and cluster metrics
@@ -659,7 +696,7 @@ func GetMetricsCommon(c echo.Context) error {
 		return err
 	}
 	rc.claims = claims
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	// Get the current config
 	config, err := getConfig(ctx)
 	if err == nil {
@@ -672,6 +709,15 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.AppInst.GetTags()); err != nil {
+			return err
+		}
+
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+
 		// New metrics api request
 		if len(in.AppInsts) > 0 {
 			return GetAppMetrics(c, &in)
@@ -694,6 +740,20 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.ClusterInst.GetTags()); err != nil {
+			return err
+		}
+
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+
+		// New metrics api request
+		if len(in.ClusterInsts) > 0 {
+			return GetClusterMetrics(c, &in)
+		}
+
 		rc.region = in.Region
 		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.ClusterInst.Organization},
 			ResourceClusterAnalytics, []edgeproto.CloudletKey{in.ClusterInst.CloudletKey})
@@ -711,21 +771,37 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
+			return err
+		}
+
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+
+		// New metrics api request
+		if len(in.Cloudlets) > 0 {
+			return GetCloudletMetrics(c, &in)
+		}
+
 		// Operator name has to be specified
 		if in.Cloudlet.Organization == "" {
 			return fmt.Errorf("Cloudlet details must be present")
 		}
+
 		rc.region = in.Region
 		org = in.Cloudlet.Organization
 		if err = validateSelectorString(in.Selector, CLOUDLET); err != nil {
 			return err
 		}
-		cmd = CloudletMetricsQuery(&in)
-
 		// Check the operator against who is logged in
 		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
 			return err
 		}
+		cmd = CloudletMetricsQuery(&in)
+
 	} else if strings.HasSuffix(c.Path(), "metrics/clientapiusage") {
 		dbNames = append(dbNames, cloudcommon.DeveloperMetricsDbName)
 		in := ormapi.RegionClientApiUsageMetrics{}
@@ -733,6 +809,12 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		// validate all the passed in arguments
+		args := getClientApiUsageMetricsArgs(&in)
+		if err = util.ValidateNames(args); err != nil {
+			return err
+		}
+
 		rc.region = in.Region
 		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
 			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
@@ -742,10 +824,13 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateSelectorString(in.Selector, CLIENT_APIUSAGE); err != nil {
 			return err
 		}
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateMethodString(&in); err != nil {
 			return err
 		}
-		settings, err := getSettings(ctx, rc)
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+		settings, err := getSettings(ctx, rc.region)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
 		}
@@ -758,35 +843,55 @@ func GetMetricsCommon(c echo.Context) error {
 		if err != nil {
 			return err
 		}
+		// validate all the passed in arguments
+		if err = util.ValidateNames(in.Cloudlet.GetTags()); err != nil {
+			return err
+		}
+
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
+			return err
+		}
+		rc.region = in.Region
+		org = in.Cloudlet.Organization
+
+		// New metrics api request
+		if len(in.Cloudlets) > 0 {
+			return GetCloudletUsageMetrics(c, &in)
+		}
+
 		// Operator name has to be specified
 		if in.Cloudlet.Organization == "" {
 			return fmt.Errorf("Cloudlet details must be present")
 		}
+
 		if err = validateSelectorString(in.Selector, CLOUDLETUSAGE); err != nil {
 			return err
 		}
-		// Platform type is required for cloudlet resource usage
-		platformTypes := make(map[string]struct{})
-		if in.Selector == "resourceusage" {
-			platformTypes, err = getCloudletPlatformTypes(ctx, claims.Username, in.Region, &in.Cloudlet)
-			if err != nil {
-				return err
-			}
-		}
-		rc.region = in.Region
-		org = in.Cloudlet.Organization
-		cmd = CloudletUsageMetricsQuery(&in, platformTypes)
 
 		// Check the operator against who is logged in
 		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
 			return err
 		}
+
+		// Platform type is required for cloudlet resource usage, but for consistency check for all selectors
+		platformTypes, err := getCloudletPlatformTypes(ctx, claims.Username, in.Region, []edgeproto.CloudletKey{in.Cloudlet})
+		if err != nil {
+			return err
+		}
+		cmd = CloudletUsageMetricsQuery(&in, platformTypes)
+
 	} else if strings.HasSuffix(c.Path(), "metrics/clientappusage") {
 		in := ormapi.RegionClientAppUsageMetrics{}
 		_, err := ReadConn(c, &in)
 		if err != nil {
 			return err
 		}
+		// validate all the passed in arguments
+		args := getClientAppUsageMetricsArgs(&in)
+		if err = util.ValidateNames(args); err != nil {
+			return err
+		}
+
 		rc.region = in.Region
 		cloudletList, err := checkPermissionsAndGetCloudletList(ctx, claims.Username, in.Region, []string{in.AppInst.AppKey.Organization},
 			ResourceAppAnalytics, []edgeproto.CloudletKey{in.AppInst.ClusterInstKey.CloudletKey})
@@ -796,10 +901,10 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateClientAppUsageMetricReq(&in, in.Selector); err != nil {
 			return err
 		}
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
-		settings, err := getSettings(ctx, rc)
+		settings, err := getSettings(ctx, rc.region)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
 		}
@@ -816,6 +921,12 @@ func GetMetricsCommon(c echo.Context) error {
 		if in.Cloudlet.Organization == "" {
 			return fmt.Errorf("Cloudlet details must be present")
 		}
+		// validate all the passed in arguments
+		args := getClientCloudletUsageMetricsArgs(&in)
+		if err = util.ValidateNames(args); err != nil {
+			return err
+		}
+
 		rc.region = in.Region
 		org = in.Cloudlet.Organization
 		if err = validateSelectorString(in.Selector, CLIENT_CLOUDLETUSAGE); err != nil {
@@ -824,10 +935,15 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateClientCloudletUsageMetricReq(&in, in.Selector); err != nil {
 			return err
 		}
-		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
+		if err = validateAndResolveInfluxMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
-		settings, err := getSettings(ctx, rc)
+		// Check the operator against who is logged in
+		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
+			return err
+		}
+
+		settings, err := getSettings(ctx, rc.region)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
 		}
@@ -835,10 +951,6 @@ func GetMetricsCommon(c echo.Context) error {
 		cmd, db = ClientCloudletUsageMetricsQuery(&in, settings)
 		dbNames = append(dbNames, db)
 
-		// Check the operator against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
-			return err
-		}
 	} else {
 		return echo.ErrNotFound
 	}
@@ -846,12 +958,36 @@ func GetMetricsCommon(c echo.Context) error {
 	err = influxStream(ctx, rc, dbNames, cmd, func(res interface{}) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
+		filterInfluxPayload(ctx, &payload, c.Path())
 		return WriteStream(c, &payload)
 	})
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func filterInfluxPayload(ctx context.Context, payload *ormapi.StreamPayload, path string) {
+	switch results := payload.Data.(type) {
+	case []client.Result:
+		if strings.HasSuffix(path, "metrics/clientappusage") || strings.HasSuffix(path, "metrics/clientcloudletusage") {
+			// Set downsampled row.Name to "latency-metric" or "device-metric", because users don't care that data may have come from "latency-metric-10s"
+			for ii := range results {
+				for jj := range results[ii].Series {
+					name := results[ii].Series[jj].Name
+					if strings.Contains(name, cloudcommon.LatencyMetric) {
+						results[ii].Series[jj].Name = cloudcommon.LatencyMetric
+					} else if strings.Contains(name, cloudcommon.DeviceMetric) {
+						results[ii].Series[jj].Name = cloudcommon.DeviceMetric
+					} else {
+						log.SpanLog(ctx, log.DebugLevelMetrics, "Row name does not contain \"latency-metric\" or \"device-metric\"", "name", name)
+					}
+				}
+			}
+		}
+	default:
+		log.SpanLog(ctx, log.DebugLevelMetrics, "Invalid type switch value. Expected []client.Result")
+	}
 }
 
 // Check that the user is authorized to access all of the devOrgsPruned's devResource resources
@@ -879,11 +1015,11 @@ func isDeveloperAuthorized(ctx context.Context, username string, devOrgsPruned [
 }
 
 // helper function to convert keys in a map to a list
-func getListFromMap(mapIn map[string]struct{}) []string {
+func getListFromMap(mapIn map[edgeproto.CloudletKey]struct{}) []string {
 	// collect all the list and return it
 	listOut := []string{}
 	for k, _ := range mapIn {
-		listOut = append(listOut, k)
+		listOut = append(listOut, k.Name)
 	}
 	return listOut
 }
@@ -898,10 +1034,11 @@ func getListFromMap(mapIn map[string]struct{}) []string {
 func checkPermissionsAndGetCloudletList(ctx context.Context, username, region string, devOrgsIn []string, devResource string, cloudletKeys []edgeproto.CloudletKey) ([]string, error) {
 	var err error
 
-	regionRc := &RegionContext{}
-	regionRc.username = username
-	regionRc.region = region
-	uniqueCloudlets := make(map[string]struct{})
+	regionRc := &ormutil.RegionContext{}
+	regionRc.Username = username
+	regionRc.Region = region
+	regionRc.Database = database
+	uniqueCloudlets := make(map[edgeproto.CloudletKey]struct{})
 	devOrgPermOk := false
 	operOrgPermOk := false
 	devOrgs := []string{}
@@ -920,7 +1057,7 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 	// append to the list the specified cloudlets
 	for _, cloudletKey := range cloudletKeys {
 		if cloudletKey.Name != "" {
-			uniqueCloudlets[cloudletKey.Name] = struct{}{}
+			uniqueCloudlets[cloudletKey] = struct{}{}
 		}
 		if cloudletKey.Organization != "" {
 			cloudletOrgs[cloudletKey.Organization] = struct{}{}
@@ -940,17 +1077,6 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 	// check if the developer is authorized
 	if devOrgPermOk, authDevOrgs, err = isDeveloperAuthorized(ctx, username, devOrgs, devResource); err != nil {
 		return []string{}, err
-	}
-	// if a developer is authorized, just return the list now
-	if devOrgPermOk {
-		return getListFromMap(uniqueCloudlets), nil
-	} else {
-		// no perms for specified orgs, or they forgot to specify an org that
-		// they have perms to (since there are two choices)
-		if len(devOrgs) == 0 && len(authDevOrgs) > 0 {
-			// developer but didn't specify App org
-			return []string{}, fmt.Errorf("Developers please specify the %s Organization", orgField)
-		}
 	}
 
 	// At this point we need to check what cloudlets(cloudletPool members) are allowed for this operator
@@ -972,6 +1098,18 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 		}
 	}
 
+	// if a developer is authorized, just return the list now
+	if devOrgPermOk {
+		return getListFromMap(uniqueCloudlets), nil
+	} else if !operOrgPermOk { // it could be operator and developer
+		// no perms for specified orgs, or they forgot to specify an org that
+		// they have perms to (since there are two choices)
+		if len(devOrgs) == 0 && len(authDevOrgs) > 0 {
+			// developer but didn't specify App org
+			return []string{}, fmt.Errorf("Developers please specify the %s Organization", orgField)
+		}
+	}
+
 	if !operOrgPermOk {
 		if len(cloudletOrgs) == 0 && len(authOperOrgs) > 0 {
 			return []string{}, fmt.Errorf("Operators please specify the Cloudlet Organization")
@@ -984,14 +1122,14 @@ func checkPermissionsAndGetCloudletList(ctx context.Context, username, region st
 	if operOrgPermOk && len(uniqueCloudlets) == 0 {
 		for cloudletOrg := range cloudletOrgs {
 			cloudletpoolQuery := edgeproto.CloudletPool{Key: edgeproto.CloudletPoolKey{Organization: cloudletOrg}}
-			cloudletPools, err := ShowCloudletPoolObj(ctx, regionRc, &cloudletpoolQuery)
-			if err != nil {
-				return []string{}, err
-			}
-			for _, pool := range cloudletPools {
+			err = ctrlclient.ShowCloudletPoolStream(ctx, regionRc, &cloudletpoolQuery, connCache, nil, func(pool *edgeproto.CloudletPool) error {
 				for _, cloudlet := range pool.Cloudlets {
 					uniqueCloudlets[cloudlet] = struct{}{}
 				}
+				return nil
+			})
+			if err != nil {
+				return []string{}, err
 			}
 		}
 	} else if len(uniqueCloudlets) >= 1 {

@@ -4,6 +4,7 @@ regiondata:
     settings:
       shepherdmetricscollectioninterval: 1s
       shepherdalertevaluationinterval: 1s
+      shepherdmetricsscrapeinterval: 1s
       shepherdhealthcheckretries: 3
       shepherdhealthcheckinterval: 5s
       autodeployintervalsec: 300
@@ -15,8 +16,6 @@ regiondata:
       createclusterinsttimeout: 3s
       updateclusterinsttimeout: 2s
       deleteclusterinsttimeout: 2s
-      createcloudlettimeout: 10s
-      updatecloudlettimeout: 2s
       masternodeflavor: x1.small
       maxtrackeddmeclients: 100
       chefclientinterval: 10m0s
@@ -25,15 +24,22 @@ regiondata:
       updatevmpooltimeout: 20m0s
       updatetrustpolicytimeout: 5s
       dmeapimetricscollectioninterval: 1s
+      edgeeventsmetricscollectioninterval: 1s
       cleanupreservableautoclusteridletime: 30m0s
       influxdbcloudletusagemetricsretention: 8760h0m0s
-      appinstclientcleanupinterval: 24h
+      createcloudlettimeout: 10s
+      updatecloudlettimeout: 2s
       locationtilesidelengthkm: 2
-      edgeeventsmetricscollectioninterval: 3s
-      influxdbedgeeventsmetricsretention: 672h0m0s
-      influxdbdownsampledmetricsretention: 672h0m0s
       edgeeventsmetricscontinuousqueriescollectionintervals:
       - interval: 2s
+      influxdbdownsampledmetricsretention: 672h0m0s
+      influxdbedgeeventsmetricsretention: 672h0m0s
+      appinstclientcleanupinterval: 24h0m0s
       clusterautoscaleaveragingdurationsec: 1
       clusterautoscaleretrydelay: 1s
-      userdefinedalertmintriggertime: 1s
+      alertpolicymintriggertime: 1s
+      disableratelimit: true
+      ratelimitmaxtrackedips: 10000
+      resourcesnapshotthreadinterval: 10m0s
+      platformhainstancepollinterval: 300ms
+      platformhainstanceactiveexpiretime: 1s

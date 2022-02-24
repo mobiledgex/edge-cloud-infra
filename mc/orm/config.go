@@ -4,9 +4,11 @@ import (
 	"context"
 	fmt "fmt"
 	"net/http"
+	"time"
 
 	"github.com/labstack/echo"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
@@ -20,6 +22,13 @@ var defaultConfig = ormapi.Config{
 	MaxMetricsDataPoints:         10000,
 	UserApiKeyCreateLimit:        10,
 	BillingEnable:                false, // TODO: eventually set the default to true?
+	DisableRateLimit:             false,
+	RateLimitMaxTrackedIps:       10000,
+	RateLimitMaxTrackedUsers:     10000,
+	FailedLoginLockoutThreshold1: 3,
+	FailedLoginLockoutTimeSec1:   60,
+	FailedLoginLockoutThreshold2: 10,
+	FailedLoginLockoutTimeSec2:   300,
 }
 
 func InitConfig(ctx context.Context) error {
@@ -54,6 +63,32 @@ func InitConfig(ctx context.Context) error {
 		config.UserApiKeyCreateLimit = defaultConfig.UserApiKeyCreateLimit
 		save = true
 	}
+	// set ratelimitmaxtrackedips if not set
+	if config.RateLimitMaxTrackedIps == 0 {
+		config.RateLimitMaxTrackedIps = defaultConfig.RateLimitMaxTrackedIps
+		save = true
+	}
+	// set ratelimitmaxtrackedusers if not set
+	if config.RateLimitMaxTrackedUsers == 0 {
+		config.RateLimitMaxTrackedUsers = defaultConfig.RateLimitMaxTrackedUsers
+		save = true
+	}
+	if config.FailedLoginLockoutThreshold1 == 0 {
+		config.FailedLoginLockoutThreshold1 = defaultConfig.FailedLoginLockoutThreshold1
+		save = true
+	}
+	if config.FailedLoginLockoutTimeSec1 == 0 {
+		config.FailedLoginLockoutTimeSec1 = defaultConfig.FailedLoginLockoutTimeSec1
+		save = true
+	}
+	if config.FailedLoginLockoutThreshold2 == 0 {
+		config.FailedLoginLockoutThreshold2 = defaultConfig.FailedLoginLockoutThreshold2
+		save = true
+	}
+	if config.FailedLoginLockoutTimeSec2 == 0 {
+		config.FailedLoginLockoutTimeSec2 = defaultConfig.FailedLoginLockoutTimeSec2
+		save = true
+	}
 	if save {
 		err = db.Save(&config).Error
 		if err != nil {
@@ -65,7 +100,7 @@ func InitConfig(ctx context.Context) error {
 }
 
 func UpdateConfig(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -81,7 +116,7 @@ func UpdateConfig(c echo.Context) error {
 	// calling bind after doing lookup will overwrite only the
 	// fields specified in the request body, keeping existing fields intact.
 	if err := c.Bind(&config); err != nil {
-		return bindErr(err)
+		return ormutil.BindErr(err)
 	}
 	config.ID = defaultConfig.ID
 
@@ -94,6 +129,42 @@ func UpdateConfig(c echo.Context) error {
 			return err
 		}
 	}
+	if config.FailedLoginLockoutThreshold1 <= 0 {
+		return fmt.Errorf("Failed login lockout threshold 1 cannot be less than or equal to 0")
+	}
+	if config.FailedLoginLockoutThreshold2 <= 0 {
+		return fmt.Errorf("Failed login lockout threshold 2 cannot be less than or equal to 0")
+	}
+	if config.FailedLoginLockoutThreshold2 <= config.FailedLoginLockoutThreshold1 {
+		return fmt.Errorf("Failed login lockout threshold 2 of %d must be greater than threshold 1 of %d", config.FailedLoginLockoutThreshold2, config.FailedLoginLockoutThreshold1)
+	}
+	lockoutTime1 := time.Duration(config.FailedLoginLockoutTimeSec1) * time.Second
+	if lockoutTime1 < 0 {
+		// check for duration overflow
+		return fmt.Errorf("Failed login lockout time sec 1 of %s cannot be negative", lockoutTime1.String())
+	}
+	if lockoutTime1 < BadAuthDelay {
+		return fmt.Errorf("Failed login lockout time sec 1 of %s must be greater than or equal to default lockout time of %s", lockoutTime1.String(), BadAuthDelay.String())
+	}
+	lockoutTime2 := time.Duration(config.FailedLoginLockoutTimeSec2) * time.Second
+	if lockoutTime2 < 0 {
+		// check for duration overflow
+		return fmt.Errorf("Failed login lockout time sec 2 of %s cannot be negative", lockoutTime2.String())
+	}
+	if lockoutTime2 < lockoutTime1 {
+		return fmt.Errorf("Failed login lockout time sec 2 of %s must be greater than or equal to lockout time 1 of %s", lockoutTime2.String(), lockoutTime1.String())
+	}
+
+	// Update RateLimitMgr settings
+	if config.DisableRateLimit != oldConfig.DisableRateLimit {
+		rateLimitMgr.UpdateDisableRateLimit(config.DisableRateLimit)
+	}
+	if config.RateLimitMaxTrackedIps != oldConfig.RateLimitMaxTrackedIps {
+		rateLimitMgr.UpdateMaxTrackedIps(config.RateLimitMaxTrackedIps)
+	}
+	if config.RateLimitMaxTrackedUsers != oldConfig.RateLimitMaxTrackedUsers {
+		rateLimitMgr.UpdateMaxTrackedUsers(config.RateLimitMaxTrackedUsers)
+	}
 
 	db := loggedDB(ctx)
 	err = db.Save(&config).Error
@@ -104,7 +175,7 @@ func UpdateConfig(c echo.Context) error {
 }
 
 func ResetConfig(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -122,11 +193,17 @@ func ResetConfig(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+
+	// Update RateLimitMgr settings
+	rateLimitMgr.UpdateDisableRateLimit(defaultConfig.DisableRateLimit)
+	rateLimitMgr.UpdateMaxTrackedIps(defaultConfig.RateLimitMaxTrackedIps)
+	rateLimitMgr.UpdateMaxTrackedUsers(defaultConfig.RateLimitMaxTrackedUsers)
+
 	return nil
 }
 
 func ShowConfig(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
@@ -165,7 +242,7 @@ func resetUserPasswordCrackTimes(ctx context.Context) error {
 // UI consistent with the behavior of the back-end. This is an un-authenticated
 // API so only that which is needed should be revealed.
 func PublicConfig(c echo.Context) error {
-	ctx := GetContext(c)
+	ctx := ormutil.GetContext(c)
 	config, err := getConfig(ctx)
 	if err != nil {
 		return err

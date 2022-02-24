@@ -11,16 +11,19 @@ import (
 	"time"
 
 	awsec2 "github.com/mobiledgex/edge-cloud-infra/crm-platforms/aws/aws-ec2"
+	k8sbm "github.com/mobiledgex/edge-cloud-infra/crm-platforms/k8s-baremetal"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/openstack"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vcd"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vmpool"
 	"github.com/mobiledgex/edge-cloud-infra/crm-platforms/vsphere"
 	intprocess "github.com/mobiledgex/edge-cloud-infra/e2e-tests/int-process"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_common"
 	platform "github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform"
-	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_edgebox"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_fake"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_k8sbm"
 	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_vmprovider"
+	"github.com/mobiledgex/edge-cloud-infra/shepherd/shepherd_platform/shepherd_xind"
 	"github.com/mobiledgex/edge-cloud-infra/version"
 	"github.com/mobiledgex/edge-cloud-infra/vmlayer"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/accessapi"
@@ -30,6 +33,7 @@ import (
 	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	dme "github.com/mobiledgex/edge-cloud/d-match-engine/dme-proto"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
+	"github.com/mobiledgex/edge-cloud/integration/process"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/notify"
 	"github.com/mobiledgex/edge-cloud/tls"
@@ -50,6 +54,8 @@ var promTargetsFile = flag.String("targetsFile", "/tmp/prom_targets.json", "Prom
 var appDNSRoot = flag.String("appDNSRoot", "mobiledgex.net", "App domain name root")
 var chefServerPath = flag.String("chefServerPath", "", "Chef server path")
 var promScrapeInterval = flag.Duration("promScrapeInterval", defaultScrapeInterval, "Prometheus Scraping Interval")
+var haRole = flag.String("HARole", string(process.HARolePrimary), "HARole") // for info purposes and to distinguish nodes when running debug commands
+var thanosRecvAddr = flag.String("thanosRecvAddr", "", "Address of thanos receive API endpoint including port")
 
 var metricsScrapingInterval time.Duration
 
@@ -74,7 +80,7 @@ var AlertCache edgeproto.AlertCache
 var AutoProvPoliciesCache edgeproto.AutoProvPolicyCache
 var AutoScalePoliciesCache edgeproto.AutoScalePolicyCache
 var SettingsCache edgeproto.SettingsCache
-var UserAlertCache edgeproto.UserAlertCache
+var AlertPolicyCache edgeproto.AlertPolicyCache
 var settings edgeproto.Settings
 var AppInstByAutoProvPolicy edgeproto.AppInstLookupByPolicyKey
 var targetFileWorkers tasks.KeyWorkers
@@ -118,7 +124,7 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 	if app.Deployment == cloudcommon.DeploymentTypeVM {
 		mapKey = new.Key.GetKeyString()
 		stats, exists := vmAppWorkerMap[mapKey]
-		myPlatform.VmAppChangedCallback(ctx)
+		myPlatform.VmAppChangedCallback(ctx, new, new.State)
 		if new.State == edgeproto.TrackedState_READY && !exists {
 			// Add/Create
 			stats := NewAppInstWorker(ctx, collectInterval, MetricSender.Update, new, myPlatform)
@@ -150,10 +156,9 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to find clusterInst for prometheus")
 			return
 		}
-		clustIP, err := myPlatform.GetClusterIP(ctx, &clusterInst)
+		kubeNames, err := k8smgmt.GetKubeNames(&clusterInst, &app, new)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
-			return
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Failed to get kubeNames", "app", new.Key.AppKey.Name, "err", err)
 		}
 		// We don't actually expose prometheus ports - we should default to 9090
 		if len(new.MappedPorts) > 0 {
@@ -161,10 +166,23 @@ func appInstCb(ctx context.Context, old *edgeproto.AppInst, new *edgeproto.AppIn
 		} else {
 			port = defaultPrometheusPort
 		}
-		promAddress := fmt.Sprintf("%s:%d", clustIP, port)
-		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "promAddress", promAddress)
+		promAddress := ""
+		// If this is a local environment prometheus is locally reachable
+		if myPlatform.IsPlatformLocal(ctx) {
+			log.SpanLog(ctx, log.DebugLevelMetrics, "Setting prometheus address to \"localhost\"")
+			clustIP, err := myPlatform.GetClusterIP(ctx, &clusterInst)
+			if err != nil {
+				log.SpanLog(ctx, log.DebugLevelMetrics, "error getting clusterIP", "err", err.Error())
+			} else {
+				promAddress = fmt.Sprintf("%s:%d", clustIP, port)
+			}
+		}
+
+		// set the prometheus address to undefined as the service may or may
+		// not have an IP address yet. Although we don't have an IP, we do need the port
+		log.SpanLog(ctx, log.DebugLevelMetrics, "prometheus found", "prom port", port)
 		if !exists {
-			stats, err = NewClusterWorker(ctx, promAddress, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, myPlatform)
+			stats, err = NewClusterWorker(ctx, promAddress, port, metricsScrapingInterval, collectInterval, MetricSender.Update, &clusterInst, kubeNames, myPlatform)
 			if err == nil {
 				workerMap[mapKey] = stats
 				stats.Start(ctx)
@@ -216,7 +234,7 @@ func clusterInstCb(ctx context.Context, old *edgeproto.ClusterInst, new *edgepro
 	collectInterval := settings.ShepherdMetricsCollectionInterval.TimeDuration()
 	if new.State == edgeproto.TrackedState_READY {
 		log.SpanLog(ctx, log.DebugLevelMetrics, "New Docker cluster detected", "clustername", mapKey, "clusterInst", new)
-		stats, err := NewClusterWorker(ctx, "", metricsScrapingInterval, collectInterval, MetricSender.Update, new, myPlatform)
+		stats, err := NewClusterWorker(ctx, "", 0, metricsScrapingInterval, collectInterval, MetricSender.Update, new, nil, myPlatform)
 		if err == nil {
 			workerMap[mapKey] = stats
 			stats.Start(ctx)
@@ -254,10 +272,18 @@ func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Setti
 	old := settings
 	settings = *new
 	reloadCProm := false
-	if old.ShepherdAlertEvaluationInterval !=
-		new.ShepherdAlertEvaluationInterval {
+	scrapeChanged := false
+	if old.ShepherdMetricsScrapeInterval != new.ShepherdMetricsScrapeInterval {
+		// we use a separate variable to store the scrape interval
+		// so that it can be changed on a per-cloudlet basis via the
+		// debug-cmd. It will only be overridden by the global setting
+		// if the global setting changes.
+		metricsScrapingInterval = new.ShepherdMetricsScrapeInterval.TimeDuration()
+		scrapeChanged = true
+	}
+	if old.ShepherdAlertEvaluationInterval != new.ShepherdAlertEvaluationInterval || scrapeChanged {
 		// re-write Cloudlet Prometheus config and reload
-		err := intprocess.WriteCloudletPromConfig(ctx, &metricsScrapingInterval, (*time.Duration)(&new.ShepherdAlertEvaluationInterval))
+		err := intprocess.WriteCloudletPromConfig(ctx, *thanosRecvAddr, &metricsScrapingInterval, (*time.Duration)(&new.ShepherdAlertEvaluationInterval))
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelNotify, "Failed to write cloudlet prometheus config", "err", err)
 		} else {
@@ -277,7 +303,7 @@ func settingsCb(ctx context.Context, _ *edgeproto.Settings, new *edgeproto.Setti
 	}
 
 	if old.ShepherdMetricsCollectionInterval !=
-		new.ShepherdMetricsCollectionInterval {
+		new.ShepherdMetricsCollectionInterval || scrapeChanged {
 		updateClusterWorkers(ctx, new.ShepherdMetricsCollectionInterval)
 	}
 
@@ -325,7 +351,7 @@ func getPlatform() (platform.Platform, error) {
 	pfType := pf.GetType(*platformName)
 	switch *platformName {
 	case "PLATFORM_TYPE_EDGEBOX":
-		plat = &shepherd_edgebox.Platform{}
+		plat = &shepherd_xind.Platform{}
 	case "PLATFORM_TYPE_OPENSTACK":
 		osProvider := openstack.OpenstackPlatform{}
 		vmPlatform := vmlayer.VMPlatform{
@@ -371,10 +397,14 @@ func getPlatform() (platform.Platform, error) {
 		plat = &shepherd_vmprovider.ShepherdPlatform{
 			VMPlatform: &vmPlatform,
 		}
+	case "PLATFORM_TYPE_K8S_BARE_METAL":
+		plat = &shepherd_k8sbm.ShepherdPlatform{
+			Pf: &k8sbm.K8sBareMetalPlatform{},
+		}
 	case "PLATFORM_TYPE_FAKEINFRA":
 		plat = &shepherd_fake.Platform{}
 	case "PLATFORM_TYPE_KINDINFRA":
-		plat = &shepherd_fake.Platform{}
+		plat = &shepherd_xind.Platform{}
 	default:
 		err = fmt.Errorf("Platform %s not supported", *platformName)
 	}
@@ -403,8 +433,19 @@ func start() {
 	settings = *edgeproto.GetDefaultSettings()
 
 	cloudcommon.ParseMyCloudletKey(false, cloudletKeyStr, &cloudletKey)
-
-	ctx, span, err := nodeMgr.Init("shepherd", node.CertIssuerRegionalCloudlet, node.WithCloudletKey(&cloudletKey), node.WithRegion(*region), node.WithParentSpan(*parentSpan))
+	nodeOps := []node.NodeOp{
+		node.WithCloudletKey(&cloudletKey),
+		node.WithRegion(*region),
+		node.WithParentSpan(*parentSpan),
+	}
+	if *haRole == string(process.HARoleSecondary) {
+		nodeOps = append(nodeOps, node.WithHARole(process.HARoleSecondary))
+	} else if *haRole == string(process.HARolePrimary) {
+		nodeOps = append(nodeOps, node.WithHARole(process.HARolePrimary))
+	} else {
+		log.FatalLog("invalid HA Role")
+	}
+	ctx, span, err := nodeMgr.Init("shepherd", node.CertIssuerRegionalCloudlet, nodeOps...)
 	if err != nil {
 		log.FatalLog(err.Error())
 	}
@@ -466,8 +507,8 @@ func start() {
 	edgeproto.InitVMPoolCache(&VMPoolCache)
 	edgeproto.InitVMPoolInfoCache(&VMPoolInfoCache)
 	edgeproto.InitCloudletCache(&CloudletCache)
-	edgeproto.InitUserAlertCache(&UserAlertCache)
-	UserAlertCache.SetUpdatedCb(userAlertCb)
+	edgeproto.InitAlertPolicyCache(&AlertPolicyCache)
+	AlertPolicyCache.SetUpdatedCb(alertPolicyCb)
 	addrs := strings.Split(*notifyAddrs, ",")
 	notifyClient = notify.NewClient(nodeMgr.Name(), addrs,
 		tls.GetGrpcDialOption(clientTlsConfig),
@@ -486,7 +527,7 @@ func start() {
 	notifyClient.RegisterRecvCloudletInternalCache(&CloudletInternalCache)
 	notifyClient.RegisterRecvAutoProvPolicyCache(&AutoProvPoliciesCache)
 	notifyClient.RegisterRecvAutoScalePolicyCache(&AutoScalePoliciesCache)
-	notifyClient.RegisterRecvUserAlertCache(&UserAlertCache)
+	notifyClient.RegisterRecvAlertPolicyCache(&AlertPolicyCache)
 	SettingsCache.SetUpdatedCb(settingsCb)
 	VMPoolInfoCache.SetUpdatedCb(vmPoolInfoCb)
 	CloudletCache.SetUpdatedCb(cloudletCb)
@@ -555,6 +596,7 @@ func start() {
 		AppDNSRoot:     *appDNSRoot,
 		ChefServerPath: *chefServerPath,
 		AccessApi:      accessApi,
+		NodeMgr:        &nodeMgr,
 	}
 
 	caches := pf.Caches{
@@ -565,6 +607,8 @@ func start() {
 	// get access to infra properties
 	infraProps.Init()
 	infraProps.SetPropsFromVars(ctx, cloudlet.EnvVar)
+	// assume the unit is active which may be overridden in the platform init
+	shepherd_common.ShepherdPlatformActive = true
 	err = myPlatform.Init(ctx, &pc, &caches)
 	if err != nil {
 		log.FatalLog("Failed to initialize platform", "platformName", platformName, "err", err)
@@ -619,7 +663,7 @@ func (s *sendAllRecv) RecvAllEnd(ctx context.Context) {
 
 // update active connection alerts for cloudlet prometheus
 // walk appCache and check which apps use this alert
-func userAlertCb(ctx context.Context, old *edgeproto.UserAlert, new *edgeproto.UserAlert) {
+func alertPolicyCb(ctx context.Context, old *edgeproto.AlertPolicy, new *edgeproto.AlertPolicy) {
 	log.SpanLog(ctx, log.DebugLevelMetrics, "User Alert update", "new", new, "old", old)
 	if new == nil || old == nil {
 		// deleted, so all the appInsts should've been cleaned up already
@@ -639,7 +683,7 @@ func userAlertCb(ctx context.Context, old *edgeproto.UserAlert, new *edgeproto.U
 	}
 
 	AppCache.Show(&appAlertFilter, func(obj *edgeproto.App) error {
-		for _, alertName := range obj.UserDefinedAlerts {
+		for _, alertName := range obj.AlertPolicies {
 			if alertName == new.Key.Name {
 				apps[obj.Key] = struct{}{}
 				return nil
@@ -668,7 +712,7 @@ func appUpdateCb(ctx context.Context, old *edgeproto.App, new *edgeproto.App) {
 		// or a new app - no appInsts on it yet
 		return
 	}
-	if !old.AppUserAlertsDifferent(new) {
+	if !old.AppAlertPoliciesDifferent(new) {
 		// nothing to update
 		return
 	}

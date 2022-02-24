@@ -3,6 +3,7 @@ package vmlayer
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -10,26 +11,26 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/chefmgmt"
 	"github.com/mobiledgex/edge-cloud-infra/infracommon"
 	"github.com/mobiledgex/edge-cloud/cloud-resource-manager/platform"
-	"github.com/mobiledgex/edge-cloud/cloudcommon"
 	"github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 )
 
 type VMProperties struct {
-	CommonPf                   infracommon.CommonPlatform
-	SharedRootLBName           string
-	Domain                     VMDomain
-	PlatformSecgrpName         string
-	CloudletSecgrpName         string
-	IptablesBasedFirewall      bool
-	Upgrade                    bool
-	UseSecgrpForInternalSubnet bool
-	RequiresWhitelistOwnIp     bool
-	RunLbDhcpServerForVmApps   bool
-	AppendFlavorToVmAppImage   bool
-	ValidateExternalIPMapping  bool
-	CloudletAccessToken        string
-	NumCleanupRetries          int
+	CommonPf                          infracommon.CommonPlatform
+	SharedRootLBName                  string
+	Domain                            VMDomain
+	PlatformSecgrpName                string
+	CloudletSecgrpName                string
+	IptablesBasedFirewall             bool
+	Upgrade                           bool
+	UseSecgrpForInternalSubnet        bool
+	RequiresWhitelistOwnIp            bool
+	RunLbDhcpServerForVmApps          bool
+	AppendFlavorToVmAppImage          bool
+	ValidateExternalIPMapping         bool
+	CloudletAccessToken               string
+	NumCleanupRetries                 int
+	UsesCommonSharedInternalLBNetwork bool
 }
 
 const MEX_ROOTLB_FLAVOR_NAME = "mex-rootlb-flavor"
@@ -42,7 +43,7 @@ const MINIMUM_VCPUS uint64 = 2
 var ImageFormatQcow2 = "qcow2"
 var ImageFormatVmdk = "vmdk"
 
-var MEXInfraVersion = "4.5.0"
+var MEXInfraVersion = "4.8.1"
 var ImageNamePrefix = "mobiledgex-v"
 var DefaultOSImageName = ImageNamePrefix + MEXInfraVersion
 
@@ -59,12 +60,6 @@ var NoConfigExternalRouter = "NOCONFIG"
 var NoExternalRouter = "NONE"
 
 var DefaultCloudletVMImagePath = "https://artifactory.mobiledgex.net/artifactory/baseimages/"
-
-type ExternalNetworkType string
-
-const ExternalNetworkRootLb = "rootlb"
-const ExternalNetworkPlatform = "platform"
-const ExternalNetworkAll = "all"
 
 // properties common to all VM providers
 var VMProviderProps = map[string]*edgeproto.PropertyInfo{
@@ -175,6 +170,16 @@ var VMProviderProps = map[string]*edgeproto.PropertyInfo{
 		Description: "Determines how often VM metrics are collected",
 		Value:       "5",
 	},
+	"MEX_METALLB_OCTET3_RANGE": {
+		Name:        "MetalLB IP third octet range",
+		Description: "Start and end value of MetalLB IP range third octet, (start-end). Set to NONE to disable MetalLB",
+		Value:       "200-250",
+	},
+	"MEX_ENABLE_ANTI_AFFINITY": {
+		Name:        "Enable Anti-Affinity Rules",
+		Description: "Enable Anti-Affinity rules where applicable for H/A (yes or no). Set to \"no\" for environments with limited hosts",
+		Value:       "yes",
+	},
 }
 
 func GetSupportedRouterTypes() string {
@@ -250,26 +255,31 @@ func (vp *VMProperties) GetCloudletAdditionalRootLbNetworks() []string {
 	return strings.Split(value, ",")
 }
 
-func (vp *VMProperties) GetExternalNetworks(netType ExternalNetworkType) map[string]string {
-	externalNetMap := make(map[string]string)
-	// always return the main external network
-	externalNetname := vp.GetCloudletExternalNetwork()
-	var nets = []string{externalNetname}
+// GetNetworksByType returns a map of networkName -> Type
+func (vp *VMProperties) GetNetworksByType(ctx context.Context, netTypes []NetworkType) map[string]NetworkType {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetNetworksByType", "netTypes", netTypes)
+	nets := make(map[string]NetworkType)
 
-	// look for additional net based on netType
-	switch netType {
-	case ExternalNetworkPlatform:
-		nets = append(nets, vp.GetCloudletAdditionalPlatformNetworks()...)
-	case ExternalNetworkRootLb:
-		nets = append(nets, vp.GetCloudletAdditionalRootLbNetworks()...)
-	case ExternalNetworkAll:
-		nets = append(nets, vp.GetCloudletAdditionalRootLbNetworks()...)
-		nets = append(nets, vp.GetCloudletAdditionalPlatformNetworks()...)
+	// look for additional net based on netType.
+	for _, netType := range netTypes {
+		switch netType {
+		case NetworkTypeExternalPrimary:
+			nets[vp.GetCloudletExternalNetwork()] = NetworkTypeExternalPrimary
+		case NetworkTypeExternalAdditionalRootLb:
+			for _, n := range vp.GetCloudletAdditionalRootLbNetworks() {
+				nets[n] = NetworkTypeExternalAdditionalRootLb
+			}
+		case NetworkTypeExternalAdditionalPlatform:
+			for _, n := range vp.GetCloudletAdditionalPlatformNetworks() {
+				nets[n] = NetworkTypeExternalAdditionalPlatform
+			}
+		case NetworkTypeInternalPrivate:
+			fallthrough
+		case NetworkTypeInternalSharedLb:
+			nets[vp.GetCloudletMexNetwork()] = netType
+		}
 	}
-	for _, net := range nets {
-		externalNetMap[net] = net
-	}
-	return externalNetMap
+	return nets
 }
 
 func (vp *VMProperties) GetNtpServers() []string {
@@ -338,7 +348,7 @@ func (vp *VMProperties) GetSubnetDNS() string {
 func (vp *VMProperties) GetRootLBNameForCluster(ctx context.Context, clusterInst *edgeproto.ClusterInst) string {
 	lbName := vp.SharedRootLBName
 	if clusterInst.IpAccess == edgeproto.IpAccess_IP_ACCESS_DEDICATED {
-		lbName = cloudcommon.GetDedicatedLBFQDN(vp.CommonPf.PlatformConfig.CloudletKey, &clusterInst.Key.ClusterKey, vp.CommonPf.PlatformConfig.AppDNSRoot)
+		lbName = clusterInst.Fqdn
 	}
 	return lbName
 }
@@ -379,6 +389,59 @@ func (vp *VMProperties) GetRegion() string {
 
 func (vp *VMProperties) GetDeploymentTag() string {
 	return vp.CommonPf.DeploymentTag
+}
+
+func (vp *VMProperties) GetUsesMetalLb() bool {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_METALLB_OCTET3_RANGE")
+	return value != "" && value != "NONE"
+}
+
+func (vp *VMProperties) GetMetalLBIp3rdOctetRange() (uint64, uint64, error) {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_METALLB_OCTET3_RANGE")
+	if value == "" {
+		// should not happen as GetUsesMetalLb should be called first
+		return 0, 0, fmt.Errorf("No MetalLB range defined in MEX_METALLB_OCTET3_RANGE")
+	}
+	vals := strings.Split(value, "-")
+	if len(vals) != 2 {
+		return 0, 0, fmt.Errorf("MetalLB range not properly defined (start-end) in MEX_METALLB_OCTET3_RANGE")
+	}
+	start, err := strconv.ParseUint(vals[0], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start-end %v", err)
+	}
+	end, err := strconv.ParseUint(vals[1], 10, 32)
+	if err != nil {
+		return 0, 0, fmt.Errorf("Failed to parse MetalLB start-end %v", err)
+	}
+	if start == 0 || start > 255 || end > 255 || start > end {
+		return 0, 0, fmt.Errorf("Invalid MetalLB range in MEX_METALLB_OCTET3_RANGE")
+	}
+	return start, end, nil
+}
+
+func (vp *VMProperties) GetEnableAntiAffinity() bool {
+	value, _ := vp.CommonPf.Properties.GetValue("MEX_ENABLE_ANTI_AFFINITY")
+	return value == "yes"
+}
+
+// GetMetalLBIp3rdOctetRangeFromMasterIp gives an IP range on the same subnet as the master IP
+func (vp *VMProperties) GetMetalLBIp3rdOctetRangeFromMasterIp(ctx context.Context, masterIP string) ([]string, error) {
+	log.SpanLog(ctx, log.DebugLevelInfra, "GetMetalLBIp3rdOctetRangeFromMasterIp", "masterIP", masterIP)
+	mip := net.ParseIP(masterIP)
+	if mip == nil {
+		return nil, fmt.Errorf("unable to parse master ip %s", masterIP)
+	}
+	start, end, err := vp.GetMetalLBIp3rdOctetRange()
+	if err != nil {
+		return nil, err
+	}
+	addr := mip.To4()
+	addr[3] = byte(start)
+	startAddr := addr.String()
+	addr[3] = byte(end)
+	endAddr := addr.String()
+	return []string{fmt.Sprintf("%s-%s", startAddr, endAddr)}, nil
 }
 
 // For platforms without native flavor support, just use our meta flavors

@@ -4,18 +4,17 @@
 package orm
 
 import (
-	"context"
 	fmt "fmt"
 	_ "github.com/gogo/googleapis/google/api"
 	_ "github.com/gogo/protobuf/gogoproto"
 	proto "github.com/gogo/protobuf/proto"
 	"github.com/labstack/echo"
+	"github.com/mobiledgex/edge-cloud-infra/mc/ctrlclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormutil"
 	edgeproto "github.com/mobiledgex/edge-cloud/edgeproto"
 	"github.com/mobiledgex/edge-cloud/log"
 	_ "github.com/mobiledgex/edge-cloud/protogen"
-	"io"
 	math "math"
 )
 
@@ -27,188 +26,111 @@ var _ = math.Inf
 // Auto-generated code: DO NOT EDIT
 
 func CreateTrustPolicy(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionTrustPolicy{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.TrustPolicy.GetKey().GetTags())
 	span.SetTag("org", in.TrustPolicy.Key.Organization)
 
-	err = CreateTrustPolicyStream(ctx, rc, &in.TrustPolicy, func(res *edgeproto.Result) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func CreateTrustPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.TrustPolicy, cb func(res *edgeproto.Result) error) error {
+	obj := &in.TrustPolicy
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForCreateTrustPolicy(); err != nil {
 		return err
 	}
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage, withRequiresOrg(obj.Key.Organization)); err != nil {
 			return err
 		}
 	}
-	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
+
+	cb := func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
 	}
-	api := edgeproto.NewTrustPolicyApiClient(rc.conn)
-	stream, err := api.CreateTrustPolicy(ctx, obj)
+	err = ctrlclient.CreateTrustPolicyStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
-func CreateTrustPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.TrustPolicy) ([]edgeproto.Result, error) {
-	arr := []edgeproto.Result{}
-	err := CreateTrustPolicyStream(ctx, rc, obj, func(res *edgeproto.Result) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
-}
-
 func DeleteTrustPolicy(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionTrustPolicy{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.TrustPolicy.GetKey().GetTags())
 	span.SetTag("org", in.TrustPolicy.Key.Organization)
 
-	err = DeleteTrustPolicyStream(ctx, rc, &in.TrustPolicy, func(res *edgeproto.Result) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func DeleteTrustPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.TrustPolicy, cb func(res *edgeproto.Result) error) error {
+	obj := &in.TrustPolicy
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForDeleteTrustPolicy(); err != nil {
 		return err
 	}
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
 			return err
 		}
 	}
-	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
+
+	cb := func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
 	}
-	api := edgeproto.NewTrustPolicyApiClient(rc.conn)
-	stream, err := api.DeleteTrustPolicy(ctx, obj)
+	err = ctrlclient.DeleteTrustPolicyStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
-func DeleteTrustPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.TrustPolicy) ([]edgeproto.Result, error) {
-	arr := []edgeproto.Result{}
-	err := DeleteTrustPolicyStream(ctx, rc, obj, func(res *edgeproto.Result) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
-}
-
 func UpdateTrustPolicy(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionTrustPolicy{}
 	dat, err := ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.TrustPolicy.GetKey().GetTags())
@@ -218,162 +140,68 @@ func UpdateTrustPolicy(c echo.Context) error {
 		return err
 	}
 
-	err = UpdateTrustPolicyStream(ctx, rc, &in.TrustPolicy, func(res *edgeproto.Result) error {
-		payload := ormapi.StreamPayload{}
-		payload.Data = res
-		return WriteStream(c, &payload)
-	})
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func UpdateTrustPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.TrustPolicy, cb func(res *edgeproto.Result) error) error {
+	obj := &in.TrustPolicy
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if err := obj.IsValidArgsForUpdateTrustPolicy(); err != nil {
 		return err
 	}
-	if !rc.skipAuthz {
-		if err := authorized(ctx, rc.username, obj.Key.Organization,
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, obj.Key.Organization,
 			ResourceCloudlets, ActionManage); err != nil {
 			return err
 		}
 	}
-	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
+
+	cb := func(res *edgeproto.Result) error {
+		payload := ormapi.StreamPayload{}
+		payload.Data = res
+		return WriteStream(c, &payload)
 	}
-	api := edgeproto.NewTrustPolicyApiClient(rc.conn)
-	stream, err := api.UpdateTrustPolicy(ctx, obj)
+	err = ctrlclient.UpdateTrustPolicyStream(ctx, rc, obj, connCache, cb)
 	if err != nil {
 		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
 	}
 	return nil
 }
 
-func UpdateTrustPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.TrustPolicy) ([]edgeproto.Result, error) {
-	arr := []edgeproto.Result{}
-	err := UpdateTrustPolicyStream(ctx, rc, obj, func(res *edgeproto.Result) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
-}
-
 func ShowTrustPolicy(c echo.Context) error {
-	ctx := GetContext(c)
-	rc := &RegionContext{}
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
 	claims, err := getClaims(c)
 	if err != nil {
 		return err
 	}
-	rc.username = claims.Username
+	rc.Username = claims.Username
 
 	in := ormapi.RegionTrustPolicy{}
 	_, err = ReadConn(c, &in)
 	if err != nil {
 		return err
 	}
-	rc.region = in.Region
+	rc.Region = in.Region
+	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
 	log.SetTags(span, in.TrustPolicy.GetKey().GetTags())
 	span.SetTag("org", in.TrustPolicy.Key.Organization)
 
-	err = ShowTrustPolicyStream(ctx, rc, &in.TrustPolicy, func(res *edgeproto.TrustPolicy) error {
+	obj := &in.TrustPolicy
+	var authz ctrlclient.ShowTrustPolicyAuthz
+	if !rc.SkipAuthz {
+		authz, err = newShowTrustPolicyAuthz(ctx, rc.Region, rc.Username, ResourceCloudlets, ActionView)
+		if err != nil {
+			return err
+		}
+	}
+
+	cb := func(res *edgeproto.TrustPolicy) error {
 		payload := ormapi.StreamPayload{}
 		payload.Data = res
 		return WriteStream(c, &payload)
-	})
+	}
+	err = ctrlclient.ShowTrustPolicyStream(ctx, rc, obj, connCache, authz, cb)
 	if err != nil {
 		return err
 	}
 	return nil
-}
-
-type ShowTrustPolicyAuthz interface {
-	Ok(obj *edgeproto.TrustPolicy) (bool, bool)
-	Filter(obj *edgeproto.TrustPolicy)
-}
-
-func ShowTrustPolicyStream(ctx context.Context, rc *RegionContext, obj *edgeproto.TrustPolicy, cb func(res *edgeproto.TrustPolicy) error) error {
-	var authz ShowTrustPolicyAuthz
-	var err error
-	if !rc.skipAuthz {
-		authz, err = newShowTrustPolicyAuthz(ctx, rc.region, rc.username, ResourceCloudlets, ActionView)
-		if err != nil {
-			return err
-		}
-	}
-	if rc.conn == nil {
-		conn, err := connectController(ctx, rc.region)
-		if err != nil {
-			return err
-		}
-		rc.conn = conn
-		defer func() {
-			rc.conn.Close()
-			rc.conn = nil
-		}()
-	}
-	api := edgeproto.NewTrustPolicyApiClient(rc.conn)
-	stream, err := api.ShowTrustPolicy(ctx, obj)
-	if err != nil {
-		return err
-	}
-	for {
-		res, err := stream.Recv()
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			return err
-		}
-		if !rc.skipAuthz {
-			authzOk, filterOutput := authz.Ok(res)
-			if !authzOk {
-				continue
-			}
-			if filterOutput {
-				authz.Filter(res)
-			}
-		}
-		err = cb(res)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func ShowTrustPolicyObj(ctx context.Context, rc *RegionContext, obj *edgeproto.TrustPolicy) ([]edgeproto.TrustPolicy, error) {
-	arr := []edgeproto.TrustPolicy{}
-	err := ShowTrustPolicyStream(ctx, rc, obj, func(res *edgeproto.TrustPolicy) error {
-		arr = append(arr, *res)
-		return nil
-	})
-	return arr, err
 }

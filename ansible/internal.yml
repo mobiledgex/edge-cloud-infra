@@ -15,6 +15,10 @@
   tasks:
 
     - import_role:
+        name: ntp
+      tags: setup
+
+    - import_role:
         name: vault
         tasks_from: vault-ssh
 
@@ -295,6 +299,9 @@
     vouch_data_dir: "/var/vouch"
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
@@ -364,6 +371,9 @@
     kibana_conf: /etc/kibana.yml
 
   tasks:
+    - import_role:
+        name: ntp
+      tags: setup
     - import_role:
         name: vault
         tasks_from: vault-ssh
@@ -567,6 +577,10 @@
   tasks:
 
     - import_role:
+        name: ntp
+      tags: setup
+
+    - import_role:
         name: vault
         tasks_from: vault-ssh
 
@@ -656,6 +670,10 @@
     backup_log: /var/log/backup.log
 
   tasks:
+
+    - import_role:
+        name: ntp
+      tags: setup
 
     - import_role:
         name: vault
@@ -795,6 +813,9 @@
 
   tasks:
     - import_role:
+        name: ntp
+      tags: setup
+    - import_role:
         name: vault
         tasks_from: vault-ssh
     - import_role:
@@ -811,6 +832,10 @@
     grafana_google_creds_path: "secret/ansible/{{ deploy_environ }}/accounts/grafana_google"
 
   tasks:
+
+    - import_role:
+        name: ntp
+      tags: setup
 
     - import_role:
         name: vault
@@ -872,3 +897,52 @@
         ports:
           - "127.0.0.1:3000:3000"
         volumes: "{{ volumes | zip(volumes) | map('join', ':') | list }}"
+
+- hosts: teleport
+  vars_prompt:
+    - name: ansible_become_pass
+      prompt: Sudo password for ansible account
+      private: yes
+
+  tasks:
+    - import_role:
+        name: ntp
+      tags: setup
+
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: teleport
+
+- hosts: trivy
+  tasks:
+    - import_role:
+        name: ntp
+      tags: setup
+
+    - import_role:
+        name: vault
+        tasks_from: vault-ssh
+
+    - import_role:
+        name: telegraf
+      tags:
+        - monitoring
+        - setup
+
+    - import_role:
+        name: docker
+      vars:
+        docker_skip_registry_login: true
+      tags: setup
+
+    - import_role:
+        name: trivy

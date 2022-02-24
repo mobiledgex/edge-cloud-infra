@@ -33,7 +33,7 @@ var CreateAutoProvPolicyCmd = &ApiCommand{
 	AliasArgs:    strings.Join(AutoProvPolicyAliasArgs, " "),
 	SpecialArgs:  &AutoProvPolicySpecialArgs,
 	Comments:     addRegionComment(AutoProvPolicyComments),
-	NoConfig:     "Cloudlets:#.Loc",
+	NoConfig:     "Cloudlets:#.Loc,DeletePrepare",
 	ReqData:      &ormapi.RegionAutoProvPolicy{},
 	ReplyData:    &edgeproto.Result{},
 	Path:         "/auth/ctrl/CreateAutoProvPolicy",
@@ -49,7 +49,7 @@ var DeleteAutoProvPolicyCmd = &ApiCommand{
 	AliasArgs:    strings.Join(AutoProvPolicyAliasArgs, " "),
 	SpecialArgs:  &AutoProvPolicySpecialArgs,
 	Comments:     addRegionComment(AutoProvPolicyComments),
-	NoConfig:     "Cloudlets:#.Loc",
+	NoConfig:     "Cloudlets:#.Loc,DeletePrepare",
 	ReqData:      &ormapi.RegionAutoProvPolicy{},
 	ReplyData:    &edgeproto.Result{},
 	Path:         "/auth/ctrl/DeleteAutoProvPolicy",
@@ -65,7 +65,7 @@ var UpdateAutoProvPolicyCmd = &ApiCommand{
 	AliasArgs:    strings.Join(AutoProvPolicyAliasArgs, " "),
 	SpecialArgs:  &AutoProvPolicySpecialArgs,
 	Comments:     addRegionComment(AutoProvPolicyComments),
-	NoConfig:     "Cloudlets:#.Loc",
+	NoConfig:     "Cloudlets:#.Loc,DeletePrepare",
 	ReqData:      &ormapi.RegionAutoProvPolicy{},
 	ReplyData:    &edgeproto.Result{},
 	Path:         "/auth/ctrl/UpdateAutoProvPolicy",
@@ -81,7 +81,7 @@ var ShowAutoProvPolicyCmd = &ApiCommand{
 	AliasArgs:    strings.Join(AutoProvPolicyAliasArgs, " "),
 	SpecialArgs:  &AutoProvPolicySpecialArgs,
 	Comments:     addRegionComment(AutoProvPolicyComments),
-	NoConfig:     "Cloudlets:#.Loc",
+	NoConfig:     "Cloudlets:#.Loc,DeletePrepare",
 	ReqData:      &ormapi.RegionAutoProvPolicy{},
 	ReplyData:    &edgeproto.AutoProvPolicy{},
 	Path:         "/auth/ctrl/ShowAutoProvPolicy",
@@ -134,7 +134,7 @@ func init() {
 }
 
 var CreateAutoProvPolicyRequiredArgs = []string{
-	"app-org",
+	"apporg",
 	"name",
 }
 var CreateAutoProvPolicyOptionalArgs = []string{
@@ -142,13 +142,14 @@ var CreateAutoProvPolicyOptionalArgs = []string{
 	"deployintervalcount",
 	"cloudlets:#.key.organization",
 	"cloudlets:#.key.name",
+	"cloudlets:#.key.federatedorganization",
 	"minactiveinstances",
 	"maxinstances",
 	"undeployclientcount",
 	"undeployintervalcount",
 }
 var AutoProvPolicyRequiredArgs = []string{
-	"app-org",
+	"apporg",
 	"name",
 }
 var AutoProvPolicyOptionalArgs = []string{
@@ -157,6 +158,7 @@ var AutoProvPolicyOptionalArgs = []string{
 	"cloudlets:empty",
 	"cloudlets:#.key.organization",
 	"cloudlets:#.key.name",
+	"cloudlets:#.key.federatedorganization",
 	"minactiveinstances",
 	"maxinstances",
 	"undeployclientcount",
@@ -164,13 +166,14 @@ var AutoProvPolicyOptionalArgs = []string{
 }
 var AutoProvPolicyAliasArgs = []string{
 	"fields=autoprovpolicy.fields",
-	"app-org=autoprovpolicy.key.organization",
+	"apporg=autoprovpolicy.key.organization",
 	"name=autoprovpolicy.key.name",
 	"deployclientcount=autoprovpolicy.deployclientcount",
 	"deployintervalcount=autoprovpolicy.deployintervalcount",
 	"cloudlets:empty=autoprovpolicy.cloudlets:empty",
 	"cloudlets:#.key.organization=autoprovpolicy.cloudlets:#.key.organization",
 	"cloudlets:#.key.name=autoprovpolicy.cloudlets:#.key.name",
+	"cloudlets:#.key.federatedorganization=autoprovpolicy.cloudlets:#.key.federatedorganization",
 	"cloudlets:#.loc.latitude=autoprovpolicy.cloudlets:#.loc.latitude",
 	"cloudlets:#.loc.longitude=autoprovpolicy.cloudlets:#.loc.longitude",
 	"cloudlets:#.loc.horizontalaccuracy=autoprovpolicy.cloudlets:#.loc.horizontalaccuracy",
@@ -178,55 +181,61 @@ var AutoProvPolicyAliasArgs = []string{
 	"cloudlets:#.loc.altitude=autoprovpolicy.cloudlets:#.loc.altitude",
 	"cloudlets:#.loc.course=autoprovpolicy.cloudlets:#.loc.course",
 	"cloudlets:#.loc.speed=autoprovpolicy.cloudlets:#.loc.speed",
-	"cloudlets:#.loc.timestamp.seconds=autoprovpolicy.cloudlets:#.loc.timestamp.seconds",
-	"cloudlets:#.loc.timestamp.nanos=autoprovpolicy.cloudlets:#.loc.timestamp.nanos",
+	"cloudlets:#.loc.timestamp=autoprovpolicy.cloudlets:#.loc.timestamp",
 	"minactiveinstances=autoprovpolicy.minactiveinstances",
 	"maxinstances=autoprovpolicy.maxinstances",
 	"undeployclientcount=autoprovpolicy.undeployclientcount",
 	"undeployintervalcount=autoprovpolicy.undeployintervalcount",
+	"deleteprepare=autoprovpolicy.deleteprepare",
 }
 var AutoProvPolicyComments = map[string]string{
-	"fields":                             "Fields are used for the Update API to specify which fields to apply",
-	"app-org":                            "Name of the organization for the cluster that this policy will apply to",
-	"name":                               "Policy name",
-	"deployclientcount":                  "Minimum number of clients within the auto deploy interval to trigger deployment",
-	"deployintervalcount":                "Number of intervals to check before triggering deployment",
-	"cloudlets:empty":                    "Allowed deployment locations, specify cloudlets:empty=true to clear",
-	"cloudlets:#.key.organization":       "Organization of the cloudlet site",
-	"cloudlets:#.key.name":               "Name of the cloudlet",
-	"cloudlets:#.loc.latitude":           "latitude in WGS 84 coordinates",
-	"cloudlets:#.loc.longitude":          "longitude in WGS 84 coordinates",
-	"cloudlets:#.loc.horizontalaccuracy": "horizontal accuracy (radius in meters)",
-	"cloudlets:#.loc.verticalaccuracy":   "vertical accuracy (meters)",
-	"cloudlets:#.loc.altitude":           "On android only lat and long are guaranteed to be supplied altitude in meters",
-	"cloudlets:#.loc.course":             "course (IOS) / bearing (Android) (degrees east relative to true north)",
-	"cloudlets:#.loc.speed":              "speed (IOS) / velocity (Android) (meters/sec)",
-	"minactiveinstances":                 "Minimum number of active instances for High-Availability",
-	"maxinstances":                       "Maximum number of instances (active or not)",
-	"undeployclientcount":                "Number of active clients for the undeploy interval below which trigers undeployment, 0 (default) disables auto undeploy",
-	"undeployintervalcount":              "Number of intervals to check before triggering undeployment",
+	"fields":                                "Fields are used for the Update API to specify which fields to apply",
+	"apporg":                                "Name of the organization for the cluster that this policy will apply to",
+	"name":                                  "Policy name",
+	"deployclientcount":                     "Minimum number of clients within the auto deploy interval to trigger deployment",
+	"deployintervalcount":                   "Number of intervals to check before triggering deployment",
+	"cloudlets:empty":                       "Allowed deployment locations, specify cloudlets:empty=true to clear",
+	"cloudlets:#.key.organization":          "Organization of the cloudlet site",
+	"cloudlets:#.key.name":                  "Name of the cloudlet",
+	"cloudlets:#.key.federatedorganization": "Federated operator organization who shared this cloudlet",
+	"cloudlets:#.loc.latitude":              "Latitude in WGS 84 coordinates",
+	"cloudlets:#.loc.longitude":             "Longitude in WGS 84 coordinates",
+	"cloudlets:#.loc.horizontalaccuracy":    "Horizontal accuracy (radius in meters)",
+	"cloudlets:#.loc.verticalaccuracy":      "Vertical accuracy (meters)",
+	"cloudlets:#.loc.altitude":              "On android only lat and long are guaranteed to be supplied Altitude in meters",
+	"cloudlets:#.loc.course":                "Course (IOS) / bearing (Android) (degrees east relative to true north)",
+	"cloudlets:#.loc.speed":                 "Speed (IOS) / velocity (Android) (meters/sec)",
+	"cloudlets:#.loc.timestamp":             "Timestamp",
+	"minactiveinstances":                    "Minimum number of active instances for High-Availability",
+	"maxinstances":                          "Maximum number of instances (active or not)",
+	"undeployclientcount":                   "Number of active clients for the undeploy interval below which trigers undeployment, 0 (default) disables auto undeploy",
+	"undeployintervalcount":                 "Number of intervals to check before triggering undeployment",
+	"deleteprepare":                         "Preparing to be deleted",
 }
 var AutoProvPolicySpecialArgs = map[string]string{
 	"autoprovpolicy.fields": "StringArray",
 }
 var AutoProvPolicyCloudletRequiredArgs = []string{
-	"app-org",
+	"apporg",
 	"name",
 }
 var AutoProvPolicyCloudletOptionalArgs = []string{
-	"cloudlet-org",
+	"cloudletorg",
 	"cloudlet",
+	"federatedorg",
 }
 var AutoProvPolicyCloudletAliasArgs = []string{
-	"app-org=autoprovpolicycloudlet.key.organization",
+	"apporg=autoprovpolicycloudlet.key.organization",
 	"name=autoprovpolicycloudlet.key.name",
-	"cloudlet-org=autoprovpolicycloudlet.cloudletkey.organization",
+	"cloudletorg=autoprovpolicycloudlet.cloudletkey.organization",
 	"cloudlet=autoprovpolicycloudlet.cloudletkey.name",
+	"federatedorg=autoprovpolicycloudlet.cloudletkey.federatedorganization",
 }
 var AutoProvPolicyCloudletComments = map[string]string{
-	"app-org":      "Name of the organization for the cluster that this policy will apply to",
+	"apporg":       "Name of the organization for the cluster that this policy will apply to",
 	"name":         "Policy name",
-	"cloudlet-org": "Organization of the cloudlet site",
+	"cloudletorg":  "Organization of the cloudlet site",
 	"cloudlet":     "Name of the cloudlet",
+	"federatedorg": "Federated operator organization who shared this cloudlet",
 }
 var AutoProvPolicyCloudletSpecialArgs = map[string]string{}

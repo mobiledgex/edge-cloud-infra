@@ -30,7 +30,7 @@ func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *ed
 	return &pc.LocalClient{}, nil
 }
 
-func (s *Platform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
+func (s *Platform) GetVmAppRootLbClient(ctx context.Context, appInst *edgeproto.AppInst) (ssh.Client, error) {
 	return &pc.LocalClient{}, nil
 }
 
@@ -42,9 +42,17 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	return shepherd_common.AppMetrics{}, nil
 }
 
-func (s *Platform) VmAppChangedCallback(ctx context.Context) {
+func (s *Platform) VmAppChangedCallback(ctx context.Context, appInst *edgeproto.AppInst, newState edgeproto.TrackedState) {
 }
 
 func (s *Platform) GetMetricsCollectInterval() time.Duration {
 	return 0
+}
+
+func (s *Platform) SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error {
+	return nil
+}
+
+func (s *Platform) IsPlatformLocal(ctx context.Context) bool {
+	return true
 }

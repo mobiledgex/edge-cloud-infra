@@ -51,7 +51,6 @@ vault_user_roles:
     - sys-plugins-catalog.read.v1
     - sys-plugins-certs-config.read.v1
     - sys-policies.read.v1
-    - ui-access.v1
 
   deployer: &vault_user_role_deployer
     - *vault_user_role_viewer
@@ -61,6 +60,9 @@ vault_user_roles:
     - gcp-bucket-create-key.read.v1
     - gcp-firewall-manage-key.read.v1
     - gcp-role-create-key.read.v1
+    - transit-etcd-backup.decrypt.v1
+    - transit-etcd-backup.encrypt.v1
+    - transit-keys.list.v1
 
   editor: &vault_user_role_editor
     - *vault_user_role_deployer
@@ -68,7 +70,6 @@ vault_user_roles:
     - auth-approle.write.v1
     - auth-approle.destroy.v1
     - auth-github-config.read.v1
-    - auth-ldap-config.read.v1
     - certs.read.v1
     - cloudlets.write.v1
 
@@ -93,4 +94,4 @@ vault_user_roles:
     - mexenv.read.v1
     - registry.read.v1
     - ssh-user.sign.v1
-    - ui-access.v1
+    - teleport-node-token.read.v1

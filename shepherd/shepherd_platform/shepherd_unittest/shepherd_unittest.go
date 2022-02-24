@@ -27,6 +27,7 @@ type Platform struct {
 	CloudletMetrics    string
 	VmAppInstMetrics   string
 	FailPlatformClient bool
+	Ncpus              string
 	// TODO - add Prometheus/nginx strings here EDGECLOUD-1252
 }
 
@@ -48,7 +49,7 @@ func (s *Platform) GetClusterPlatformClient(ctx context.Context, clusterInst *ed
 	return &UTClient{pf: s}, nil
 }
 
-func (s *Platform) GetVmAppRootLbClient(ctx context.Context, app *edgeproto.AppInstKey) (ssh.Client, error) {
+func (s *Platform) GetVmAppRootLbClient(ctx context.Context, appInst *edgeproto.AppInst) (ssh.Client, error) {
 	return &UTClient{pf: s}, nil
 }
 
@@ -73,11 +74,19 @@ func (s *Platform) GetVmStats(ctx context.Context, key *edgeproto.AppInstKey) (s
 	return metrics, nil
 }
 
-func (s *Platform) VmAppChangedCallback(ctx context.Context) {
+func (s *Platform) VmAppChangedCallback(ctx context.Context, appInst *edgeproto.AppInst, newState edgeproto.TrackedState) {
 }
 
 func (s *Platform) GetMetricsCollectInterval() time.Duration {
 	return 60
+}
+
+func (s *Platform) SetUsageAccessArgs(ctx context.Context, addr string, client ssh.Client) error {
+	return nil
+}
+
+func (s *Platform) IsPlatformLocal(ctx context.Context) bool {
+	return true
 }
 
 // UTClient hijacks a set of commands and returns predetermined output
@@ -120,6 +129,9 @@ func (s *UTClient) getUTData(command string) (string, error) {
 	} else if strings.Contains(command, "docker ps -s") {
 		// docker container size data
 		return s.pf.DockerPsSizeData, nil
+	} else if command == "nproc" {
+		// docker number of vcpus
+		return s.pf.Ncpus, nil
 	}
 	// nginx-stats and envoy-stats unit test
 	// "docker exec containername curl http://url"

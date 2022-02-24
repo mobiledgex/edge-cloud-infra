@@ -1,15 +1,15 @@
 #!/bin/bash
 ARTIFACTORY_BASEURL='https://artifactory.mobiledgex.net/artifactory'
 ARTIFACTORY_USER='packer'
-ARTIFACTORY_ARTIFACTS_TAG='2020-04-27'
+ARTIFACTORY_ARTIFACTS_TAG='2021-10-05'
 CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
 CHEF_RECIPE="$( dirname $0 )/../../chef/cookbooks/upgrade_mobiledgex_package/recipes/default.rb"
 CHEF_UPDATE_GUIDE="https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/329384023/How+to+create+a+new+MobiledgeX+OS+base+image#chef"
 
-APT_REPO="https://apt.mobiledgex.net/cirrus/2021-06-30"
+APT_REPO="https://apt.mobiledgex.net/cirrus/2022-01-26"
 
-: ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64}
+: ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64-2021-10-05}
 : ${VAULT:=vault-main.mobiledgex.net}
 : ${FLAVOR:=m4.small}
 : ${FORCE:=no}
@@ -91,6 +91,7 @@ if ! vault token lookup >/dev/null 2>&1; then
 fi
 
 ROOT_PASS=$( vault kv get -field=value "${VAULT_PATH}/password" )
+DEBUG_ROOT_PASS=$( vault kv get -field=debug_password "${VAULT_PATH}/password" )
 GRUB_PW_HASH=$( vault kv get -field=grub_pw_hash "${VAULT_PATH}/password" )
 TOTP_KEY=$( vault kv get -field=value "${VAULT_PATH}/totp-key" )
 if [[ -z "$ROOT_PASS" || -z "$GRUB_PW_HASH" || -z "$TOTP_KEY" ]]; then
@@ -171,6 +172,7 @@ PACKER_LOG=1 "${CMDLINE[@]}" \
 	-var "ARTIFACTORY_ARTIFACTS_TAG=$ARTIFACTORY_ARTIFACTS_TAG" \
 	-var "APT_REPO=$APT_REPO" \
 	-var "ROOT_PASS=$ROOT_PASS" \
+	-var "DEBUG_ROOT_PASS=$DEBUG_ROOT_PASS" \
 	-var "GRUB_PW_HASH=$GRUB_PW_HASH" \
 	-var "TOTP_KEY=$TOTP_KEY" \
 	-var "TAG=$TAG" \
@@ -192,6 +194,9 @@ IMPORTANT FOLLOW-UP TASKS
 
 - Run this Jenkins job to compress and upload this image to Artifactory:
   https://nightly.mobiledgex.net/job/upload-baseimage/parambuild/?OPENSTACK_INSTANCE=&BASE_IMAGE_NAME=${OUTPUT_IMAGE_NAME}
+
+- Run this Jenkins job to compress and upload the debug image to Artifactory:
+  https://nightly.mobiledgex.net/job/upload-baseimage/parambuild/?OPENSTACK_INSTANCE=&BASE_IMAGE_NAME=${OUTPUT_IMAGE_NAME}-dbg
 
 - Update and push the chef policy for the mobiledgex package upgrade:
   $CHEF_UPDATE_GUIDE

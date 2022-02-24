@@ -1,7 +1,8 @@
 {
-  "revision_id": "f151d5881784bc69ece6185d688f24330170bf67f53981db77c2619cc4c3b988",
+  "revision_id": "c5986488712540461d2fec581bcc2e3f06acf4d09b69ac26e21f717dd7ddae2f",
   "name": "docker_crm",
   "run_list": [
+    "recipe[chef_client_updater::default]",
     "recipe[runstatus_handler::default]",
     "recipe[run_cmd::default]",
     "recipe[setup_infra::default]",
@@ -15,6 +16,17 @@
 
   ],
   "cookbook_locks": {
+    "chef_client_updater": {
+      "version": "3.11.0",
+      "identifier": "419a5b1204f7145afdabce5e81889d7a925bd21b",
+      "dotted_decimal_identifier": "18465589421209364.25611662247494024.173149767062043",
+      "cache_key": "chef_client_updater-3.11.0",
+      "origin": "https://chef.mobiledgex.net/organizations/mobiledgex",
+      "source_options": {
+        "chef_server": "https://chef.mobiledgex.net/organizations/mobiledgex",
+        "version": "3.11.0"
+      }
+    },
     "docker": {
       "version": "7.7.0",
       "identifier": "92b1f2d7956d1e2b98474380795df3e7545f3758",
@@ -116,7 +128,9 @@
     }
   },
   "default_attributes": {
-
+    "chef_client_updater": {
+      "version": "17.6.18"
+    }
   },
   "override_attributes": {
     "main": {
@@ -130,6 +144,10 @@
   },
   "solution_dependencies": {
     "Policyfile": [
+      [
+        "chef_client_updater",
+        "= 3.11.0"
+      ],
       [
         "docker",
         "= 7.7.0"
@@ -168,6 +186,9 @@
       ]
     ],
     "dependencies": {
+      "chef_client_updater (3.11.0)": [
+
+      ],
       "docker (7.7.0)": [
 
       ],

@@ -8,6 +8,13 @@
 - set_fact:
     nginx_installed: true
 
+- name: Fetch default interface IP
+  shell: "ip route get 1.1.1.1 | sed -n 's/.* src \\([^ ]*\\).*$/\\1/p'"
+  register: def_intf_ip_cmd
+
+- set_fact:
+    default_interface_ip: "{{ def_intf_ip_cmd.stdout }}"
+
 - name: Install nginx config
   template:
     src: "{{ nginx_config_template }}"
@@ -55,3 +62,5 @@
 
 - import_tasks: certs.yml
   when: cert_domains is defined and cert_domains|length > 0
+
+- meta: flush_handlers

@@ -67,7 +67,7 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
 		return k.CreateCloudletDirect(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
 	}
-	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_DIRECT_ACCESS {
+	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
 		return k.CreateCloudletRestricted(ctx, cloudlet, pfConfig, flavor, caches, accessApi, updateCallback)
 	}
 	return false, fmt.Errorf("unhandled InfraApiAccess %s", cloudlet.InfraApiAccess)

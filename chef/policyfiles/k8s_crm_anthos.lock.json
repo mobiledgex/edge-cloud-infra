@@ -1,5 +1,5 @@
 {
-  "revision_id": "a11e96df3d0810f2851889a6eb569968cc5875c92851551ee63fd3b603fdb7e0",
+  "revision_id": "007d1d1a8d1e435f8106b556fa076f6a1f4b2c809434b0d71c2378eeee62765a",
   "name": "k8s_crm_anthos",
   "run_list": [
     "recipe[chef_client_updater::default]",
@@ -117,14 +117,14 @@
       }
     },
     "setup_services_anthos": {
-      "version": "1.9.2",
-      "identifier": "1107c88b6eb0d9488bbe33ca77ca4d1b8e8259f7",
-      "dotted_decimal_identifier": "4793632518222041.20419847352121290.84780750363127",
-      "cache_key": "setup_services_anthos-1.9.2",
+      "version": "1.9.10",
+      "identifier": "45020c4d6b1499efb08b30cac50699b12faff159",
+      "dotted_decimal_identifier": "19424025254761625.67466631299384582.168986288320857",
+      "cache_key": "setup_services_anthos-1.9.10",
       "origin": "https://jlmtest.mobiledgex.net/organizations/mobiledgex",
       "source_options": {
         "chef_server": "https://jlmtest.mobiledgex.net/organizations/mobiledgex",
-        "version": "1.9.2"
+        "version": "1.9.10"
       }
     },
     "setup_vault_ssh": {
@@ -187,7 +187,7 @@
       ],
       [
         "setup_services_anthos",
-        "= 1.9.2"
+        "= 1.9.10"
       ],
       [
         "setup_vault_ssh",
@@ -222,7 +222,7 @@
       "setup_infra (1.0.0)": [
 
       ],
-      "setup_services_anthos (1.9.2)": [
+      "setup_services_anthos (1.9.10)": [
         [
           "docker",
           ">= 0.0.0"

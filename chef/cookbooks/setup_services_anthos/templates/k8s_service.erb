@@ -46,9 +46,9 @@ spec:
        <% end %>
        volumes:
        <% @hostvols.each do |vol, vol_attrs| %>
-       - name: <%= vol_attrs[:name] %>
-         hostPath: 
-            path: <%= vol_attrs[:hostPath] %>
+         - name: <%= vol_attrs[:name] %>
+           persistentVolumeClaim: 
+             claimName: <%= vol_attrs[:claimName] %>
        <% end %>
        <% @configmaps.each do|cm, cm_attrs| %>
        - name: <%= cm_attrs[:name] %>
@@ -93,11 +93,11 @@ spec:
          <% unless service_attrs[:volumeMounts].nil? %>
          volumeMounts:
          <% service_attrs[:volumeMounts].each do |vol, vol_attrs| %>
-            - name: <%= vol_attrs[:name] %> 
-              mountPath: <%= vol_attrs[:mountPath] %>
+           - mountPath: <%= vol_attrs[:mountPath] %>
+             name: <%= vol_attrs[:name] %> 
          <% end %>
          securityContext:
-	   privileged: true
+           privileged: true
            runAsUser: 0
            runAsGroup: 0
 	 <% end %>

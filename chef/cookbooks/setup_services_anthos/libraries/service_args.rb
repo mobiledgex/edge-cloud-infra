@@ -116,14 +116,14 @@ class Chef
                      cmdargs: get_crm_args(harole),
                      env: node['crmserver']['env'],
                      image: node['edgeCloudImage'] + ':' + node['edgeCloudVersion'],
-                     volumeMounts: { accesskey_vol: { name: 'accesskey-vol', mountPath: '/root/accesskey' },
-                                     cache_vol: { name: 'cache-vol', mountPath: '/root/crm_cache' } },
+                     volumeMounts: { accesskey_vol: { name: 'accesskey-pv-storage', mountPath: '/root/accesskey' },
+                                     cache_vol: { name: 'cache-pv-storage', mountPath: '/root/crm_cache' } },
         },
         shepherd: { cmd: 'shepherd',
                     cmdargs: get_shep_args,
                     env: node['shepherd']['env'],
                     image: node['edgeCloudImage'] + ':' + node['edgeCloudVersion'],
-                    volumeMounts: { accesskey_vol: { name: 'accesskey-vol', mountPath: '/root/accesskey' } },
+                    volumeMounts: { accesskey_vol: { name: 'accesskey-pv-storage', mountPath: '/root/accesskey' } },
         },
         cloudletprometheus: { cmdargs: get_prom_args,
                               env: node['cloudletPrometheus']['env'],
@@ -132,10 +132,10 @@ class Chef
         },
       }
     end
-
+    # PV + PVC 
     def get_hostvols_vars
-      { accesskey_vol: { name: 'accesskey-vol', hostPath: '/root/accesskey' },
-        cache_vol:     { name: 'cache-vol',     hostPath: '/root/crm_cache' } }
+      { accesskey_vol: { name: 'accesskey-pv-storage', mountPath: '/root/accesskey', claimName: 'accesskey-vol-claim' },
+        cache_vol:     { name: 'cache-pv-storage',     mountPath: '/root/crm_cache', claimName: 'cache-vol-claim'} }
     end
 
     def get_configmap_vars

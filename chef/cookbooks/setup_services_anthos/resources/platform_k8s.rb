@@ -107,7 +107,7 @@ action :deploy_simplex_platform do
     command 'kubectl apply -f /home/ubuntu/accesskey_vol.yml --kubeconfig=/home/ubuntu/.kube/config'
     retries 2
     retry_delay 2
-    returns 0    
+    returns 0
   end
 
   cookbook_file 'home/ubuntu/accesskey_vol_claim.yml' do
@@ -124,9 +124,9 @@ action :deploy_simplex_platform do
     command 'kubectl apply -f /home/ubuntu/accesskey_vol_claim.yml --kubeconfig=/home/ubuntu/.kube/config'
     retries 2
     retry_delay 2
-    returns 0   
+    returns 0
   end
-  
+
   cookbook_file 'home/ubuntu/cache_vol.yml' do
     source 'cache_vol.yml'
     owner 'ubuntu'
@@ -141,7 +141,7 @@ action :deploy_simplex_platform do
     command 'kubectl apply -f /home/ubuntu/cache_vol.yml --kubeconfig=/home/ubuntu/.kube/config'
     retries 2
     retry_delay 2
-    returns 0    
+    returns 0
   end
 
   cookbook_file 'home/ubuntu/cache_vol_claim.yml' do
@@ -158,9 +158,9 @@ action :deploy_simplex_platform do
     command 'kubectl apply -f /home/ubuntu/cache_vol_claim.yml --kubeconfig=/home/ubuntu/.kube/config'
     retries 2
     retry_delay 2
-    returns 0    
+    returns 0
   end
-  
+
   execute('create-prometheus-configmap') do
     Chef::Log.info('create prometheus configmap')
     action :run
@@ -170,14 +170,13 @@ action :deploy_simplex_platform do
     returns 0
     ignore_failure true
   end
-    
   execute('Setup simplex deployment') do
-    Chef::Log.info("apply k8s-deployment.yaml")    
+    Chef::Log.info("apply k8s-deployment.yaml")
     action :run
     command 'kubectl apply -f /home/ubuntu/k8s-deployment.yaml --kubeconfig=/home/ubuntu/.kube/config'
     returns 0
   end
-  
+
   execute('Wait for simplex platform pod to come up') do
     Chef::Log.info('Wait for simplex platform pod to come up')
     action :run
@@ -186,7 +185,7 @@ action :deploy_simplex_platform do
     command 'kubectl get pods -l app=platform-simplex -l version=' + node['edgeCloudVersion'] + ' --kubeconfig=/home/ubuntu/.kube/config| grep Running'
     returns 0
   end
-  
+
 end # deploy-simplex-platform
 
 #action :deploy_ha_platform do

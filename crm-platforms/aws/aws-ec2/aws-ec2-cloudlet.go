@@ -96,6 +96,32 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider", "stage", stage)
 	vpcName := a.GetVpcName()
 
+	// for common init, do nothing here. Shepherd has not been integrated for EC2 and requires work
+	switch stage {
+	case vmlayer.ProviderInitPlatformStartCrmCommon:
+		// will be called again as init conditional
+		return nil
+	case vmlayer.ProviderInitPlatformStartCrmSwitchToActive:
+		fallthrough
+	case vmlayer.ProviderInitPlatformStartShepherd:
+		fallthrough
+	case vmlayer.ProviderInitPlatformStartCrmConditional:
+		fallthrough
+	case vmlayer.ProviderInitCreateCloudletDirect:
+		fallthrough
+	case vmlayer.ProviderInitDeleteCloudlet:
+		err := a.awsGenPf.GetAwsSessionToken(ctx, a.VMProperties.CommonPf.PlatformConfig.AccessApi)
+		if err != nil {
+			return err
+		}
+		if stage == vmlayer.ProviderInitPlatformStartCrmConditional {
+			go a.awsGenPf.RefreshAwsSessionToken(a.VMProperties.CommonPf.PlatformConfig)
+		}
+		if stage == vmlayer.ProviderInitPlatformStartShepherd {
+			return nil
+		}
+	}
+
 	acct, err := a.GetIamAccountForImage(ctx)
 	if err != nil {
 		return err

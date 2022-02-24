@@ -81,10 +81,10 @@
 
     - name: Add federation address
       set_fact:
-        mc_args: "{{ mc_args + [ '-federationAddr', '0.0.0.0:' + mc_federation_port_internal|string ] }}"
+        mc_args: "{{ mc_args + [ '-federationAddr', '0.0.0.0:' + mc_federation_port|string ] }}"
 
     - set_fact:
-        fed_api_port_map: "127.0.0.1:{{ mc_federation_port_internal }}:{{ mc_federation_port_internal }}"
+        fed_api_port_map: "127.0.0.1:{{ mc_federation_port }}:{{ mc_federation_port }}"
 
     - name: Set up port map for federation API
       set_fact:

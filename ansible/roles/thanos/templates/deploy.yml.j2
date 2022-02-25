@@ -59,8 +59,6 @@ spec:
         - --label=region="{{ region }}"
         - --grpc-address=:{{ thanos_recv_grpc_port }}
         - --remote-write.address=:{{ thanos_recv_remote_write_port }}
-        - --remote-write.server-tls-cert={{ thanos_recv_tls_cert }}
-        - --remote-write.server-tls-key={{ thanos_recv_tls_key }}
         ports:
         - name: remote-write
           containerPort: {{ thanos_recv_remote_write_port }}

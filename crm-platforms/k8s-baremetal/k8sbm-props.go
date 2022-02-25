@@ -30,12 +30,18 @@ var k8sbmProps = map[string]*edgeproto.PropertyInfo{
 	"K8S_NUM_MASTERS": {
 		Name:        "Number Master Nodes",
 		Description: "Number of k8s masters in cluster",
-		Mandatory:   true,
+		Mandatory:   false,
 	},
 	"K8S_NUM_WORKERS": {
 		Name:        "Number Worker Nodes",
 		Description: "Number of k8s wokers in cluster",
-		Mandatory:   true,
+		Mandatory:   false,
+	},
+	// xxx convert to property? xxx
+	"K8S_RUN_ON_MASTER": {
+		Name:        "Run on Master",
+		Description: "Run pf pod on master node",
+		Mandatory:   false,
 	},
 }
 

@@ -225,7 +225,7 @@ func (k *K8sBareMetalPlatform) CreateCloudletRestricted(ctx context.Context, clo
 	// hope we can get this far, else we'll need help from chef.go I guess xxx
 
 	// here we need to create the install script for the op to finish off rolling out the k8s deployment of crm, shep and prom xxx
-	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt Restricted Access with clientCrmAccessPrivateKey: %s", pfConfig.CrmAccessPrivateKey))
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt RestrictedAccess api access key  %s", pfConfig.CrmAccessPrivateKey))
 	updateCallback(edgeproto.UpdateTask, "Creating K8s baremetalt Restricted Access please note and write accesskey.pem")
 	// need chef and access keys for op to install, maybe via  a k8s manifest file, or just a bash script to copy them in place.
 	// we assume chef-client has been installed along with the client.pem using knife boostrap so all we need here is the access key.

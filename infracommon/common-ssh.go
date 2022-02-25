@@ -75,12 +75,18 @@ func (cp *CommonPlatform) InitCloudletSSHKeys(ctx context.Context, accessApi pla
 	log.SpanLog(ctx, log.DebugLevelInfra, "InitCloudletSSHKeys")
 	cloudletPubKey, cloudletPrivKey, err := ssh.GenKeyPair()
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "InitCloudletSSHKey failed GenKeyPair", "error", err.Error())
 		return fmt.Errorf("failed to generate cloudlet SSH key pair: %v", err)
 	}
 	cp.SshKey.PublicKey = cloudletPubKey
 	cp.SshKey.PrivateKey = cloudletPrivKey
+
+	// xxx debug remove xxx
+	log.SpanLog(ctx, log.DebugLevelInfra, "InitCloudletSSHKey key pair gen'ed:", "pub", cloudletPubKey, "priv", cloudletPrivKey)
+
 	err = SetCloudletSignedSSHKey(ctx, accessApi, &cp.SshKey)
 	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "InitCloudletSSHKey failed SetCloudletSignedSSHKey", "error", err.Error())
 		return err
 	}
 	cp.SshKey.RefreshTrigger = make(chan bool, 1)

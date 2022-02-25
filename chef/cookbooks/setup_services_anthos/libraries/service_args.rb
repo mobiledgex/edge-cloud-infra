@@ -1,4 +1,4 @@
-class Chef
+ class Chef
   class Recipe
     def extract_cmd(service, argsmap, joincmd, skipcmd)
       args = if skipcmd

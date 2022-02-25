@@ -170,6 +170,16 @@ action :deploy_simplex_platform do
     returns 0
     ignore_failure true
   end
+  # if this works, maybe add cloudletorg to these args? TBI
+  execute('copy-kubeconfig-default-cluster') do
+    cloudletorg = #node['crmserver']['args']['physicalname']
+    filename = "defaultcloudlet." + cloudletorg + ".kubeconfig"
+    Chef::Log.info('create file #filename')    
+    action :run
+    command 'cp /home/ubuntu/.kube/config #filename'
+    returns 0
+  end
+  
   execute('Setup simplex deployment') do
     Chef::Log.info("apply k8s-deployment.yaml")
     action :run

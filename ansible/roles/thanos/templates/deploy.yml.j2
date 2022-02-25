@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: thanosquery
-        image: "quay.io/thanos/thanos:v0.20.0"
+        image: "quay.io/thanos/thanos:v0.21.0"
         imagePullPolicy: Always
         args:
         - query
@@ -52,13 +52,15 @@ spec:
     spec:
       containers:
       - name: thanosrecv
-        image: "quay.io/thanos/thanos:v0.20.0"
+        image: "quay.io/thanos/thanos:v0.21.0"
         imagePullPolicy: Always
         args:
         - receive
         - --label=region="{{ region }}"
         - --grpc-address=:{{ thanos_recv_grpc_port }}
         - --remote-write.address=:{{ thanos_recv_remote_write_port }}
+        - --remote-write.server-tls-cert={{ thanos_recv_tls_cert }}
+        - --remote-write.server-tls-key={{ thanos_recv_tls_key }}
         ports:
         - name: remote-write
           containerPort: {{ thanos_recv_remote_write_port }}

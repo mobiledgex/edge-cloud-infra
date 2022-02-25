@@ -74,6 +74,7 @@ class Chef
         'deploymentTag' => true,
         'accessKeyFile' => true,
         'accessApiAddr' => true,
+        'thanosRecvAddr' => true,
       }
       extract_cmd('shepherd', argsmap, false, false)
     end

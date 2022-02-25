@@ -839,9 +839,9 @@ func (v *VMPlatform) ActiveChanged(ctx context.Context, platformActive bool) err
 		return fmt.Errorf("platform unexpectedly transitioned to inactive")
 	}
 	var err error
-	err = v.VMProvider.InitProvider(ctx, v.Caches, ProviderInitPlatformStartCrmSwitchToActive, edgeproto.DummyUpdateCallback)
+	err = v.VMProvider.ActiveChanged(ctx, platformActive)
 	if err != nil {
-		log.FatalLog("Fail to init provider on switch to active - %v", err)
+		log.FatalLog("Error in provider ActiveChanged - %v", err)
 	}
 	ctx, _, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {

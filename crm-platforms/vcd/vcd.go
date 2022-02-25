@@ -73,13 +73,6 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	v.InitData(ctx, caches)
 
 	switch stage {
-	case vmlayer.ProviderInitPlatformStartCrmSwitchToActive:
-		// update the oauth token and start refresh but do nothing else
-		err := v.UpdateOauthToken(ctx, v.Creds)
-		if err != nil {
-			return fmt.Errorf("UpdateOauthToken failed - %v", err)
-		}
-		go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
 	case vmlayer.ProviderInitPlatformStartCrmConditional:
 		// update the oauth token and start refresh
 		err := v.UpdateOauthToken(ctx, v.Creds)
@@ -126,6 +119,17 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		}
 	}
 	v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr, stage)
+	return nil
+}
+
+func (v *VcdPlatform) ActiveChanged(ctx context.Context, platformActive bool) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged")
+	// update the oauth token and start refresh but do nothing else
+	err := v.UpdateOauthToken(ctx, v.Creds)
+	if err != nil {
+		return fmt.Errorf("UpdateOauthToken failed - %v", err)
+	}
+	go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
 	return nil
 }
 

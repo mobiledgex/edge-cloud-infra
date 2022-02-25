@@ -74,6 +74,7 @@ type VMProvider interface {
 	InternalCloudletUpdatedCallback(ctx context.Context, old *edgeproto.CloudletInternal, new *edgeproto.CloudletInternal)
 	VmAppChangedCallback(ctx context.Context, appInst *edgeproto.AppInst, newState edgeproto.TrackedState)
 	GetGPUSetupStage(ctx context.Context) GPUSetupStage
+	ActiveChanged(ctx context.Context, platformActive bool) error
 }
 
 // VMPlatform contains the needed by all VM based platforms
@@ -149,14 +150,13 @@ const (
 type ProviderInitStage string
 
 const (
-	ProviderInitCreateCloudletDirect           ProviderInitStage = "CreateCloudletDirect"
-	ProviderInitCreateCloudletRestricted       ProviderInitStage = "CreateCloudletRestricted"
-	ProviderInitPlatformStartCrmConditional    ProviderInitStage = "ProviderInitPlatformStartCrmConditional"
-	ProviderInitPlatformStartCrmCommon         ProviderInitStage = "ProviderInitPlatformStartCrmCommon"
-	ProviderInitPlatformStartCrmSwitchToActive ProviderInitStage = "ProviderInitPlatformCrmSwitchToActive"
-	ProviderInitPlatformStartShepherd          ProviderInitStage = "PlatformStartShepherd"
-	ProviderInitDeleteCloudlet                 ProviderInitStage = "DeleteCloudlet"
-	ProviderInitGetVmSpec                      ProviderInitStage = "GetVmSpec"
+	ProviderInitCreateCloudletDirect        ProviderInitStage = "CreateCloudletDirect"
+	ProviderInitCreateCloudletRestricted    ProviderInitStage = "CreateCloudletRestricted"
+	ProviderInitPlatformStartCrmConditional ProviderInitStage = "ProviderInitPlatformStartCrmConditional"
+	ProviderInitPlatformStartCrmCommon      ProviderInitStage = "ProviderInitPlatformStartCrmCommon"
+	ProviderInitPlatformStartShepherd       ProviderInitStage = "PlatformStartShepherd"
+	ProviderInitDeleteCloudlet              ProviderInitStage = "DeleteCloudlet"
+	ProviderInitGetVmSpec                   ProviderInitStage = "GetVmSpec"
 )
 
 // OperationInitStage is used to perform any common functions needed when starting and finishing an operation on the provider

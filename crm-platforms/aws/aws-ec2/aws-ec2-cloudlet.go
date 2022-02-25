@@ -101,8 +101,6 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 	case vmlayer.ProviderInitPlatformStartCrmCommon:
 		// will be called again as init conditional
 		return nil
-	case vmlayer.ProviderInitPlatformStartCrmSwitchToActive:
-		fallthrough
 	case vmlayer.ProviderInitPlatformStartShepherd:
 		fallthrough
 	case vmlayer.ProviderInitPlatformStartCrmConditional:
@@ -215,6 +213,10 @@ func (a *AwsEc2Platform) InitProvider(ctx context.Context, caches *platform.Cach
 			return err
 		}
 	}
+	return nil
+}
+
+func (a *AwsEc2Platform) ActiveChanged(ctx context.Context, platformActive bool) error {
 	return nil
 }
 

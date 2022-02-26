@@ -1853,13 +1853,18 @@ func badPermTestReferenceOrg(t *testing.T, mcClient *mctestclient.Client, uri, t
 	regCloudlet.Cloudlet.AllianceOrgs = []string{"no-such-org"}
 	_, _, err := mcClient.CreateCloudlet(uri, token, &regCloudlet)
 	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "Org no-such-org not found")
+	require.Contains(t, err.Error(), "Alliance org no-such-org not found")
 
 	regCloudlet.Cloudlet.AllianceOrgs = nil
 	regCloudlet.Cloudlet.SingleKubernetesClusterOwner = "no-such-org"
 	_, _, err = mcClient.CreateCloudlet(uri, token, &regCloudlet)
 	require.NotNil(t, err)
-	require.Contains(t, err.Error(), "Org no-such-org not found")
+	require.Contains(t, err.Error(), "Single kubernetes cluster owner org no-such-org not found")
+
+	regCloudlet.Cloudlet.SingleKubernetesClusterOwner = operOrg
+	_, _, err = mcClient.CreateCloudlet(uri, token, &regCloudlet)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Operation for single kubernetes cluster owner org org3 only allowed for orgs of type developer")
 }
 
 func badPermTestAutoProvPolicy400(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.AutoProvPolicy)) {
@@ -2747,10 +2752,6 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	testAddUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorManager", user1.Name, Success)
 	userApiKeyObj.Permissions = []ormapi.RolePerm{
 		ormapi.RolePerm{
-			Action:   "view",
-			Resource: "cloudlets",
-		},
-		ormapi.RolePerm{
 			Action:   "manage",
 			Resource: "cloudlets",
 		},
@@ -2923,12 +2924,33 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusOK, status, "show apikey")
 	require.Equal(t, len(apiKeys), defaultConfig.UserApiKeyCreateLimit, "match api key count")
 
+	// show api key with invalid id should fail
+	_, status, err = mcClient.ShowUserApiKey(uri, token1, &ormapi.CreateUserApiKey{
+		UserApiKey: ormapi.UserApiKey{
+			Id: "invalidID",
+		},
+	})
+	require.NotNil(t, err, "show invalid apikey id")
+	require.Contains(t, err.Error(), "API key ID not found")
+
+	// delete invalid api key id
+	status, err = mcClient.DeleteUserApiKey(uri, token1, &ormapi.CreateUserApiKey{})
+	require.NotNil(t, err, "delete invalid user api key id")
+	require.Contains(t, err.Error(), "Missing API key ID")
+
 	// delete all the api keys
 	for _, apiKeyObj := range apiKeys {
 		status, err = mcClient.DeleteUserApiKey(uri, token1, &apiKeyObj)
 		require.Nil(t, err, "delete user api key")
 		require.Equal(t, http.StatusOK, status)
 	}
+
+	// show api key should now be empty
+	apiKeys, status, err = mcClient.ShowUserApiKey(uri, token1, nil)
+	require.Nil(t, err, "show apikey")
+	require.Equal(t, http.StatusOK, status, "show apikey")
+	require.Equal(t, 0, len(apiKeys), "match api key count")
+
 	// cleanup orgs
 	testDeleteOrg(t, mcClient, uri, token, devOrg.Name)
 	testDeleteOrg(t, mcClient, uri, token, operOrg.Name)

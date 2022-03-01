@@ -42,7 +42,7 @@ vault_root_ca_cert_path: secret/certs/root-ca
 mc_creds_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc"
 vouch_hostname: vouch.mobiledgex.net
 influxdb_vm_hostname: influxdb.internal.mobiledgex.net
-artifactory_version: 7.19.9
+artifactory_version: 7.19.12
 mex_ca_cert_dir: /etc/ssl/local
 mex_ca_cert_der: "{{ mex_ca_cert_dir }}/mex-ca.der"
 mex_ca_cert_pem: "{{ mex_ca_cert_dir }}/mex-ca.crt"

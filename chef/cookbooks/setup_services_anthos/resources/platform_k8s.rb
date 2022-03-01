@@ -170,7 +170,8 @@ action :deploy_simplex_platform do
     returns 0
     ignore_failure true
   end
-  # if this works, maybe add cloudletorg to these args? TBI
+
+  # if this works, maybe add cloudletorg to these args?
   execute('copy-kubeconfig-default-cluster') do
     cloudletorg = #node['crmserver']['args']['physicalname']
     filename = "defaultcloudlet." + cloudletorg + ".kubeconfig"

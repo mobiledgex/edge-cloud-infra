@@ -75,7 +75,6 @@ func (k *K8sBareMetalPlatform) CreateCloudlet(ctx context.Context, cloudlet *edg
 
 func (k *K8sBareMetalPlatform) CreateCloudletDirect(ctx context.Context, cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, flavor *edgeproto.Flavor, caches *platform.Caches, accessApi platform.AccessApi, updateCallback edgeproto.CacheUpdateCallback) (bool, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletDirect", "cloudlet", cloudlet)
-	// wtf? cloudlet.Deployment is docker by default?
 	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("CreateCloudletDirect deployment %+v\n", cloudlet.Deployment))
 
 	cloudletResourcesCreated := false
@@ -187,6 +186,11 @@ func (k *K8sBareMetalPlatform) CreateCloudletRestricted(ctx context.Context, clo
 		return cloudletResourcesCreated, err
 	}
 
+	if pfConfig.CrmAccessPrivateKey == "" {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating K8s baremetalt RestrictedAccess api access key return succesfully as emtpy string: => %s <=", pfConfig.CrmAccessPrivateKey))
+		return cloudletResourcesCreated, fmt.Errorf("CrmAccesskey return as empty setring for Restricted Access BM")
+	}
+
 	k.commonPf.PlatformConfig = infracommon.GetPlatformConfig(cloudlet, pfConfig, accessApi)
 	if err := k.commonPf.InitInfraCommon(ctx, k.commonPf.PlatformConfig, k8sbmProps); err != nil {
 		return cloudletResourcesCreated, err
@@ -221,7 +225,7 @@ func (k *K8sBareMetalPlatform) CreateCloudletRestricted(ctx context.Context, clo
 	clientName := k.GetChefClientName(&cloudlet.Key)
 	chefParams := k.GetChefParams(clientName, "", chefPolicy, chefAttributes)
 
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletDirect", "cloudlet", cloudlet.Key, "chef policy", chefPolicy, "attrs", chefParams)
+	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletDirect", "cloudlet", cloudlet.Key, "chef policy", chefPolicy, "attrs", chefParams, "accesskey.pem", pfConfig.CrmAccessPrivateKey)
 	// hope we can get this far, else we'll need help from chef.go I guess xxx
 
 	// here we need to create the install script for the op to finish off rolling out the k8s deployment of crm, shep and prom xxx

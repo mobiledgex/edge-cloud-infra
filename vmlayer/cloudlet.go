@@ -231,6 +231,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	stage := ProviderInitCreateCloudletDirect
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
+		updateCallback(edgeproto.UpdateTask, "vmlayer:CreateCloudlet RESTRICTED ACCESS stage set")
 		stage = ProviderInitCreateCloudletRestricted
 	}
 
@@ -273,6 +274,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 
 	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
 	if err != nil {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("vmlayer:CreateCloudlet RESTRICTED ACCESS InitProvider failed err: %s", err.Error()))
 		return cloudletResourcesCreated, err
 	}
 	// once we get this far we should ensure delete succeeds on a failure
@@ -281,6 +283,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	var result OperationInitResult
 	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("vmlayer:CreateCloudlet RESTRICTED ACCESS InitOperationContext failed err: %s", err.Error()))
 		return cloudletResourcesCreated, err
 	}
 	if result == OperationNewlyInitialized {
@@ -288,12 +291,14 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 	chefApi, err := v.GetChefPlatformApiAccess(ctx, cloudlet)
 	if err != nil {
+		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("vmlayer:CreateCloudlet RESTRICTED ACCESS GetChefPlatformApiAccess failed err: %s", err.Error()))
 		return cloudletResourcesCreated, err
 	}
 	nodes := v.GetPlatformNodes(cloudlet)
-
+	updateCallback(edgeproto.UpdateTask, fmt.Sprintf("vmlayer:CreateCloudlet RESTRICTED ACCESS GetPlatformNodes returns : %d nodes", len(nodes)))
 	chefClient := v.VMProperties.GetChefClient()
 	if chefClient == nil {
+		updateCallback(edgeproto.UpdateTask, "vmlayer:CreateCloudlet RESTRICTED ACCESS GetChefCleint failed")
 		return cloudletResourcesCreated, fmt.Errorf("Chef client is not initialized")
 	}
 
@@ -305,7 +310,7 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 				return cloudletResourcesCreated, err
 			}
 			clientName := v.GetChefClientName(node.NodeName)
-			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("Creating chef client %s with cloudlet attributes", clientName))
+			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("vmlayer Creating chef client %s with cloudlet attributes", clientName))
 			chefParams := v.GetServerChefParams(clientName, "", node.Policy, chefAttributes)
 			clientKey, err := chefmgmt.ChefClientCreate(ctx, chefClient, chefParams)
 			if err != nil {

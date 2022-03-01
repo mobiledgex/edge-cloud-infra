@@ -87,6 +87,9 @@ func UpdateDockerUser(ctx context.Context, client ssh.Client) error {
 
 func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platform.PlatformConfig, caches *platform.Caches, haMgr *redundancy.HighAvailabilityManager, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "Init start")
+
+	updateCallback(edgeproto.UpdateTask, "k8sBM-Init begin")
+
 	k.caches = caches
 	if err := k.commonPf.InitInfraCommon(ctx, platformConfig, k8sbmProps); err != nil {
 		return err
@@ -102,8 +105,11 @@ func (k *K8sBareMetalPlatform) Init(ctx context.Context, platformConfig *platfor
 	if !platformConfig.TestMode {
 		err := k.commonPf.InitCloudletSSHKeys(ctx, platformConfig.AccessApi)
 		if err != nil {
+			updateCallback(edgeproto.UpdateTask, fmt.Sprintf("k8sBM-Init InitCloudletSSHKeys failed  %s", err.Error()))
 			return err
 		}
+
+		updateCallback(edgeproto.UpdateTask, "K8sBM-Init  api access key immedately refresh")
 		go k.commonPf.RefreshCloudletSSHKeys(platformConfig.AccessApi)
 	}
 

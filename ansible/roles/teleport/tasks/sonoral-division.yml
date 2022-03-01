@@ -1,0 +1,14 @@
+---
+- name: "Set up Sonoral {{ division }} access role"
+  template:
+    src: sonoral-division-access-role.yaml.j2
+    dest: "{{ teleport_config_dir.path }}/sonoral-{{ division }}-access-role.yaml"
+  become: yes
+  register: sonoral_division_role
+  tags: config
+
+- name: "Apply Sonoral {{ division }} access role"
+  command: "tctl create -f {{ sonoral_division_role.dest }}"
+  become: yes
+  when: sonoral_division_role is changed
+  tags: config

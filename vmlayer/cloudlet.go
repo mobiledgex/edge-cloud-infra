@@ -272,14 +272,6 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	v.Caches = caches
 	v.GPUConfig = cloudlet.GpuConfig
 
-	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
-	if err != nil {
-		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("vmlayer:CreateCloudlet RESTRICTED ACCESS InitProvider failed err: %s", err.Error()))
-		return cloudletResourcesCreated, err
-	}
-	// once we get this far we should ensure delete succeeds on a failure
-	cloudletResourcesCreated = true
-
 	var result OperationInitResult
 	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
@@ -289,6 +281,12 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if result == OperationNewlyInitialized {
 		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 	}
+
+	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
+	if err != nil {
+		return cloudletResourcesCreated, err
+	}
+
 	chefApi, err := v.GetChefPlatformApiAccess(ctx, cloudlet)
 	if err != nil {
 		updateCallback(edgeproto.UpdateTask, fmt.Sprintf("vmlayer:CreateCloudlet RESTRICTED ACCESS GetChefPlatformApiAccess failed err: %s", err.Error()))
@@ -301,6 +299,9 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 		updateCallback(edgeproto.UpdateTask, "vmlayer:CreateCloudlet RESTRICTED ACCESS GetChefCleint failed")
 		return cloudletResourcesCreated, fmt.Errorf("Chef client is not initialized")
 	}
+
+	// once we get this far we should ensure delete succeeds on a failure
+	cloudletResourcesCreated = true
 
 	cloudlet.ChefClientKey = make(map[string]string)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {
@@ -507,8 +508,12 @@ func (v *VMPlatform) DeleteCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	}
 
 	// Delete FQDN of shared RootLB
-	if err = v.VMProperties.CommonPf.DeleteDNSRecords(ctx, rootLBName); err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete sharedRootLB DNS record", "fqdn", rootLBName, "err", err)
+	rootLbFqdn := rootLBName
+	if cloudlet.RootLbFqdn != "" {
+		rootLbFqdn = cloudlet.RootLbFqdn
+	}
+	if err = v.VMProperties.CommonPf.DeleteDNSRecords(ctx, rootLbFqdn); err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "failed to delete sharedRootLB DNS record", "fqdn", rootLbFqdn, "err", err)
 	}
 
 	// Not sure if it's safe to remove vars from Vault due to testing/virtual cloudlets,

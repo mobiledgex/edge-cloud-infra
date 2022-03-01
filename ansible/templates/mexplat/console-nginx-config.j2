@@ -137,7 +137,7 @@ server {
 {% if federated_mc|default(false)|bool %}
 
 server {
-	listen {{ mc_federation_port }} ssl;
+	listen {{ default_interface_ip }}:{{ mc_federation_port }} ssl;
 	listen [::]:{{ mc_federation_port }} ssl;
 
 	server_name {{ inventory_hostname }};
@@ -151,7 +151,7 @@ server {
 	ssl_ciphers '{{ nginx_ssl_ciphers }}';
 
 	location / {
-		proxy_pass http://127.0.0.1:{{ mc_federation_port_internal }};
+		proxy_pass http://127.0.0.1:{{ mc_federation_port }};
 		proxy_set_header Host $host;
 		proxy_set_header X-Real-IP $remote_addr;
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

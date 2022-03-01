@@ -131,11 +131,7 @@ func (s *AuthzCloudlet) populate(ctx context.Context, region, username, orgfilte
 	// build map of cloudlets associated with all cloudlet pools
 	s.cloudletPoolSide = make(map[edgeproto.CloudletKey]int)
 	err = ctrlclient.ShowCloudletPoolStream(ctx, &rc, &edgeproto.CloudletPool{}, connCache, nil, func(pool *edgeproto.CloudletPool) error {
-		for _, name := range pool.Cloudlets {
-			cloudletKey := edgeproto.CloudletKey{
-				Name:         name,
-				Organization: pool.Key.Organization,
-			}
+		for _, cloudletKey := range pool.Cloudlets {
 			// cloudlet may belong to multiple pools, if any pool
 			// is ours, allow access.
 			side, found := s.cloudletPoolSide[cloudletKey]
@@ -252,6 +248,8 @@ func (s *AuthzCloudletKey) populate(ctx context.Context, region, username, orgfi
 	return err
 }
 
+const allianceDesc = "alliance"
+
 func authzCreateCloudlet(ctx context.Context, region, username string, obj *edgeproto.Cloudlet, resource, action string) error {
 	ops := []authOp{withRequiresOrg(obj.Key.Organization)}
 	for _, org := range obj.AllianceOrgs {
@@ -259,7 +257,10 @@ func authzCreateCloudlet(ctx context.Context, region, username string, obj *edge
 			// validation is not required as it is a partner operator
 			continue
 		}
-		ops = append(ops, withReferenceOrg(org, OrgTypeOperator))
+		ops = append(ops, withReferenceOrg(org, allianceDesc, OrgTypeOperator))
+	}
+	if obj.SingleKubernetesClusterOwner != "" {
+		ops = append(ops, withReferenceOrg(obj.SingleKubernetesClusterOwner, "single kubernetes cluster owner", OrgTypeDeveloper))
 	}
 	if obj.PlatformType != edgeproto.PlatformType_PLATFORM_TYPE_EDGEBOX {
 		ops = append(ops, withNoEdgeboxOnly())
@@ -274,13 +275,13 @@ func authzUpdateCloudlet(ctx context.Context, region, username string, obj *edge
 			// validation is not required as it is a partner operator
 			continue
 		}
-		ops = append(ops, withReferenceOrg(org, OrgTypeOperator))
+		ops = append(ops, withReferenceOrg(org, allianceDesc, OrgTypeOperator))
 	}
 	return authorized(ctx, username, obj.Key.Organization, resource, action, ops...)
 }
 
 func authzAddCloudletAllianceOrg(ctx context.Context, region, username string, obj *edgeproto.CloudletAllianceOrg, resource, action string) error {
-	ops := []authOp{withReferenceOrg(obj.Organization, OrgTypeOperator)}
+	ops := []authOp{withReferenceOrg(obj.Organization, allianceDesc, OrgTypeOperator)}
 	return authorized(ctx, username, obj.Key.Organization, resource, action, ops...)
 }
 

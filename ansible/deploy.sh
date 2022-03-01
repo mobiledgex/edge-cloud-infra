@@ -10,6 +10,7 @@ USAGE="usage: $0 [options] <environment> [<target>]
   -c		confirm before running playbook
   -C <version>	console version to deploy (default: pick latest git tag)
   -d		enable debug mode
+  -D		pick edge-cloud images from the \"mobiledgex-dev\" docker registry
   -e <var=val>	pass environment variables to playbook run
   -G		skip github login
   -i		interactive mode; pause before each region upgrade
@@ -67,11 +68,12 @@ SKIP_VAULT_SSH_KEY_SIGNING=false
 VAULT_ADDR=
 VERBOSITY=
 ENVVARS=()
-while getopts ':cC:de:Ghilnp:qs:St:vV:xX:y' OPT; do
+while getopts ':cC:dDe:Ghilnp:qs:St:vV:xX:y' OPT; do
 	case "$OPT" in
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;
 	d)	DEBUG=true ;;
+	D)	ENVVARS+=( -e "mex_registry_project=mobiledgex-dev" ) ;;
 	e)	ENVVARS+=( -e "$OPTARG" ) ;;
 	G)	SKIP_GITHUB=true ;;
 	i)	INTERACTIVE=true ;;

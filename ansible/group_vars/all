@@ -5,8 +5,9 @@ platform_k8s_pool_size: 3
 platform_k8s_pool_size_max: 5
 platform_k8s_vm_size: Standard_D2s_v3
 mex_docker_registry: harbor.mobiledgex.net
-edge_cloud_image: "{{ mex_docker_registry }}/mobiledgex/edge-cloud"
-monitor_image: "{{ mex_docker_registry }}/mobiledgex/monitor"
+mex_registry_project: mobiledgex
+edge_cloud_image: "{{ mex_docker_registry }}/{{ mex_registry_project }}/edge-cloud"
+monitor_image: "{{ mex_docker_registry }}/{{ mex_registry_project }}/monitor"
 mex_ops_email: mobiledgex.ops@mobiledgex.com
 cloudflare_zone: mobiledgex.net
 global_dme_suffix: ".global.dme.{{ cloudflare_zone }}"
@@ -17,7 +18,6 @@ mc_api_port: 9900
 mc_ldap_port: 9389
 mc_vnc_port: 6080
 mc_notify_srv_port: 52001
-mc_federation_port_internal: 20001
 mc_federation_port: 30001
 notifyroot_port: 53001
 controller_notify_port: 37001
@@ -42,7 +42,7 @@ vault_root_ca_cert_path: secret/certs/root-ca
 mc_creds_vault_path: "secret/ansible/{{ deploy_environ }}/accounts/mc"
 vouch_hostname: vouch.mobiledgex.net
 influxdb_vm_hostname: influxdb.internal.mobiledgex.net
-artifactory_version: 7.19.9
+artifactory_version: 7.19.12
 mex_ca_cert_dir: /etc/ssl/local
 mex_ca_cert_der: "{{ mex_ca_cert_dir }}/mex-ca.der"
 mex_ca_cert_pem: "{{ mex_ca_cert_dir }}/mex-ca.crt"

@@ -78,6 +78,9 @@ func EventTerms(c echo.Context) error {
 	if err != nil {
 		return err
 	}
+	if len(allowedOrgs) == 0 {
+		return echo.ErrForbidden
+	}
 	if _, found := allowedOrgs[""]; !found {
 		// non-admin, enforce allowed orgs in search
 		for k, _ := range allowedOrgs {

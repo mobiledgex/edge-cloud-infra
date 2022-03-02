@@ -152,10 +152,10 @@ class Chef
       {}
     end
 
-    def get_thanos_remote_write_addr()
+    def get_thanos_remote_write_addr
       region = node.normal['crmserver']['args']['region'].downcase
       deploymentTag = node.normal['crmserver']['args']['deploymentTag'].downcase
-      if deployTag == "main"
+      if deploymentTag == "main"
         cmd = region + ".thanos-recv.mobiledgex.net"
       else
         cmd = region + "-" + deploymentTag + ".thanos-recv.mobiledgex.net"

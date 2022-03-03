@@ -74,16 +74,8 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 
 	switch stage {
 	case vmlayer.ProviderInitPlatformStartCrmConditional:
-		// update the oauth token and start refresh
+		// note on CRM startup the Oauth Init is done in ActiveChanged
 		var err error
-		if v.GetVcdOauthSgwUrl() != "" {
-			err := v.UpdateOauthToken(ctx, v.Creds)
-			if err != nil {
-				return fmt.Errorf("UpdateOauthToken failed - %v", err)
-			}
-			go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
-		}
-
 		mexInternalNetRange, err = v.getMexInternalNetRange(ctx)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "InitProvider NetRange failed", "stage", stage, "err", err)

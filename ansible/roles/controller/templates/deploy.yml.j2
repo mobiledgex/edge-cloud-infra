@@ -65,7 +65,7 @@ spec:
          - "-cloudletVMImagePath"
          - "{{ cloudlet_vm_path }}"
          - "--versionTag"
-         - "nightly"
+         - "{{ edge_cloud_version }}"
          - "--publicAddr"
          - "{{ controller_hostname }}"
          - "--deploymentTag"

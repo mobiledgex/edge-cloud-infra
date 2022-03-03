@@ -1,0 +1,19 @@
+-
+  name: Add bitnami chart repo
+  kubernetes.core.helm_repository:
+    name: bitnami
+    repo_url: https://charts.bitnami.com/bitnami
+-
+  name: Load slack creds
+  import_role:
+    name: load-vault-creds
+    tasks_from: kubewatch-slack
+-
+  name: Install kubewatch
+  kubernetes.core.helm:
+    name: kubewatch
+    namespace: default
+    kubeconfig: "{{ kubeconfig_file.path }}"
+    chart_ref: bitnami/kubewatch
+    chart_version: "{{ kubewatch_chart_version }}"
+    values: "{{ lookup('template', 'kubewatch.yaml.j2') | from_yaml }}"

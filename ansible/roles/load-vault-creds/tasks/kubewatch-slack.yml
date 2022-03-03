@@ -1,0 +1,7 @@
+- name: "Retrieve kubewatch slack credentials from vault"
+  set_fact:
+    vault_lookup: "{{ lookup('vault', 'secret/ansible/common/accounts/slack/kubewatch') }}"
+
+- set_fact:
+    kubewatch_channel: "{{ vault_lookup.kubewatch.data.channel }}"
+    kubewatch_token: "{{ vault_lookup.kubewatch.data.token }}"

@@ -1,0 +1,21 @@
+rbac:
+  create: true
+resourcesToWatch:
+  deployment: true
+  replicationcontroller: false
+  replicaset: true
+  daemonset: false
+  services: true
+  pod: true
+  job: true
+  node: false
+  clusterrole: true
+  serviceaccount: true
+  persistentvolume: true
+  namespace: false
+  secret: true
+  configmap: false
+  ingress: true
+slack:
+  channel: '{{ kubewatch_channel }}'
+  token: '{{ kubewatch_token }}'

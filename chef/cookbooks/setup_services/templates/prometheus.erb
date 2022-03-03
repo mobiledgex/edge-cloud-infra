@@ -17,5 +17,5 @@ scrape_configs:
       action: labeldrop
 <% if @remote_write_addr != '' -%>
 remote_write:
-- url: http://<%= @remote_write_addr %>/api/v1/receive
+- url: <%= @remote_write_addr %>/api/v1/receive
 <% end -%>

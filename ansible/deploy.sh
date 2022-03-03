@@ -73,7 +73,8 @@ while getopts ':cC:dDe:Ghilnp:qs:St:vV:xX:y' OPT; do
 	c)	CONFIRM=true ;;
 	C)	CONSOLE_VERSION="$OPTARG" ;;
 	d)	DEBUG=true ;;
-	D)	ENVVARS+=( -e "mex_registry_project=mobiledgex-dev" ) ;;
+	D)	ENVVARS+=( -e "mex_registry_project=mobiledgex-dev"
+			   -e "cloudlet_registry_path=harbor.mobiledgex.net/mobiledgex-dev/edge-cloud-crm" ) ;;
 	e)	ENVVARS+=( -e "$OPTARG" ) ;;
 	G)	SKIP_GITHUB=true ;;
 	i)	INTERACTIVE=true ;;

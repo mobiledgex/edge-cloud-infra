@@ -75,11 +75,14 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 	switch stage {
 	case vmlayer.ProviderInitPlatformStartCrmConditional:
 		// update the oauth token and start refresh
-		err := v.UpdateOauthToken(ctx, v.Creds)
-		if err != nil {
-			return fmt.Errorf("UpdateOauthToken failed - %v", err)
+		var err error
+		if v.GetVcdOauthSgwUrl() != "" {
+			err := v.UpdateOauthToken(ctx, v.Creds)
+			if err != nil {
+				return fmt.Errorf("UpdateOauthToken failed - %v", err)
+			}
+			go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
 		}
-		go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
 
 		mexInternalNetRange, err = v.getMexInternalNetRange(ctx)
 		if err != nil {
@@ -108,9 +111,11 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 		fallthrough
 	case vmlayer.ProviderInitDeleteCloudlet:
 		// update the token but no refresh needed
-		err := v.UpdateOauthToken(ctx, v.Creds)
-		if err != nil {
-			return fmt.Errorf("UpdateOauthToken failed - %v", err)
+		if v.GetVcdOauthSgwUrl() != "" {
+			err := v.UpdateOauthToken(ctx, v.Creds)
+			if err != nil {
+				return fmt.Errorf("UpdateOauthToken failed - %v", err)
+			}
 		}
 	case vmlayer.ProviderInitPlatformStartShepherd:
 		err := v.WaitForOauthTokenViaNotify(ctx, v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
@@ -125,11 +130,13 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 func (v *VcdPlatform) ActiveChanged(ctx context.Context, platformActive bool) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "ActiveChanged")
 	// update the oauth token and start refresh but do nothing else
-	err := v.UpdateOauthToken(ctx, v.Creds)
-	if err != nil {
-		return fmt.Errorf("UpdateOauthToken failed - %v", err)
+	if v.GetVcdOauthSgwUrl() != "" {
+		err := v.UpdateOauthToken(ctx, v.Creds)
+		if err != nil {
+			return fmt.Errorf("UpdateOauthToken failed - %v", err)
+		}
+		go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
 	}
-	go v.RefreshOauthTokenPeriodic(ctx, v.Creds)
 	return nil
 }
 

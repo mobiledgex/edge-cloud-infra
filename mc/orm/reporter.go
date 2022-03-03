@@ -606,6 +606,9 @@ func ShowReporter(c echo.Context) error {
 	if err != nil {
 		return dbErr(err)
 	}
+	if len(authOrgs) == 0 {
+		return echo.ErrForbidden
+	}
 	_, admin := authOrgs[""]
 	_, orgFound := authOrgs[filter.Org]
 	if filter.Org != "" && !admin && !orgFound {

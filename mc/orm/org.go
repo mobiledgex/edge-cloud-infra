@@ -257,9 +257,6 @@ func updateOrg(c echo.Context, updateType UpdateType) error {
 	if res.Error != nil {
 		return newHTTPError(http.StatusInternalServerError, dbErr(res.Error).Error())
 	}
-	oldType := org.Type
-	oldEdgeboxOnly := org.EdgeboxOnly
-	oldPublicImages := org.PublicImages
 
 	if updateType == AdminUpdate {
 		// Only admin user allowed to update org data.
@@ -272,21 +269,30 @@ func updateOrg(c echo.Context, updateType UpdateType) error {
 		}
 	}
 
+	old := org
 	// apply specified fields
 	err = BindJson(body, &org)
 	if err != nil {
 		return bindErr(err)
 	}
-	if org.Type != oldType {
+	if org.Type != old.Type {
 		return fmt.Errorf("Cannot change Organization type")
 	}
-	if org.EdgeboxOnly != oldEdgeboxOnly && updateType != AdminUpdate {
-		return fmt.Errorf("Cannot update edgeboxonly field for Organization")
-	}
-	if org.PublicImages != oldPublicImages {
+	if org.PublicImages != old.PublicImages {
 		err := gitlabUpdateVisibility(ctx, &org)
 		if err != nil {
 			return err
+		}
+	}
+	if org.CreatedAt != old.CreatedAt {
+		return fmt.Errorf("Cannot update created at")
+	}
+	if updateType != AdminUpdate {
+		if org.EdgeboxOnly != old.EdgeboxOnly {
+			return fmt.Errorf("Cannot update edgeboxonly field for Organization")
+		}
+		if org.Parent != old.Parent {
+			return fmt.Errorf("Cannot update parent")
 		}
 	}
 

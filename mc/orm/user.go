@@ -784,7 +784,8 @@ func checkPasswordStrength(ctx context.Context, user *ormapi.User, config *ormap
 }
 
 func ValidateCallbackURL(urlString string) error {
-	if urlString == "" || serverConfig.DomainName == "" {
+	domainName := serverConfig.NodeMgr.InternalDomain
+	if urlString == "" || domainName == "" {
 		return nil
 	}
 	if !strings.HasPrefix(urlString, "http") {
@@ -793,11 +794,6 @@ func ValidateCallbackURL(urlString string) error {
 	u, err := url.Parse(urlString)
 	if err != nil {
 		return fmt.Errorf("Invalid callback URL %s, %v", urlString, err)
-	}
-	parts := strings.Split(serverConfig.DomainName, ".")
-	domainName := serverConfig.DomainName
-	if len(parts) > 2 {
-		domainName = parts[len(parts)-2] + "." + parts[len(parts)-1]
 	}
 	if !strings.HasSuffix(u.Hostname(), domainName) {
 		return fmt.Errorf("Invalid callback URL domain, must be %s", domainName)

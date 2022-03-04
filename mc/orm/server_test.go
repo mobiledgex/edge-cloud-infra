@@ -52,6 +52,7 @@ func TestServer(t *testing.T) {
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
+		DomainName:              "mobiledgex.net",
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")

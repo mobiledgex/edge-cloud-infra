@@ -452,6 +452,23 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	status, err = mcClient.RestrictedUpdateOrg(uri, tokenAdmin, orgDat)
 	require.Nil(t, err)
 
+	// callback url is validated as part of password reset request
+	emailReq := ormapi.EmailRequest{
+		Email:           user1.Email,
+		OperatingSystem: "linux",
+		CallbackURL:     "invalid.com/verify",
+	}
+	_, err = mcClient.PasswordResetRequest(uri, &emailReq)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Invalid callback URL domain")
+
+	emailReq.CallbackURL = "https://mobiledgex.net/verify"
+	_, err = mcClient.PasswordResetRequest(uri, &emailReq)
+	require.NotNil(t, err)
+	// This requires email server to be configured, hence we just verify
+	// that invalid callback url error is not seen
+	require.NotContains(t, err.Error(), "Invalid callback URL domain")
+
 	// check role assignments as mister x
 	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterX, ClientNoShowFilter)
 	require.Nil(t, err)
@@ -776,12 +793,14 @@ func testLockedUsers(t *testing.T, uri string, mcClient *mctestclient.Client) {
 	// fields, and preserves null entries for specified fields regardless
 	// of omit empty.
 	notifyEmail := "foo@gmail.com"
+	consoleDomain := "gmail.com"
 	configReq := &cli.MapData{
 		Namespace: cli.ArgsNamespace,
 		Data:      make(map[string]interface{}),
 	}
 	configReq.Data["locknewaccounts"] = true
 	configReq.Data["notifyemailaddress"] = notifyEmail
+	configReq.Data["consoledomain"] = consoleDomain
 	status, err := mcClient.UpdateConfig(uri, superTok, configReq)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
@@ -881,6 +900,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *mctestclient.Client) {
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, notifyEmail, config.NotifyEmailAddress)
+	require.Equal(t, consoleDomain, config.ConsoleDomain)
 	// show public config, make sure certain fields are hidden
 	publicConfig, status, err := mcClient.ShowPublicConfig(uri)
 	require.Nil(t, err)
@@ -889,6 +909,7 @@ func testLockedUsers(t *testing.T, uri string, mcClient *mctestclient.Client) {
 	require.Equal(t, 0, publicConfig.ID)
 	require.Equal(t, false, publicConfig.LockNewAccounts)
 	require.Equal(t, "", publicConfig.NotifyEmailAddress)
+	require.Equal(t, "", publicConfig.ConsoleDomain)
 	require.Equal(t, false, publicConfig.SkipVerifyEmail)
 	require.Equal(t, float64(0), publicConfig.AdminPasswordMinCrackTimeSec)
 
@@ -902,6 +923,9 @@ func testLockedUsers(t *testing.T, uri string, mcClient *mctestclient.Client) {
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	status, err = mcClient.DeleteUser(uri, superTok, &user2)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+	status, err = mcClient.ResetConfig(uri, superTok)
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 }

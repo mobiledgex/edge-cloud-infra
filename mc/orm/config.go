@@ -17,6 +17,7 @@ import (
 var defaultConfig = ormapi.Config{
 	ID:                           1,
 	NotifyEmailAddress:           "support@mobiledgex.com",
+	ConsoleDomain:                "mobiledgex.net",
 	PasswordMinCrackTimeSec:      30 * 86400,      // 30 days
 	AdminPasswordMinCrackTimeSec: 2 * 365 * 86400, // 2 years
 	MaxMetricsDataPoints:         10000,
@@ -88,6 +89,9 @@ func InitConfig(ctx context.Context) error {
 	if config.FailedLoginLockoutTimeSec2 == 0 {
 		config.FailedLoginLockoutTimeSec2 = defaultConfig.FailedLoginLockoutTimeSec2
 		save = true
+	}
+	if config.ConsoleDomain == "" {
+		config.ConsoleDomain = defaultConfig.ConsoleDomain
 	}
 	if save {
 		err = db.Save(&config).Error

@@ -214,6 +214,8 @@ type Config struct {
 	LockNewAccounts bool
 	// Email to notify when locked account is created
 	NotifyEmailAddress string
+	// Domain name of the UI console which is REST client to MC
+	ConsoleDomain string
 	// Skip email verification for new accounts (testing only)
 	SkipVerifyEmail bool
 	// User accounts min password crack time seconds (a measure of strength)

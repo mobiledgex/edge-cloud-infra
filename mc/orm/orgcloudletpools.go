@@ -446,7 +446,9 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 				CloudletInfo.Flavors = output.Flavors
 				CloudletInfo.MaintenanceState = output.MaintenanceState
 				CloudletInfo.TrustPolicyState = output.TrustPolicyState
-				CloudletInfo.ResourcesSnapshot = output.ResourcesSnapshot
+				CloudletInfo.ResourcesSnapshot = edgeproto.InfraResourcesSnapshot{
+					Info: output.ResourcesSnapshot.Info,
+				}
 				CloudletInfo.CompatibilityVersion = output.CompatibilityVersion
 			}
 			show = append(show, CloudletInfo)

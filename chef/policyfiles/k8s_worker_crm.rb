@@ -13,10 +13,12 @@ run_list 'chef_client_updater::default', 'recipe[runstatus_handler]', 'recipe[se
 cookbook 'runstatus_handler', '= 1.0.0'
 cookbook 'setup_infra', '= 1.0.0'
 cookbook 'preflight_crm_checks', '= 1.0.0'
-cookbook 'setup_services', '= 1.3.4'
+cookbook 'setup_services', '= 1.3.7'
 cookbook 'chef_client_updater', '= 3.11.0'
 cookbook 'set_security_policies', '= 1.0.0'
 cookbook 'setup_teleport', '= 1.1.0'
 
 # Set chef-client version
-default['chef_client_updater']['version'] = '17.2.29'
+# IMP: Version of chef client here needs to match the version in the base image.
+#      See "openstack-tenant/packages/mobiledgex/dependencies"
+default['chef_client_updater']['version'] = '17.6.18'

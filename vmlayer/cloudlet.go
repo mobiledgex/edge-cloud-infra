@@ -271,13 +271,6 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	v.Caches = caches
 	v.GPUConfig = cloudlet.GpuConfig
 
-	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
-	if err != nil {
-		return cloudletResourcesCreated, err
-	}
-	// once we get this far we should ensure delete succeeds on a failure
-	cloudletResourcesCreated = true
-
 	var result OperationInitResult
 	ctx, result, err = v.VMProvider.InitOperationContext(ctx, OperationInitStart)
 	if err != nil {
@@ -286,6 +279,12 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if result == OperationNewlyInitialized {
 		defer v.VMProvider.InitOperationContext(ctx, OperationInitComplete)
 	}
+
+	err = v.VMProvider.InitProvider(ctx, caches, stage, updateCallback)
+	if err != nil {
+		return cloudletResourcesCreated, err
+	}
+
 	chefApi, err := v.GetChefPlatformApiAccess(ctx, cloudlet)
 	if err != nil {
 		return cloudletResourcesCreated, err
@@ -296,6 +295,9 @@ func (v *VMPlatform) CreateCloudlet(ctx context.Context, cloudlet *edgeproto.Clo
 	if chefClient == nil {
 		return cloudletResourcesCreated, fmt.Errorf("Chef client is not initialized")
 	}
+
+	// once we get this far we should ensure delete succeeds on a failure
+	cloudletResourcesCreated = true
 
 	cloudlet.ChefClientKey = make(map[string]string)
 	if cloudlet.InfraApiAccess == edgeproto.InfraApiAccess_RESTRICTED_ACCESS {

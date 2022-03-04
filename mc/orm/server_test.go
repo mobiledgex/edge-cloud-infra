@@ -17,6 +17,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cli"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/pquerna/otp/totp"
@@ -52,7 +53,9 @@ func TestServer(t *testing.T) {
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
-		DomainName:              "mobiledgex.net",
+		NodeMgr: &node.NodeMgr{
+			InternalDomain: "mobiledgex.net",
+		},
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")

@@ -273,7 +273,7 @@ func (s *AppStoreSync) syncGroupUsers(ctx context.Context, allOrgs map[string]*o
 }
 
 func ArtifactoryResync(c echo.Context) error {
-	err := SyncAccessCheck(c)
+	err := AdminAccessCheck(c)
 	if err != nil {
 		return err
 	}
@@ -283,6 +283,10 @@ func ArtifactoryResync(c echo.Context) error {
 }
 
 func ArtifactorySummary(c echo.Context) error {
+	err := AdminAccessCheck(c)
+	if err != nil {
+		return err
+	}
 	var summary AppStoreSummary
 
 	// Get MC users

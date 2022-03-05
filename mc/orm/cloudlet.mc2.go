@@ -1672,11 +1672,16 @@ func ShowCloudletInfo(c echo.Context) error {
 	return nil
 }
 
+type ShowCloudletInfoAuthz interface {
+	Ok(obj *edgeproto.CloudletInfo) (bool, bool)
+	Filter(obj *edgeproto.CloudletInfo)
+}
+
 func ShowCloudletInfoStream(ctx context.Context, rc *RegionContext, obj *edgeproto.CloudletInfo, cb func(res *edgeproto.CloudletInfo) error) error {
-	var authz *AuthzShow
+	var authz ShowCloudletInfoAuthz
 	var err error
 	if !rc.skipAuthz {
-		authz, err = newShowAuthz(ctx, rc.region, rc.username, ResourceCloudletAnalytics, ActionView)
+		authz, err = newShowCloudletInfoAuthz(ctx, rc.region, rc.username, ResourceCloudletAnalytics, ActionView)
 		if err != nil {
 			return err
 		}
@@ -1708,8 +1713,12 @@ func ShowCloudletInfoStream(ctx context.Context, rc *RegionContext, obj *edgepro
 			return err
 		}
 		if !rc.skipAuthz {
-			if !authz.Ok(res.Key.Organization) {
+			authzOk, filterOutput := authz.Ok(res)
+			if !authzOk {
 				continue
+			}
+			if filterOutput {
+				authz.Filter(res)
 			}
 		}
 		err = cb(res)

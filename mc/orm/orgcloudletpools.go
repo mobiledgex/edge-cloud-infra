@@ -446,10 +446,13 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 				CloudletInfo.Flavors = output.Flavors
 				CloudletInfo.MaintenanceState = output.MaintenanceState
 				CloudletInfo.TrustPolicyState = output.TrustPolicyState
-				CloudletInfo.ResourcesSnapshot = edgeproto.InfraResourcesSnapshot{
-					Info: output.ResourcesSnapshot.Info,
-				}
 				CloudletInfo.CompatibilityVersion = output.CompatibilityVersion
+			} else {
+				// ResourcesSnapshot is used for internal resource tracking and is not meant for
+				// operator user
+				if !authzCloudlet.admin {
+					CloudletInfo.ResourcesSnapshot = edgeproto.InfraResourcesSnapshot{}
+				}
 			}
 			show = append(show, CloudletInfo)
 		}

@@ -7,3 +7,6 @@ userapikeycreatelimit: 10
 disableratelimit: true
 maxnumperipratelimiters: 10000
 maxnumperuserratelimiters: 10000
+userlogintokenvalidduration: 24h0m0s
+apikeylogintokenvalidduration: 4h0m0s
+websockettokenvalidduration: 2m0s

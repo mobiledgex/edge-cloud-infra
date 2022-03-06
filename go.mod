@@ -308,3 +308,5 @@ replace github.com/Shopify/sarama => github.com/Shopify/sarama v1.22.2-0.2019060
 replace golang.org/x/sys => golang.org/x/sys v0.0.0-20200930185726-fdedc70b468f
 
 replace golang.org/x/time => golang.org/x/time v0.0.0-20200630173020-3af7569d3a1e
+
+replace github.com/kballard/go-shellquote => github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51

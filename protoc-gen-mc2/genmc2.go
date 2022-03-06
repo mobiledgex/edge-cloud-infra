@@ -357,6 +357,7 @@ func (g *GenMC2) getMethodArgs(service string, method *descriptor.MethodDescript
 		HasMethodArgs:        gensupport.HasMethodArgs(method),
 		HasFields:            gensupport.HasGrpcFields(in.DescriptorProto),
 		NotifyRoot:           GetMc2ApiNotifyroot(method),
+		CustomValidateInput:  GetMc2CustomValidateInput(method),
 	}
 	if gensupport.GetMessageKey(in.DescriptorProto) != nil || gensupport.GetObjAndKey(in.DescriptorProto) {
 		args.HasKey = true
@@ -511,6 +512,7 @@ type tmplArgs struct {
 	CliUse               string
 	CliShort             string
 	CliGroup             string
+	CustomValidateInput  bool
 }
 
 var tmplApi = `
@@ -630,6 +632,11 @@ func {{.MethodName}}Obj(ctx context.Context, rc *RegionContext, obj *edgeproto.{
 {{- end}}
 {{- if (ne .Action "ActionView")}}
 	if err := obj.IsValidArgsFor{{.MethodName}}(); err != nil {
+		return {{.ReturnErrArg}}err
+	}
+{{- end}}
+{{- if .CustomValidateInput}}
+	if err := {{.MethodName}}ValidateInput(ctx, rc, obj); err != nil {
 		return {{.ReturnErrArg}}err
 	}
 {{- end}}
@@ -1133,6 +1140,10 @@ func GetMc2CustomAuthz(method *descriptor.MethodDescriptorProto) bool {
 
 func GetMc2ApiNotifyroot(method *descriptor.MethodDescriptorProto) bool {
 	return proto.GetBoolExtension(method.Options, protogen.E_Mc2ApiNotifyroot, false)
+}
+
+func GetMc2CustomValidateInput(method *descriptor.MethodDescriptorProto) bool {
+	return proto.GetBoolExtension(method.Options, protogen.E_Mc2CustomValidateInput, false)
 }
 
 func GetCliCmd(method *descriptor.MethodDescriptorProto) string {

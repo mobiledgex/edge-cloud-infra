@@ -57,6 +57,9 @@ func RunCommandObj(ctx context.Context, rc *RegionContext, obj *edgeproto.ExecRe
 	if err := obj.IsValidArgsForRunCommand(); err != nil {
 		return nil, err
 	}
+	if err := RunCommandValidateInput(ctx, rc, obj); err != nil {
+		return nil, err
+	}
 	if !rc.skipAuthz {
 		if err := authorized(ctx, rc.username, obj.AppInstKey.AppKey.Organization,
 			ResourceAppInsts, ActionManage); err != nil {

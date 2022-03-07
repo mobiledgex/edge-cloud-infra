@@ -105,6 +105,8 @@ const (
 	ResourceDockerRegistry  = "docker_registry"
 	ResourceDockerImage     = "docker_image"
 	ResourceDockerContainer = "docker_container"
+
+	ResourceChefClientUpdater = "update chef-client"
 )
 
 func GetChefClient(ctx context.Context, apiKey, chefServerPath string) (*chef.Client, error) {
@@ -217,6 +219,14 @@ func ChefClientRunStatus(ctx context.Context, client *chef.Client, clientName st
 		}
 
 		if ii == len(runStatus.Resources)-1 && runStatus.Exception != "" {
+			if msg == ResourceChefClientUpdater {
+				// ignore update from chef-client updater as it could be due
+				// to the upgrade process. In case, it is a valid error, this
+				// can be fixed using knife commands, it doesn't have to block
+				// cloudlet bringup
+				log.SpanLog(ctx, log.DebugLevelInfra, "failed to update chef-client, ignore error", "message", msg, "exception", runStatus.Exception)
+				continue
+			}
 			msg = fmt.Sprintf("Failed to %s", msg)
 			failed = true
 			log.SpanLog(ctx, log.DebugLevelInfra, "failure message from chef node run status", "message", msg, "exception", runStatus.Exception)

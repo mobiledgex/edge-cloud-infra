@@ -219,13 +219,13 @@ func ChefClientRunStatus(ctx context.Context, client *chef.Client, clientName st
 		}
 
 		if ii == len(runStatus.Resources)-1 && runStatus.Exception != "" {
-			if msg == ResourceChefClientUpdater {
+			if msg == ResourceChefClientUpdater && runStatus.Exception == "exit" {
 				// Ignore failure from chef-client updater. On a successful run, the cookbook
 				// aborts the current chef-client run to reload the new upgraded chef-client,
 				// but then this gets treated as a failure here. Hence we ignore it.
 				// In case, it is a valid error, this can be fixed using knife commands.
 				// It doesn't have to block cloudlet bringup, we can just log it
-				log.SpanLog(ctx, log.DebugLevelInfra, "failed to update chef-client, ignore error", "message", msg, "exception", runStatus.Exception)
+				log.SpanLog(ctx, log.DebugLevelInfra, "ignore chef-client exit exception as chef-client is updating", "exception", runStatus.Exception)
 				continue
 			}
 			msg = fmt.Sprintf("Failed to %s", msg)

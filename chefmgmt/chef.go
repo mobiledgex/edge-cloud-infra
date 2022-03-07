@@ -220,10 +220,12 @@ func ChefClientRunStatus(ctx context.Context, client *chef.Client, clientName st
 
 		if ii == len(runStatus.Resources)-1 && runStatus.Exception != "" {
 			if msg == ResourceChefClientUpdater {
-				// ignore update from chef-client updater as it could be due
-				// to the upgrade process. In case, it is a valid error, this
-				// can be fixed using knife commands, it doesn't have to block
-				// cloudlet bringup
+				// Ignore failure from chef-client updater. This failure is seen on a
+				// successful run as the cookbook aborts the current chef-client run to
+				// reload the new upgraded chef-client, but then this gets treated as a
+				// failure here. Hence we ignore it. In case, it is a valid error, this
+				// can be fixed using knife commands. It doesn't have to block cloudlet
+				// bringup, we can just log it
 				log.SpanLog(ctx, log.DebugLevelInfra, "failed to update chef-client, ignore error", "message", msg, "exception", runStatus.Exception)
 				continue
 			}

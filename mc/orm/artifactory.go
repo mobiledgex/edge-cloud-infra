@@ -22,8 +22,6 @@ const (
 // Cache Artifactory Auth Key
 var rtfAuth *cloudcommon.RegistryAuth
 
-var artifactoryIgnoreForUnitTest bool
-
 func getArtifactoryName(orgName string) string {
 	return ArtifactoryPrefix + orgName
 }

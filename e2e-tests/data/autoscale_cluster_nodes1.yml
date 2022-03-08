@@ -31,7 +31,7 @@ regiondata:
           status: ACTIVE
           infraflavor: x1.small
         - name: smallcluster-acmeappco.tmus-cloud-1-tmus.local.mobiledgex.net
-          type: rootlb
+          type: dedicatedrootlb
           status: ACTIVE
           infraflavor: x1.small
       dnslabel: smallcluster-acmeappco

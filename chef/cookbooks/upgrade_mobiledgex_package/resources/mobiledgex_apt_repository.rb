@@ -1,3 +1,5 @@
+require 'uri'
+
 unified_mode true
 resource_name :mobiledgex_apt_repository
 provides :mobiledgex_apt_repository
@@ -35,7 +37,11 @@ action :setup do
     end
 
     # Set up credentials for apt repositories
-    apt_repos = data_bag('apt_repos').map {|r| data_bag_item('apt_repos', r)}
+    apt_repo_urls = [ new_resource.main_repo_url, new_resource.artifactory_repo_url ]
+    apt_repos = data_bag('apt_repos').sort.map do |r|
+        data_bag_item('apt_repos', r) if apt_repo_urls.any? {|u| URI(u).host == r}
+    end.compact
+
     template '/etc/apt/auth.conf.d/mobiledgex.net.conf' do
         source  "apt-auth.erb"
         owner   "root"

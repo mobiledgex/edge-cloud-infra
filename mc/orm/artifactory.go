@@ -3,6 +3,7 @@ package orm
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/atlassian/go-artifactory/v2/artifactory"
@@ -20,6 +21,8 @@ const (
 
 // Cache Artifactory Auth Key
 var rtfAuth *cloudcommon.RegistryAuth
+
+var artifactoryIgnoreForUnitTest bool
 
 func getArtifactoryName(orgName string) string {
 	return ArtifactoryPrefix + orgName
@@ -63,6 +66,9 @@ func artifactoryClient(ctx context.Context) (*artifactory.Artifactory, error) {
 }
 
 func artifactoryListUsers(ctx context.Context) (map[string]struct{}, error) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return map[string]struct{}{}, nil
+	}
 	client, err := artifactoryClient(ctx)
 	if err != nil {
 		return nil, err
@@ -83,6 +89,9 @@ func artifactoryListUsers(ctx context.Context) (map[string]struct{}, error) {
 }
 
 func artifactoryListUserGroups(ctx context.Context, userName string) (map[string]struct{}, error) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return map[string]struct{}{}, nil
+	}
 	client, err := artifactoryClient(ctx)
 	if err != nil {
 		return nil, err
@@ -100,44 +109,81 @@ func artifactoryListUserGroups(ctx context.Context, userName string) (map[string
 	return tmp, nil
 }
 
-func artifactoryCreateUser(ctx context.Context, user *ormapi.User) {
-	client, err := artifactoryClient(ctx)
-	userName := user.Name
+func artifactoryCreateLDAPUser(ctx context.Context, user *ormapi.User) (reterr error) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return nil
+	}
 	if user.Name == Superuser {
-		return
+		return nil
 	}
-	if err == nil {
-		rtfUser := v1.User{
-			Name:                     artifactory.String(userName),
-			Email:                    artifactory.String(user.Email),
-			ProfileUpdatable:         artifactory.Bool(false),
-			InternalPasswordDisabled: artifactory.Bool(true),
-		}
-		_, err = client.V1.Security.CreateOrReplaceUser(context.Background(), userName, &rtfUser)
-	}
-	log.SpanLog(ctx, log.DebugLevelApi, "artifactory create user", "user", userName, "err", err)
+	userName := user.Name
+	defer func() {
+		log.SpanLog(ctx, log.DebugLevelApi, "artifactory create user", "user", userName, "err", reterr)
+	}()
+	client, err := artifactoryClient(ctx)
 	if err != nil {
-		artifactorySync.NeedsSync()
-		return
+		return err
 	}
+	// do not overwrite existing user
+	_, resp, err := client.V1.Security.GetUser(context.Background(), userName)
+	if err == nil && resp != nil && resp.StatusCode == http.StatusOK {
+		// user already exists
+		return fmt.Errorf("Artifactory user %s already exists", userName)
+	}
+	if err == nil && resp != nil && resp.StatusCode != http.StatusNotFound {
+		// we expect a 404 if the user doesn't exist
+		// without a 404 response, we don't actually know if the
+		// user exists or not
+		return fmt.Errorf("Unable to determine if artifactory user already exists or not: %d", resp.StatusCode)
+	}
+	rtfUser := v1.User{
+		Name:                     artifactory.String(userName),
+		Email:                    artifactory.String(user.Email),
+		ProfileUpdatable:         artifactory.Bool(false),
+		InternalPasswordDisabled: artifactory.Bool(true),
+	}
+	_, err = client.V1.Security.CreateOrReplaceUser(context.Background(), userName, &rtfUser)
+	return err
 }
 
-func artifactoryDeleteUser(ctx context.Context, userName string) {
+func artifactoryDeleteLDAPUser(ctx context.Context, userName string) (reterr error) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return nil
+	}
+	defer func() {
+		log.SpanLog(ctx, log.DebugLevelApi, "artifactory delete user", "user", userName, "err", reterr)
+	}()
 	client, err := artifactoryClient(ctx)
-	if err == nil {
-		_, _, err = client.V1.Security.DeleteUser(context.Background(), userName)
-	}
-	log.SpanLog(ctx, log.DebugLevelApi, "artifactory delete user", "user", userName, "err", err)
 	if err != nil {
-		if strings.Contains(err.Error(), "Status:404") {
-			return
-		}
-		artifactorySync.NeedsSync()
-		return
+		return err
 	}
+	// check that user to delete is an LDAP user
+	existingUser, resp, err := client.V1.Security.GetUser(context.Background(), userName)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode == http.StatusNotFound {
+		// no user to delete
+		log.SpanLog(ctx, log.DebugLevelApi, "artifactory delete user not found", "user", userName)
+		return nil
+	} else if resp.StatusCode == http.StatusOK && !*existingUser.InternalPasswordDisabled {
+		return fmt.Errorf("Artifactory user %s not an LDAP user, cannot delete", userName)
+	} else if resp.StatusCode != http.StatusOK {
+		// don't issue delete if we don't know that it's an LDAP user
+		return fmt.Errorf("Failed to lookup artifactory user %s for delete: %d", userName, resp.StatusCode)
+	}
+	_, _, err = client.V1.Security.DeleteUser(context.Background(), userName)
+	if err != nil {
+		artifactorySync.NeedsSync()
+		return err
+	}
+	return nil
 }
 
 func artifactoryAddUserToGroup(ctx context.Context, role *ormapi.Role, orgType string) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return
+	}
 	if orgType == OrgTypeOperator {
 		return
 	}
@@ -173,6 +219,9 @@ func artifactoryAddUserToGroup(ctx context.Context, role *ormapi.Role, orgType s
 }
 
 func artifactoryRemoveUserFromGroup(ctx context.Context, role *ormapi.Role, orgType string) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return
+	}
 	if orgType == OrgTypeOperator {
 		return
 	}
@@ -206,6 +255,9 @@ func artifactoryRemoveUserFromGroup(ctx context.Context, role *ormapi.Role, orgT
 }
 
 func artifactoryListGroups(ctx context.Context) (map[string]struct{}, error) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return map[string]struct{}{}, nil
+	}
 	client, err := artifactoryClient(ctx)
 	if err != nil {
 		return nil, err
@@ -225,6 +277,9 @@ func artifactoryListGroups(ctx context.Context) (map[string]struct{}, error) {
 }
 
 func artifactoryCreateGroup(ctx context.Context, orgName, orgType string) error {
+	if serverConfig.ArtifactoryAddr == "" {
+		return nil
+	}
 	if orgType == OrgTypeOperator {
 		return nil
 	}
@@ -242,6 +297,9 @@ func artifactoryCreateGroup(ctx context.Context, orgName, orgType string) error 
 }
 
 func artifactoryDeleteGroup(ctx context.Context, orgName, orgType string) error {
+	if serverConfig.ArtifactoryAddr == "" {
+		return nil
+	}
 	if orgType == OrgTypeOperator {
 		return nil
 	}
@@ -255,6 +313,9 @@ func artifactoryDeleteGroup(ctx context.Context, orgName, orgType string) error 
 }
 
 func artifactoryListRepos(ctx context.Context) (map[string]struct{}, error) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return map[string]struct{}{}, nil
+	}
 	client, err := artifactoryClient(ctx)
 	if err != nil {
 		return nil, err
@@ -274,6 +335,9 @@ func artifactoryListRepos(ctx context.Context) (map[string]struct{}, error) {
 }
 
 func artifactoryCreateRepo(ctx context.Context, orgName, orgType string) error {
+	if serverConfig.ArtifactoryAddr == "" {
+		return nil
+	}
 	if orgType == OrgTypeOperator {
 		return nil
 	}
@@ -294,6 +358,9 @@ func artifactoryCreateRepo(ctx context.Context, orgName, orgType string) error {
 }
 
 func artifactoryDeleteRepo(ctx context.Context, orgName, orgType string) error {
+	if serverConfig.ArtifactoryAddr == "" {
+		return nil
+	}
 	if orgType == OrgTypeOperator {
 		return nil
 	}
@@ -308,6 +375,9 @@ func artifactoryDeleteRepo(ctx context.Context, orgName, orgType string) error {
 }
 
 func artifactoryListPerms(ctx context.Context) (map[string]struct{}, error) {
+	if serverConfig.ArtifactoryAddr == "" {
+		return map[string]struct{}{}, nil
+	}
 	client, err := artifactoryClient(ctx)
 	if err != nil {
 		return nil, err
@@ -327,6 +397,9 @@ func artifactoryListPerms(ctx context.Context) (map[string]struct{}, error) {
 }
 
 func artifactoryCreateRepoPerms(ctx context.Context, orgName, orgType string) error {
+	if serverConfig.ArtifactoryAddr == "" {
+		return nil
+	}
 	if orgType == OrgTypeOperator {
 		return nil
 	}
@@ -391,6 +464,9 @@ func artifactoryCreateRepoPerms(ctx context.Context, orgName, orgType string) er
 }
 
 func artifactoryDeleteRepoPerms(ctx context.Context, orgName, orgType string) error {
+	if serverConfig.ArtifactoryAddr == "" {
+		return nil
+	}
 	if orgType == OrgTypeOperator {
 		return nil
 	}

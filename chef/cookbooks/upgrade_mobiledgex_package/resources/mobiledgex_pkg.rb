@@ -7,6 +7,11 @@ property :version, String, name_property: true
 # Upgrade the mobiledgex package
 action :upgrade do
 
+    # Remove holds
+    package %w( linux-image-virtual mobiledgex ) do
+        action :unlock
+    end
+
     # Pin the package version
     apt_preference 'mobiledgex' do
         pin "version #{new_resource.version}"

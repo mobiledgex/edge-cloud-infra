@@ -5,4 +5,5 @@ end
 
 mobiledgex_pkg node['mobiledgeXPackageVersion'] do
   action  :upgrade
+  only_if { node.tagged?('vmtype/rootlb') }
 end

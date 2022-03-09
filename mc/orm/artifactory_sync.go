@@ -99,7 +99,7 @@ func (s *AppStoreSync) syncRtfUsers(ctx context.Context) {
 			log.SpanLog(ctx, log.DebugLevelApi,
 				"Artifactory Sync create missing LDAP user",
 				"user", name)
-			artifactoryCreateUser(ctx, user)
+			artifactoryCreateLDAPUser(ctx, user)
 		}
 	}
 
@@ -108,7 +108,7 @@ func (s *AppStoreSync) syncRtfUsers(ctx context.Context) {
 		log.SpanLog(ctx, log.DebugLevelApi,
 			"Artifactory Sync delete extra user",
 			"name", user)
-		artifactoryDeleteUser(ctx, user)
+		artifactoryDeleteLDAPUser(ctx, user)
 	}
 }
 

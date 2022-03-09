@@ -229,10 +229,12 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	if gitlabToken == "" {
 		log.InfoLog("Note: No gitlab_token env var found")
 	}
-	gitlabClient = gitlab.NewClient(nil, gitlabToken)
-	if err = gitlabClient.SetBaseURL(config.GitlabAddr); err != nil {
-		return nil, fmt.Errorf("Gitlab client set base URL to %s, %s",
-			config.GitlabAddr, err.Error())
+	if config.GitlabAddr != "" {
+		gitlabClient = gitlab.NewClient(nil, gitlabToken)
+		if err = gitlabClient.SetBaseURL(config.GitlabAddr); err != nil {
+			return nil, fmt.Errorf("Gitlab client set base URL to %s, %s",
+				config.GitlabAddr, err.Error())
+		}
 	}
 
 	if config.RunLocal {
@@ -899,8 +901,15 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 	if err != nil {
 		return nil, err
 	}
-	gitlabSync.Start(server.done)
-	artifactorySync.Start(server.done)
+
+	if config.GitlabAddr != "" {
+		gitlabSync = GitlabNewSync()
+		gitlabSync.Start(server.done)
+	}
+	if config.ArtifactoryAddr != "" {
+		artifactorySync = ArtifactoryNewSync()
+		artifactorySync.Start(server.done)
+	}
 	if AlertManagerServer != nil {
 		AlertManagerServer.Start()
 	}
@@ -976,6 +985,8 @@ func (s *Server) Stop() {
 		AlertManagerServer = nil
 	}
 	nodeMgr.Finish()
+	serverConfig = &ServerConfig{}
+	gitlabClient = nil
 }
 
 func ShowVersion(c echo.Context) error {

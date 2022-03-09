@@ -1360,7 +1360,7 @@ func testCreateUser(t *testing.T, mcClient *mctestclient.Client, uri, name strin
 		EnableTOTP: true,
 	}
 	resp, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: user})
-	require.Nil(t, err, "create user ", name)
+	require.Nil(t, err, "create user %s", name)
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, resp.TOTPSharedKey, "user totp shared key", name)
 	require.NotNil(t, resp.TOTPQRImage, "user totp qa", name)
@@ -1368,7 +1368,7 @@ func testCreateUser(t *testing.T, mcClient *mctestclient.Client, uri, name strin
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp", name)
 	token, _, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, NoApiKeyId, NoApiKey)
-	require.Nil(t, err, "login as ", name)
+	require.Nil(t, err, "login as %s", name)
 	return &user, token, user.Passhash
 }
 
@@ -1377,7 +1377,7 @@ func testDeleteUser(t *testing.T, mcClient *mctestclient.Client, uri, token, nam
 		Name: name,
 	}
 	status, err := mcClient.DeleteUser(uri, token, &user)
-	require.Nil(t, err, "delete user ", name)
+	require.Nil(t, err, "delete user %s", name)
 	require.Equal(t, http.StatusOK, status)
 }
 
@@ -1388,7 +1388,7 @@ func testCreateOrg(t *testing.T, mcClient *mctestclient.Client, uri, token, orgT
 		Name: orgName,
 	}
 	status, err := mcClient.CreateOrg(uri, token, &org)
-	require.Nil(t, err, "create org ", orgName)
+	require.Nil(t, err, "create org %s", orgName)
 	require.Equal(t, http.StatusOK, status)
 	return &org
 }
@@ -1398,15 +1398,11 @@ func testDeleteOrg(t *testing.T, mcClient *mctestclient.Client, uri, token, orgN
 		Name: orgName,
 	}
 	status, err := mcClient.DeleteOrg(uri, token, &org)
-	require.Nil(t, err, "delete org ", orgName)
+	require.Nil(t, err, "delete org %s", orgName)
 	require.Equal(t, http.StatusOK, status)
 }
 
 func testUpdateOrg(t *testing.T, mcClient *mctestclient.Client, uri, token, orgName string) {
-	gitlabIgnoreForUnitTest = true
-	defer func() {
-		gitlabIgnoreForUnitTest = false
-	}()
 	org := getOrg(t, mcClient, uri, token, orgName)
 	update := *org
 	update.PublicImages = !org.PublicImages

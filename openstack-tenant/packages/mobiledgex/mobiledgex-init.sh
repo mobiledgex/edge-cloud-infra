@@ -167,5 +167,9 @@ else
 	log "Finished k8s init for role $ROLE"
 fi
 
+# unmount the config drive if it is mounted
+log "unmounting $MCONF if present"
+mount|grep $MCONF && umount $MCONF
+
 touch "$INIT_COMPLETE_FLAG"
 log "Finished mobiledgex init"

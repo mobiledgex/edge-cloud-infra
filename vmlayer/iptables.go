@@ -102,10 +102,6 @@ func (v *VMProperties) SetupIptablesRulesForRootLB(ctx context.Context, client s
 	//First create the global rules on this LB
 	log.SpanLog(ctx, log.DebugLevelInfra, "SetupIptablesRulesForRootLB", "isTrustPolicy", isTrustPolicy)
 	if isTrustPolicy {
-		err := v.CommonPf.CreateCloudletFirewallRules(ctx, client)
-		if err != nil {
-			return err
-		}
 		// Allow SSH from provided cidrs
 		for _, netCidr := range sshCidrsAllowed {
 			sshIngress := infracommon.FirewallRule{

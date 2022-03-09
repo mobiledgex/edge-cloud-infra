@@ -128,27 +128,6 @@ func parseFirewallRules(ctx context.Context, ruleString string) ([]FirewallRule,
 	return firewallRules, nil
 }
 
-// CreateCloudletFirewallRules adds cloudlet-wide egress rules based on properties
-func (c *CommonPlatform) CreateCloudletFirewallRules(ctx context.Context, client ssh.Client) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "CreateCloudletFirewallRules")
-
-	var firewallRules FirewallRules
-	var err error
-	if val, ok := c.Properties.GetValue("MEX_CLOUDLET_FIREWALL_WHITELIST_EGRESS"); ok {
-		firewallRules.EgressRules, err = parseFirewallRules(ctx, val)
-		if err != nil {
-			return err
-		}
-	}
-	if val, ok := c.Properties.GetValue("MEX_CLOUDLET_FIREWALL_WHITELIST_INGRESS"); ok {
-		firewallRules.IngressRules, err = parseFirewallRules(ctx, val)
-		if err != nil {
-			return err
-		}
-	}
-	return AddIptablesRules(ctx, client, "cloudlet-wide", &firewallRules)
-}
-
 // getIpTablesEntryForRule gets the iptables string for the rule
 func getIpTablesEntriesForRule(ctx context.Context, direction string, label string, rule *FirewallRule) []string {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getIpTablesEntriesForRule", "rule", rule)

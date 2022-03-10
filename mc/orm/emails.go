@@ -55,6 +55,37 @@ type emailTmplArg struct {
 	IP      string
 }
 
+// Use global variable to store func so that for unit-testing we
+// can mock the sendEmail functionality. Look at MockSendMail obj
+var sendMailFunc = sendEmail
+
+type MockSendMail struct {
+	From    *emailAccount
+	To      string
+	Message string
+}
+
+func (m *MockSendMail) Start() {
+	sendMailFunc = m.SendEmail
+}
+
+func (m *MockSendMail) Stop() {
+	sendMailFunc = sendEmail
+}
+
+func (m *MockSendMail) Reset() {
+	m.From = nil
+	m.To = ""
+	m.Message = ""
+}
+
+func (m *MockSendMail) SendEmail(from *emailAccount, to string, contents *bytes.Buffer) error {
+	m.From = from
+	m.To = to
+	m.Message = string(contents.Bytes())
+	return nil
+}
+
 var passwordResetT = `From: {{.From}}
 To: {{.Email}}
 Subject: Password Reset Request
@@ -125,7 +156,7 @@ func sendNotify(ctx context.Context, to, subject, message string) error {
 	if err := notifyTmpl.Execute(&buf, &arg); err != nil {
 		return err
 	}
-	return sendEmail(noreply, to, &buf)
+	return sendMailFunc(noreply, to, &buf)
 }
 
 var welcomeT = `From: {{.From}}
@@ -182,8 +213,9 @@ func sendVerifyEmail(ctx context.Context, username string, req *ormapi.EmailRequ
 		Browser: req.Browser,
 		IP:      req.ClientIP,
 	}
-	if req.CallbackURL != "" {
-		arg.URL = req.CallbackURL + "?token=" + cookie
+	extEndpointURL := GetMCExternalEndpointURL()
+	if extEndpointURL != "" && serverConfig.VerifyEmailConsolePath != "" {
+		arg.URL = extEndpointURL + serverConfig.VerifyEmailConsolePath + "?token=" + cookie
 	}
 	buf := bytes.Buffer{}
 	if err := welcomeTmpl.Execute(&buf, &arg); err != nil {
@@ -191,7 +223,7 @@ func sendVerifyEmail(ctx context.Context, username string, req *ormapi.EmailRequ
 	}
 	log.SpanLog(ctx, log.DebugLevelApi, "send verify email",
 		"from", noreply.Email, "to", req.Email)
-	return sendEmail(noreply, req.Email, &buf)
+	return sendMailFunc(noreply, req.Email, &buf)
 }
 
 type emailAccount struct {
@@ -318,7 +350,7 @@ func sendAddedEmail(ctx context.Context, admin, name, email, org, role string) e
 	}
 	log.SpanLog(ctx, log.DebugLevelApi, "send added email",
 		"from", noreply.Email, "to", email)
-	return sendEmail(noreply, email, &buf)
+	return sendMailFunc(noreply, email, &buf)
 }
 
 func getSkipVerifyEmail(ctx context.Context, config *ormapi.Config) bool {
@@ -380,7 +412,7 @@ func sendOTPEmail(ctx context.Context, username, email, totp, totpExpTime string
 	}
 	log.SpanLog(ctx, log.DebugLevelApi, "send otp email",
 		"from", noreply.Email, "to", email)
-	return sendEmail(noreply, email, &buf)
+	return sendMailFunc(noreply, email, &buf)
 }
 
 type operatorReportTmplArg struct {
@@ -462,5 +494,5 @@ func sendOperatorReportEmail(ctx context.Context, username, email, reporterName 
 
 	log.SpanLog(ctx, log.DebugLevelApi, "send operator report email",
 		"from", noreply.Email, "to", email, "report file", pdfFileName)
-	return sendEmail(noreply, email, &buf)
+	return sendMailFunc(noreply, email, &buf)
 }

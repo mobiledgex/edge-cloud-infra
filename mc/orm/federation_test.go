@@ -210,13 +210,17 @@ func SetupOperatorPlatform(t *testing.T, ctx context.Context) (*OPAttr, []Federa
 		InitLocal:               true,
 		LocalVault:              true,
 		IgnoreEnv:               true,
-		SkipVerifyEmail:         true,
 		AlertMgrAddr:            testAlertMgrAddr,
 		AlertmgrResolveTimout:   3 * time.Minute,
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
 		AlertCache:              &edgeproto.AlertCache{},
+		NodeMgr: &node.NodeMgr{
+			InternalDomain: "mobiledgex.net",
+		},
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
 	unitTestNodeMgrOps = []node.NodeOp{
 		node.WithESUrls(MockESUrl),

@@ -14,6 +14,7 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
+	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/require"
 )
@@ -142,11 +143,15 @@ func TestAppStoreApi(t *testing.T) {
 		IgnoreEnv:               true,
 		ArtifactoryAddr:         artifactoryAddr,
 		GitlabAddr:              gitlabAddr,
-		SkipVerifyEmail:         true,
 		LocalVault:              true,
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
+		NodeMgr: &node.NodeMgr{
+			InternalDomain: "mobiledgex.net",
+		},
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")

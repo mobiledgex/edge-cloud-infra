@@ -411,8 +411,6 @@ type EmailRequest struct {
 	OperatingSystem string `form:"operatingsystem" json:"operatingsystem"`
 	// read only: true
 	Browser string `form:"browser" json:"browser"`
-	// Callback URL to verify user email
-	CallbackURL string `form:"callbackurl" json:"callbackurl"`
 	// read only: true
 	ClientIP string `form:"clientip" json:"clientip"`
 }

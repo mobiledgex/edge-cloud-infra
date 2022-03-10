@@ -8,7 +8,7 @@ import (
 	"io/ioutil"
 	math "math"
 	"net/http"
-	"net/url"
+	"sort"
 	"strings"
 	"time"
 
@@ -427,9 +427,6 @@ func CreateUser(c echo.Context) error {
 		return ormutil.DbErr(err)
 	}
 	createuser.Verify.Email = user.Email
-	if err := ValidateCallbackURL(createuser.Verify.CallbackURL); err != nil {
-		return err
-	}
 	err = sendVerifyEmail(ctx, user.Name, &createuser.Verify)
 	if err != nil {
 		db.Delete(&user)
@@ -476,9 +473,6 @@ func ResendVerify(c echo.Context) error {
 		return ormutil.BindErr(err)
 	}
 	if err := ValidEmailRequest(c, &req); err != nil {
-		return err
-	}
-	if err := ValidateCallbackURL(req.CallbackURL); err != nil {
 		return err
 	}
 	return sendVerifyEmail(ctx, "MobiledgeX user", &req)
@@ -728,6 +722,9 @@ func ShowUser(c echo.Context) error {
 			users[ii].UpdatedAt = time.Time{}
 		}
 	}
+	sort.Slice(users, func(i, j int) bool {
+		return users[i].Name < users[j].Name
+	})
 	return c.JSON(http.StatusOK, users)
 }
 
@@ -796,22 +793,17 @@ func checkPasswordStrength(ctx context.Context, user *ormapi.User, config *ormap
 	return nil
 }
 
-func ValidateCallbackURL(urlString string) error {
-	domainName := serverConfig.NodeMgr.InternalDomain
-	if urlString == "" || domainName == "" {
-		return nil
+func GetMCExternalEndpointURL() string {
+	extEndpointURL := "http://"
+	if serverConfig.ApiTlsCertFile != "" {
+		extEndpointURL = "https://"
 	}
-	if !strings.HasPrefix(urlString, "http") {
-		urlString = "http://" + urlString
+	commonName := serverConfig.NodeMgr.CommonName()
+	if commonName == "" {
+		return ""
 	}
-	u, err := url.Parse(urlString)
-	if err != nil {
-		return fmt.Errorf("Invalid callback URL %s, %v", urlString, err)
-	}
-	if !strings.HasSuffix(u.Hostname(), domainName) {
-		return fmt.Errorf("Invalid callback URL domain, must be %s", domainName)
-	}
-	return nil
+	extEndpointURL += commonName + "/"
+	return extEndpointURL
 }
 
 func PasswordResetRequest(c echo.Context) error {
@@ -821,9 +813,6 @@ func PasswordResetRequest(c echo.Context) error {
 		return ormutil.BindErr(err)
 	}
 	if err := ValidEmailRequest(c, &req); err != nil {
-		return err
-	}
-	if err := ValidateCallbackURL(req.CallbackURL); err != nil {
 		return err
 	}
 	noreply, err := getNoreply(ctx)
@@ -860,8 +849,9 @@ func PasswordResetRequest(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		if req.CallbackURL != "" {
-			arg.URL = req.CallbackURL + "?token=" + cookie
+		extEndpointURL := GetMCExternalEndpointURL()
+		if extEndpointURL != "" && serverConfig.PasswordResetConsolePath != "" {
+			arg.URL = extEndpointURL + serverConfig.PasswordResetConsolePath + "?token=" + cookie
 		}
 		arg.Name = user.Name
 		arg.Token = cookie
@@ -873,7 +863,7 @@ func PasswordResetRequest(c echo.Context) error {
 	}
 	log.SpanLog(ctx, log.DebugLevelApi, "send password reset email",
 		"from", noreply.Email, "to", req.Email)
-	return sendEmail(noreply, req.Email, &buf)
+	return sendMailFunc(noreply, req.Email, &buf)
 }
 
 func PasswordReset(c echo.Context) error {
@@ -1097,9 +1087,6 @@ func UpdateUser(c echo.Context) error {
 	}
 
 	if sendVerify {
-		if err := ValidateCallbackURL(cuser.Verify.CallbackURL); err != nil {
-			return err
-		}
 		err = sendVerifyEmail(ctx, user.Name, &cuser.Verify)
 		if err != nil {
 			undoErr := db.Save(&old).Error

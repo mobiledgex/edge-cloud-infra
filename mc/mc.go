@@ -42,6 +42,11 @@ var usageCheckpointInterval = flag.String("usageCheckpointInterval", "MONTH", "C
 var staticDir = flag.String("staticDir", "/", "Path to static data")
 var controllerNotifyPort = flag.String("controllerNotifyPort", "50001", "Controller notify listener port to connect to")
 
+// Following URL paths are UI console paths which will be used to send
+// appropriate links to user's email for actions like password-reset, email-verification
+var passwordResetConsolePath = flag.String("passwordResetConsolePath", "#/passwordreset", "Console URL path to perform password reset action by end-user")
+var verifyEmailConsolePath = flag.String("verifyEmailConsolePath", "#/verify", "Console URL path to perform email verification action by end-user")
+
 var sigChan chan os.Signal
 var nodeMgr node.NodeMgr
 var alertCache edgeproto.AlertCache
@@ -55,35 +60,37 @@ func main() {
 	sigChan = make(chan os.Signal, 1)
 
 	config := orm.ServerConfig{
-		ServAddr:                *addr,
-		SqlAddr:                 *sqlAddr,
-		VaultAddr:               nodeMgr.VaultAddr,
-		FederationAddr:          *federationAddr,
-		RunLocal:                *localSql,
-		InitLocal:               *initSql,
-		LocalVault:              *localVault,
-		ApiTlsCertFile:          *apiTlsCertFile,
-		ApiTlsKeyFile:           *apiTlsKeyFile,
-		LDAPAddr:                *ldapAddr,
-		GitlabAddr:              *gitlabAddr,
-		ArtifactoryAddr:         *artifactoryAddr,
-		PingInterval:            *pingInterval,
-		SkipVerifyEmail:         *skipVerifyEmail,
-		JaegerAddr:              *jaegerAddr,
-		SkipOriginCheck:         *skipOriginCheck,
-		Hostname:                *hostname,
-		NotifyAddrs:             *notifyAddrs,
-		NotifySrvAddr:           *notifySrvAddr,
-		NodeMgr:                 &nodeMgr,
-		BillingPlatform:         *billingPlatform,
-		AlertMgrAddr:            *alertMgrAddr,
-		AlertCache:              &alertCache,
-		AlertmgrResolveTimout:   *alertMgrResolveTimeout,
-		UsageCheckpointInterval: *usageCheckpointInterval,
-		DomainName:              nodeMgr.CommonName(),
-		StaticDir:               *staticDir,
-		DeploymentTag:           nodeMgr.DeploymentTag,
-		ControllerNotifyPort:    *controllerNotifyPort,
+		ServAddr:                 *addr,
+		SqlAddr:                  *sqlAddr,
+		VaultAddr:                nodeMgr.VaultAddr,
+		FederationAddr:           *federationAddr,
+		RunLocal:                 *localSql,
+		InitLocal:                *initSql,
+		LocalVault:               *localVault,
+		ApiTlsCertFile:           *apiTlsCertFile,
+		ApiTlsKeyFile:            *apiTlsKeyFile,
+		LDAPAddr:                 *ldapAddr,
+		GitlabAddr:               *gitlabAddr,
+		ArtifactoryAddr:          *artifactoryAddr,
+		PingInterval:             *pingInterval,
+		SkipVerifyEmail:          *skipVerifyEmail,
+		JaegerAddr:               *jaegerAddr,
+		SkipOriginCheck:          *skipOriginCheck,
+		Hostname:                 *hostname,
+		NotifyAddrs:              *notifyAddrs,
+		NotifySrvAddr:            *notifySrvAddr,
+		NodeMgr:                  &nodeMgr,
+		BillingPlatform:          *billingPlatform,
+		AlertMgrAddr:             *alertMgrAddr,
+		AlertCache:               &alertCache,
+		AlertmgrResolveTimout:    *alertMgrResolveTimeout,
+		UsageCheckpointInterval:  *usageCheckpointInterval,
+		DomainName:               nodeMgr.CommonName(),
+		StaticDir:                *staticDir,
+		DeploymentTag:            nodeMgr.DeploymentTag,
+		ControllerNotifyPort:     *controllerNotifyPort,
+		PasswordResetConsolePath: *passwordResetConsolePath,
+		VerifyEmailConsolePath:   *verifyEmailConsolePath,
 	}
 	server, err := orm.RunServer(&config)
 	if err != nil {

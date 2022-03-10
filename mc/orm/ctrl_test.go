@@ -84,7 +84,6 @@ func TestController(t *testing.T) {
 		RunLocal:                true,
 		InitLocal:               true,
 		IgnoreEnv:               true,
-		SkipVerifyEmail:         true,
 		vaultConfig:             vaultConfig,
 		AlertMgrAddr:            testAlertMgrAddr,
 		AlertmgrResolveTimout:   3 * time.Minute,
@@ -92,6 +91,11 @@ func TestController(t *testing.T) {
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
 		AlertCache:              &edgeproto.AlertCache{},
+		NodeMgr: &node.NodeMgr{
+			InternalDomain: "mobiledgex.net",
+		},
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
 	unitTestNodeMgrOps = []node.NodeOp{
 		node.WithESUrls(mockESUrl),
@@ -1558,11 +1562,12 @@ func testCreateUser(t *testing.T, mcClient *mctestclient.Client, uri, name strin
 		Passhash:   name + "-password-super-long-crazy-hard-difficult",
 		EnableTOTP: true,
 	}
-	resp, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: user})
+	resp, mailMsg, status, err := mcClientCreateUserWithMockMail(mcClient, uri, &ormapi.CreateUser{User: user})
 	require.Nil(t, err, "create user %s", name)
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, resp.TOTPSharedKey, "user totp shared key", name)
 	require.NotNil(t, resp.TOTPQRImage, "user totp qa", name)
+	userVerifyEmail(mcClient, t, uri, mailMsg)
 	// login
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp", name)
@@ -3063,11 +3068,15 @@ func TestUpgrade(t *testing.T) {
 		SqlAddr:                 "127.0.0.1:5445",
 		RunLocal:                false, // using existing db
 		IgnoreEnv:               true,
-		SkipVerifyEmail:         true,
 		vaultConfig:             vaultConfig,
 		UsageCheckpointInterval: "MONTH",
 		BillingPlatform:         billing.BillingTypeFake,
 		DeploymentTag:           "local",
+		NodeMgr: &node.NodeMgr{
+			InternalDomain: "mobiledgex.net",
+		},
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
 
 	// start postgres so we can prepopulate it with old data

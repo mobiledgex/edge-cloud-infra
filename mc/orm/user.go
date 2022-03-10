@@ -1176,6 +1176,9 @@ func DeleteUserApiKey(c echo.Context) error {
 	if err != nil {
 		return dbErr(err)
 	}
+	if apiKeyObj.Username != claims.Username {
+		return newHTTPError(http.StatusForbidden, "Cannot delete other user's API key")
+	}
 	apiKeyRole := getApiKeyRoleName(apiKeyObj.Id)
 	err = enforcer.RemovePolicy(ctx, apiKeyRole)
 	if err != nil {

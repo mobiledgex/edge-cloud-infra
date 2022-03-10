@@ -169,7 +169,7 @@ fi
 
 # unmount the config drive if it is mounted
 log "unmounting $MCONF if present"
-mount|grep $MCONF && umount $MCONF
+test $MCONF && mount|grep $MCONF && umount $MCONF
 
 touch "$INIT_COMPLETE_FLAG"
 log "Finished mobiledgex init"

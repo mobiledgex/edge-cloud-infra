@@ -79,19 +79,21 @@ func TestController(t *testing.T) {
 	defaultConfig.DisableRateLimit = true
 
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                true,
-		InitLocal:               true,
-		IgnoreEnv:               true,
-		SkipVerifyEmail:         true,
-		vaultConfig:             vaultConfig,
-		AlertMgrAddr:            testAlertMgrAddr,
-		AlertmgrResolveTimout:   3 * time.Minute,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
-		AlertCache:              &edgeproto.AlertCache{},
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 true,
+		InitLocal:                true,
+		IgnoreEnv:                true,
+		vaultConfig:              vaultConfig,
+		AlertMgrAddr:             testAlertMgrAddr,
+		AlertmgrResolveTimout:    3 * time.Minute,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		AlertCache:               &edgeproto.AlertCache{},
+		PublicAddr:               "http://mc.mobiledgex.net",
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
 	unitTestNodeMgrOps = []node.NodeOp{
 		node.WithESUrls(mockESUrl),
@@ -1558,11 +1560,12 @@ func testCreateUser(t *testing.T, mcClient *mctestclient.Client, uri, name strin
 		Passhash:   name + "-password-super-long-crazy-hard-difficult",
 		EnableTOTP: true,
 	}
-	resp, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: user})
+	resp, mailMsg, status, err := mcClientCreateUserWithMockMail(mcClient, uri, &ormapi.CreateUser{User: user})
 	require.Nil(t, err, "create user %s", name)
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, resp.TOTPSharedKey, "user totp shared key", name)
 	require.NotNil(t, resp.TOTPQRImage, "user totp qa", name)
+	userVerifyEmail(mcClient, t, uri, mailMsg)
 	// login
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp", name)
@@ -2793,6 +2796,14 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
 
+	// invalid org should throw appropriate error
+	validOrg := userApiKeyObj.Org
+	userApiKeyObj.Org = "invalidOrg"
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "invalid org specified")
+	require.Contains(t, err.Error(), "Invalid org specified", "err match")
+	userApiKeyObj.Org = validOrg
+
 	// user should be able to create api key if action, resource input are correct
 	testRemoveUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user1.Name, Success)
 	testAddUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorManager", user1.Name, Success)
@@ -2915,6 +2926,12 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.NotNil(t, err, "delete user")
 	require.Equal(t, http.StatusForbidden, status, "forbidden")
 	require.Contains(t, err.Error(), "Forbidden", "err matches")
+
+	// deletion with invalid API key id should fail with appropriate error
+	delInvalidKeyObj := ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: "invalidAPIKeyId"}}
+	_, err = mcClient.DeleteUserApiKey(uri, token1, &delInvalidKeyObj)
+	require.NotNil(t, err, "invalid api key id")
+	require.Contains(t, err.Error(), "API key ID not found", "err matches")
 
 	// deletion of apikey should result in deletion of respective roles
 	delKeyObj = ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
@@ -3071,15 +3088,17 @@ func TestUpgrade(t *testing.T) {
 	unitTest = true
 	defaultConfig.DisableRateLimit = true
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                false, // using existing db
-		IgnoreEnv:               true,
-		SkipVerifyEmail:         true,
-		vaultConfig:             vaultConfig,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 false, // using existing db
+		IgnoreEnv:                true,
+		vaultConfig:              vaultConfig,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		PublicAddr:               "http://mc.mobiledgex.net",
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
 
 	// start postgres so we can prepopulate it with old data

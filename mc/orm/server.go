@@ -65,6 +65,7 @@ type ServerConfig struct {
 	SqlAddr                  string
 	VaultAddr                string
 	FederationAddr           string
+	PublicAddr               string
 	RunLocal                 bool
 	InitLocal                bool
 	SqlDataDir               string
@@ -175,6 +176,12 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 		// For uniformity, sanitize the console addr path to end with /
 		if !strings.HasSuffix(config.ConsoleAddr, "/") {
 			config.ConsoleAddr = config.ConsoleAddr + "/"
+		}
+	}
+	if config.PublicAddr != "" {
+		if !strings.HasPrefix(config.PublicAddr, "http") {
+			// assume this to be HTTPS
+			config.ConsoleAddr = "https://" + config.ConsoleAddr
 		}
 	}
 

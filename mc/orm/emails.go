@@ -224,8 +224,8 @@ func sendVerifyEmail(c echo.Context, username string, req *ormapi.EmailRequest) 
 		OS:      os,
 		Browser: browser,
 		IP:      clientIP,
+		MCAddr:  serverConfig.PublicAddr,
 	}
-	arg.MCAddr = GetMCExternalEndpointURL()
 	if serverConfig.ConsoleAddr != "" && serverConfig.VerifyEmailConsolePath != "" {
 		arg.URL = serverConfig.ConsoleAddr + serverConfig.VerifyEmailConsolePath + "?token=" + cookie
 	}

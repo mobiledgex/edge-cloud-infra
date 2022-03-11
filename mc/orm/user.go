@@ -813,21 +813,6 @@ func GetClientDetailsFromRequestHeaders(c echo.Context) (string, string, string)
 	return clientIP, browser, os
 }
 
-func GetMCExternalEndpointURL() string {
-	extEndpointURL := "http://"
-	if serverConfig.ApiTlsCertFile != "" {
-		extEndpointURL = "https://"
-	}
-	commonName := serverConfig.NodeMgr.CommonName()
-	if commonName == "" {
-		// must be a local running MC
-		extEndpointURL += serverConfig.ServAddr
-	} else {
-		extEndpointURL += commonName
-	}
-	return extEndpointURL
-}
-
 func PasswordResetRequest(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	req := ormapi.EmailRequest{}
@@ -879,7 +864,7 @@ func PasswordResetRequest(c echo.Context) error {
 		arg.Name = user.Name
 		arg.Token = cookie
 		tmpl = passwordResetTmpl
-		arg.MCAddr = GetMCExternalEndpointURL()
+		arg.MCAddr = serverConfig.PublicAddr
 	}
 	buf := bytes.Buffer{}
 	if err := tmpl.Execute(&buf, &arg); err != nil {

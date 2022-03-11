@@ -33,6 +33,7 @@ var skipOriginCheck = flag.Bool("skipOriginCheck", false, "skip origin check con
 var notifyAddrs = flag.String("notifyAddrs", "", "Parent notify listener addresses")
 var notifySrvAddr = flag.String("notifySrvAddr", "127.0.0.1:52001", "Notify listener address")
 var alertMgrAddr = flag.String("alertMgrApiAddr", "http://127.0.0.1:9094", "Global Alertmanager api address")
+var publicAddr = flag.String("publicAddr", "http://127.0.0.1:9900", "Public facing address/hostname of MC")
 
 var alertMgrResolveTimeout = flag.Duration("alertResolveTimeout", 3*time.Minute, "Alertmanager alert Resolution timeout")
 var hostname = flag.String("hostname", "", "Unique hostname")
@@ -90,6 +91,7 @@ func main() {
 		StaticDir:                *staticDir,
 		DeploymentTag:            nodeMgr.DeploymentTag,
 		ControllerNotifyPort:     *controllerNotifyPort,
+		PublicAddr:               *publicAddr,
 		ConsoleAddr:              *consoleAddr,
 		PasswordResetConsolePath: *passwordResetConsolePath,
 		VerifyEmailConsolePath:   *verifyEmailConsolePath,

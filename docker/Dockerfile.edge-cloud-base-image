@@ -57,7 +57,7 @@ RUN apt-get update && apt-get install -y \
 	azure-cli=2.34.1-1~bionic \
 	google-cloud-sdk=267.0.0-0 \
 	kubectl=1.16.2-00 \
-	qemu-utils=1:2.11+dfsg-1ubuntu7.38
+	qemu-utils
 
 COPY --from=python /python/ /
 

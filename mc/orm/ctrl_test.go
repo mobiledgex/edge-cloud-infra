@@ -2700,6 +2700,11 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	// add user role
 	testAddUserRole(t, mcClient, uri, token, devOrg.Name, "DeveloperViewer", user1.Name, Success)
 
+	// create user
+	user2, token2, _ := testCreateUser(t, mcClient, uri, "user2")
+	// add user role
+	testAddUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user2.Name, Success)
+
 	// invalid action error
 	userApiKeyObj := ormapi.CreateUserApiKey{
 		UserApiKey: ormapi.UserApiKey{
@@ -2792,6 +2797,14 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.NotNil(t, err, "not allowed to use manage action")
 	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// invalid org should throw appropriate error
+	validOrg := userApiKeyObj.Org
+	userApiKeyObj.Org = "invalidOrg"
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "invalid org specified")
+	require.Contains(t, err.Error(), "Invalid org specified", "err match")
+	userApiKeyObj.Org = validOrg
 
 	// user should be able to create api key if action, resource input are correct
 	testRemoveUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user1.Name, Success)
@@ -2916,6 +2929,12 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusForbidden, status, "forbidden")
 	require.Contains(t, err.Error(), "Forbidden", "err matches")
 
+	// deletion with invalid API key id should fail with appropriate error
+	delInvalidKeyObj := ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: "invalidAPIKeyId"}}
+	_, err = mcClient.DeleteUserApiKey(uri, token1, &delInvalidKeyObj)
+	require.NotNil(t, err, "invalid api key id")
+	require.Contains(t, err.Error(), "API key ID not found", "err matches")
+
 	// deletion of apikey should result in deletion of respective roles
 	delKeyObj = ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
 	status, err = mcClient.DeleteUserApiKey(uri, token1, &delKeyObj)
@@ -2984,6 +3003,12 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.NotNil(t, err, "delete invalid user api key id")
 	require.Contains(t, err.Error(), "Missing API key ID")
 
+	// delete other user's api key id should fail
+	status, err = mcClient.DeleteUserApiKey(uri, token2, &apiKeys[0])
+	require.NotNil(t, err, "delete other user's api key id should fail")
+	require.Equal(t, http.StatusForbidden, status)
+	require.Contains(t, err.Error(), "Cannot delete other user's API key")
+
 	// delete all the api keys
 	for _, apiKeyObj := range apiKeys {
 		status, err = mcClient.DeleteUserApiKey(uri, token1, &apiKeyObj)
@@ -3002,6 +3027,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	testDeleteOrg(t, mcClient, uri, token, operOrg.Name)
 	// cleanup users
 	testDeleteUser(t, mcClient, uri, token1, "user1")
+	testDeleteUser(t, mcClient, uri, token2, "user2")
 }
 
 // This is the old version of OrgCloudletPool, before type got added

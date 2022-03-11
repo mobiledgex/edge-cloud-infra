@@ -4,12 +4,6 @@ server {
 
 	server_name {{ inventory_hostname }};
 
-	error_page 400 /400.html;
-	location /400.html{
-		return 400 '{"message": "Protocol error; $host needs HTTPS"}';
-	}
-
-	location /api/ { return 400; }
 	location / { return 301 https://$host$request_uri; }
 }
 
@@ -69,6 +63,8 @@ server {
 
 		limit_except GET HEAD POST OPTIONS { deny all; }
 	}
+
+	location /api { return 301 https://$host/api/; }
 
 	location ~ /(api|ws)/ {
 

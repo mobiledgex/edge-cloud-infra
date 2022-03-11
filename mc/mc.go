@@ -44,6 +44,7 @@ var controllerNotifyPort = flag.String("controllerNotifyPort", "50001", "Control
 
 // Following URL paths are UI console paths which will be used to send
 // appropriate links to user's email for actions like password-reset, email-verification
+var consoleAddr = flag.String("consoleAddr", "", "Address of the UI console using MC")
 var passwordResetConsolePath = flag.String("passwordResetConsolePath", "#/passwordreset", "Console URL path to perform password reset action by end-user")
 var verifyEmailConsolePath = flag.String("verifyEmailConsolePath", "#/verify", "Console URL path to perform email verification action by end-user")
 
@@ -89,6 +90,7 @@ func main() {
 		StaticDir:                *staticDir,
 		DeploymentTag:            nodeMgr.DeploymentTag,
 		ControllerNotifyPort:     *controllerNotifyPort,
+		ConsoleAddr:              *consoleAddr,
 		PasswordResetConsolePath: *passwordResetConsolePath,
 		VerifyEmailConsolePath:   *verifyEmailConsolePath,
 	}

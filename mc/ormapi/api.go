@@ -407,12 +407,6 @@ type EmailRequest struct {
 	// User's email address
 	// read only: true
 	Email string `form:"email" json:"email"`
-	// read only: true
-	OperatingSystem string `form:"operatingsystem" json:"operatingsystem"`
-	// read only: true
-	Browser string `form:"browser" json:"browser"`
-	// read only: true
-	ClientIP string `form:"clientip" json:"clientip"`
 }
 
 type PasswordReset struct {

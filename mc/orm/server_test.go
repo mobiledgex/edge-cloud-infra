@@ -108,7 +108,10 @@ func mcClientUpdateUserWithMockMail(mcClient *mctestclient.Client, uri string, t
 
 func userVerifyEmail(mcClient *mctestclient.Client, t *testing.T, uri string, mailMsg string) {
 	// verify that link to verify email is correct
-	matchStr := "Click to verify: http://mc.mobiledgex.net/#/verify?token"
+	matchStr := "mcctl --addr http://mc.mobiledgex.net user verifyemail token="
+	if serverConfig.ConsoleAddr != "" {
+		matchStr = "Click to verify: http://mc.mobiledgex.net/#/verify?token"
+	}
 	require.Contains(t, mailMsg, matchStr)
 	verifyToken, err := getVerificationTokenFromEmail(mailMsg)
 	require.Nil(t, err, "get verification token from email")
@@ -512,18 +515,28 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	m.Start()
 	defer m.Stop()
 	emailReq := ormapi.EmailRequest{
-		Email:           user1.Email,
-		OperatingSystem: "linux",
+		Email: user1.Email,
 	}
+	// without consoleaddr, this will send mcctl as part of email
 	_, err = mcClient.PasswordResetRequest(uri, &emailReq)
 	require.Nil(t, err)
 	// verify that password reset link is correct
-	require.Contains(t, m.Message, "Reset your password: http://mc.mobiledgex.net/#/passwordreset?token")
+	require.Contains(t, m.Message, "http://mc.mobiledgex.net user passwordreset token=")
 	m.Reset()
+
+	// with consoleaddr set, this will send console URL as part of email
+	serverConfig.ConsoleAddr = "http://console-test.mobiledgex.net/"
+	_, err = mcClient.PasswordResetRequest(uri, &emailReq)
+	require.Nil(t, err)
+	// verify that password reset link is correct
+	require.Contains(t, m.Message, "Reset your password: http://console-test.mobiledgex.net/#/passwordreset?token")
+	m.Reset()
+	serverConfig.ConsoleAddr = ""
+
 	_, err = mcClient.ResendVerify(uri, &emailReq)
 	require.Nil(t, err)
 	// verify that password reset link is correct
-	require.Contains(t, m.Message, "Click to verify: http://mc.mobiledgex.net/#/verify?token")
+	require.Contains(t, m.Message, "mcctl --addr http://mc.mobiledgex.net user verifyemail token=")
 
 	// check role assignments as mister x
 	roleAssignments, status, err = mcClient.ShowRoleAssignment(uri, tokenMisterX, ClientNoShowFilter)

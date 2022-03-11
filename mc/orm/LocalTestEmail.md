@@ -19,10 +19,10 @@ mc -localSql -d api -sqlAddr 127.0.0.1:5445 -vaultAddr https://vault.mobiledgex.
 
 ## Welcome email (email verification)
 
-Create a new user with a valid email account that you have access to. The "verify" post data is sub-struct so its contents must be declared as raw json
+Create a new user with a valid email account that you have access to.
 
 ```
-http -j POST 127.0.0.1:9900/api/v1/usercreate name=me email=me@gmail.com passhash=test1234 verify:='{"operatingsystem":"mac OSX", "browser":"httpie","clientip":"127.0.0.1"}'
+http -j POST 127.0.0.1:9900/api/v1/usercreate name=me email=me@gmail.com passhash=test1234
 ```
 
 Now check your email. You should have gotten a Welcome email like:
@@ -81,7 +81,7 @@ http POST 127.0.0.1:9900/api/v1/resendverify email=me@gmail.com
 A forgotten password can be reset by sending a reset link to your email. Using the account created above, let's request a password reset.
 
 ```
-http POST 127.0.0.1:9900/api/v1/passwordresetrequest email=me@gmail.com operatingsystem="mac OSX" browser=httpie clientip=127.0.0.1
+http POST 127.0.0.1:9900/api/v1/passwordresetrequest email=me@gmail.com
 HTTP/1.1 200 OK
 Content-Length: 0
 Date: Thu, 09 May 2019 04:39:06 GMT

@@ -96,6 +96,7 @@ type ServerConfig struct {
 	StaticDir                string
 	DeploymentTag            string
 	ControllerNotifyPort     string
+	ConsoleAddr              string
 	PasswordResetConsolePath string
 	VerifyEmailConsolePath   string
 }
@@ -164,6 +165,25 @@ func RunServer(config *ServerConfig) (retserver *Server, reterr error) {
 
 	if config.DeploymentTag == "" {
 		return nil, fmt.Errorf("Missing deployment tag")
+	}
+
+	if config.ConsoleAddr != "" {
+		if !strings.HasPrefix(config.ConsoleAddr, "http") {
+			// assume this to be HTTPS
+			config.ConsoleAddr = "https://" + config.ConsoleAddr
+		}
+		// For uniformity, sanitize the console addr path to end with /
+		if !strings.HasSuffix(config.ConsoleAddr, "/") {
+			config.ConsoleAddr = config.ConsoleAddr + "/"
+		}
+	}
+
+	// For uniformity, sanitize the console URL paths to not start with /
+	if config.PasswordResetConsolePath != "" {
+		config.PasswordResetConsolePath = strings.TrimPrefix(config.PasswordResetConsolePath, "/")
+	}
+	if config.VerifyEmailConsolePath != "" {
+		config.VerifyEmailConsolePath = strings.TrimPrefix(config.VerifyEmailConsolePath, "/")
 	}
 
 	ops := []node.NodeOp{

@@ -55,6 +55,8 @@
       - "https://{{ alertmanager_hostname }}:{{ alertmanager_sidecar_port }}"
       - "-jaegerAddr"
       - "{{ jaeger_hostname }}:16686"
+      - "-consoleAddr"
+      - "https://{{ inventory_hostname }}"
       - "-deploymentTag"
       - "{{ deployment_tag_override | default(deploy_environ) }}"
       - "-d"

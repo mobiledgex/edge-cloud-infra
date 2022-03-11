@@ -491,6 +491,11 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 		return &roles, err
 	}
 
+	p.Run("vault", fmt.Sprintf("kv put /secret/accounts/noreplyemail Email=dummy@email.com"), &err)
+	if err != nil {
+		return &roles, err
+	}
+
 	if p.Regions == "" {
 		p.Regions = "local"
 	}

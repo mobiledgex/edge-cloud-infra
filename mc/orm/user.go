@@ -8,13 +8,14 @@ import (
 	"io/ioutil"
 	math "math"
 	"net/http"
-	"net/url"
+	"sort"
 	"strings"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/google/uuid"
 	"github.com/labstack/echo"
+	ua "github.com/mileusna/useragent"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -386,10 +387,7 @@ func CreateUser(c echo.Context) error {
 		return dbErr(err)
 	}
 	createuser.Verify.Email = user.Email
-	if err := ValidateCallbackURL(createuser.Verify.CallbackURL); err != nil {
-		return err
-	}
-	err = sendVerifyEmail(ctx, user.Name, &createuser.Verify)
+	err = sendVerifyEmail(c, user.Name, &createuser.Verify)
 	if err != nil {
 		db.Delete(&user)
 		return err
@@ -428,8 +426,6 @@ func CreateUser(c echo.Context) error {
 }
 
 func ResendVerify(c echo.Context) error {
-	ctx := GetContext(c)
-
 	req := ormapi.EmailRequest{}
 	if err := c.Bind(&req); err != nil {
 		return bindErr(err)
@@ -437,10 +433,7 @@ func ResendVerify(c echo.Context) error {
 	if err := ValidEmailRequest(c, &req); err != nil {
 		return err
 	}
-	if err := ValidateCallbackURL(req.CallbackURL); err != nil {
-		return err
-	}
-	return sendVerifyEmail(ctx, "MobiledgeX user", &req)
+	return sendVerifyEmail(c, "MobiledgeX user", &req)
 }
 
 func VerifyEmail(c echo.Context) error {
@@ -687,6 +680,9 @@ func ShowUser(c echo.Context) error {
 			users[ii].UpdatedAt = time.Time{}
 		}
 	}
+	sort.Slice(users, func(i, j int) bool {
+		return users[i].Name < users[j].Name
+	})
 	return c.JSON(http.StatusOK, users)
 }
 
@@ -705,7 +701,7 @@ func NewPassword(c echo.Context) error {
 	if in.Password == "" {
 		return fmt.Errorf("Please specify new password")
 	}
-	ctx := ormutil.GetContext(c)
+	ctx := GetContext(c)
 	db := loggedDB(ctx)
 	user := ormapi.User{}
 	lookup := ormapi.User{Name: claims.Username}
@@ -721,7 +717,7 @@ func NewPassword(c echo.Context) error {
 	// via password changes by attackers who gain physical control of a workstation with an active session.
 	// When this control is missing, it can also exacerbate the impact of any cross-site request forgery
 	// vulnerabilities by enabling direct account compromise attacks.
-	matches, err := ormutil.PasswordMatches(in.CurrentPassword, user.Passhash, user.Salt, user.Iter)
+	matches, err := PasswordMatches(in.CurrentPassword, user.Passhash, user.Salt, user.Iter)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "current password matches err", "err", err)
 	}
@@ -786,22 +782,25 @@ func checkPasswordStrength(ctx context.Context, user *ormapi.User, config *ormap
 	return nil
 }
 
-func ValidateCallbackURL(urlString string) error {
-	domainName := serverConfig.NodeMgr.InternalDomain
-	if urlString == "" || domainName == "" {
-		return nil
+func GetClientDetailsFromRequestHeaders(c echo.Context) (string, string, string) {
+	clientIP := c.RealIP()
+	userAgent := c.Request().Header.Get("User-Agent")
+	uaObj := ua.Parse(userAgent)
+	browser := uaObj.Name
+	os := uaObj.OS
+
+	if clientIP == "" {
+		clientIP = "unknown"
 	}
-	if !strings.HasPrefix(urlString, "http") {
-		urlString = "http://" + urlString
+	if browser == "" {
+		browser = "unspecified browser"
 	}
-	u, err := url.Parse(urlString)
-	if err != nil {
-		return fmt.Errorf("Invalid callback URL %s, %v", urlString, err)
+
+	if os == "" {
+		os = "unspecified OS"
 	}
-	if !strings.HasSuffix(u.Hostname(), domainName) {
-		return fmt.Errorf("Invalid callback URL domain, must be %s", domainName)
-	}
-	return nil
+
+	return clientIP, browser, os
 }
 
 func PasswordResetRequest(c echo.Context) error {
@@ -813,21 +812,20 @@ func PasswordResetRequest(c echo.Context) error {
 	if err := ValidEmailRequest(c, &req); err != nil {
 		return err
 	}
-	if err := ValidateCallbackURL(req.CallbackURL); err != nil {
-		return err
-	}
 	noreply, err := getNoreply(ctx)
 	if err != nil {
 		return err
 	}
 
+	clientIP, browser, os := GetClientDetailsFromRequestHeaders(c)
+
 	tmpl := passwordResetNoneTmpl
 	arg := emailTmplArg{
 		From:    noreply.Email,
 		Email:   req.Email,
-		OS:      req.OperatingSystem,
-		Browser: req.Browser,
-		IP:      req.ClientIP,
+		OS:      os,
+		Browser: browser,
+		IP:      clientIP,
 	}
 	// To ensure we do not leak user accounts, we do not
 	// return an error if the user is not found. Instead, we always
@@ -850,12 +848,13 @@ func PasswordResetRequest(c echo.Context) error {
 		if err != nil {
 			return err
 		}
-		if req.CallbackURL != "" {
-			arg.URL = req.CallbackURL + "?token=" + cookie
+		if serverConfig.ConsoleAddr != "" && serverConfig.PasswordResetConsolePath != "" {
+			arg.URL = serverConfig.ConsoleAddr + serverConfig.PasswordResetConsolePath + "?token=" + cookie
 		}
 		arg.Name = user.Name
 		arg.Token = cookie
 		tmpl = passwordResetTmpl
+		arg.MCAddr = serverConfig.PublicAddr
 	}
 	buf := bytes.Buffer{}
 	if err := tmpl.Execute(&buf, &arg); err != nil {
@@ -863,7 +862,7 @@ func PasswordResetRequest(c echo.Context) error {
 	}
 	log.SpanLog(ctx, log.DebugLevelApi, "send password reset email",
 		"from", noreply.Email, "to", req.Email)
-	return sendEmail(noreply, req.Email, &buf)
+	return sendMailFunc(noreply, req.Email, &buf)
 }
 
 func PasswordReset(c echo.Context) error {
@@ -1081,10 +1080,7 @@ func UpdateUser(c echo.Context) error {
 	}
 
 	if sendVerify {
-		if err := ValidateCallbackURL(cuser.Verify.CallbackURL); err != nil {
-			return err
-		}
-		err = sendVerifyEmail(ctx, user.Name, &cuser.Verify)
+		err = sendVerifyEmail(c, user.Name, &cuser.Verify)
 		if err != nil {
 			undoErr := db.Save(&old).Error
 			if undoErr != nil {

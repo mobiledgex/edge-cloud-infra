@@ -163,9 +163,7 @@ var EmbeddedUserAliasArgs = []string{
 	"orgname=org",
 }
 
-var CreateUserAliasArgs = append(EmbeddedUserAliasArgs, []string{
-	"callbackurl=verify.callbackurl",
-}...)
+var CreateUserAliasArgs = EmbeddedUserAliasArgs
 
 var CreateUserApiKeyAliasArgs = []string{
 	"org=userapikey.org",

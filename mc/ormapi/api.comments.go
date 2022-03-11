@@ -166,10 +166,11 @@ var CreateUserComments = map[string]string{
 	"user.locked":        `Account is locked`,
 	"user.enabletotp":    `Enable or disable temporary one-time passwords for the account`,
 	"user.metadata":      `Metadata`,
+	"verify.email":         `User's email address`,
 }
 
 var EmailRequestComments = map[string]string{
-	"callbackurl": `Callback URL to verify user email`,
+	"email": `User's email address`,
 }
 
 var PasswordResetComments = map[string]string{

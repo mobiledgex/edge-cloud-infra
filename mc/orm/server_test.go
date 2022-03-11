@@ -110,7 +110,7 @@ func userVerifyEmail(mcClient *mctestclient.Client, t *testing.T, uri string, ma
 	// verify that link to verify email is correct
 	matchStr := "mcctl --addr http://mc.mobiledgex.net user verifyemail token="
 	if serverConfig.ConsoleAddr != "" {
-		matchStr = "Click to verify: http://mc.mobiledgex.net/#/verify?token"
+		matchStr = fmt.Sprintf("Click to verify: %s#/verify?token", serverConfig.ConsoleAddr)
 	}
 	require.Contains(t, mailMsg, matchStr)
 	verifyToken, err := getVerificationTokenFromEmail(mailMsg)
@@ -521,7 +521,7 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	_, err = mcClient.PasswordResetRequest(uri, &emailReq)
 	require.Nil(t, err)
 	// verify that password reset link is correct
-	require.Contains(t, m.Message, "http://mc.mobiledgex.net user passwordreset token=")
+	require.Contains(t, m.Message, "mcctl --addr http://mc.mobiledgex.net user passwordreset token=")
 	m.Reset()
 
 	// with consoleaddr set, this will send console URL as part of email

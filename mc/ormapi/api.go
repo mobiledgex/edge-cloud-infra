@@ -401,8 +401,7 @@ type AuditResponse struct {
 }
 
 // Email request is used for password reset and to resend welcome
-// verification email. It contains the information need to send
-// some kind of email to the user.
+// verification email.
 type EmailRequest struct {
 	// User's email address
 	// read only: true

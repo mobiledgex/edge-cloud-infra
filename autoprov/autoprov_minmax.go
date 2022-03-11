@@ -541,6 +541,7 @@ func (s *AppChecker) checkPolicy(ctx context.Context, app *edgeproto.App, pname 
 						req.addCompleted(str)
 					}
 				} else if ignoreDeployError(inst.Key, err) {
+					log.SpanLog(ctx, log.DebugLevelMetrics, "auto-prov ignore deploy error", "workerNum", workerNum, "attempt", attempt, "err", err)
 					err = nil
 				} else {
 					str := fmt.Sprintf("Failed to create AppInst %s to meet policy %s min constraint %d: %s", inst.Key.GetKeyString(), pname, policy.MinActiveInstances, err)

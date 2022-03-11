@@ -17,7 +17,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/rbac"
 	"github.com/mobiledgex/edge-cloud/cli"
 	"github.com/mobiledgex/edge-cloud/cloudcommon"
-	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/mobiledgex/edge-cloud/vault"
 	"github.com/pquerna/otp/totp"
@@ -43,18 +42,16 @@ func TestServer(t *testing.T) {
 	BadAuthDelay = time.Millisecond
 
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                true,
-		InitLocal:               true,
-		IgnoreEnv:               true,
-		vaultConfig:             vaultConfig,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
-		NodeMgr: &node.NodeMgr{
-			InternalDomain: "mobiledgex.net",
-		},
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 true,
+		InitLocal:                true,
+		IgnoreEnv:                true,
+		vaultConfig:              vaultConfig,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		PublicAddr:               "http://mc.mobiledgex.net",
 		PasswordResetConsolePath: "#/passwordreset",
 		VerifyEmailConsolePath:   "#/verify",
 	}

@@ -79,21 +79,19 @@ func TestController(t *testing.T) {
 	defaultConfig.DisableRateLimit = true
 
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                true,
-		InitLocal:               true,
-		IgnoreEnv:               true,
-		vaultConfig:             vaultConfig,
-		AlertMgrAddr:            testAlertMgrAddr,
-		AlertmgrResolveTimout:   3 * time.Minute,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
-		AlertCache:              &edgeproto.AlertCache{},
-		NodeMgr: &node.NodeMgr{
-			InternalDomain: "mobiledgex.net",
-		},
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 true,
+		InitLocal:                true,
+		IgnoreEnv:                true,
+		vaultConfig:              vaultConfig,
+		AlertMgrAddr:             testAlertMgrAddr,
+		AlertmgrResolveTimout:    3 * time.Minute,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		AlertCache:               &edgeproto.AlertCache{},
+		PublicAddr:               "http://mc.mobiledgex.net",
 		PasswordResetConsolePath: "#/passwordreset",
 		VerifyEmailConsolePath:   "#/verify",
 	}
@@ -3090,17 +3088,15 @@ func TestUpgrade(t *testing.T) {
 	unitTest = true
 	defaultConfig.DisableRateLimit = true
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                false, // using existing db
-		IgnoreEnv:               true,
-		vaultConfig:             vaultConfig,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
-		NodeMgr: &node.NodeMgr{
-			InternalDomain: "mobiledgex.net",
-		},
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 false, // using existing db
+		IgnoreEnv:                true,
+		vaultConfig:              vaultConfig,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		PublicAddr:               "http://mc.mobiledgex.net",
 		PasswordResetConsolePath: "#/passwordreset",
 		VerifyEmailConsolePath:   "#/verify",
 	}

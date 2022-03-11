@@ -14,7 +14,6 @@ import (
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormclient"
-	"github.com/mobiledgex/edge-cloud/cloudcommon/node"
 	"github.com/mobiledgex/edge-cloud/log"
 	"github.com/stretchr/testify/require"
 )
@@ -136,20 +135,18 @@ func TestAppStoreApi(t *testing.T) {
 	defaultConfig.DisableRateLimit = true
 
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                true,
-		InitLocal:               true,
-		IgnoreEnv:               true,
-		ArtifactoryAddr:         artifactoryAddr,
-		GitlabAddr:              gitlabAddr,
-		LocalVault:              true,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
-		NodeMgr: &node.NodeMgr{
-			InternalDomain: "mobiledgex.net",
-		},
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 true,
+		InitLocal:                true,
+		IgnoreEnv:                true,
+		ArtifactoryAddr:          artifactoryAddr,
+		GitlabAddr:               gitlabAddr,
+		LocalVault:               true,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		PublicAddr:               "http://mc.mobiledgex.net",
 		PasswordResetConsolePath: "#/passwordreset",
 		VerifyEmailConsolePath:   "#/verify",
 	}

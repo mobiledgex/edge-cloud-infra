@@ -188,6 +188,37 @@ func getIpTablesEntriesForRule(ctx context.Context, direction string, label stri
 	return rules
 }
 
+func (c *CommonPlatform) DeleteIptableRulesForCloudletWideLabel(ctx context.Context, client ssh.Client) error {
+	label := "cloudlet-wide"
+	cloudletWideRules, err := getCurrentIptableRulesForLabel(ctx, client, label)
+	if err == nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteIptableRulesForCloudletWideLabel", "Found cloudletWideRules", cloudletWideRules)
+		c.DeleteCloudletFirewallRules(ctx, client)
+	}
+	return err
+}
+
+// CreateCloudletFirewallRules adds cloudlet-wide egress rules based on properties
+func (c *CommonPlatform) DeleteCloudletFirewallRules(ctx context.Context, client ssh.Client) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudletFirewallRules")
+
+	var firewallRules FirewallRules
+	var err error
+	if val, ok := c.Properties.GetValue("MEX_CLOUDLET_FIREWALL_WHITELIST_EGRESS"); ok {
+		firewallRules.EgressRules, err = parseFirewallRules(ctx, val)
+		if err != nil {
+			return err
+		}
+	}
+	if val, ok := c.Properties.GetValue("MEX_CLOUDLET_FIREWALL_WHITELIST_INGRESS"); ok {
+		firewallRules.IngressRules, err = parseFirewallRules(ctx, val)
+		if err != nil {
+			return err
+		}
+	}
+	return DeleteIptablesRules(ctx, client, "cloudlet-wide", &firewallRules)
+}
+
 // getCurrentIptableRulesForLabel retrieves the current rules matching the label
 func getCurrentIptableRulesForLabel(ctx context.Context, client ssh.Client, label string) (map[string]string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getCurrentIptableRulesForLabel", "label", label)

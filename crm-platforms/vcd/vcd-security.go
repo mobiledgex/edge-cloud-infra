@@ -542,7 +542,7 @@ func (v *VcdPlatform) ConfigureCloudletSecurityRules(ctx context.Context, egress
 		isTrustPolicy = true
 	}
 	secGrpName := v.vmProperties.CloudletSecgrpName
-	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureCloudletSecurityRules", "egressRestricted", egressRestricted, "TrustPolicy", TrustPolicy, "action", action)
+	log.SpanLog(ctx, log.DebugLevelInfra, "ConfigureCloudletSecurityRules", "egressRestricted", egressRestricted, "TrustPolicy", TrustPolicy, "action", action, "secGrpName", secGrpName)
 
 	return v.configureVCDSecurityRulesCommon(ctx, egressRestricted, isTrustPolicy, secGrpName, TrustPolicy.OutboundSecurityRules, rootlbClients, action, updateCallback)
 }

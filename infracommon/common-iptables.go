@@ -191,14 +191,14 @@ func getIpTablesEntriesForRule(ctx context.Context, direction string, label stri
 func (c *CommonPlatform) DeleteIptableRulesForCloudletWideLabel(ctx context.Context, client ssh.Client) error {
 	label := "cloudlet-wide"
 	cloudletWideRules, err := getCurrentIptableRulesForLabel(ctx, client, label)
-	if err == nil {
+	if err == nil && len(cloudletWideRules) != 0 {
 		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteIptableRulesForCloudletWideLabel", "Found cloudletWideRules", cloudletWideRules)
 		c.DeleteCloudletFirewallRules(ctx, client)
 	}
 	return err
 }
 
-// CreateCloudletFirewallRules adds cloudlet-wide egress rules based on properties
+// DeleteCloudletFirewallRules deletes cloudlet-wide rules based on properties
 func (c *CommonPlatform) DeleteCloudletFirewallRules(ctx context.Context, client ssh.Client) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudletFirewallRules")
 

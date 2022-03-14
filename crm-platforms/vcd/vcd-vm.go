@@ -1031,7 +1031,7 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 				role = md.TypedValue.Value
 			}
 		}
-		vmstat, err := v.GetVmStatus(ctx, vm, false)
+		vmstat, err := v.GetVmStatus(ctx, vm, NoRefresh)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "error getting VM status", "err", err)
 			vmstat = "unknown"

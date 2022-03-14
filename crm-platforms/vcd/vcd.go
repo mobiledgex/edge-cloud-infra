@@ -18,6 +18,11 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
+type Refresh bool
+
+var DoRefresh Refresh = true
+var NoRefresh Refresh = false
+
 // Note regarding govcd SDK:
 // Most all types in govcd are arranged as a containerized type in govcd that compose Client and
 // specific methods, with the business end of the type in types.go. example found in vdc.go:
@@ -314,8 +319,8 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*
 	return v.GetServerDetailWithVdc(ctx, serverName, vdc, vcdClient)
 }
 
-func (v *VcdPlatform) GetVmStatus(ctx context.Context, vm *govcd.VM, refresh bool) (string, error) {
-	if refresh {
+func (v *VcdPlatform) GetVmStatus(ctx context.Context, vm *govcd.VM, refresh Refresh) (string, error) {
+	if refresh == DoRefresh {
 		return vm.GetStatus()
 	} else {
 		return types.VAppStatuses[vm.VM.Status], nil

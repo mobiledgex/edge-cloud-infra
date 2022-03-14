@@ -314,6 +314,13 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*
 	return v.GetServerDetailWithVdc(ctx, serverName, vdc, vcdClient)
 }
 
+func (v *VcdPlatform) GetVmStatus(ctx context.Context, vm *govcd.VM, refresh bool) (string, error) {
+	if refresh {
+		return vm.GetStatus()
+	} else {
+		return types.VAppStatuses[vm.VM.Status], nil
+	}
+}
 func (v *VcdPlatform) GetServerDetailWithVdc(ctx context.Context, serverName string, vdc *govcd.Vdc, vcdClient *govcd.VCDClient) (*vmlayer.ServerDetail, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetailWithVdc", "serverName", serverName)
 

@@ -188,35 +188,11 @@ func getIpTablesEntriesForRule(ctx context.Context, direction string, label stri
 	return rules
 }
 
+// DeleteIptableRulesForCloudletWideLabel removes rules for labels no longer in use. This function can be removed in 3.2
 func (c *CommonPlatform) DeleteIptableRulesForCloudletWideLabel(ctx context.Context, client ssh.Client) error {
-	label := "cloudlet-wide"
-	cloudletWideRules, err := getCurrentIptableRulesForLabel(ctx, client, label)
-	if err == nil && len(cloudletWideRules) != 0 {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteIptableRulesForCloudletWideLabel", "Found cloudletWideRules", cloudletWideRules)
-		c.DeleteCloudletFirewallRules(ctx, client)
-	}
-	return err
-}
+	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteIptableRulesForCloudletWideLabel")
+	return RemoveRulesForLabel(ctx, client, "cloudlet-wide")
 
-// DeleteCloudletFirewallRules deletes cloudlet-wide rules based on properties
-func (c *CommonPlatform) DeleteCloudletFirewallRules(ctx context.Context, client ssh.Client) error {
-	log.SpanLog(ctx, log.DebugLevelInfra, "DeleteCloudletFirewallRules")
-
-	var firewallRules FirewallRules
-	var err error
-	if val, ok := c.Properties.GetValue("MEX_CLOUDLET_FIREWALL_WHITELIST_EGRESS"); ok {
-		firewallRules.EgressRules, err = parseFirewallRules(ctx, val)
-		if err != nil {
-			return err
-		}
-	}
-	if val, ok := c.Properties.GetValue("MEX_CLOUDLET_FIREWALL_WHITELIST_INGRESS"); ok {
-		firewallRules.IngressRules, err = parseFirewallRules(ctx, val)
-		if err != nil {
-			return err
-		}
-	}
-	return DeleteIptablesRules(ctx, client, "cloudlet-wide", &firewallRules)
 }
 
 // getCurrentIptableRulesForLabel retrieves the current rules matching the label
@@ -426,38 +402,27 @@ func RemoveIngressIptablesRules(ctx context.Context, client ssh.Client, label, c
 	return DeleteIptablesRules(ctx, client, label, fwRules)
 }
 
-func RemoveTrustPolicyIfExists(ctx context.Context, client ssh.Client, isTrustPolicy bool, secGrpName string) error {
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "removeTrustPolicyIfExists", "isTrustPolicy", isTrustPolicy, "label", secGrpName)
-
-	// For TrustPolicyException, use parameter secGrpName as the label
-	// For TrustPolicy, label used is "trust-policy"
-	if isTrustPolicy {
-		secGrpName = TrustPolicySecGrpNameLabel
-	}
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "removeTrustPolicyIfExists", "label", secGrpName)
-
-	currentRules, err := getCurrentIptableRulesForLabel(ctx, client, secGrpName)
-
+func RemoveRulesForLabel(ctx context.Context, client ssh.Client, label string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "RemoveRulesForLabel", "label", label)
+	currentRules, err := getCurrentIptableRulesForLabel(ctx, client, label)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "RemoveTrustPolicyIfExists getCurrentIptableRulesForLabel failed", "err", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "RemoveRulesForLabel getCurrentIptableRulesForLabel failed", "err", err)
 		return err
 	}
 	if len(currentRules) == 0 {
-		log.SpanLog(ctx, log.DebugLevelInfra, "removeTrustPolicyIfExists no rules for", "label", secGrpName)
+		log.SpanLog(ctx, log.DebugLevelInfra, "RemoveRulesForLabel no rules for", "label", label)
 		return nil
 	}
 	action := InterfaceActionsOp{DeleteIptables: true}
 	for _, rule := range currentRules {
 		delCmd := strings.Replace(rule, "-A", "-D", 1)
-		log.SpanLog(ctx, log.DebugLevelInfra, "removeTrustPolicyIfExists doIpTblsCmd", "delCmd", delCmd)
+		log.SpanLog(ctx, log.DebugLevelInfra, "RemoveRulesForLabel doIpTblsCmd", "delCmd", delCmd)
 		err := DoIptablesCommand(ctx, client, delCmd, true, &action)
 		if err != nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "error deleting trust-policy rule continuing", "rule", rule, "error", err)
+			log.SpanLog(ctx, log.DebugLevelInfra, "error deleting rule continuing", "rule", rule, "error", err)
 			continue // fail one fail all?
 		} else {
-			log.SpanLog(ctx, log.DebugLevelInfra, "removed trust-policy", "rule", rule)
+			log.SpanLog(ctx, log.DebugLevelInfra, "removed rule", "rule", rule)
 		}
 	}
 	return nil

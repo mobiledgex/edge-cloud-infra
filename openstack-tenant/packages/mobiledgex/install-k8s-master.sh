@@ -27,7 +27,7 @@ if [ $? -ne 0 ]; then
     echo missing kubeadm
     exit 1
 fi
-kubeadm init --apiserver-advertise-address=$MASTERIP --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=all
+kubeadm init --apiserver-advertise-address=$MASTERIP --control-plane-endpoint=$MASTERIP --pod-network-cidr=192.168.0.0/16 --ignore-preflight-errors=all
 if [ $? -ne 0 ]; then
     echo  kubeadm exited with error
     exit 1

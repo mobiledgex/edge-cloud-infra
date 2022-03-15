@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -68,16 +69,24 @@ func gitlabCreateLDAPUser(ctx context.Context, user *ormapi.User) error {
 		SkipConfirmation: &_true,
 		CanCreateGroup:   &_false,
 	}
+	var logErr error
 	_, resp, err := gitlabClient.Users.CreateUser(&opts)
 	if err == nil && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		if resp.StatusCode == http.StatusConflict {
-			// user already exists
-			err = fmt.Errorf("gitlab create user failed, user already exists")
+		err = fmt.Errorf("gitlab user create failed (%d)", resp.StatusCode)
+	}
+	if err != nil {
+		// override gitlab error to remove gitlab address in error message
+		logErr = err
+		errResp, ok := err.(*gitlab.ErrorResponse)
+		if ok && strings.Contains(errResp.Message, "Email has already been taken") {
+			err = fmt.Errorf("gitlab user create failed, email conflict")
+		} else if ok && strings.Contains(errResp.Message, "Username has already been taken") {
+			err = fmt.Errorf("gitlab user create failed, user name conflict")
 		} else {
-			err = fmt.Errorf("gitlab create user failed: %d", resp.StatusCode)
+			err = fmt.Errorf("gitlab user create failed")
 		}
 	}
-	log.SpanLog(ctx, log.DebugLevelApi, "gitlab create user", "user", user.Name, "err", err)
+	log.SpanLog(ctx, log.DebugLevelApi, "gitlab create user", "user", user.Name, "err", err, "logErr", logErr)
 	return err
 }
 
@@ -92,9 +101,6 @@ func gitlabDeleteLDAPUser(ctx context.Context, username string) (reterr error) {
 	if err != nil {
 		gitlabSync.NeedsSync()
 		return fmt.Errorf("failed to get LDAP user: %s", err)
-	}
-	if user.Provider != LDAPProvider {
-		return fmt.Errorf("user is not an LDAP user")
 	}
 	_, err = gitlabClient.Users.DeleteUser(user.ID)
 	if err != nil {
@@ -302,9 +308,9 @@ func gitlabGetLDAPUser(username string) (*gitlab.User, error) {
 	if gitlabClient == nil {
 		return &gitlab.User{}, nil
 	}
+	// Note: if provider is specified, externalUID must also be specified.
 	opts := gitlab.ListUsersOptions{
 		Username: &username,
-		Provider: &LDAPProvider,
 	}
 	users, _, err := gitlabClient.Users.ListUsers(&opts)
 	if err != nil {
@@ -315,6 +321,9 @@ func gitlabGetLDAPUser(username string) (*gitlab.User, error) {
 	}
 	if len(users) > 1 {
 		return nil, fmt.Errorf("Gitlab more than one user with name %s", username)
+	}
+	if users[0].Identities == nil || len(users[0].Identities) == 0 || users[0].Identities[0].Provider != LDAPProvider {
+		return nil, fmt.Errorf("LDAP User %s not found", username)
 	}
 	return users[0], nil
 }

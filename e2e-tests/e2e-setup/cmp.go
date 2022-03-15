@@ -155,7 +155,7 @@ func cmpFilterEventData(data []EventSearch) {
 			ignoreMapStringVal(event.Mtags, "hostname")
 			ignoreMapStringVal(event.Mtags, "lineno")
 			// The request json data needs to be sorted,
-			// becaause the json in the api comes from the struct,
+			// because the json in the api comes from the struct,
 			// and the json from the cli comes from a map,
 			// so fields appear in different order.
 			if req, ok := event.Mtags["request"]; ok && req != "" {

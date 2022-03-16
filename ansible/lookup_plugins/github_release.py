@@ -17,9 +17,6 @@ options:
   github_token:
     description: Github access token
     required: False
-  deploy_environ:
-    description:
-        - Test
   branch:
     description: Branch to pick release from
     required: False

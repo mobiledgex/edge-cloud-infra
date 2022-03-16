@@ -669,16 +669,16 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	// No orgs have been restricted to cloudlet pools, and no cloudlets
 	// have been assigned to pools, so everyone should be able to see
 	// all cloudlets.
-	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org1, ccount, "")
-	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org2, ccount, "")
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, "")
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, OrgTypeDeveloper, ctrl.Region, org2, ccount, "")
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, "")
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, OrgTypeOperator, ctrl.Region, org4, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org1, dcnt, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org2, dcnt, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, dcnt, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, OrgTypeDeveloper, ctrl.Region, org2, dcnt, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, dcnt+1, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, OrgTypeOperator, ctrl.Region, org4, dcnt, "")
 	// validate that only operator and admin user is able to see additional cloudlet details
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, org3)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, org3)
-	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org3, ccount, org3)
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, dcnt+1, org3)
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, dcnt, org3)
+	testShowOrgCloudlet(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org3, dcnt+1, org3)
 	// validate that cloudlet info is filtered based on user role
 	testShowCloudletInfoFilter(t, mcClient, uri, tokenAd, OrgTypeAdmin, ctrl.Region, org1, dcnt)
 	testShowCloudletInfoFilter(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, dcnt)
@@ -1080,7 +1080,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	}
 
 	// tc3 should not be visible yet, because developer has not confirmed invitation
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, count, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, dcnt, "")
 	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenOper)
 	testShowCloudletPoolAccessGranted(t, mcClient, uri, tokenDev)
 	// operator can see both invitations
@@ -1118,12 +1118,12 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	testShowCloudletPoolAccessPending(t, mcClient, uri, tokenDev)
 
 	// tc3 should now be visible along with all other cloudlets
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, ccount, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, dcnt, "")
 	// tc3 should not be visible by other orgs
 	// (note count here is without tc3, except for org3 to which it belongs)
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, OrgTypeDeveloper, ctrl.Region, org2, count, "")
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, ccount, "")
-	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, OrgTypeOperator, ctrl.Region, org4, count, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev2, OrgTypeDeveloper, ctrl.Region, org2, dcnt, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper, OrgTypeOperator, ctrl.Region, org3, dcnt+1, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenOper2, OrgTypeOperator, ctrl.Region, org4, dcnt, "")
 
 	// tc3 should now be usable for org1
 	goodPermTestClusterInst(t, mcClient, uri, tokenDev, ctrl.Region, org1, tc3, dcnt)
@@ -1286,7 +1286,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	require.Nil(t, err)
 	require.Equal(t, http.StatusOK, status)
 	// check that tc3 is not visible
-	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, count, "")
+	testShowOrgCloudlet(t, mcClient, uri, tokenDev, OrgTypeDeveloper, ctrl.Region, org1, dcnt, "")
 	// operator reissue invitation
 	status, err = mcClient.CreateCloudletPoolAccessInvitation(uri, tokenOper, &op1)
 	require.Nil(t, err)

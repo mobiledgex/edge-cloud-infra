@@ -372,7 +372,7 @@ func ShowOrgCloudlet(c echo.Context) error {
 		Database:  database,
 	}
 	show := make([]*edgeproto.Cloudlet, 0)
-	err = ctrlclient.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{}, connCache, nil, func(cloudlet *edgeproto.Cloudlet) error {
+	err = ctrlclient.ShowCloudletStream(ctx, &rc, &edgeproto.Cloudlet{Key: edgeproto.CloudletKey{Organization: oc.Org}}, connCache, nil, func(cloudlet *edgeproto.Cloudlet) error {
 		authzOk, filterOutput := authzCloudlet.Ok(cloudlet)
 		if authzOk {
 			if filterOutput {
@@ -431,7 +431,7 @@ func ShowOrgCloudletInfo(c echo.Context) error {
 		Database:  database,
 	}
 	show := make([]*edgeproto.CloudletInfo, 0)
-	err = ctrlclient.ShowCloudletInfoStream(ctx, &rc, &edgeproto.CloudletInfo{}, connCache, nil, func(CloudletInfo *edgeproto.CloudletInfo) error {
+	err = ctrlclient.ShowCloudletInfoStream(ctx, &rc, &edgeproto.CloudletInfo{Key: edgeproto.CloudletKey{Organization: oc.Org}}, connCache, nil, func(CloudletInfo *edgeproto.CloudletInfo) error {
 		cloudlet := edgeproto.Cloudlet{
 			Key: CloudletInfo.Key,
 		}

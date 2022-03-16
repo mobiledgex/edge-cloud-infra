@@ -4,10 +4,10 @@ ARTIFACTORY_USER='packer'
 ARTIFACTORY_ARTIFACTS_TAG='2021-10-05'
 CLOUD_IMAGE='ubuntu-18.04-server-cloudimg-amd64.img'
 OUTPUT_IMAGE_NAME='mobiledgex'
-CHEF_RECIPE="$( dirname $0 )/../../chef/cookbooks/upgrade_mobiledgex_package/recipes/default.rb"
+CHEF_RECIPE="$( dirname $0 )/../../chef/policyfiles/base.rb"
 CHEF_UPDATE_GUIDE="https://mobiledgex.atlassian.net/wiki/spaces/SWDEV/pages/329384023/How+to+create+a+new+MobiledgeX+OS+base+image#chef"
 
-APT_REPO="https://apt.mobiledgex.net/cirrus/2022-02-25"
+APT_REPO="https://apt.mobiledgex.net/cirrus/2022-03-16"
 
 : ${CLOUD_IMAGE_TAG:=ubuntu-18.04-server-cloudimg-amd64-2021-10-05}
 : ${VAULT:=vault-main.mobiledgex.net}
@@ -53,25 +53,39 @@ die() {
 	exit 2
 }
 
-if ! grep "$APT_REPO" "$CHEF_RECIPE" >/dev/null; then
+confirm_continue() {
 	echo
-	echo "APT repo for build not found in chef recipe"
-	echo "    Repo URL: $APT_REPO"
-	echo "      Recipe: $CHEF_RECIPE"
+	cat
 	echo
-	read -p "Are you sure you want to continue? (yN) " RESP
+	read -p "Are you sure you want to continue? (yN) " RESP </dev/tty
 	case "$RESP" in
-	y*|Y*)	true ;;
-	*)	echo
-		echo "Check Confluence for instructions on updating chef:"
-		echo "  $CHEF_UPDATE_GUIDE"
-		exit 2
-		;;
+	y*|Y*)	return ;;
+	*)	exit 2 ;;
 	esac
-fi
+}
+
+validate_chef_cookbook() {
+	if ! grep "^default.*${APT_REPO}" "$CHEF_RECIPE" >/dev/null; then
+		confirm_continue <<-EOT
+			APT repo for build not found in chef
+			    Repo URL: $APT_REPO
+			    Cookbook: $CHEF_RECIPE
+		EOT
+	fi
+
+	if ! grep "^default.*mobiledgeXPackageVersion.*${TAG}" "$CHEF_RECIPE" >/dev/null; then
+		confirm_continue <<-EOT
+			mobiledgeXPackageVersion not updated in chef
+			    Package version: $TAG
+			           Cookbook: $CHEF_RECIPE
+		EOT
+	fi
+}
 
 TAG=${TAG#v}
 [[ -z "$OUTPUT_TAG" ]] && OUTPUT_TAG="v$TAG"
+
+validate_chef_cookbook
 
 ARTIFACTORY_APIKEY_FILE="${HOME}/.mobiledgex/artifactory.apikey"
 if [[ -f "$ARTIFACTORY_APIKEY_FILE" ]]; then

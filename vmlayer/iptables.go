@@ -85,49 +85,23 @@ func fixupSecurityRules(ctx context.Context, rules []edgeproto.SecurityRule) {
 	}
 }
 
-func (v *VMProperties) cleanupRules(ctx context.Context, client ssh.Client) {
-	log.SpanLog(ctx, log.DebugLevelInfra, "cleanupRules", "secGrpName", v.CloudletSecgrpName)
+func (v *VMProperties) SetupIptablesRulesForRootLB(ctx context.Context, client ssh.Client, sshCidrsAllowed []string, egressRestricted bool, secGrpName string, rules []edgeproto.SecurityRule, commonSharedAccess bool) error {
 
-	// Delete cloudlet-wide rules if any
-	err := v.CommonPf.DeleteIptableRulesForCloudletWideLabel(ctx, client)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "DeleteIptableRulesForCloudletWideLabel() failed", "err", err)
-	}
-
-	infracommon.RemoveTrustPolicyIfExists(ctx, client, false, v.CloudletSecgrpName)
-}
-
-func (v *VMProperties) SetupIptablesRulesForRootLB(ctx context.Context, client ssh.Client, sshCidrsAllowed []string, egressRestricted bool, isTrustPolicy bool, secGrpName string, rules []edgeproto.SecurityRule, commonSharedAccess bool) error {
-
-	log.SpanLog(ctx, log.DebugLevelInfra, "SetupIptablesRulesForRootLB", "egressRestricted", egressRestricted, "isTrustPolicy", isTrustPolicy, "secGrpName", secGrpName)
-
-	if isTrustPolicy || secGrpName == v.CloudletSecgrpName {
-		// When TrustPolicy is deleted, policy is empty and so we must check for CloudletSecgrpName
-		// The label used for TrustPolicy
-		secGrpName = infracommon.TrustPolicySecGrpNameLabel
-	} else {
-		// For TrustPolicyException, use input parameter secGrpName as the label
-	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "SetupIptablesRulesForRootLB", "egressRestricted", egressRestricted, "secGrpName", secGrpName, "len(rules)", len(rules))
 	fixupSecurityRules(ctx, rules)
 
 	var netRules infracommon.FirewallRules
 	var ppRules infracommon.FirewallRules
 
-	//First create the global rules on this LB
-	log.SpanLog(ctx, log.DebugLevelInfra, "SetupIptablesRulesForRootLB", "egressRestricted", egressRestricted, "isTrustPolicy", isTrustPolicy, "secGrpName", secGrpName)
-	if egressRestricted {
-		// restrict egress, remove cloudet-wide rules if present
-		v.cleanupRules(ctx, client)
-		// Allow SSH from provided cidrs
-		for _, netCidr := range sshCidrsAllowed {
-			sshIngress := infracommon.FirewallRule{
-				Protocol:     "tcp",
-				RemoteCidr:   netCidr,
-				PortRange:    "22",
-				PortEndpoint: infracommon.DestPort,
-			}
-			netRules.IngressRules = append(netRules.IngressRules, sshIngress)
+	// Allow SSH from provided cidrs
+	for _, netCidr := range sshCidrsAllowed {
+		sshIngress := infracommon.FirewallRule{
+			Protocol:     "tcp",
+			RemoteCidr:   netCidr,
+			PortRange:    "22",
+			PortEndpoint: infracommon.DestPort,
 		}
+		netRules.IngressRules = append(netRules.IngressRules, sshIngress)
 	}
 	// all traffic between the internal networks is allowed
 	internalRoute, err := v.GetInternalNetworkRoute(ctx, commonSharedAccess)
@@ -148,18 +122,23 @@ func (v *VMProperties) SetupIptablesRulesForRootLB(ctx context.Context, client s
 		return err
 	}
 
-	// optionally add/update/delete Trust Policy
-	allowEgressAll := !egressRestricted
-	// always delete the trust rules first, they will be re-added as required
-	err = infracommon.RemoveTrustPolicyIfExists(ctx, client, isTrustPolicy, secGrpName)
+	// delete obsolete cloudlet-wide rules
+	err = v.CommonPf.DeleteIptableRulesForCloudletWideLabel(ctx, client)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelInfra, "SetupIpTablesRulesForRootLB removeTrustPolicyIfExists fail", "error", err)
+		log.SpanLog(ctx, log.DebugLevelInfra, "SetupIpTablesRulesForRootLB DeleteIptableRulesForCloudletWideLabel fail", "error", err)
 	}
-	if len(rules) == 0 {
-		// a privacy policy with no rules means we need to open all egress traffic
-		log.SpanLog(ctx, log.DebugLevelInfra, "SetupIpTablesRulesForRootLB empty OutboundSecRules")
-		allowEgressAll = true
+
+	// optionally add/update/delete Trust Policy
+	// always delete the trust rules first, they will be re-added as required
+	err = infracommon.RemoveRulesForLabel(ctx, client, secGrpName)
+	if err != nil {
+		log.SpanLog(ctx, log.DebugLevelInfra, "SetupIpTablesRulesForRootLB RemoveRulesForLabel fail", "error", err)
 	}
+
+	// For a TrustPolicy or a TrustPolicy Exception, we need to restrict all egress other than policy
+	// In absence of any policy, we allow all egress ports.
+	allowEgressAll := !egressRestricted
+
 	for _, p := range rules {
 		allowEgressAll = false
 		portRange := fmt.Sprintf("%d", p.PortRangeMin)

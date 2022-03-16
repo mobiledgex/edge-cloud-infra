@@ -471,7 +471,6 @@ func (v *VcdPlatform) GetClient(ctx context.Context, creds *VcdConfigParams) (cl
 }
 
 // Common code to configure security rules for a TrustPolicy or TrustPolicyException
-// For a TrustPolicy isTrustPolicy should be true and false means a TrustPolicyException
 func (v *VcdPlatform) configureVCDSecurityRulesCommon(ctx context.Context, egressRestricted bool, secGrpName string, sshCidrsAllowed []string, rules []edgeproto.SecurityRule, rootlbClients map[string]ssh.Client, action vmlayer.ActionType, updateCallback edgeproto.CacheUpdateCallback) error {
 
 	errMap := make(map[string]error)

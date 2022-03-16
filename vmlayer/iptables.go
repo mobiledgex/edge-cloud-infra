@@ -128,19 +128,15 @@ func (v *VMProperties) SetupIptablesRulesForRootLB(ctx context.Context, client s
 		log.SpanLog(ctx, log.DebugLevelInfra, "SetupIpTablesRulesForRootLB DeleteIptableRulesForCloudletWideLabel fail", "error", err)
 	}
 
-	// optionally add/update/delete Trust Policy
 	// always delete the trust rules first, they will be re-added as required
 	err = infracommon.RemoveRulesForLabel(ctx, client, secGrpName)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "SetupIpTablesRulesForRootLB RemoveRulesForLabel fail", "error", err)
 	}
 
-	// For a TrustPolicy or a TrustPolicy Exception, we need to restrict all egress other than policy
-	// In absence of any policy, we allow all egress ports.
 	allowEgressAll := !egressRestricted
 
 	for _, p := range rules {
-		allowEgressAll = false
 		portRange := fmt.Sprintf("%d", p.PortRangeMin)
 		if p.PortRangeMax != 0 {
 			portRange += fmt.Sprintf(":%d", p.PortRangeMax)

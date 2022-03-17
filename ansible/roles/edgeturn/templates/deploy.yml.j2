@@ -35,6 +35,8 @@ spec:
          - "0.0.0.0:6080"
          - "--proxyAddr"
          - "0.0.0.0:8443"
+         - "--consoleAddr"
+         - "https://{{ console_vm_hostname }}"
          - "--vaultAddr"
          - "https://{{ vault_vm_hostname }}:{{ vault_port }}"
          - "--useVaultPki"

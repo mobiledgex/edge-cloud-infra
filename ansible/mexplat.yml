@@ -27,20 +27,8 @@
         when: console_version is not defined
 
       - name: Get latest edge-cloud-ui release from Github
-        uri:
-          url: https://api.github.com/repos/mobiledgex/edge-cloud-ui/releases/latest
-          user: "{{ github_user }}"
-          password: "{{ github_token }}"
-          force_basic_auth: yes
-          return_content: yes
-        register: console_tags
-        check_mode: false
-        delegate_to: localhost
-        when: console_version_not_provided | default(false)
-
-      - name: Pick tag for latest release
         set_fact:
-          console_version: "{{ console_tags.json.tag_name }}"
+          console_version: "{{ lookup('github_release', 'mobiledgex/edge-cloud-ui', branch='master') }}"
         when: console_version_not_provided | default(false)
 
       - assert:

@@ -355,8 +355,9 @@ func (v *VMPlatform) GetRestrictedCloudletStatus(ctx context.Context, cloudlet *
 }
 
 func (v *VMPlatform) UpdateCloudlet(ctx context.Context, cloudlet *edgeproto.Cloudlet, updateCallback edgeproto.CacheUpdateCallback) error {
-	// Update envvars
-	v.VMProperties.CommonPf.Properties.UpdatePropsFromVars(ctx, cloudlet.EnvVar)
+	// Update env vars
+	v.VMProperties.CommonPf.UpdateCloudletEnvVars(ctx, cloudlet, v.GetChefClientNameForCloudlet(cloudlet))
+
 	// Update GPU config
 	v.GPUConfig = cloudlet.GpuConfig
 	return nil

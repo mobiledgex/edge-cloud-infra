@@ -158,6 +158,20 @@ func (c *CommonPlatform) GetMappedExternalIP(ip string) string {
 	return ip
 }
 
+func (c *CommonPlatform) UpdateCloudletEnvVars(ctx context.Context, cloudlet *edgeproto.Cloudlet, nodeName string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateCloudletEnvVars", "nodeName", nodeName)
+	// Update chef env vars
+	err := chefmgmt.UpdateChefCloudletSvcEnvVars(ctx, c.ChefClient, nodeName, cloudlet.EnvVar)
+	if err != nil {
+		return err
+	}
+
+	// Also, update local env vars as it might take time for chef to reflect these changes in env var
+	log.SpanLog(ctx, log.DebugLevelInfra, "Update local env vars")
+	c.Properties.UpdatePropsFromVars(ctx, cloudlet.EnvVar)
+	return nil
+}
+
 // GetPlatformConfig builds a platform.PlatformConfig from a cloudlet and an edgeproto.PlatformConfig
 func GetPlatformConfig(cloudlet *edgeproto.Cloudlet, pfConfig *edgeproto.PlatformConfig, accessApi pf.AccessApi) *pf.PlatformConfig {
 	platCfg := pf.PlatformConfig{

@@ -101,6 +101,11 @@ type ChefNodeInfo struct {
 	Policy   string
 }
 
+type CloudletServiceData struct {
+	Args map[string]string
+	Env  []string
+}
+
 const (
 	ResourceDockerRegistry  = "docker_registry"
 	ResourceDockerImage     = "docker_image"
@@ -574,4 +579,36 @@ func GetChefPlatformAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 		chefAttributes[node.NodeType.String()] = node.NodeName
 	}
 	return chefAttributes, nil
+}
+
+func UpdateChefCloudletSvcEnvVars(ctx context.Context, client *chef.Client, nodeName string, cloudletEnvVar map[string]string) error {
+	log.SpanLog(ctx, log.DebugLevelInfra, "UpdateChefCloudletSvcEnvVars", "nodeName", nodeName, "envVars", cloudletEnvVar)
+	serverNode, err := client.Nodes.Get(nodeName)
+	if err != nil {
+		return fmt.Errorf("Unable to get node %s, %v", nodeName, err)
+	}
+
+	svcs := []string{ServiceTypeCRM, ServiceTypeShepherd}
+	// EnvVars are same for all the cloudlet services
+	for _, svc := range svcs {
+		var svcData CloudletServiceData
+		err = mapstructure.Decode(serverNode.NormalAttributes[svc], &svcData)
+		if err != nil {
+			return fmt.Errorf("Failed to get cloudlet service data for %s, %v", svc, err)
+		}
+
+		newEnvs := []string{}
+		for k, v := range cloudletEnvVar {
+			newEnvs = append(newEnvs, fmt.Sprintf("%s=%s", k, v))
+		}
+		svcData.Env = newEnvs
+		serverNode.NormalAttributes[svc] = svcData
+	}
+
+	_, err = client.Nodes.Put(serverNode)
+	if err != nil {
+		return fmt.Errorf("Failed to update node %s, %v", nodeName, err)
+	}
+	log.SpanLog(ctx, log.DebugLevelInfra, "Successfully updated chef env vars for cloudlet services", "nodeName", nodeName)
+	return nil
 }

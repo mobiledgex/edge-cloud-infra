@@ -23,11 +23,11 @@ regiondata:
       resources:
         vms:
         - name: fake-master-1-tmus-cloud-1-smallcluster-acmeappco
-          type: cluster-master
+          type: k8s-cluster-master
           status: ACTIVE
           infraflavor: x1.small
         - name: fake-node-1-tmus-cloud-1-smallcluster-acmeappco
-          type: cluster-k8s-node
+          type: k8s-cluster-node
           status: ACTIVE
           infraflavor: x1.small
         - name: smallcluster-acmeappco.tmus-cloud-1-tmus.local.mobiledgex.net

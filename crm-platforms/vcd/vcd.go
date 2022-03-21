@@ -18,6 +18,11 @@ import (
 	"github.com/vmware/go-vcloud-director/v2/types/v56"
 )
 
+type Refresh bool
+
+var DoRefresh Refresh = true
+var NoRefresh Refresh = false
+
 // Note regarding govcd SDK:
 // Most all types in govcd are arranged as a containerized type in govcd that compose Client and
 // specific methods, with the business end of the type in types.go. example found in vdc.go:
@@ -110,9 +115,11 @@ func (v *VcdPlatform) InitProvider(ctx context.Context, caches *platform.Caches,
 			}
 		}
 	case vmlayer.ProviderInitPlatformStartShepherd:
-		err := v.WaitForOauthTokenViaNotify(ctx, v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
-		if err != nil {
-			return err
+		if v.GetVcdOauthSgwUrl() != "" {
+			err := v.WaitForOauthTokenViaNotify(ctx, v.vmProperties.CommonPf.PlatformConfig.CloudletKey)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	v.initDebug(v.vmProperties.CommonPf.PlatformConfig.NodeMgr, stage)
@@ -314,6 +321,13 @@ func (v *VcdPlatform) GetServerDetail(ctx context.Context, serverName string) (*
 	return v.GetServerDetailWithVdc(ctx, serverName, vdc, vcdClient)
 }
 
+func (v *VcdPlatform) GetVmStatus(ctx context.Context, vm *govcd.VM, refresh Refresh) (string, error) {
+	if refresh == DoRefresh {
+		return vm.GetStatus()
+	} else {
+		return types.VAppStatuses[vm.VM.Status], nil
+	}
+}
 func (v *VcdPlatform) GetServerDetailWithVdc(ctx context.Context, serverName string, vdc *govcd.Vdc, vcdClient *govcd.VCDClient) (*vmlayer.ServerDetail, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "GetServerDetailWithVdc", "serverName", serverName)
 

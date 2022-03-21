@@ -453,7 +453,6 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 			}
 		}
 
-		vmType := v.vmProperties.GetVmTypeForVmNameAndRole(vmName, string(vmRole))
 		ncs := &types.NetworkConnectionSection{}
 		// check to see if this vm is already present
 		vm, err := vapp.GetVMByName(vmName, false)
@@ -467,7 +466,7 @@ func (v *VcdPlatform) AddVMsToVApp(ctx context.Context, vapp *govcd.VApp, vmgp *
 					return nil, err
 				}
 			}
-			log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp add VM", "vmName", vmName, "vmRole", vmRole, "vmType", vmType, "vmparams", vmparams)
+			log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToVApp add VM", "vmName", vmName, "vmRole", vmRole, "vmparams", vmparams)
 			task, err := v.addNewVMRegenUuid(vapp, vmparams.Name, *template, ncs, vcdClient)
 			if err != nil {
 				log.SpanLog(ctx, log.DebugLevelInfra, "create add vm failed", "err", err)
@@ -517,7 +516,6 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 	for n, vmparams := range vmgp.VMs {
 		vmName := vmparams.Name
 		vmRole := vmparams.Role
-		vmType := v.vmProperties.GetVmTypeForVmNameAndRole(vmName, string(vmRole))
 		ncs := &types.NetworkConnectionSection{}
 		// check to see if this vm is already present
 		if vmparams.ExistingVm {
@@ -535,7 +533,7 @@ func (v *VcdPlatform) AddVMsToExistingVApp(ctx context.Context, vapp *govcd.VApp
 		}
 		vm, err := vapp.GetVMByName(vmName, true)
 		if err != nil && vm == nil {
-			log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp", "vmName", vmName, "vmRole", vmRole, "vmType", vmType)
+			log.SpanLog(ctx, log.DebugLevelInfra, "AddVMsToExistingVApp", "vmName", vmName, "vmRole", vmRole)
 
 			// use new regen
 			task, err := v.addNewVMRegenUuid(vapp, vmName, *tmpl, ncs, vcdClient)
@@ -1015,7 +1013,7 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 	for _, cvm := range vapp.VApp.Children.VM {
 		flavor := ""
 		role := ""
-		vm, err := vapp.GetVMByName(cvm.Name, true)
+		vm, err := vapp.GetVMByName(cvm.Name, false)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelInfra, "Warn GetVMByName: vm not found in vapp ", "vapp", vappName, "cvm", cvm)
 			return resources, fmt.Errorf("Warn GetVMByName: vm %s not found in vapp", cvm.Name)
@@ -1033,11 +1031,16 @@ func (v *VcdPlatform) GetServerGroupResources(ctx context.Context, name string) 
 				role = md.TypedValue.Value
 			}
 		}
-
+		vmstat, err := v.GetVmStatus(ctx, vm, NoRefresh)
+		if err != nil {
+			log.SpanLog(ctx, log.DebugLevelInfra, "error getting VM status", "err", err)
+			vmstat = "unknown"
+		}
 		vminfo := edgeproto.VmInfo{
 			Name:        vm.VM.Name,
 			InfraFlavor: flavor,
-			Type: v.vmProperties.GetVmTypeForVmNameAndRole(vm.VM.Name, role),
+			Type:        v.vmProperties.GetNodeTypeForVmNameAndRole(vm.VM.Name, role).String(),
+			Status:      vmstat,
 		}
 		netTypes := []vmlayer.NetworkType{
 			vmlayer.NetworkTypeExternalAdditionalPlatform,
@@ -1072,7 +1075,7 @@ func (v *VcdPlatform) AddMetadataToVM(ctx context.Context, vm *govcd.VM, vmparam
 
 	addStart := time.Now()
 	log.SpanLog(ctx, log.DebugLevelInfra, "AddMetadataToVm", "vm", vm.VM.Name)
-	vmType := v.vmProperties.GetVmTypeForVmNameAndRole(vmparams.Name, string(vmparams.Role))
+	vmType := v.vmProperties.GetNodeTypeForVmNameAndRole(vmparams.Name, string(vmparams.Role)).String()
 	task, err := vm.AddMetadata("vmType", vmType)
 	if err != nil {
 		return err

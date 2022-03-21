@@ -53,6 +53,10 @@ func (p *MC) StartLocal(logfile string, opts ...process.StartOp) error {
 		args = append(args, "--ldapAddr")
 		args = append(args, p.LdapAddr)
 	}
+	if p.GitlabAddr != "" {
+		args = append(args, "--gitlabAddr")
+		args = append(args, p.GitlabAddr)
+	}
 	if p.NotifySrvAddr != "" {
 		args = append(args, "--notifySrvAddr")
 		args = append(args, p.NotifySrvAddr)
@@ -493,6 +497,11 @@ func SetupVault(p *process.Vault, opts ...process.StartOp) (*VaultRoles, error) 
 		return &roles, err
 	}
 	p.Run("vault", fmt.Sprintf("kv put %s @%s", "/secret/accounts/chef", chefApiKeyPath), &err)
+	if err != nil {
+		return &roles, err
+	}
+
+	p.Run("vault", fmt.Sprintf("kv put /secret/accounts/noreplyemail Email=dummy@email.com"), &err)
 	if err != nil {
 		return &roles, err
 	}

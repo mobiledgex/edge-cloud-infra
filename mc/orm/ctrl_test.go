@@ -79,19 +79,21 @@ func TestController(t *testing.T) {
 	defaultConfig.DisableRateLimit = true
 
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                true,
-		InitLocal:               true,
-		IgnoreEnv:               true,
-		SkipVerifyEmail:         true,
-		vaultConfig:             vaultConfig,
-		AlertMgrAddr:            testAlertMgrAddr,
-		AlertmgrResolveTimout:   3 * time.Minute,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
-		AlertCache:              &edgeproto.AlertCache{},
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 true,
+		InitLocal:                true,
+		IgnoreEnv:                true,
+		vaultConfig:              vaultConfig,
+		AlertMgrAddr:             testAlertMgrAddr,
+		AlertmgrResolveTimout:    3 * time.Minute,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		AlertCache:               &edgeproto.AlertCache{},
+		PublicAddr:               "http://mc.mobiledgex.net",
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
 	unitTestNodeMgrOps = []node.NodeOp{
 		node.WithESUrls(mockESUrl),
@@ -493,6 +495,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		Key: org3Cloudlet.Key,
 	}
 	org3CloudletInfo.ContainerVersion = "xyz"
+	org3CloudletInfo.Controller = "ctrl.local"
 	org3CloudletInfo.ResourcesSnapshot = edgeproto.InfraResourcesSnapshot{
 		PlatformVms: []edgeproto.VmInfo{
 			{Name: "test"},
@@ -1495,6 +1498,13 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 		// the callback func is only called when data is read back.
 		// Test Websocket connection
 		wsuri := "ws://" + addr + "/ws/api/v1"
+		// validate the error is received with appropriate error code on invalid token
+		status, err = restClient.PostJsonStreamOut(wsuri+"/auth/ctrl/CreateClusterInst",
+			"invalidToken", &dat, &wsOut, func() {
+			})
+		require.NotNil(t, err, "invalid token error")
+		require.Equal(t, http.StatusBadRequest, status)
+		require.Equal(t, "Invalid or expired jwt", err.Error())
 		status, err = restClient.PostJsonStreamOut(wsuri+"/auth/ctrl/CreateClusterInst",
 			token, &dat, &wsOut, func() {
 				// got a result, trigger next result
@@ -1558,16 +1568,17 @@ func testCreateUser(t *testing.T, mcClient *mctestclient.Client, uri, name strin
 		Passhash:   name + "-password-super-long-crazy-hard-difficult",
 		EnableTOTP: true,
 	}
-	resp, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: user})
-	require.Nil(t, err, "create user ", name)
+	resp, mailMsg, status, err := mcClientCreateUserWithMockMail(mcClient, uri, &ormapi.CreateUser{User: user})
+	require.Nil(t, err, "create user %s", name)
 	require.Equal(t, http.StatusOK, status)
 	require.NotEmpty(t, resp.TOTPSharedKey, "user totp shared key", name)
 	require.NotNil(t, resp.TOTPQRImage, "user totp qa", name)
+	userVerifyEmail(mcClient, t, uri, mailMsg)
 	// login
 	otp, err := totp.GenerateCode(resp.TOTPSharedKey, time.Now())
 	require.Nil(t, err, "generate otp", name)
 	token, _, err := mcClient.DoLogin(uri, user.Name, user.Passhash, otp, NoApiKeyId, NoApiKey)
-	require.Nil(t, err, "login as ", name)
+	require.Nil(t, err, "login as %s", name)
 	return &user, token, user.Passhash
 }
 
@@ -1576,7 +1587,7 @@ func testDeleteUser(t *testing.T, mcClient *mctestclient.Client, uri, token, nam
 		Name: name,
 	}
 	status, err := mcClient.DeleteUser(uri, token, &user)
-	require.Nil(t, err, "delete user ", name)
+	require.Nil(t, err, "delete user %s", name)
 	require.Equal(t, http.StatusOK, status)
 }
 
@@ -1587,7 +1598,7 @@ func testCreateOrg(t *testing.T, mcClient *mctestclient.Client, uri, token, orgT
 		Name: orgName,
 	}
 	status, err := mcClient.CreateOrg(uri, token, &org)
-	require.Nil(t, err, "create org ", orgName)
+	require.Nil(t, err, "create org %s", orgName)
 	require.Equal(t, http.StatusOK, status)
 	return &org
 }
@@ -1597,15 +1608,11 @@ func testDeleteOrg(t *testing.T, mcClient *mctestclient.Client, uri, token, orgN
 		Name: orgName,
 	}
 	status, err := mcClient.DeleteOrg(uri, token, &org)
-	require.Nil(t, err, "delete org ", orgName)
+	require.Nil(t, err, "delete org %s", orgName)
 	require.Equal(t, http.StatusOK, status)
 }
 
 func testUpdateOrg(t *testing.T, mcClient *mctestclient.Client, uri, token, orgName string) {
-	gitlabIgnoreForUnitTest = true
-	defer func() {
-		gitlabIgnoreForUnitTest = false
-	}()
 	org := getOrg(t, mcClient, uri, token, orgName)
 	update := *org
 	update.PublicImages = !org.PublicImages
@@ -1811,15 +1818,18 @@ func testShowOrgCloudlet(t *testing.T, mcClient *mctestclient.Client, uri, token
 			if orgType == OrgTypeDeveloper && org == matchOrg {
 				require.Empty(t, clInfo.ContainerVersion, "user is not authorized to see additional cloudlet info details")
 				require.Empty(t, clInfo.ResourcesSnapshot, "user is not authorized to see additional cloudlet info details")
+				require.Empty(t, clInfo.Controller, "user is not authorized to see additional cloudlet info details")
 				continue
 			}
 			if org == clInfo.Key.Organization {
 				require.NotEmpty(t, clInfo.ContainerVersion, "user is authorized to see additional cloudlet info details")
 				if orgType == OrgTypeOperator {
 					require.Empty(t, clInfo.ResourcesSnapshot, "user is not authorized to see internal-use only cloudlet info details")
+					require.Empty(t, clInfo.Controller, "user is not authorized to see internal-use only cloudlet info details")
 				}
 				if orgType == OrgTypeAdmin {
 					require.NotEmpty(t, clInfo.ResourcesSnapshot, "admin is authorized to see internal-use only cloudlet info details")
+					require.NotEmpty(t, clInfo.Controller, "admin is authorized to see internal-use only cloudlet info details")
 				}
 			}
 		}
@@ -2699,6 +2709,11 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	// add user role
 	testAddUserRole(t, mcClient, uri, token, devOrg.Name, "DeveloperViewer", user1.Name, Success)
 
+	// create user
+	user2, token2, _ := testCreateUser(t, mcClient, uri, "user2")
+	// add user role
+	testAddUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user2.Name, Success)
+
 	// invalid action error
 	userApiKeyObj := ormapi.CreateUserApiKey{
 		UserApiKey: ormapi.UserApiKey{
@@ -2791,6 +2806,14 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.NotNil(t, err, "not allowed to use manage action")
 	require.Contains(t, err.Error(), "Invalid permission specified", "err match")
 	require.Equal(t, http.StatusBadRequest, status, "bad request")
+
+	// invalid org should throw appropriate error
+	validOrg := userApiKeyObj.Org
+	userApiKeyObj.Org = "invalidOrg"
+	_, status, err = mcClient.CreateUserApiKey(uri, token1, &userApiKeyObj)
+	require.NotNil(t, err, "invalid org specified")
+	require.Contains(t, err.Error(), "Invalid org specified", "err match")
+	userApiKeyObj.Org = validOrg
 
 	// user should be able to create api key if action, resource input are correct
 	testRemoveUserRole(t, mcClient, uri, token, operOrg.Name, "OperatorViewer", user1.Name, Success)
@@ -2915,6 +2938,12 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.Equal(t, http.StatusForbidden, status, "forbidden")
 	require.Contains(t, err.Error(), "Forbidden", "err matches")
 
+	// deletion with invalid API key id should fail with appropriate error
+	delInvalidKeyObj := ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: "invalidAPIKeyId"}}
+	_, err = mcClient.DeleteUserApiKey(uri, token1, &delInvalidKeyObj)
+	require.NotNil(t, err, "invalid api key id")
+	require.Contains(t, err.Error(), "API key ID not found", "err matches")
+
 	// deletion of apikey should result in deletion of respective roles
 	delKeyObj = ormapi.CreateUserApiKey{UserApiKey: ormapi.UserApiKey{Id: resp.Id}}
 	status, err = mcClient.DeleteUserApiKey(uri, token1, &delKeyObj)
@@ -2983,8 +3012,19 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	require.NotNil(t, err, "delete invalid user api key id")
 	require.Contains(t, err.Error(), "Missing API key ID")
 
+	// delete other user's api key id should fail
+	status, err = mcClient.DeleteUserApiKey(uri, token2, &apiKeys[0])
+	require.NotNil(t, err, "delete other user's api key id should fail")
+	require.Equal(t, http.StatusForbidden, status)
+	require.Contains(t, err.Error(), "Cannot delete other user's API key")
+
+	// admin should be able to delete other user's api key id
+	status, err = mcClient.DeleteUserApiKey(uri, token, &apiKeys[0])
+	require.Nil(t, err, "delete other user's api key id by admin")
+	require.Equal(t, http.StatusOK, status)
+
 	// delete all the api keys
-	for _, apiKeyObj := range apiKeys {
+	for _, apiKeyObj := range apiKeys[1:] {
 		status, err = mcClient.DeleteUserApiKey(uri, token1, &apiKeyObj)
 		require.Nil(t, err, "delete user api key")
 		require.Equal(t, http.StatusOK, status)
@@ -3001,6 +3041,7 @@ func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer
 	testDeleteOrg(t, mcClient, uri, token, operOrg.Name)
 	// cleanup users
 	testDeleteUser(t, mcClient, uri, token1, "user1")
+	testDeleteUser(t, mcClient, uri, token2, "user2")
 }
 
 // This is the old version of OrgCloudletPool, before type got added
@@ -3063,15 +3104,17 @@ func TestUpgrade(t *testing.T) {
 	unitTest = true
 	defaultConfig.DisableRateLimit = true
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                false, // using existing db
-		IgnoreEnv:               true,
-		SkipVerifyEmail:         true,
-		vaultConfig:             vaultConfig,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 false, // using existing db
+		IgnoreEnv:                true,
+		vaultConfig:              vaultConfig,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		PublicAddr:               "http://mc.mobiledgex.net",
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
 
 	// start postgres so we can prepopulate it with old data

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -135,20 +136,21 @@ func TestAppStoreApi(t *testing.T) {
 	defaultConfig.DisableRateLimit = true
 
 	config := ServerConfig{
-		ServAddr:                addr,
-		SqlAddr:                 "127.0.0.1:5445",
-		RunLocal:                true,
-		InitLocal:               true,
-		IgnoreEnv:               true,
-		ArtifactoryAddr:         artifactoryAddr,
-		GitlabAddr:              gitlabAddr,
-		SkipVerifyEmail:         true,
-		LocalVault:              true,
-		UsageCheckpointInterval: "MONTH",
-		BillingPlatform:         billing.BillingTypeFake,
-		DeploymentTag:           "local",
+		ServAddr:                 addr,
+		SqlAddr:                  "127.0.0.1:5445",
+		RunLocal:                 true,
+		InitLocal:                true,
+		IgnoreEnv:                true,
+		ArtifactoryAddr:          artifactoryAddr,
+		GitlabAddr:               gitlabAddr,
+		LocalVault:               true,
+		UsageCheckpointInterval:  "MONTH",
+		BillingPlatform:          billing.BillingTypeFake,
+		DeploymentTag:            "local",
+		PublicAddr:               "http://mc.mobiledgex.net",
+		PasswordResetConsolePath: "#/passwordreset",
+		VerifyEmailConsolePath:   "#/verify",
 	}
-
 	server, err := RunServer(&config)
 	require.Nil(t, err, "run server")
 	defer server.Stop()
@@ -169,16 +171,67 @@ func TestAppStoreApi(t *testing.T) {
 	tokenAdmin, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)
 	require.Nil(t, err, "login as superuser")
 
-	// Before Artifactory/Gitlab are hooked into mock, create "missing" data
-	// so it doesn't automatically get populated into Art/Gitlab
-	for _, v := range missingEntries {
-		mcClientCreate(t, v, mcClient, uri)
-	}
-
 	// mock artifactory
 	rtf := NewArtifactoryMock(artifactoryAddr)
 	// mock gitlab
 	gm := NewGitlabMock(gitlabAddr)
+
+	// basic direct api tests
+	for user, _ := range testEntries[0].Users {
+		userObj := ormapi.User{
+			Name:  user,
+			Email: user + "@email.com",
+		}
+		// gitlab create user
+		err := gitlabCreateLDAPUser(ctx, &userObj)
+		require.Nil(t, err, user)
+		// check that we can get user
+		gitlabUser, err := gitlabGetLDAPUser(user)
+		require.Nil(t, err, user)
+		require.Equal(t, user, gitlabUser.Name)
+		// create again should fail
+		err = gitlabCreateLDAPUser(ctx, &userObj)
+		require.NotNil(t, err, user)
+		// delete user
+		err = gitlabDeleteLDAPUser(ctx, user)
+		require.Nil(t, err, user)
+		// user should not exist
+		_, err = gitlabGetLDAPUser(user)
+		require.NotNil(t, err, user)
+		// delete again should fail
+		err = gitlabDeleteLDAPUser(ctx, user)
+		require.NotNil(t, err, user)
+
+		// artifactory create user
+		err = artifactoryCreateLDAPUser(ctx, &userObj)
+		require.Nil(t, err, user)
+		// check that we can get user
+		artUsers, err := artifactoryListUsers(ctx)
+		require.Nil(t, err, user)
+		_, found := artUsers[strings.ToLower(user)]
+		require.True(t, found, user)
+		// create again should fail
+		err = artifactoryCreateLDAPUser(ctx, &userObj)
+		require.NotNil(t, err, user)
+		// delete user
+		err = artifactoryDeleteLDAPUser(ctx, user)
+		require.Nil(t, err, user)
+		// user should not exist
+		artUsers, err = artifactoryListUsers(ctx)
+		require.Nil(t, err, user)
+		_, found = artUsers[strings.ToLower(user)]
+		require.False(t, found, user)
+		// delete again should fail
+		err = artifactoryDeleteLDAPUser(ctx, user)
+		require.NotNil(t, err, user)
+	}
+
+	// create "missing" data in MC but not in Art/Gitlab
+	for _, v := range missingEntries {
+		mcClientCreate(t, v, mcClient, uri)
+	}
+	rtf.initData()
+	gm.initData()
 
 	// Create new users & orgs from MC
 	for _, v := range testEntries {
@@ -198,10 +251,13 @@ func TestAppStoreApi(t *testing.T) {
 		gitlabCreateGroup(ctx, &org)
 		for user, userType := range v.Users {
 			userObj := ormapi.User{
-				Name: user,
+				Name:  user,
+				Email: user + "@email.com",
 			}
-			artifactoryCreateUser(ctx, &userObj)
-			gitlabCreateLDAPUser(ctx, &userObj)
+			err := artifactoryCreateLDAPUser(ctx, &userObj)
+			require.Nil(t, err)
+			err = gitlabCreateLDAPUser(ctx, &userObj)
+			require.Nil(t, err)
 
 			roleArg := ormapi.Role{
 				Username: user,

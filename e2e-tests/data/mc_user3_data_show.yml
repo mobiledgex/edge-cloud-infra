@@ -1,15 +1,6 @@
 controllers:
 - region: local
-  address: 127.0.0.1:55001
-  notifyaddr: 127.0.0.1:37001
-  influxdb: http://127.0.0.1:8086
-  thanosmetrics: http://127.0.0.1:29090
-  dnsregion: local
 - region: locala
-  address: 127.0.0.1:55011
-  notifyaddr: 127.0.0.1:37011
-  influxdb: http://127.0.0.1:8087
-  dnsregion: locala
 billingorgs:
 - name: user3org
   type: self
@@ -148,11 +139,11 @@ regiondata:
       resources:
         vms:
         - name: fake-master-1-enterprise-1-smallcluster-user3org
-          type: cluster-master
+          type: k8s-cluster-master
           status: ACTIVE
           infraflavor: x1.small
         - name: fake-node-1-enterprise-1-smallcluster-user3org
-          type: cluster-k8s-node
+          type: k8s-cluster-node
           status: ACTIVE
           infraflavor: x1.small
         - name: smallcluster-user3org.enterprise-1-enterprise.local.mobiledgex.net

@@ -3,6 +3,8 @@ package orm
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
 
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	"github.com/mobiledgex/edge-cloud/log"
@@ -44,7 +46,10 @@ var LDAPProvider = "ldapmain"
 var DefaultProjectName = "images"
 var gitlabIgnoreForUnitTest bool
 
-func gitlabCreateLDAPUser(ctx context.Context, user *ormapi.User) {
+func gitlabCreateLDAPUser(ctx context.Context, user *ormapi.User) error {
+	if gitlabClient == nil {
+		return nil
+	}
 	dn := ldapdn{
 		cn: user.Name,
 		ou: OUusers,
@@ -64,33 +69,51 @@ func gitlabCreateLDAPUser(ctx context.Context, user *ormapi.User) {
 		SkipConfirmation: &_true,
 		CanCreateGroup:   &_false,
 	}
-	_, _, err := gitlabClient.Users.CreateUser(&opts)
-	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "gitlab create user",
-			"user", user.Name, "err", err)
-		gitlabSync.NeedsSync()
-		return
+	var logErr error
+	_, resp, err := gitlabClient.Users.CreateUser(&opts)
+	if err == nil && resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		err = fmt.Errorf("gitlab user create failed (%d)", resp.StatusCode)
 	}
+	if err != nil {
+		// override gitlab error to remove gitlab address in error message
+		logErr = err
+		errResp, ok := err.(*gitlab.ErrorResponse)
+		if ok && strings.Contains(errResp.Message, "Email has already been taken") {
+			err = fmt.Errorf("gitlab user create failed, email conflict")
+		} else if ok && strings.Contains(errResp.Message, "Username has already been taken") {
+			err = fmt.Errorf("gitlab user create failed, user name conflict")
+		} else {
+			err = fmt.Errorf("gitlab user create failed")
+		}
+	}
+	log.SpanLog(ctx, log.DebugLevelApi, "gitlab create user", "user", user.Name, "err", err, "logErr", logErr)
+	return err
 }
 
-func gitlabDeleteLDAPUser(ctx context.Context, username string) {
-	user, err := gitlabGetUser(username)
+func gitlabDeleteLDAPUser(ctx context.Context, username string) (reterr error) {
+	if gitlabClient == nil {
+		return nil
+	}
+	defer func() {
+		log.SpanLog(ctx, log.DebugLevelApi, "gitlab delete user", "user", username, "err", reterr)
+	}()
+	user, err := gitlabGetLDAPUser(username)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "gitlab get user",
-			"user", username, "err", err)
 		gitlabSync.NeedsSync()
-		return
+		return fmt.Errorf("failed to get LDAP user: %s", err)
 	}
 	_, err = gitlabClient.Users.DeleteUser(user.ID)
 	if err != nil {
-		log.SpanLog(ctx, log.DebugLevelApi, "gitlab delete user",
-			"user", username, "err", err)
 		gitlabSync.NeedsSync()
-		return
+		return fmt.Errorf("delete user failed: %s", err)
 	}
+	return nil
 }
 
 func gitlabCreateGroup(ctx context.Context, org *ormapi.Organization) {
+	if gitlabClient == nil {
+		return
+	}
 	if org.Type == OrgTypeOperator {
 		// no operator orgs needed in gitlab
 		return
@@ -124,6 +147,9 @@ func gitlabCreateGroup(ctx context.Context, org *ormapi.Organization) {
 }
 
 func gitlabDeleteGroup(ctx context.Context, org *ormapi.Organization) {
+	if gitlabClient == nil {
+		return
+	}
 	if org.Type == OrgTypeOperator {
 		// no operator orgs needed in gitlab
 		return
@@ -139,10 +165,13 @@ func gitlabDeleteGroup(ctx context.Context, org *ormapi.Organization) {
 }
 
 func gitlabAddGroupMember(ctx context.Context, role *ormapi.Role, orgType string) {
+	if gitlabClient == nil {
+		return
+	}
 	if orgType == OrgTypeOperator {
 		return
 	}
-	user, err := gitlabGetUser(role.Username)
+	user, err := gitlabGetLDAPUser(role.Username)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "gitlab get user",
 			"user", role.Username, "err", err)
@@ -172,10 +201,13 @@ func gitlabAddGroupMember(ctx context.Context, role *ormapi.Role, orgType string
 }
 
 func gitlabRemoveGroupMember(ctx context.Context, role *ormapi.Role, orgType string) {
+	if gitlabClient == nil {
+		return
+	}
 	if orgType == OrgTypeOperator {
 		return
 	}
-	user, err := gitlabGetUser(role.Username)
+	user, err := gitlabGetLDAPUser(role.Username)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelApi, "gitlab get user",
 			"user", role.Username, "err", err)
@@ -195,6 +227,9 @@ func gitlabRemoveGroupMember(ctx context.Context, role *ormapi.Role, orgType str
 func getGitlabProjects(ctx context.Context) (map[string]*gitlab.Project, error) {
 	// get Gitlab projects
 	projsT := make(map[string]*gitlab.Project)
+	if gitlabClient == nil {
+		return projsT, nil
+	}
 	opts := gitlab.ListProjectsOptions{
 		ListOptions: ListOptions,
 	}
@@ -216,7 +251,7 @@ func getGitlabProjects(ctx context.Context) (map[string]*gitlab.Project, error) 
 }
 
 func gitlabUpdateVisibility(ctx context.Context, org *ormapi.Organization) error {
-	if gitlabIgnoreForUnitTest {
+	if gitlabClient == nil {
 		return nil
 	}
 	projs, err := getGitlabProjects(ctx)
@@ -247,6 +282,9 @@ func gitlabUpdateVisibility(ctx context.Context, org *ormapi.Organization) error
 }
 
 func gitlabCreateProject(ctx context.Context, groupID int, name string, publicAccess bool) {
+	if gitlabClient == nil {
+		return
+	}
 	approvals := 0
 	opts := gitlab.CreateProjectOptions{
 		Name:                 &name,
@@ -266,7 +304,11 @@ func gitlabCreateProject(ctx context.Context, groupID int, name string, publicAc
 	}
 }
 
-func gitlabGetUser(username string) (*gitlab.User, error) {
+func gitlabGetLDAPUser(username string) (*gitlab.User, error) {
+	if gitlabClient == nil {
+		return &gitlab.User{}, nil
+	}
+	// Note: if provider is specified, externalUID must also be specified.
 	opts := gitlab.ListUsersOptions{
 		Username: &username,
 	}
@@ -279,6 +321,9 @@ func gitlabGetUser(username string) (*gitlab.User, error) {
 	}
 	if len(users) > 1 {
 		return nil, fmt.Errorf("Gitlab more than one user with name %s", username)
+	}
+	if users[0].Identities == nil || len(users[0].Identities) == 0 || users[0].Identities[0].Provider != LDAPProvider {
+		return nil, fmt.Errorf("LDAP User %s not found", username)
 	}
 	return users[0], nil
 }

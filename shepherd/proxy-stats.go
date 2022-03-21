@@ -426,13 +426,13 @@ func ProxyScraper(done chan bool) {
 					} else {
 						log.SpanLog(ctx, log.DebugLevelInfo, "Pushing proxy metrics")
 						// send to crm->controller->influx
-						influxData, totalSent, totalRecvd := MarshallTcpProxyMetric(v, metrics)
+						influxData, totalSentTcp, totalRecvdTcp := MarshallTcpProxyMetric(v, metrics)
 						influxDataUdp, totalSentUdp, totalRecvdUdp := MarshallUdpProxyMetric(v, metrics)
 						influxData = append(influxData, influxDataUdp...)
 						// add total network activity data for the app
 						now, _ := types.TimestampProto(time.Now())
 						influxData = append(influxData,
-							MarshalAppInstNetMetric(v, now, totalRecvd+totalRecvdUdp, totalSent+totalSentUdp))
+							MarshalAppInstNetMetric(v, now, totalRecvdTcp+totalRecvdUdp, totalSentTcp+totalSentUdp))
 						log.SpanLog(ctx, log.DebugLevelInfo, "Pushing app network stats", "app", v.Key, "stats", influxData[len(influxData)-1])
 						log.DebugLog(log.DebugLevelInfo, "Pushing app network stats", "app", v.Key, "stats", influxData[len(influxData)-1])
 						for _, datapoint := range influxData {
@@ -440,14 +440,14 @@ func ProxyScraper(done chan bool) {
 						}
 						// update cluster stats
 						if stat, found := clusterStats[v.ClusterInstKey]; found {
-							stat.NetSent += totalSent + totalSentUdp
-							stat.NetRecv += totalRecvd + totalRecvdUdp
+							stat.NetSent += totalSentTcp + totalSentUdp
+							stat.NetRecv += totalRecvdTcp + totalRecvdUdp
 							clusterStats[v.ClusterInstKey] = stat
 						} else {
 							clusterStats[v.ClusterInstKey] = shepherd_common.ClusterNetMetrics{
 								NetTS:   now,
-								NetSent: totalSent + totalSentUdp,
-								NetRecv: totalRecvd + totalRecvdUdp,
+								NetSent: totalSentTcp + totalSentUdp,
+								NetRecv: totalRecvdTcp + totalRecvdUdp,
 							}
 						}
 					}

@@ -14,28 +14,30 @@ import (
 // For streaming APIs, ReplyData should be a pointer to the type streamed
 // back, not an array of all streamed back objects.
 type ApiCommand struct {
-	Name                 string // client API func name
-	Group                string // CLI group
-	Use                  string // CLI command
-	Short                string // short description
-	RequiredArgs         string
-	OptionalArgs         string
-	AliasArgs            string
-	SpecialArgs          *map[string]string
-	Comments             map[string]string
-	NoConfig             string
-	PasswordArg          string
-	VerifyPassword       bool
-	ReqData              interface{}
-	ReplyData            interface{}
-	Path                 string
-	ProtobufApi          bool
-	StreamOut            bool
-	StreamOutIncremental bool
-	DataFlagOnly         bool
-	IsUpdate             bool
-	CliEmptyRequiredArgs string
-	ShowFilter           bool
+	Name                  string // client API func name
+	Group                 string // CLI group
+	Use                   string // CLI command
+	Short                 string // short description
+	RequiredArgs          string
+	OptionalArgs          string
+	AliasArgs             string
+	SpecialArgs           *map[string]string
+	Comments              map[string]string
+	NoConfig              string
+	PasswordArg           string
+	ConfirmPasswordArg    string
+	VerifyPassword        bool
+	ConfirmVerifyPassword bool
+	ReqData               interface{}
+	ReplyData             interface{}
+	Path                  string
+	ProtobufApi           bool
+	StreamOut             bool
+	StreamOutIncremental  bool
+	DataFlagOnly          bool
+	IsUpdate              bool
+	CliEmptyRequiredArgs  string
+	ShowFilter            bool
 }
 
 type ApiGroup struct {

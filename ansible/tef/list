@@ -23,6 +23,7 @@ azure_volume_storage_class=managed-premium
 influxdb_volume_size=5Gi
 apidocs_domain=api-tef.mobiledgex.net
 console_prod=yes
+app_dns_root="mobiledgex-{{ deploy_environ }}.net"
 
 [notifyroot]
 notifyroot-tef.mobiledgex.net

@@ -36,6 +36,8 @@ spec:
          - "--useVaultPki"
          - "--deploymentTag"
          - "{{ deployment_tag_override | default(deploy_environ) }}"
+         - "--appDNSRoot"
+         - "{{ app_dns_root }}"
          - "-d"
          - "infra,notify,api"
         env:

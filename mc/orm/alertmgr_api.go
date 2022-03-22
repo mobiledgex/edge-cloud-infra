@@ -213,6 +213,10 @@ func ShowAlertReceiver(c echo.Context) error {
 	// Admin users can specify a user, or see all the receivers
 	adminUser, _ := isUserAdmin(ctx, claims.Username)
 	if !adminUser {
+		// check for a user with no orgs
+		if _, err := newShowAuthz(ctx, "", claims.Username, ResourceAlert, ActionView); err != nil {
+			return err
+		}
 		// If a user is a user-management role for the org in the filter allow user to be specified
 		if filter.User != "" && filter.User != claims.Username {
 			filterOrg := getOrgForReceiver(&filter)

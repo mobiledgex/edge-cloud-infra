@@ -437,7 +437,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	badPermTestMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	badPermTestEvents(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
 	badPermTestCustomMetrics(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
-	badPermTestAlertReceivers(t, mcClient, uri, tokenDev3, ctrl.Region, org1)
+	badPermTestAlertReceivers(t, mcClient, uri, tokenDev3, ctrl.Region, org1) // FAILS
 	// add new users to orgs
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperContributor", dev3.Name, Success)
 	testAddUserRole(t, mcClient, uri, tokenDev, org1, "DeveloperViewer", dev4.Name, Success)
@@ -799,6 +799,7 @@ func testControllerClientRun(t *testing.T, ctx context.Context, clientRun mctest
 	goodPermTestMetrics(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
 	goodPermTestEvents(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
 	testInvalidOrgForCloudletUsage(t, mcClient, uri, tokenAd, ctrl.Region, org1)
+	testMultipleOrgsForCloudletUsage(t, mcClient, uri, tokenAd, ctrl.Region, org1, org3)
 	goodPermTestCustomMetrics(t, mcClient, uri, tokenDev3, tokenOper3, ctrl.Region, org1, org3)
 	adminPermTestCustomMetrics(t, mcClient, uri, tokenAd, ctrl.Region, org3)
 

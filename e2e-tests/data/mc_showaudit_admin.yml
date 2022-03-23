@@ -22,7 +22,7 @@
   status: 200
   starttime: "2020-04-22T13:16:44.281831-07:00"
   duration: 2.39ms
-  request: '{"AdminPasswordMinCrackTimeSec":63072000,"DisableRateLimit":true,"MaxMetricsDataPoints":10000,"MaxNumPerIpRateLimiters":10000,"MaxNumPerUserRateLimiters":10000,"NotifyEmailAddress":"support@mobiledgex.com","PasswordMinCrackTimeSec":2592000,"SkipVerifyEmail":true,"UserApiKeyCreateLimit":10}'
+  request: '{"AdminPasswordMinCrackTimeSec":63072000,"ApiKeyLoginTokenValidDuration":"4h0m0s","DisableRateLimit":true,"MaxMetricsDataPoints":10000,"MaxNumPerIpRateLimiters":10000,"MaxNumPerUserRateLimiters":10000,"NotifyEmailAddress":"support@mobiledgex.com","PasswordMinCrackTimeSec":2592000,"SkipVerifyEmail":true,"UserApiKeyCreateLimit":10,"UserLoginTokenValidDuration":"24h0m0s","WebsocketTokenValidDuration":"2m0s"}'
   traceid: 7add8f1b8f2a8aaa
 - operationname: /api/v1/login
   username: mexadmin

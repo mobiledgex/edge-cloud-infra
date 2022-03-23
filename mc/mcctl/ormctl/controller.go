@@ -28,7 +28,7 @@ func init() {
 		Name:         "ShowController",
 		Use:          "show",
 		Short:        "Show regional controllers",
-		OptionalArgs: "region address notifyaddr influxdb",
+		OptionalArgs: "region",
 		Comments:     ormapi.ControllerComments,
 		ReqData:      &ormapi.Controller{},
 		ReplyData:    &[]ormapi.Controller{},

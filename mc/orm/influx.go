@@ -672,6 +672,9 @@ func getCloudletPlatformTypes(ctx context.Context, username, region string, key 
 	if err != nil {
 		return nil, err
 	}
+	if len(platformTypes) == 0 {
+		return nil, fmt.Errorf("Cloudlet does not exist")
+	}
 	return platformTypes, nil
 }
 
@@ -789,12 +792,12 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateSelectorString(in.Selector, CLOUDLET); err != nil {
 			return err
 		}
-		cmd = CloudletMetricsQuery(&in)
 
 		// Check the operator against who is logged in
 		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
 			return err
 		}
+		cmd = CloudletMetricsQuery(&in)
 	} else if strings.HasSuffix(c.Path(), "metrics/clientapiusage") {
 		dbNames = append(dbNames, cloudcommon.DeveloperMetricsDbName)
 		in := ormapi.RegionClientApiUsageMetrics{}
@@ -848,6 +851,14 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateSelectorString(in.Selector, CLOUDLETUSAGE); err != nil {
 			return err
 		}
+		rc.region = in.Region
+		org = in.Cloudlet.Organization
+
+		// Check the operator against who is logged in
+		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
+			return err
+		}
+
 		// Platform type is required for cloudlet resource usage
 		platformTypes := make(map[string]struct{})
 		if in.Selector == "resourceusage" {
@@ -856,14 +867,7 @@ func GetMetricsCommon(c echo.Context) error {
 				return err
 			}
 		}
-		rc.region = in.Region
-		org = in.Cloudlet.Organization
 		cmd = CloudletUsageMetricsQuery(&in, platformTypes)
-
-		// Check the operator against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
-			return err
-		}
 	} else if strings.HasSuffix(c.Path(), "metrics/clientappusage") {
 		in := ormapi.RegionClientAppUsageMetrics{}
 		_, err := ReadConn(c, &in)
@@ -922,6 +926,11 @@ func GetMetricsCommon(c echo.Context) error {
 		if err = validateMetricsCommon(&in.MetricsCommon); err != nil {
 			return err
 		}
+		// Check the operator against who is logged in
+		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
+			return err
+		}
+
 		settings, err := getSettings(ctx, rc)
 		if err != nil {
 			log.SpanLog(ctx, log.DebugLevelMetrics, "Unable to get metrics settings for region %v - error is %s", rc.region, err.Error())
@@ -929,11 +938,6 @@ func GetMetricsCommon(c echo.Context) error {
 		var db string
 		cmd, db = ClientCloudletUsageMetricsQuery(&in, settings)
 		dbNames = append(dbNames, db)
-
-		// Check the operator against who is logged in
-		if err := authorized(ctx, rc.claims.Username, org, ResourceCloudletAnalytics, ActionView); err != nil {
-			return err
-		}
 	} else {
 		return echo.ErrNotFound
 	}

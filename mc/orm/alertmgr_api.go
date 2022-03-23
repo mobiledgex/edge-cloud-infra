@@ -244,7 +244,7 @@ func ShowAlertReceiver(c echo.Context) error {
 	}
 	for ii := range receivers {
 		org := getOrgForReceiver(&receivers[ii])
-		if _, found := allowedOrgs[org]; found {
+		if _, found := allowedOrgs[org]; found || isAdmin {
 			alertRecs = append(alertRecs, receivers[ii])
 		}
 	}

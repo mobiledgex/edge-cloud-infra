@@ -729,6 +729,7 @@ func testServerClientRun(t *testing.T, ctx context.Context, clientRun mctestclie
 	require.Equal(t, http.StatusOK, status)
 	require.Equal(t, 1, len(users))
 
+	testFailedLoginLockout(t, ctx, uri, token, mcClient)
 	testImagePaths(t, ctx, mcClient, uri, token)
 	testLockedUsers(t, uri, mcClient)
 	testPasswordStrength(t, ctx, mcClient, uri, token)
@@ -1186,4 +1187,63 @@ func getUnitTestClientRuns() []mctestclient.ClientRun {
 	cliClient.RunInline = true
 	cliClient.InjectRequiredArgs = true
 	return []mctestclient.ClientRun{restClient, cliClient}
+}
+
+func testFailedLoginLockout(t *testing.T, ctx context.Context, uri, superTok string, mcClient *mctestclient.Client) {
+	testUser := ormapi.User{
+		Name:     "Lockout",
+		Email:    "lockout@gmail.com",
+		Passhash: "lockout-password-blue-dog-cat",
+	}
+	_, status, err := mcClient.CreateUser(uri, &ormapi.CreateUser{User: testUser})
+	require.Nil(t, err, "create user")
+	require.Equal(t, http.StatusOK, status, "create user status")
+
+	// These helper funcs are for actions that are run multiple times
+	expectLoginOk := func() string {
+		token, isAdmin, err := mcClient.DoLogin(uri, testUser.Name, testUser.Passhash, NoOTP, NoApiKeyId, NoApiKey)
+		require.Nil(t, err, "login as testUser")
+		require.False(t, isAdmin)
+		return token
+	}
+
+	// check that user login works
+	token := expectLoginOk()
+
+	configReq := &cli.MapData{
+		Namespace: cli.ArgsNamespace,
+		Data:      make(map[string]interface{}),
+	}
+
+	// test login valid duration
+	// change duration to 0, must be done directly to bypass check
+	config, err := getConfig(ctx)
+	require.Nil(t, err)
+	config.UserLoginTokenValidDuration = 0
+	db := loggedDB(ctx)
+	err = db.Save(config).Error
+	require.Nil(t, err)
+	// get new token
+	token = expectLoginOk()
+	// token should be expired already
+	time.Sleep(time.Second)
+	_, status, err = mcClient.CurrentUser(uri, token)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Token is expired")
+	// change it back
+	configReq.Data = map[string]interface{}{
+		"userlogintokenvalidduration": defaultConfig.UserLoginTokenValidDuration.TimeDuration().String(),
+	}
+	_, err = mcClient.UpdateConfig(uri, superTok, configReq)
+	require.Nil(t, err)
+	token = expectLoginOk()
+	// token should be valid
+	_, status, err = mcClient.CurrentUser(uri, token)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+
+	// clean up
+	status, err = mcClient.DeleteUser(uri, token, &testUser)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
 }

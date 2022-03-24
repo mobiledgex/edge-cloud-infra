@@ -23,6 +23,7 @@ type ApiCommand struct {
 	Comments             map[string]string
 	NoConfig             string
 	PasswordArg          string
+	CurrentPasswordArg   string
 	VerifyPassword       bool
 	ReqData              interface{}
 	ReplyData            interface{}

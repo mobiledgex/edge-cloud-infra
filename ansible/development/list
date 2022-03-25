@@ -28,6 +28,7 @@ etcd_quota_backend="150 MB"
 etcd_auto_compaction_retention=2
 letsencrypt_env=staging
 federated_mc=true
+app_dns_root="mobiledgex-{{ deploy_environ }}.net"
 
 [notifyroot]
 notifyroot-dev.mobiledgex.net

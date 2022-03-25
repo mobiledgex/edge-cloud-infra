@@ -18,6 +18,7 @@ console_prod=yes
 alertmanager_hostname=alertmanager.mobiledgex.net
 events_elasticsearch_cleanup_age=183
 billing_platform=chargify
+app_dns_root="mobiledgex.net"
 
 [notifyroot]
 notifyroot.mobiledgex.net

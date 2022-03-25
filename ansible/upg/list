@@ -25,7 +25,7 @@ influxdb_backup_disabled=true
 letsencrypt_env=production
 vault_firewall_setup=no
 federated_mc=true
-app_dns_root="mobiledgex-{{ deploy_environ }}.net"
+app_dns_root="mobiledgex.net"
 
 [notifyroot]
 notifyroot-upg.mobiledgex.net

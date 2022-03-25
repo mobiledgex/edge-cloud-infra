@@ -28,7 +28,7 @@ alertmanager_hostname=alertmanager-{{ deploy_environ }}.mobiledgex.net
 influxdb_backup_disabled=true
 billing_platform=chargify
 federated_mc=true
-app_dns_root="mobiledgex-{{ deploy_environ }}.net"
+app_dns_root="mobiledgex.net"
 
 [notifyroot]
 notifyroot-stage.mobiledgex.net

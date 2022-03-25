@@ -415,7 +415,7 @@ func CleanupTmpFiles(ctx context.Context) error {
 	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-	configFiles := []string{"/var/tmp/prom_targets.json", "/var/tmp/prometheus.yml", "/var/tmp/prometheus.yml", "/tmp/alertmanager.yml"}
+	configFiles := []string{"/var/tmp/prom_targets.json", "/var/tmp/prometheus.yml", "/tmp/alertmanager.yml"}
 	filesToRemove = append(filesToRemove, configFiles...)
 	for ii := range filesToRemove {
 		err = os.Remove(filesToRemove[ii])

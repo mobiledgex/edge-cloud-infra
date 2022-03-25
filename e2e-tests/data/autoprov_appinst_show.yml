@@ -35,7 +35,7 @@ regiondata:
         containerids:
         - appOnClusterNode0
       realclustername: Reservable2
-      uniqueid: acmeappcoautoprovapp10-autocluster-autoprov-tmus-cloud-2-tmus
+      uniqueid: autoprovapp10acmeappco-autocluster-autoprov-tmus-cloud-2-tmus
     - key:
         appkey:
           organization: AcmeAppCo
@@ -66,4 +66,4 @@ regiondata:
       powerstate: PowerOn
       vmflavor: x1.small
       realclustername: ReservableD
-      uniqueid: acmeappcoautoprovappd10-autocluster-autoprov-tmus-cloud-1-tmus
+      uniqueid: autoprovappd10acmeappco-autocluster-autoprov-tmus-cloud-1-tmus

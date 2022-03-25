@@ -248,7 +248,7 @@ regiondata:
       runtimeinfo:
         containerids:
         - appOnClusterNode0
-      uniqueid: user3orgep110-smallcluster-enterprise-1-enterprise
+      uniqueid: ep110user3org-smallcluster-enterprise-1-enterprise
     appinstrefs:
     - key:
         organization: user3org

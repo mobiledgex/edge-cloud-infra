@@ -37,11 +37,60 @@ services.each { |service|
     end
   end
 
-  # Set commercialCerts attribute for all the services
+  # Set commercialCerts attribute for crmserver
   if service == "crmserver"
     unless node.normal[service]['args'].any? { |s| s.include?('commercialCerts') }
       Chef::Log.info("Setting commericalCerts flag for #{service}...")
       node.normal[service]['args']['commercialCerts'] = ""
     end
   end
+
+  # Set MEX_RELEASE_VERSION attribute for crmserver
+  if service == "crmserver" && node.normal[service]['env'] != nil
+    mexReleases = data_bag('mex_releases')
+    if mexReleases.include?(node['edgeCloudVersion'])
+      releaseMaps = data_bag_item('mex_releases', node['edgeCloudVersion'])
+      releaseVers = "#{releaseMaps['release']}"
+      if releaseVers != nil
+        envVar = "MEX_RELEASE_VERSION=#{releaseVers}"
+        unless node.normal[service]['env'].any? { |v| v =~ /MEX_RELEASE_VERSION=/ }
+          Chef::Log.info("Setting #{envVar} env var for #{service}...")
+          node.normal[service]['env'] << envVar
+        else
+          unless node.normal[service]['env'].any? { |v| v == envVar }
+            Chef::Log.info("Updating #{envVar} env var for #{service}...")
+            node.normal[service]['env'].delete_if { |v| v =~ /MEX_RELEASE_VERSION=/ }
+            node.normal[service]['env'] << envVar
+          end
+        end
+      end
+    end
+  end
+
+  # Set appDNSRoot attribute for all the services
+  appDNSRoot = "mobiledgex.net"
+  if deployTag == "qa" || deployTag == "dev"
+    appDNSRoot = "mobiledgex-#{deployTag}.net"
+  end
+  unless node.normal[service]['args']['appDNSRoot'] == appDNSRoot
+    Chef::Log.info("Setting appDNSRoot for #{service} to #{appDNSRoot}...")
+    node.normal[service]['args']['appDNSRoot'] = appDNSRoot
+  end
 }
+
+# Set /var/tmp volume mount for cloudletPrometheus service
+service = "cloudletPrometheus"
+oldTmpMnt = "/tmp:/tmp"
+varTmpMnt = "/var/tmp:/var/tmp"
+unless node.normal[service]['volume'].any? { |s| s.include?(varTmpMnt) }
+  Chef::Log.info("Setting #{varTmpMnt} volume mount for #{service}...")
+  node.normal[service]['volume'].delete_if { |s| s.include?(oldTmpMnt) }
+  node.normal[service]['volume'] << varTmpMnt
+end
+oldPromMnt = "/tmp/prometheus.yml:/etc/prometheus/prometheus.yml"
+promMnt = "/var/tmp/prometheus.yml:/etc/prometheus/prometheus.yml"
+unless node.normal[service]['volume'].any? { |s| s.include?(promMnt) }
+  Chef::Log.info("Setting #{promMnt} volume mount for #{service}...")
+  node.normal[service]['volume'].delete_if { |s| s.include?(oldPromMnt) }
+  node.normal[service]['volume'] << promMnt
+end

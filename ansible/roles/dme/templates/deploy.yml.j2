@@ -50,6 +50,10 @@ spec:
          - '{"organization":"{{ operator_key }}","name":"{{ deploy_target }}-cloudlet"}'
          - "--toksrvurl"
          - "{{ toksrv_url }}"
+         {% if qos_sessions_api_address is defined and qos_sessions_api_address -%}
+         - "-qossesaddr"
+         - "{{ qos_sessions_api_address }}"
+         {% endif -%}
          - "-d"
          - "locapi,dmedb,dmereq,notify"
         env:

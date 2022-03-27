@@ -170,7 +170,7 @@ func (s *OpenstackPlatform) GetVMStats(ctx context.Context, appInst *edgeproto.A
 		return &vmMetrics, fmt.Errorf("Nil AppInst passed")
 	}
 
-	server, err := s.GetActiveServerDetails(ctx, appInst.UniqueId)
+	server, err := s.GetActiveServerDetails(ctx, s.NameSanitize(appInst.UniqueId))
 	if err != nil {
 		return &vmMetrics, err
 	}

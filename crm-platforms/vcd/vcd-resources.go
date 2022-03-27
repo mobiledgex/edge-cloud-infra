@@ -296,7 +296,7 @@ func (v *VcdPlatform) GetVMStats(ctx context.Context, appInst *edgeproto.AppInst
 		log.SpanLog(ctx, log.DebugLevelMetrics, "Flavor not in cache", "appkey", key, "flavorKey", flavorKey)
 		return nil, fmt.Errorf("GetVMStats failed to find flavor in cache for AppInst %s", key)
 	}
-	vmName := appInst.UniqueId
+	vmName := v.NameSanitize(appInst.UniqueId)
 	vm, err = v.FindVMByName(ctx, vmName, vcdClient, vdc)
 	if err != nil {
 		log.SpanLog(ctx, log.DebugLevelInfra, "VM not found", "vnname", vmName, "err", err)

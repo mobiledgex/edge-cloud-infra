@@ -1061,6 +1061,92 @@ func GenerateAccessKey(c echo.Context) error {
 	return ormutil.SetReply(c, resp)
 }
 
+func AddCloudletEnvVar(c echo.Context) error {
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.Username = claims.Username
+
+	in := ormapi.RegionCloudletEnvVar{}
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
+	}
+	rc.Region = in.Region
+	rc.Database = database
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.CloudletEnvVar.GetKey().GetTags())
+	span.SetTag("org", in.CloudletEnvVar.Key.Organization)
+
+	obj := &in.CloudletEnvVar
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForAddCloudletEnvVar(); err != nil {
+		return err
+	}
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, obj.Key.Organization,
+			ResourceCloudlets, ActionManage); err != nil {
+			return err
+		}
+	}
+
+	resp, err := ctrlclient.AddCloudletEnvVarObj(ctx, rc, obj, connCache)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return ormutil.SetReply(c, resp)
+}
+
+func RemoveCloudletEnvVar(c echo.Context) error {
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.Username = claims.Username
+
+	in := ormapi.RegionCloudletEnvVar{}
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
+	}
+	rc.Region = in.Region
+	rc.Database = database
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	log.SetTags(span, in.CloudletEnvVar.GetKey().GetTags())
+	span.SetTag("org", in.CloudletEnvVar.Key.Organization)
+
+	obj := &in.CloudletEnvVar
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if err := obj.IsValidArgsForRemoveCloudletEnvVar(); err != nil {
+		return err
+	}
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, obj.Key.Organization,
+			ResourceCloudlets, ActionManage); err != nil {
+			return err
+		}
+	}
+
+	resp, err := ctrlclient.RemoveCloudletEnvVarObj(ctx, rc, obj, connCache)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return ormutil.SetReply(c, resp)
+}
+
 func ShowCloudletInfo(c echo.Context) error {
 	ctx := ormutil.GetContext(c)
 	rc := &ormutil.RegionContext{}

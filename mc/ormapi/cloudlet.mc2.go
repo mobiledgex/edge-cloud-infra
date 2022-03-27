@@ -403,6 +403,40 @@ type swaggerGenerateAccessKey struct {
 	Body RegionCloudletKey
 }
 
+// Request summary for AddCloudletEnvVar
+// swagger:parameters AddCloudletEnvVar
+type swaggerAddCloudletEnvVar struct {
+	// in: body
+	Body RegionCloudletEnvVar
+}
+
+type RegionCloudletEnvVar struct {
+	// Region name
+	// required: true
+	Region string
+	// CloudletEnvVar in region
+	CloudletEnvVar edgeproto.CloudletEnvVar
+}
+
+func (s *RegionCloudletEnvVar) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionCloudletEnvVar) GetObj() interface{} {
+	return &s.CloudletEnvVar
+}
+
+func (s *RegionCloudletEnvVar) GetObjName() string {
+	return "CloudletEnvVar"
+}
+
+// Request summary for RemoveCloudletEnvVar
+// swagger:parameters RemoveCloudletEnvVar
+type swaggerRemoveCloudletEnvVar struct {
+	// in: body
+	Body RegionCloudletEnvVar
+}
+
 // Request summary for ShowCloudletInfo
 // swagger:parameters ShowCloudletInfo
 type swaggerShowCloudletInfo struct {

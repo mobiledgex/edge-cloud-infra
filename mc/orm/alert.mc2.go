@@ -1069,6 +1069,26 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GenerateAccessKey", GenerateAccessKey)
+	// swagger:route POST /auth/ctrl/AddCloudletEnvVar CloudletEnvVar AddCloudletEnvVar
+	// Add env var to the cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/AddCloudletEnvVar", AddCloudletEnvVar)
+	// swagger:route POST /auth/ctrl/RemoveCloudletEnvVar CloudletEnvVar RemoveCloudletEnvVar
+	// Remove env var from the cloudlet.
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/RemoveCloudletEnvVar", RemoveCloudletEnvVar)
 	// swagger:route POST /auth/ctrl/ShowCloudletInfo CloudletInfo ShowCloudletInfo
 	// Show CloudletInfos.
 	// Security:

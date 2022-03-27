@@ -1062,6 +1062,38 @@ func (s *Client) GenerateAccessKey(uri string, token string, in *ormapi.RegionCl
 	return &out, rundata.RetStatus, rundata.RetError
 }
 
+func (s *Client) AddCloudletEnvVar(uri string, token string, in *ormapi.RegionCloudletEnvVar) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("AddCloudletEnvVar")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
+func (s *Client) RemoveCloudletEnvVar(uri string, token string, in *ormapi.RegionCloudletEnvVar) (*edgeproto.Result, int, error) {
+	rundata := RunData{}
+	rundata.Uri = uri
+	rundata.Token = token
+	rundata.In = in
+	var out edgeproto.Result
+	rundata.Out = &out
+
+	apiCmd := ormctl.MustGetCommand("RemoveCloudletEnvVar")
+	s.ClientRun.Run(apiCmd, &rundata)
+	if rundata.RetError != nil {
+		return nil, rundata.RetStatus, rundata.RetError
+	}
+	return &out, rundata.RetStatus, rundata.RetError
+}
+
 // Generating group CloudletInfo
 
 func (s *Client) ShowCloudletInfo(uri string, token string, in *ormapi.RegionCloudletInfo) ([]edgeproto.CloudletInfo, int, error) {

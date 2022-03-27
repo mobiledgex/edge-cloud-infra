@@ -537,6 +537,28 @@ func GenerateAccessKeyObj(ctx context.Context, rc *ormutil.RegionContext, obj *e
 	return api.GenerateAccessKey(ctx, obj)
 }
 
+func AddCloudletEnvVarObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletEnvVar, connObj ClientConnMgr) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
+	api := edgeproto.NewCloudletApiClient(conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
+	return api.AddCloudletEnvVar(ctx, obj)
+}
+
+func RemoveCloudletEnvVarObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.CloudletEnvVar, connObj ClientConnMgr) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
+	api := edgeproto.NewCloudletApiClient(conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
+	return api.RemoveCloudletEnvVar(ctx, obj)
+}
+
 type ShowCloudletInfoAuthz interface {
 	Ok(obj *edgeproto.CloudletInfo) (bool, bool)
 	Filter(obj *edgeproto.CloudletInfo)

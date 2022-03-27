@@ -474,6 +474,36 @@ var GenerateAccessKeyCmd = &ApiCommand{
 	Path:         "/auth/ctrl/GenerateAccessKey",
 	ProtobufApi:  true,
 }
+
+var AddCloudletEnvVarCmd = &ApiCommand{
+	Name:         "AddCloudletEnvVar",
+	Use:          "addenvvar",
+	Short:        "Add env var to the cloudlet",
+	RequiredArgs: "region " + strings.Join(CloudletEnvVarRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletEnvVarOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletEnvVarAliasArgs, " "),
+	SpecialArgs:  &CloudletEnvVarSpecialArgs,
+	Comments:     addRegionComment(CloudletEnvVarComments),
+	ReqData:      &ormapi.RegionCloudletEnvVar{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/AddCloudletEnvVar",
+	ProtobufApi:  true,
+}
+
+var RemoveCloudletEnvVarCmd = &ApiCommand{
+	Name:         "RemoveCloudletEnvVar",
+	Use:          "removeenvvar",
+	Short:        "Remove env var from the cloudlet",
+	RequiredArgs: "region " + strings.Join(CloudletEnvVarRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletEnvVarOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletEnvVarAliasArgs, " "),
+	SpecialArgs:  &CloudletEnvVarSpecialArgs,
+	Comments:     addRegionComment(CloudletEnvVarComments),
+	ReqData:      &ormapi.RegionCloudletEnvVar{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/RemoveCloudletEnvVar",
+	ProtobufApi:  true,
+}
 var CloudletApiCmds = []*ApiCommand{
 	CreateCloudletCmd,
 	DeleteCloudletCmd,
@@ -492,6 +522,8 @@ var CloudletApiCmds = []*ApiCommand{
 	GetOrganizationsOnCloudletCmd,
 	RevokeAccessKeyCmd,
 	GenerateAccessKeyCmd,
+	AddCloudletEnvVarCmd,
+	RemoveCloudletEnvVarCmd,
 }
 
 const CloudletGroup = "Cloudlet"
@@ -1325,6 +1357,32 @@ var CloudletAllianceOrgComments = map[string]string{
 	"organization": "Alliance organization",
 }
 var CloudletAllianceOrgSpecialArgs = map[string]string{}
+var CloudletEnvVarRequiredArgs = []string{
+	"cloudletorg",
+	"cloudlet",
+}
+var CloudletEnvVarOptionalArgs = []string{
+	"federatedorg",
+	"envvar",
+	"crmoverride",
+}
+var CloudletEnvVarAliasArgs = []string{
+	"cloudletorg=cloudletenvvar.key.organization",
+	"cloudlet=cloudletenvvar.key.name",
+	"federatedorg=cloudletenvvar.key.federatedorganization",
+	"envvar=cloudletenvvar.envvar",
+	"crmoverride=cloudletenvvar.crmoverride",
+}
+var CloudletEnvVarComments = map[string]string{
+	"cloudletorg":  "Organization of the cloudlet site",
+	"cloudlet":     "Name of the cloudlet",
+	"federatedorg": "Federated operator organization who shared this cloudlet",
+	"envvar":       "Single Key-Value pair of env var to be passed to CRM",
+	"crmoverride":  "Override actions to CRM, one of NoOverride, IgnoreCrmErrors, IgnoreCrm, IgnoreTransientState, IgnoreCrmAndTransientState",
+}
+var CloudletEnvVarSpecialArgs = map[string]string{
+	"cloudletenvvar.envvar": "StringToString",
+}
 var CloudletInfoRequiredArgs = []string{
 	"cloudletorg",
 	"cloudlet",

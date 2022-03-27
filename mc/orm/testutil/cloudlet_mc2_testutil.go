@@ -481,6 +481,36 @@ func TestPermGenerateAccessKey(mcClient *mctestclient.Client, uri, token, region
 	return TestGenerateAccessKey(mcClient, uri, token, region, in, modFuncs...)
 }
 
+func TestAddCloudletEnvVar(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.CloudletEnvVar, modFuncs ...func(*edgeproto.CloudletEnvVar)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionCloudletEnvVar{}
+	dat.Region = region
+	dat.CloudletEnvVar = *in
+	for _, fn := range modFuncs {
+		fn(&dat.CloudletEnvVar)
+	}
+	return mcClient.AddCloudletEnvVar(uri, token, dat)
+}
+func TestPermAddCloudletEnvVar(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.CloudletEnvVar{}
+	in.Key.Organization = org
+	return TestAddCloudletEnvVar(mcClient, uri, token, region, in, modFuncs...)
+}
+
+func TestRemoveCloudletEnvVar(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.CloudletEnvVar, modFuncs ...func(*edgeproto.CloudletEnvVar)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionCloudletEnvVar{}
+	dat.Region = region
+	dat.CloudletEnvVar = *in
+	for _, fn := range modFuncs {
+		fn(&dat.CloudletEnvVar)
+	}
+	return mcClient.RemoveCloudletEnvVar(uri, token, dat)
+}
+func TestPermRemoveCloudletEnvVar(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.CloudletEnvVar{}
+	in.Key.Organization = org
+	return TestRemoveCloudletEnvVar(mcClient, uri, token, region, in, modFuncs...)
+}
+
 func (s *TestClient) CreateCloudlet(ctx context.Context, in *edgeproto.Cloudlet) ([]edgeproto.Result, error) {
 	inR := &ormapi.RegionCloudlet{
 		Region:   s.Region,
@@ -551,6 +581,30 @@ func (s *TestClient) RemoveCloudletAllianceOrg(ctx context.Context, in *edgeprot
 		CloudletAllianceOrg: *in,
 	}
 	out, status, err := s.McClient.RemoveCloudletAllianceOrg(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) AddCloudletEnvVar(ctx context.Context, in *edgeproto.CloudletEnvVar) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudletEnvVar{
+		Region:         s.Region,
+		CloudletEnvVar: *in,
+	}
+	out, status, err := s.McClient.AddCloudletEnvVar(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) RemoveCloudletEnvVar(ctx context.Context, in *edgeproto.CloudletEnvVar) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionCloudletEnvVar{
+		Region:         s.Region,
+		CloudletEnvVar: *in,
+	}
+	out, status, err := s.McClient.RemoveCloudletEnvVar(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}

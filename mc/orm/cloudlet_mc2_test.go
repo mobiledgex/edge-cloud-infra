@@ -900,6 +900,72 @@ func badRegionGenerateAccessKey(t *testing.T, mcClient *mctestclient.Client, uri
 	_ = out
 }
 
+var _ = edgeproto.GetFields
+
+func badPermAddCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	_, status, err := testutil.TestPermAddCloudletEnvVar(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Forbidden")
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func badAddCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, status int, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	_, st, err := testutil.TestPermAddCloudletEnvVar(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Equal(t, status, st)
+}
+
+func goodPermAddCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	_, status, err := testutil.TestPermAddCloudletEnvVar(mcClient, uri, token, region, org, modFuncs...)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
+func badRegionAddCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	out, status, err := testutil.TestPermAddCloudletEnvVar(mcClient, uri, token, "bad region", org, modFuncs...)
+	require.NotNil(t, err)
+	if err.Error() == "Forbidden" {
+		require.Equal(t, http.StatusForbidden, status)
+	} else {
+		require.Contains(t, err.Error(), "\"bad region\" not found")
+		require.Equal(t, http.StatusBadRequest, status)
+	}
+	_ = out
+}
+
+var _ = edgeproto.GetFields
+
+func badPermRemoveCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	_, status, err := testutil.TestPermRemoveCloudletEnvVar(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Forbidden")
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func badRemoveCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, status int, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	_, st, err := testutil.TestPermRemoveCloudletEnvVar(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Equal(t, status, st)
+}
+
+func goodPermRemoveCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	_, status, err := testutil.TestPermRemoveCloudletEnvVar(mcClient, uri, token, region, org, modFuncs...)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
+func badRegionRemoveCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	out, status, err := testutil.TestPermRemoveCloudletEnvVar(mcClient, uri, token, "bad region", org, modFuncs...)
+	require.NotNil(t, err)
+	if err.Error() == "Forbidden" {
+		require.Equal(t, http.StatusForbidden, status)
+	} else {
+		require.Contains(t, err.Error(), "\"bad region\" not found")
+		require.Equal(t, http.StatusBadRequest, status)
+	}
+	_ = out
+}
+
 // This tests the user cannot modify the object because the obj belongs to
 // an organization that the user does not have permissions for.
 func badPermTestCloudlet(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey, modFuncs ...func(*edgeproto.Cloudlet)) {
@@ -977,6 +1043,33 @@ func permTestCloudletAllianceOrg(t *testing.T, mcClient *mctestclient.Client, ur
 	badPermTestCloudletAllianceOrg(t, mcClient, uri, token2, region, org1, modFuncs...)
 	goodPermTestCloudletAllianceOrg(t, mcClient, uri, token1, region, org1, showcount, modFuncs...)
 	goodPermTestCloudletAllianceOrg(t, mcClient, uri, token2, region, org2, showcount, modFuncs...)
+}
+
+// This tests the user cannot modify the object because the obj belongs to
+// an organization that the user does not have permissions for.
+func badPermTestCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	badPermAddCloudletEnvVar(t, mcClient, uri, token, region, org, modFuncs...)
+	badPermRemoveCloudletEnvVar(t, mcClient, uri, token, region, org, modFuncs...)
+}
+
+// This tests the user can modify the object because the obj belongs to
+// an organization that the user has permissions for.
+func goodPermTestCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, showcount int, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	goodPermAddCloudletEnvVar(t, mcClient, uri, token, region, org, modFuncs...)
+	goodPermRemoveCloudletEnvVar(t, mcClient, uri, token, region, org, modFuncs...)
+	// make sure region check works
+	badRegionAddCloudletEnvVar(t, mcClient, uri, token, org, modFuncs...)
+	badRegionRemoveCloudletEnvVar(t, mcClient, uri, token, org, modFuncs...)
+}
+
+// Test permissions for user with token1 who should have permissions for
+// modifying obj1, and user with token2 who should have permissions for obj2.
+// They should not have permissions to modify each other's objects.
+func permTestCloudletEnvVar(t *testing.T, mcClient *mctestclient.Client, uri, token1, token2, region, org1, org2 string, showcount int, modFuncs ...func(*edgeproto.CloudletEnvVar)) {
+	badPermTestCloudletEnvVar(t, mcClient, uri, token1, region, org2, modFuncs...)
+	badPermTestCloudletEnvVar(t, mcClient, uri, token2, region, org1, modFuncs...)
+	goodPermTestCloudletEnvVar(t, mcClient, uri, token1, region, org1, showcount, modFuncs...)
+	goodPermTestCloudletEnvVar(t, mcClient, uri, token2, region, org2, showcount, modFuncs...)
 }
 
 // This tests the user cannot modify the object because the obj belongs to

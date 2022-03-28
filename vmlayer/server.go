@@ -137,7 +137,7 @@ func (v *VMPlatform) GetConsoleUrl(ctx context.Context, app *edgeproto.App, appI
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeVM:
-		return v.VMProvider.GetConsoleUrl(ctx, v.VMProvider.NameSanitize(appInst.UniqueId))
+		return v.VMProvider.GetConsoleUrl(ctx, appInst.UniqueId)
 	default:
 		return "", fmt.Errorf("unsupported deployment type %s", deployment)
 	}
@@ -158,9 +158,8 @@ func (v *VMPlatform) SetPowerState(ctx context.Context, app *edgeproto.App, appI
 
 	switch deployment := app.Deployment; deployment {
 	case cloudcommon.DeploymentTypeVM:
-		serverName := v.VMProvider.NameSanitize(appInst.UniqueId)
+		serverName := appInst.UniqueId
 		fqdn := appInst.Uri
-
 		log.SpanLog(ctx, log.DebugLevelInfra, "setting server state", "serverName", serverName, "fqdn", fqdn, "PowerState", PowerState)
 
 		updateCallback(edgeproto.UpdateTask, "Verifying AppInst state")

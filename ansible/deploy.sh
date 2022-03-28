@@ -41,10 +41,15 @@ die() {
 
 : ${ANSIBLE_VENV:=$HOME/venv/ansible}
 if [[ ! -d "$ANSIBLE_VENV" ]]; then
-	echo
-	echo "WARNING: Could not find virtualenv"
-	echo "         See ansible/README.md for details on setting up the environment"
-	echo
+	if [[ $$ == 1 ]]; then
+		# Running inside a docker container
+		true
+	else
+		echo
+		echo "WARNING: Could not find virtualenv"
+		echo "         See ansible/README.md for details on setting up the environment"
+		echo
+	fi
 else
 	echo "Using virtual environment: $ANSIBLE_VENV"
 	. $ANSIBLE_VENV/bin/activate || die "Failed to source virtul environment: $ANSIBLE_VENV"
@@ -155,12 +160,29 @@ elif [[ "$SKIP_GITHUB" != true && -z "$CONSOLE_VERSION" ]]; then
 	export GITHUB_USER GITHUB_TOKEN
 fi
 
+# Figure out vault address
+if [[ -z "$VAULT_ADDR" ]]; then
+	# Pick vault address from Ansible
+	VAULT_ADDR=$( ansible-inventory -i "$ENVIRON" --list --export | jq -r .all.vars.vault_address )
+	[[ -z "$VAULT_ADDR" ]] && die "Unable to determine vault instance"
+fi
+
 VAULT_SSH_ROLE=user
 if [[ -n "$VAULT_TOKEN" ]]; then
 	echo "Authenticating using vault token" >&2
 elif [[ -n "$VAULT_ROLE_ID" && -n "$VAULT_SECRET_ID" ]]; then
 	echo "Authenticating using vault role/secret" >&2
 	VAULT_SSH_ROLE=ansible
+elif [[ -n "$GITHUB_TOKEN" ]]; then
+	echo "Generating vault token using Github auth" >&2
+	VAULT_TOKEN=$( VAULT_ADDR="$VAULT_ADDR" \
+		vault login -format=json -method=github token="$GITHUB_TOKEN" \
+		| jq -r .auth.client_token )
+	if [[ -z "$VAULT_TOKEN" ]]; then
+		echo; echo
+		echo "Failed to log in to vault using Github token!" >&2
+		exit 2
+	fi
 else
 	echo "Vault role/secret not provided; falling back to token auth" >&2
 	while [[ -z "$VAULT_TOKEN" ]]; do
@@ -216,12 +238,6 @@ if $CONFIRM && ! $DRYRUN && ! $ASSUME_YES; then
 fi
 
 # Generate a signed SSH key
-if [[ -z "$VAULT_ADDR" ]]; then
-	# Pick vault address from Ansible
-	VAULT_ADDR=$( ansible-inventory -i "$ENVIRON" --list --export | jq -r .all.vars.vault_address )
-	[[ -z "$VAULT_ADDR" ]] && die "Unable to determine vault instance"
-fi
-
 if ! $SKIP_VAULT_SSH_KEY_SIGNING; then
 	: ${VAULT_SSH_TTL:=120m}
 

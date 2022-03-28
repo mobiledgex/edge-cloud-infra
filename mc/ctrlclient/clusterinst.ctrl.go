@@ -167,3 +167,14 @@ func DeleteIdleReservableClusterInstsObj(ctx context.Context, rc *ormutil.Region
 	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
 	return api.DeleteIdleReservableClusterInsts(ctx, obj)
 }
+
+func GetClusterInstGPUDriverLicenseConfigObj(ctx context.Context, rc *ormutil.RegionContext, obj *edgeproto.ClusterInstKey, connObj ClientConnMgr) (*edgeproto.Result, error) {
+	conn, err := connObj.GetRegionConn(ctx, rc.Region)
+	if err != nil {
+		return nil, err
+	}
+	api := edgeproto.NewClusterInstApiClient(conn)
+	log.SpanLog(ctx, log.DebugLevelApi, "start controller api")
+	defer log.SpanLog(ctx, log.DebugLevelApi, "finish controller api")
+	return api.GetClusterInstGPUDriverLicenseConfig(ctx, obj)
+}

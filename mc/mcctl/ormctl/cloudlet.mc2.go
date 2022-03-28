@@ -145,6 +145,21 @@ var GetGPUDriverBuildURLCmd = &ApiCommand{
 	Path:         "/auth/ctrl/GetGPUDriverBuildURL",
 	ProtobufApi:  true,
 }
+
+var GetGPUDriverLicenseConfigCmd = &ApiCommand{
+	Name:         "GetGPUDriverLicenseConfig",
+	Use:          "getlicenseconfig",
+	Short:        "Get GPU Driver License Config. Returns the license config specific to GPU driver",
+	RequiredArgs: "region " + strings.Join(GPUDriverKeyRequiredArgs, " "),
+	OptionalArgs: strings.Join(GPUDriverKeyOptionalArgs, " "),
+	AliasArgs:    strings.Join(GPUDriverKeyAliasArgs, " "),
+	SpecialArgs:  &GPUDriverKeySpecialArgs,
+	Comments:     addRegionComment(GPUDriverKeyComments),
+	ReqData:      &ormapi.RegionGPUDriverKey{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/GetGPUDriverLicenseConfig",
+	ProtobufApi:  true,
+}
 var GPUDriverApiCmds = []*ApiCommand{
 	CreateGPUDriverCmd,
 	DeleteGPUDriverCmd,
@@ -153,6 +168,7 @@ var GPUDriverApiCmds = []*ApiCommand{
 	AddGPUDriverBuildCmd,
 	RemoveGPUDriverBuildCmd,
 	GetGPUDriverBuildURLCmd,
+	GetGPUDriverLicenseConfigCmd,
 }
 
 const GPUDriverGroup = "GPUDriver"
@@ -474,6 +490,21 @@ var GenerateAccessKeyCmd = &ApiCommand{
 	Path:         "/auth/ctrl/GenerateAccessKey",
 	ProtobufApi:  true,
 }
+
+var GetCloudletGPUDriverLicenseConfigCmd = &ApiCommand{
+	Name:         "GetCloudletGPUDriverLicenseConfig",
+	Use:          "getgpudriverlicenseconfig",
+	Short:        "Get Cloudlet Specific GPU Driver License Config. Returns the license config associated with the cloudlet",
+	RequiredArgs: "region " + strings.Join(CloudletKeyRequiredArgs, " "),
+	OptionalArgs: strings.Join(CloudletKeyOptionalArgs, " "),
+	AliasArgs:    strings.Join(CloudletKeyAliasArgs, " "),
+	SpecialArgs:  &CloudletKeySpecialArgs,
+	Comments:     addRegionComment(CloudletKeyComments),
+	ReqData:      &ormapi.RegionCloudletKey{},
+	ReplyData:    &edgeproto.Result{},
+	Path:         "/auth/ctrl/GetCloudletGPUDriverLicenseConfig",
+	ProtobufApi:  true,
+}
 var CloudletApiCmds = []*ApiCommand{
 	CreateCloudletCmd,
 	DeleteCloudletCmd,
@@ -492,6 +523,7 @@ var CloudletApiCmds = []*ApiCommand{
 	GetOrganizationsOnCloudletCmd,
 	RevokeAccessKeyCmd,
 	GenerateAccessKeyCmd,
+	GetCloudletGPUDriverLicenseConfigCmd,
 }
 
 const CloudletGroup = "Cloudlet"
@@ -813,16 +845,16 @@ var CloudletResMapSpecialArgs = map[string]string{
 }
 var GPUDriverKeyRequiredArgs = []string{}
 var GPUDriverKeyOptionalArgs = []string{
-	"name",
-	"organization",
+	"gpudrivername",
+	"gpudriverorg",
 }
 var GPUDriverKeyAliasArgs = []string{
-	"name=gpudriverkey.name",
-	"organization=gpudriverkey.organization",
+	"gpudrivername=gpudriverkey.name",
+	"gpudriverorg=gpudriverkey.organization",
 }
 var GPUDriverKeyComments = map[string]string{
-	"name":         "Name of the driver",
-	"organization": "Organization to which the driver belongs to",
+	"gpudrivername": "Name of the driver",
+	"gpudriverorg":  "Organization to which the driver belongs to",
 }
 var GPUDriverKeySpecialArgs = map[string]string{}
 var GPUDriverBuildMemberRequiredArgs = []string{

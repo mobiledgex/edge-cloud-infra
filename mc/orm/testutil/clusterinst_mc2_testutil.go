@@ -112,6 +112,21 @@ func TestPermDeleteIdleReservableClusterInsts(mcClient *mctestclient.Client, uri
 	return TestDeleteIdleReservableClusterInsts(mcClient, uri, token, region, in, modFuncs...)
 }
 
+func TestGetClusterInstGPUDriverLicenseConfig(mcClient *mctestclient.Client, uri, token, region string, in *edgeproto.ClusterInstKey, modFuncs ...func(*edgeproto.ClusterInstKey)) (*edgeproto.Result, int, error) {
+	dat := &ormapi.RegionClusterInstKey{}
+	dat.Region = region
+	dat.ClusterInstKey = *in
+	for _, fn := range modFuncs {
+		fn(&dat.ClusterInstKey)
+	}
+	return mcClient.GetClusterInstGPUDriverLicenseConfig(uri, token, dat)
+}
+func TestPermGetClusterInstGPUDriverLicenseConfig(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ClusterInstKey)) (*edgeproto.Result, int, error) {
+	in := &edgeproto.ClusterInstKey{}
+	in.Key.CloudletKey.Organization = org
+	return TestGetClusterInstGPUDriverLicenseConfig(mcClient, uri, token, region, in, modFuncs...)
+}
+
 func (s *TestClient) CreateClusterInst(ctx context.Context, in *edgeproto.ClusterInst) ([]edgeproto.Result, error) {
 	inR := &ormapi.RegionClusterInst{
 		Region:      s.Region,
@@ -154,6 +169,18 @@ func (s *TestClient) ShowClusterInst(ctx context.Context, in *edgeproto.ClusterI
 		ClusterInst: *in,
 	}
 	out, status, err := s.McClient.ShowClusterInst(s.Uri, s.Token, inR)
+	if err == nil && status != 200 {
+		err = fmt.Errorf("status: %d\n", status)
+	}
+	return out, err
+}
+
+func (s *TestClient) GetClusterInstGPUDriverLicenseConfig(ctx context.Context, in *edgeproto.ClusterInstKey) (*edgeproto.Result, error) {
+	inR := &ormapi.RegionClusterInstKey{
+		Region:         s.Region,
+		ClusterInstKey: *in,
+	}
+	out, status, err := s.McClient.GetClusterInstGPUDriverLicenseConfig(s.Uri, s.Token, inR)
 	if err == nil && status != 200 {
 		err = fmt.Errorf("status: %d\n", status)
 	}

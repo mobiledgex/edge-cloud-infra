@@ -102,3 +102,30 @@ func (s *RegionIdleReservableClusterInsts) GetObj() interface{} {
 func (s *RegionIdleReservableClusterInsts) GetObjName() string {
 	return "IdleReservableClusterInsts"
 }
+
+// Request summary for GetClusterInstGPUDriverLicenseConfig
+// swagger:parameters GetClusterInstGPUDriverLicenseConfig
+type swaggerGetClusterInstGPUDriverLicenseConfig struct {
+	// in: body
+	Body RegionClusterInstKey
+}
+
+type RegionClusterInstKey struct {
+	// Region name
+	// required: true
+	Region string
+	// ClusterInstKey in region
+	ClusterInstKey edgeproto.ClusterInstKey
+}
+
+func (s *RegionClusterInstKey) GetRegion() string {
+	return s.Region
+}
+
+func (s *RegionClusterInstKey) GetObj() interface{} {
+	return &s.ClusterInstKey
+}
+
+func (s *RegionClusterInstKey) GetObjName() string {
+	return "ClusterInstKey"
+}

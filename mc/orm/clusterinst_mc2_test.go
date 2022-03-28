@@ -191,6 +191,39 @@ func badRegionDeleteIdleReservableClusterInsts(t *testing.T, mcClient *mctestcli
 	_ = out
 }
 
+var _ = edgeproto.GetFields
+
+func badPermGetClusterInstGPUDriverLicenseConfig(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ClusterInstKey)) {
+	_, status, err := testutil.TestPermGetClusterInstGPUDriverLicenseConfig(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Contains(t, err.Error(), "Forbidden")
+	require.Equal(t, http.StatusForbidden, status)
+}
+
+func badGetClusterInstGPUDriverLicenseConfig(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, status int, modFuncs ...func(*edgeproto.ClusterInstKey)) {
+	_, st, err := testutil.TestPermGetClusterInstGPUDriverLicenseConfig(mcClient, uri, token, region, org, modFuncs...)
+	require.NotNil(t, err)
+	require.Equal(t, status, st)
+}
+
+func goodPermGetClusterInstGPUDriverLicenseConfig(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ClusterInstKey)) {
+	_, status, err := testutil.TestPermGetClusterInstGPUDriverLicenseConfig(mcClient, uri, token, region, org, modFuncs...)
+	require.Nil(t, err)
+	require.Equal(t, http.StatusOK, status)
+}
+
+func badRegionGetClusterInstGPUDriverLicenseConfig(t *testing.T, mcClient *mctestclient.Client, uri, token, org string, modFuncs ...func(*edgeproto.ClusterInstKey)) {
+	out, status, err := testutil.TestPermGetClusterInstGPUDriverLicenseConfig(mcClient, uri, token, "bad region", org, modFuncs...)
+	require.NotNil(t, err)
+	if err.Error() == "Forbidden" {
+		require.Equal(t, http.StatusForbidden, status)
+	} else {
+		require.Contains(t, err.Error(), "\"bad region\" not found")
+		require.Equal(t, http.StatusBadRequest, status)
+	}
+	_ = out
+}
+
 // This tests the user cannot modify the object because the obj belongs to
 // an organization that the user does not have permissions for.
 func badPermTestClusterInst(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, targetCloudlet *edgeproto.CloudletKey, modFuncs ...func(*edgeproto.ClusterInst)) {
@@ -241,6 +274,30 @@ func permTestClusterInst(t *testing.T, mcClient *mctestclient.Client, uri, token
 	badPermTestShowClusterInst(t, mcClient, uri, token2, region, org1)
 	goodPermTestClusterInst(t, mcClient, uri, token1, region, org1, targetCloudlet, showcount, modFuncs...)
 	goodPermTestClusterInst(t, mcClient, uri, token2, region, org2, targetCloudlet, showcount, modFuncs...)
+}
+
+// This tests the user cannot modify the object because the obj belongs to
+// an organization that the user does not have permissions for.
+func badPermTestClusterInstApiClusterInstKey(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ClusterInstKey)) {
+	badPermGetClusterInstGPUDriverLicenseConfig(t, mcClient, uri, token, region, org, modFuncs...)
+}
+
+// This tests the user can modify the object because the obj belongs to
+// an organization that the user has permissions for.
+func goodPermTestClusterInstApiClusterInstKey(t *testing.T, mcClient *mctestclient.Client, uri, token, region, org string, showcount int, modFuncs ...func(*edgeproto.ClusterInstKey)) {
+	goodPermGetClusterInstGPUDriverLicenseConfig(t, mcClient, uri, token, region, org, modFuncs...)
+	// make sure region check works
+	badRegionGetClusterInstGPUDriverLicenseConfig(t, mcClient, uri, token, org, modFuncs...)
+}
+
+// Test permissions for user with token1 who should have permissions for
+// modifying obj1, and user with token2 who should have permissions for obj2.
+// They should not have permissions to modify each other's objects.
+func permTestClusterInstApiClusterInstKey(t *testing.T, mcClient *mctestclient.Client, uri, token1, token2, region, org1, org2 string, showcount int, modFuncs ...func(*edgeproto.ClusterInstKey)) {
+	badPermTestClusterInstApiClusterInstKey(t, mcClient, uri, token1, region, org2, modFuncs...)
+	badPermTestClusterInstApiClusterInstKey(t, mcClient, uri, token2, region, org1, modFuncs...)
+	goodPermTestClusterInstApiClusterInstKey(t, mcClient, uri, token1, region, org1, showcount, modFuncs...)
+	goodPermTestClusterInstApiClusterInstKey(t, mcClient, uri, token2, region, org2, showcount, modFuncs...)
 }
 
 // This tests the user cannot modify the object because the obj belongs to

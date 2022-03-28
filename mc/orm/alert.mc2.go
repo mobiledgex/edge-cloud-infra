@@ -760,6 +760,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GetGPUDriverBuildURL", GetGPUDriverBuildURL)
+	// swagger:route POST /auth/ctrl/GetGPUDriverLicenseConfig GPUDriverKey GetGPUDriverLicenseConfig
+	// Get GPU Driver License Config.
+	//  Returns the license config specific to GPU driver
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetGPUDriverLicenseConfig", GetGPUDriverLicenseConfig)
 	// swagger:route POST /auth/ctrl/CreateCloudlet Cloudlet CreateCloudlet
 	// Create Cloudlet.
 	//  Sets up Cloudlet services on the Operators compute resources, and integrated as part of MobiledgeX edge resource portfolio. These resources are managed from the Edge Controller.
@@ -1069,6 +1080,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/GenerateAccessKey", GenerateAccessKey)
+	// swagger:route POST /auth/ctrl/GetCloudletGPUDriverLicenseConfig CloudletKey GetCloudletGPUDriverLicenseConfig
+	// Get Cloudlet Specific GPU Driver License Config.
+	//  Returns the license config associated with the cloudlet
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetCloudletGPUDriverLicenseConfig", GetCloudletGPUDriverLicenseConfig)
 	// swagger:route POST /auth/ctrl/ShowCloudletInfo CloudletInfo ShowCloudletInfo
 	// Show CloudletInfos.
 	// Security:
@@ -1358,6 +1380,15 @@ func addControllerApis(method string, group *echo.Group) {
 	// DeletePrepare: 34
 	// DnsLabel: 35
 	// Fqdn: 36
+	// GpuConfig: 37
+	// GpuConfigDriver: 37.1
+	// GpuConfigDriverName: 37.1.1
+	// GpuConfigDriverOrganization: 37.1.2
+	// GpuConfigProperties: 37.2
+	// GpuConfigPropertiesKey: 37.2.1
+	// GpuConfigPropertiesValue: 37.2.2
+	// GpuConfigLicenseConfig: 37.3
+	// GpuConfigLicenseConfigMd5Sum: 37.4
 	// ```
 	// Security:
 	//   Bearer:
@@ -1389,6 +1420,17 @@ func addControllerApis(method string, group *echo.Group) {
 	//   403: forbidden
 	//   404: notFound
 	group.Match([]string{method}, "/ctrl/DeleteIdleReservableClusterInsts", DeleteIdleReservableClusterInsts)
+	// swagger:route POST /auth/ctrl/GetClusterInstGPUDriverLicenseConfig ClusterInstKey GetClusterInstGPUDriverLicenseConfig
+	// Get Cluster Instance Specific GPU Driver License Config.
+	//  Returns the license config specific to cluster instance
+	// Security:
+	//   Bearer:
+	// responses:
+	//   200: success
+	//   400: badRequest
+	//   403: forbidden
+	//   404: notFound
+	group.Match([]string{method}, "/ctrl/GetClusterInstGPUDriverLicenseConfig", GetClusterInstGPUDriverLicenseConfig)
 	// swagger:route POST /auth/ctrl/CreateAutoProvPolicy AutoProvPolicy CreateAutoProvPolicy
 	// Create an Auto Provisioning Policy.
 	// Security:

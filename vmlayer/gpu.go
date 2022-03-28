@@ -104,21 +104,35 @@ func (v *VMPlatform) downloadGPUDriverLicenseConfig(ctx context.Context, storage
 // Fetches driver license config:
 //        * From local cache
 //        * In not in local cache, then fetch from cloud
-func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageClient *gcs.GCSClient, driverKey *edgeproto.GPUDriverKey, licenseMd5Sum string) (string, error) {
+// License config is taken from either of the following in the decreasing order of priority:
+//        1. ClusterInst specific
+//        2. Cloudlet specific
+//        3. GPU driver specific
+func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageClient *gcs.GCSClient, driverKey *edgeproto.GPUDriverKey, clusterInst *edgeproto.ClusterInst, licenseMd5Sum string) (string, error) {
 	log.SpanLog(ctx, log.DebugLevelInfra, "getGPUDriverLicenseConfigPath", "driverKey", driverKey)
 	// Look in local cache first
 	if _, err := os.Stat(v.CacheDir); os.IsNotExist(err) {
 		return "", fmt.Errorf("Missing cache dir")
 	}
-	// Use cloudlet specific license config if present
-	fileName := cloudcommon.GetGPUDriverLicenseCloudletStoragePath(driverKey, v.VMProperties.CommonPf.PlatformConfig.CloudletKey.Name)
+	// Use clusterinst specific license config if present
+	clusterTag := cloudcommon.GetClusterInstGPUDriverTag(&clusterInst.Key)
+	fileName := cloudcommon.GetGPUDriverLicenseStoragePath(driverKey, clusterTag)
 	localFilePath, err := v.downloadGPUDriverLicenseConfig(ctx, storageClient, fileName, licenseMd5Sum)
 	if err != nil {
 		return "", err
 	}
+	// Use cloudlet specific license config if present
+	if localFilePath == "" {
+		cloudletTag := cloudcommon.GetCloudletGPUDriverTag(v.VMProperties.CommonPf.PlatformConfig.CloudletKey)
+		fileName := cloudcommon.GetGPUDriverLicenseStoragePath(driverKey, cloudletTag)
+		localFilePath, err = v.downloadGPUDriverLicenseConfig(ctx, storageClient, fileName, licenseMd5Sum)
+		if err != nil {
+			return "", err
+		}
+	}
 	// Use gpu driver license config
 	if localFilePath == "" {
-		fileName = cloudcommon.GetGPUDriverLicenseStoragePath(driverKey)
+		fileName = cloudcommon.GetGPUDriverLicenseStoragePath(driverKey, cloudcommon.NoGPUDriverTag)
 		localFilePath, err = v.downloadGPUDriverLicenseConfig(ctx, storageClient, fileName, licenseMd5Sum)
 		if err != nil {
 			return "", err
@@ -175,7 +189,7 @@ func (v *VMPlatform) setupGPUDrivers(ctx context.Context, rootLBClient ssh.Clien
 		}
 		wg.Add(1)
 		go func(clientIn ssh.Client, nodeName string, wg *sync.WaitGroup) {
-			err = v.installGPUDriverBuild(ctx, storageClient, nodeName, clientIn, gpuDriver, updateCallback)
+			err = v.installGPUDriverBuild(ctx, storageClient, nodeName, clientIn, gpuDriver, clusterInst, updateCallback)
 			if err != nil {
 				wgError <- err
 				return
@@ -216,7 +230,7 @@ func (v *VMPlatform) GetCloudletGPUDriver(ctx context.Context) (*edgeproto.GPUDr
 	return &gpuDriver, nil
 }
 
-func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *gcs.GCSClient, nodeName string, client ssh.Client, driver *edgeproto.GPUDriver, updateCallback edgeproto.CacheUpdateCallback) error {
+func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *gcs.GCSClient, nodeName string, client ssh.Client, driver *edgeproto.GPUDriver, clusterInst *edgeproto.ClusterInst, updateCallback edgeproto.CacheUpdateCallback) error {
 	log.SpanLog(ctx, log.DebugLevelInfra, "installGPUDriverBuild", "nodeName", nodeName, "driver", driver.Key)
 	// verify if GPU driver package is already installed
 	out, err := client.Output("nvidia-smi -L")
@@ -262,7 +276,7 @@ func (v *VMPlatform) installGPUDriverBuild(ctx context.Context, storageClient *g
 		return err
 	}
 	// Get path to GPU driver license config file
-	licenseConfigPath, err := v.getGPUDriverLicenseConfigPath(ctx, storageClient, &driver.Key, driver.LicenseConfigMd5Sum)
+	licenseConfigPath, err := v.getGPUDriverLicenseConfigPath(ctx, storageClient, &driver.Key, clusterInst, driver.LicenseConfigMd5Sum)
 	if err != nil {
 		return err
 	}

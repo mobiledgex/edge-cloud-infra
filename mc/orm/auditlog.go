@@ -163,7 +163,18 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			err := json.Unmarshal(reqBody, &regionCloudlet)
 			if err == nil {
 				regionCloudlet.Cloudlet.AccessVars = nil
+				regionCloudlet.Cloudlet.GpuConfig.LicenseConfig = ""
 				reqBody, err = json.Marshal(regionCloudlet)
+			}
+			if err != nil {
+				reqBody = []byte{}
+			}
+		} else if strings.Contains(req.RequestURI, "/auth/ctrl/CreateClusterInst") {
+			regionClusterInst := ormapi.RegionClusterInst{}
+			err := json.Unmarshal(reqBody, &regionClusterInst)
+			if err == nil {
+				regionClusterInst.ClusterInst.GpuConfig.LicenseConfig = ""
+				reqBody, err = json.Marshal(regionClusterInst)
 			}
 			if err != nil {
 				reqBody = []byte{}

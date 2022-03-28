@@ -254,3 +254,42 @@ func DeleteIdleReservableClusterInsts(c echo.Context) error {
 	}
 	return ormutil.SetReply(c, resp)
 }
+
+func GetClusterInstGPUDriverLicenseConfig(c echo.Context) error {
+	ctx := ormutil.GetContext(c)
+	rc := &ormutil.RegionContext{}
+	claims, err := getClaims(c)
+	if err != nil {
+		return err
+	}
+	rc.Username = claims.Username
+
+	in := ormapi.RegionClusterInstKey{}
+	_, err = ReadConn(c, &in)
+	if err != nil {
+		return err
+	}
+	rc.Region = in.Region
+	rc.Database = database
+	span := log.SpanFromContext(ctx)
+	span.SetTag("region", in.Region)
+	span.SetTag("org", in.ClusterInstKey.Key.CloudletKey.Organization)
+
+	obj := &in.ClusterInstKey
+	log.SetContextTags(ctx, edgeproto.GetTags(obj))
+	if !rc.SkipAuthz {
+		if err := authorized(ctx, rc.Username, obj.Key.CloudletKey.Organization,
+			ResourceCloudletAnalytics, ActionView); err != nil {
+			return err
+		}
+	}
+
+	resp, err := ctrlclient.GetClusterInstGPUDriverLicenseConfigObj(ctx, rc, obj, connCache)
+	if err != nil {
+		if st, ok := status.FromError(err); ok {
+			err = fmt.Errorf("%s", st.Message())
+		}
+		return err
+	}
+	return ormutil.SetReply(c, resp)
+}

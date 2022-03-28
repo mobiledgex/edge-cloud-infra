@@ -652,7 +652,7 @@ func (v *VMPlatform) cleanupAppInstInternal(ctx context.Context, clusterInst *ed
 		if v.VMProperties.AppendFlavorToVmAppImage {
 			localImageName = localImageName + "-" + appInst.Flavor.Name
 		}
-		imageName := v.VMProvider.NameSanitize(appInst.UniqueId)
+		imageName := appInst.UniqueId
 		if v.VMProperties.GetVMAppCleanupImageOnDelete() {
 			err = v.VMProvider.DeleteImage(ctx, imageName, localImageName)
 			if err != nil {

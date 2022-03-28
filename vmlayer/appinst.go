@@ -64,8 +64,8 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 	if err != nil {
 		return &orchVals, err
 	}
-	appVmName := v.VMProvider.NameSanitize(appInst.UniqueId)
-	groupName := appVmName
+	appVmName := appInst.UniqueId
+	groupName := appInst.UniqueId
 	var imageInfo infracommon.ImageInfo
 	sourceImageTime, md5Sum, err := infracommon.GetUrlInfo(ctx, v.VMProperties.CommonPf.PlatformConfig.AccessApi, app.ImagePath)
 	imageInfo.LocalImageName = imageName + "-" + md5Sum
@@ -140,7 +140,6 @@ func (v *VMPlatform) PerformOrchestrationForVMApp(ctx context.Context, app *edge
 		return &orchVals, err
 	}
 	vms = append(vms, appVm)
-	log.InfoLog("XXXXX GetVMRequestSpec", "appVmName", appVmName, "appVm", appVm)
 	updateCallback(edgeproto.UpdateTask, "Deploying App")
 	vmgp, err := v.OrchestrateVMsFromVMSpec(ctx, groupName, vms, ActionCreate, updateCallback, WithNewSubnet(orchVals.newSubnetName),
 		WithAccessPorts(app.AccessPorts, infracommon.RemoteCidrAll),
@@ -336,7 +335,11 @@ func (v *VMPlatform) CreateAppInst(ctx context.Context, clusterInst *edgeproto.C
 			return err
 		}
 	case cloudcommon.DeploymentTypeVM:
-		objName := v.VMProvider.NameSanitize(appInst.UniqueId)
+		if v.VMProvider.NameSanitize(appInst.UniqueId) != appInst.UniqueId {
+			// id must be sanitized by controller first
+			return fmt.Errorf("non sanitized app unique id provided: %s", appInst.UniqueId)
+		}
+		objName := appInst.UniqueId
 		orchVals, err := v.PerformOrchestrationForVMApp(ctx, app, appInst, updateCallback)
 		if err != nil {
 			return err
@@ -625,7 +628,7 @@ func (v *VMPlatform) cleanupAppInstInternal(ctx context.Context, clusterInst *ed
 		}
 
 	case cloudcommon.DeploymentTypeVM:
-		objName := v.VMProvider.NameSanitize(appInst.UniqueId)
+		objName := appInst.UniqueId
 		log.SpanLog(ctx, log.DebugLevelInfra, "Deleting VM", "stackName", objName)
 		err := v.VMProvider.DeleteVMs(ctx, objName)
 		if err != nil && err.Error() != ServerDoesNotExistError {

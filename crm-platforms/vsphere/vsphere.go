@@ -120,7 +120,7 @@ func (v *VSpherePlatform) GetVMStats(ctx context.Context, appInst *edgeproto.App
 	log.DebugLog(log.DebugLevelSampled, "GetVMStats")
 	cr := MetricsCollectionRequestType{CollectNetworkStats: true, CollectCPUStats: true, CollectMemStats: true}
 	vmMetrics := vmlayer.VMMetrics{}
-	vmName := v.NameSanitize(appInst.UniqueId)
+	vmName := appInst.UniqueId
 	mets, err := v.GetMetrics(ctx, vmName, &cr)
 	if err != nil {
 		return &vmMetrics, err

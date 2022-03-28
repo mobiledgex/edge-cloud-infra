@@ -110,15 +110,16 @@ func (v *VMPlatform) getGPUDriverLicenseConfigPath(ctx context.Context, storageC
 	if _, err := os.Stat(v.CacheDir); os.IsNotExist(err) {
 		return "", fmt.Errorf("Missing cache dir")
 	}
+	region := v.VMProperties.GetRegion()
 	// Use cloudlet specific license config if present
-	fileName := cloudcommon.GetGPUDriverLicenseCloudletStoragePath(driverKey, v.VMProperties.CommonPf.PlatformConfig.CloudletKey.Name)
+	fileName := cloudcommon.GetGPUDriverLicenseCloudletStoragePath(driverKey, region, v.VMProperties.CommonPf.PlatformConfig.CloudletKey.Name)
 	localFilePath, err := v.downloadGPUDriverLicenseConfig(ctx, storageClient, fileName, licenseMd5Sum)
 	if err != nil {
 		return "", err
 	}
 	// Use gpu driver license config
 	if localFilePath == "" {
-		fileName = cloudcommon.GetGPUDriverLicenseStoragePath(driverKey)
+		fileName = cloudcommon.GetGPUDriverLicenseStoragePath(driverKey, region)
 		localFilePath, err = v.downloadGPUDriverLicenseConfig(ctx, storageClient, fileName, licenseMd5Sum)
 		if err != nil {
 			return "", err

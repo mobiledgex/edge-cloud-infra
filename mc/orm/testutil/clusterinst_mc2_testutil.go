@@ -123,7 +123,7 @@ func TestGetClusterInstGPUDriverLicenseConfig(mcClient *mctestclient.Client, uri
 }
 func TestPermGetClusterInstGPUDriverLicenseConfig(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.ClusterInstKey)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.ClusterInstKey{}
-	in.Key.CloudletKey.Organization = org
+	in.CloudletKey.Organization = org
 	return TestGetClusterInstGPUDriverLicenseConfig(mcClient, uri, token, region, in, modFuncs...)
 }
 

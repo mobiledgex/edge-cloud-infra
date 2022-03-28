@@ -2711,6 +2711,10 @@ func (s *StreamDummyServer) ShowCloudletPool(in *edgeproto.CloudletPool, cb edge
 	return nil
 }
 
+func (s *StreamDummyServer) GetClusterInstGPUDriverLicenseConfig(ctx context.Context, key *edgeproto.ClusterInstKey) (*edgeproto.Result, error) {
+	return &edgeproto.Result{}, nil
+}
+
 func testUserApiKeys(t *testing.T, ctx context.Context, ds *testutil.DummyServer, ctrl *ormapi.Controller, count int, mcClient *mctestclient.Client, uri, token string) {
 	// login as super user
 	token, _, err := mcClient.DoLogin(uri, DefaultSuperuser, DefaultSuperpass, NoOTP, NoApiKeyId, NoApiKey)

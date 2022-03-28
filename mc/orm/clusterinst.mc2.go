@@ -273,12 +273,12 @@ func GetClusterInstGPUDriverLicenseConfig(c echo.Context) error {
 	rc.Database = database
 	span := log.SpanFromContext(ctx)
 	span.SetTag("region", in.Region)
-	span.SetTag("org", in.ClusterInstKey.Key.CloudletKey.Organization)
+	span.SetTag("org", in.ClusterInstKey.CloudletKey.Organization)
 
 	obj := &in.ClusterInstKey
 	log.SetContextTags(ctx, edgeproto.GetTags(obj))
 	if !rc.SkipAuthz {
-		if err := authorized(ctx, rc.Username, obj.Key.CloudletKey.Organization,
+		if err := authorized(ctx, rc.Username, obj.CloudletKey.Organization,
 			ResourceCloudletAnalytics, ActionView); err != nil {
 			return err
 		}

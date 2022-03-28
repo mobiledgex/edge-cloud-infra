@@ -519,7 +519,7 @@ func TestGetCloudletGPUDriverLicenseConfig(mcClient *mctestclient.Client, uri, t
 }
 func TestPermGetCloudletGPUDriverLicenseConfig(mcClient *mctestclient.Client, uri, token, region, org string, modFuncs ...func(*edgeproto.CloudletKey)) (*edgeproto.Result, int, error) {
 	in := &edgeproto.CloudletKey{}
-	in.Key.Organization = org
+	in.Organization = org
 	return TestGetCloudletGPUDriverLicenseConfig(mcClient, uri, token, region, in, modFuncs...)
 }
 

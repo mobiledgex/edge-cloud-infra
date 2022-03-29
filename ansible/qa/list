@@ -15,7 +15,7 @@ vault_vm_hostname=vault-{{ deploy_environ }}.mobiledgex.net
 vault_ha_domain="vault-{{ deploy_environ }}.mobiledgex.net"
 vault_port=443
 monitor_version=latest
-letsencrypt_env=staging
+letsencrypt_env=production
 locver_url="http://mexdemo.locsim.mobiledgex.net:8889/verifyLocation"
 toksrv_url="http://mexdemo.tok.mobiledgex.net:9999/its?followURL=https://dme.mobiledgex.net/verifyLoc"
 dme_carrier=GDDT

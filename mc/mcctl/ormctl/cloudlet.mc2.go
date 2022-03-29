@@ -843,11 +843,11 @@ var CloudletResMapComments = map[string]string{
 var CloudletResMapSpecialArgs = map[string]string{
 	"cloudletresmap.mapping": "StringToString",
 }
-var GPUDriverKeyRequiredArgs = []string{}
-var GPUDriverKeyOptionalArgs = []string{
+var GPUDriverKeyRequiredArgs = []string{
 	"gpudrivername",
 	"gpudriverorg",
 }
+var GPUDriverKeyOptionalArgs = []string{}
 var GPUDriverKeyAliasArgs = []string{
 	"gpudrivername=gpudriverkey.name",
 	"gpudriverorg=gpudriverkey.organization",

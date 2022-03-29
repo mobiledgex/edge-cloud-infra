@@ -32,7 +32,7 @@ var CreateClusterInstCmd = &ApiCommand{
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
 	Comments:             addRegionComment(ClusterInstComments),
-	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,DnsLabel,Fqdn,GpuConfig.LicenseConfigMd5Sum",
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,DnsLabel,Fqdn,GpuDriverLicenseConfigMd5sum",
 	ReqData:              &ormapi.RegionClusterInst{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/CreateClusterInst",
@@ -50,7 +50,7 @@ var DeleteClusterInstCmd = &ApiCommand{
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
 	Comments:             addRegionComment(ClusterInstComments),
-	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,DnsLabel,Fqdn,GpuConfig.LicenseConfigMd5Sum",
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,DnsLabel,Fqdn,GpuDriverLicenseConfigMd5sum",
 	ReqData:              &ormapi.RegionClusterInst{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/DeleteClusterInst",
@@ -68,7 +68,7 @@ var UpdateClusterInstCmd = &ApiCommand{
 	AliasArgs:            strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:          &ClusterInstSpecialArgs,
 	Comments:             addRegionComment(ClusterInstComments),
-	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,DnsLabel,Fqdn,GpuConfig.LicenseConfigMd5Sum,Flavor,NumMasters,AvailabilityZone,Reservable,SharedVolumeSize,IpAccess,Deployment,ImageName,Networks,GpuConfig.Driver,GpuConfig.Properties,GpuConfig.LicenseConfig,GpuConfig.LicenseConfigMd5sum",
+	NoConfig:             "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,DnsLabel,Fqdn,GpuDriverLicenseConfigMd5sum,Flavor,NumMasters,AvailabilityZone,Reservable,SharedVolumeSize,IpAccess,Deployment,ImageName,Networks,GpuDriverLicenseConfig",
 	ReqData:              &ormapi.RegionClusterInst{},
 	ReplyData:            &edgeproto.Result{},
 	Path:                 "/auth/ctrl/UpdateClusterInst",
@@ -86,7 +86,7 @@ var ShowClusterInstCmd = &ApiCommand{
 	AliasArgs:    strings.Join(ClusterInstAliasArgs, " "),
 	SpecialArgs:  &ClusterInstSpecialArgs,
 	Comments:     addRegionComment(ClusterInstComments),
-	NoConfig:     "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,DnsLabel,Fqdn,GpuConfig.LicenseConfigMd5Sum",
+	NoConfig:     "Liveness,Auto,MasterNodeFlavor,NodeFlavor,ExternalVolumeSize,AllocatedIp,ReservedBy,State,Errors,Resources,AvailabilityZone,CreatedAt,UpdatedAt,OptRes,ReservationEndedAt,DeletePrepare,DnsLabel,Fqdn,GpuDriverLicenseConfigMd5sum",
 	ReqData:      &ormapi.RegionClusterInst{},
 	ReplyData:    &edgeproto.ClusterInst{},
 	Path:         "/auth/ctrl/ShowClusterInst",
@@ -151,6 +151,7 @@ var UpdateClusterInstOptionalArgs = []string{
 	"autoscalepolicy",
 	"skipcrmcleanuponfailure",
 	"multitenant",
+	"gpudriverlicenseconfigmd5sum",
 }
 var ClusterInstKeyRequiredArgs = []string{}
 var ClusterInstKeyOptionalArgs = []string{
@@ -196,10 +197,8 @@ var ClusterInstOptionalArgs = []string{
 	"skipcrmcleanuponfailure",
 	"multitenant",
 	"networks",
-	"gpuconfig.driver.name",
-	"gpuconfig.driver.organization",
-	"gpuconfig.properties",
-	"gpuconfig.licenseconfig",
+	"gpudriverlicenseconfig",
+	"gpudriverlicenseconfigmd5sum",
 }
 var ClusterInstAliasArgs = []string{
 	"fields=clusterinst.fields",
@@ -252,11 +251,8 @@ var ClusterInstAliasArgs = []string{
 	"deleteprepare=clusterinst.deleteprepare",
 	"dnslabel=clusterinst.dnslabel",
 	"fqdn=clusterinst.fqdn",
-	"gpuconfig.driver.name=clusterinst.gpuconfig.driver.name",
-	"gpuconfig.driver.organization=clusterinst.gpuconfig.driver.organization",
-	"gpuconfig.properties=clusterinst.gpuconfig.properties",
-	"gpuconfig.licenseconfig=clusterinst.gpuconfig.licenseconfig",
-	"gpuconfig.licenseconfigmd5sum=clusterinst.gpuconfig.licenseconfigmd5sum",
+	"gpudriverlicenseconfig=clusterinst.gpudriverlicenseconfig",
+	"gpudriverlicenseconfigmd5sum=clusterinst.gpudriverlicenseconfigmd5sum",
 }
 var ClusterInstComments = map[string]string{
 	"fields":                            "Fields are used for the Update API to specify which fields to apply",
@@ -309,17 +305,13 @@ var ClusterInstComments = map[string]string{
 	"deleteprepare":                            "Preparing to be deleted",
 	"dnslabel":                                 "DNS label that is unique within the cloudlet and among other AppInsts/ClusterInsts",
 	"fqdn":                                     "FQDN is a globally unique DNS id for the ClusterInst",
-	"gpuconfig.driver.name":                    "Name of the driver",
-	"gpuconfig.driver.organization":            "Organization to which the driver belongs to",
-	"gpuconfig.properties":                     "Properties to identify specifics of GPU, specify gpuconfig.properties:empty=true to clear",
-	"gpuconfig.licenseconfig":                  "Cloudlet specific license config to setup license (will be stored in secure storage)",
-	"gpuconfig.licenseconfigmd5sum":            "Cloudlet specific license config md5sum, to ensure integrity of license config",
+	"gpudriverlicenseconfig":                   "GPU driver license configuration associated with ClusterInst",
+	"gpudriverlicenseconfigmd5sum":             "GPU driver license configuration md5sum associated with ClusterInst",
 }
 var ClusterInstSpecialArgs = map[string]string{
-	"clusterinst.errors":               "StringArray",
-	"clusterinst.fields":               "StringArray",
-	"clusterinst.gpuconfig.properties": "StringToString",
-	"clusterinst.networks":             "StringArray",
+	"clusterinst.errors":   "StringArray",
+	"clusterinst.fields":   "StringArray",
+	"clusterinst.networks": "StringArray",
 }
 var IdleReservableClusterInstsRequiredArgs = []string{}
 var IdleReservableClusterInstsOptionalArgs = []string{

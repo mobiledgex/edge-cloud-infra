@@ -1380,15 +1380,8 @@ func addControllerApis(method string, group *echo.Group) {
 	// DeletePrepare: 34
 	// DnsLabel: 35
 	// Fqdn: 36
-	// GpuConfig: 37
-	// GpuConfigDriver: 37.1
-	// GpuConfigDriverName: 37.1.1
-	// GpuConfigDriverOrganization: 37.1.2
-	// GpuConfigProperties: 37.2
-	// GpuConfigPropertiesKey: 37.2.1
-	// GpuConfigPropertiesValue: 37.2.2
-	// GpuConfigLicenseConfig: 37.3
-	// GpuConfigLicenseConfigMd5Sum: 37.4
+	// GpuDriverLicenseConfig: 37
+	// GpuDriverLicenseConfigMd5Sum: 38
 	// ```
 	// Security:
 	//   Bearer:

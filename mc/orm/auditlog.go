@@ -173,7 +173,7 @@ func logger(next echo.HandlerFunc) echo.HandlerFunc {
 			regionClusterInst := ormapi.RegionClusterInst{}
 			err := json.Unmarshal(reqBody, &regionClusterInst)
 			if err == nil {
-				regionClusterInst.ClusterInst.GpuConfig.LicenseConfig = ""
+				regionClusterInst.ClusterInst.GpuDriverLicenseConfig = ""
 				reqBody, err = json.Marshal(regionClusterInst)
 			}
 			if err != nil {

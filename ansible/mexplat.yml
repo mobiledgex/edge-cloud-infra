@@ -28,7 +28,7 @@
 
       - name: Get latest edge-cloud-ui release from Github
         set_fact:
-          console_version: "{{ lookup('github_release', 'mobiledgex/edge-cloud-ui', branch='master') }}"
+          console_version: "{{ lookup('github_release', 'mobiledgex/edge-cloud-ui', branch='master', github_user=github_user, github_token=github_token) }}"
         when: console_version_not_provided | default(false)
 
       - assert:

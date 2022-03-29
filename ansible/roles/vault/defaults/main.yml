@@ -4,6 +4,7 @@ vault_checksum: sha256:2a6958e6c8d6566d8d529fe5ef9378534903305d0f00744d526232d1c
 vault_letsencrypt_plugin: "{{ artifactory_address }}/binaries/vault-letsencrypt-plugin/1.1/letsencrypt-plugin"
 vault_letsencrypt_plugin_sha256sum: e111a2db44059d0e460178ec25eaab72c7b44667d5a0f89fcae18d37ad86155d
 certgen_image_version: 2019-11-01
+app_dns_root: mobiledgex.net
 
 vault_github_teams:
   - name: edge-cloud-development-team

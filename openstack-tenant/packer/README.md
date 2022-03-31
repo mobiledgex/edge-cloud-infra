@@ -1,125 +1,122 @@
-# building a new base VM image using packer
+# What is the base VM image
 
-## Why
+The base VM image is used on VM-based cloudlets like Openstack, VMWare VCD, etc. The Edge Cloud platform will deploy one VM initially, which will run the CRM and Shepherd. For cloudlets that do not make the VM orchestrator API publicly reachable, the Edge Cloud platform will generate a Heat stack which the operator can use to deploy the initial VM with the CRM and Shepherd. The CRM will then deploy other VMs to run load balancers, clusters, and customer applications.
 
-The existing mobiledgex-16.04 base VM image has a number of issues.
+All VMs that the Edge Cloud platform deploys are instances of the base VM image, tailored at runtime via cloudinit configurations.
 
-* it was manually constructed, its creation steps and details are therefore not documented
-* It uses too much disk space in the base
-* it does not use all of the disk space allocated to the instantiated VM using the base image beause it does not resize the partition and file system
-* related to above, it does not fit itself to different openstack nova flavor types. No matter what flavor types the same amount of disk is used, until you manually lvextend it.
+# Build the mobiledgex debian package
 
-The new way of using `packer` has a few advantages
+We use a debian package to include any software and scripts that need to be added to the vanilla ubuntu VM image. This package must be built first and uploaded to an artifactory respository. Adjust `edge-cloud-infra/openstack-tenant/packages/build.sh` to change where the debian package is uploaded to.
 
-* this is `code as infrastructure` so we can see how it was created in code and reproduce it and version control it
-* it uses cloud-img and cloud-init features so it auto resizes the partition and filesystem as per given flavor
-* it uses much less disk space for base
+On Macos, install dpkg.
+```
+brew install dpkg
+```
+Build the mobiledgex debian package. The mobiledgex debian package version determines the base image version, so update it if needed.
+```
+cd edge-cloud-infra/openstack-tenant/packages/mobiledgex
+vi Makefile         # Update the "VERSION"
+vi dependencies     # If you need to update package dependencies
+make clean
+make
+```
+
+If you do not have your artifactory credentials in the file ~/.artifactory.creds, "make" will prompt you to enter your username and password.
+Also, make will fail to publish the package if a package of the same version is already present in Artifactory.  Normally, this means you need to update the VERSION in Makefile, but just in case you are republishing the same package (because you rebuilt it with different dependencies, for instance), then delete the old package version ("mobiledgex_XXX_amd64.deb") manually from packages/pool in Artifactory before running make again.
+
+# Building a base VM image using packer
 
 ## Prerequisites
 
 First, install `packer` from hashicorp. https://www.packer.io/docs/install/index.html
 
-Second, make sure you have a working openstack cluster. You can chooose from hawkins, buckhorn, beacon, sunnydale, ...
-Accessing these cloudlets can be enabled by sourcing in environment variables.  Checkout github.com/mobiledgex/bob-priv/mobiledgex.env.tar and untar in your home directory which will create ~/.mobiledgex/ directory containing various environment variable files.
-To use hawkins cloudlet source ~/.mobiledgex/hawkins.env
+Second, make sure you have a working openstack cluster and the openstack client installed. The build scripts pull the Ubuntu image from this glance, and also publishes the new image to the same place. The build script pulls a vanilla Ubuntu image (`ubuntu-18.04-server-cloudimg-amd64.img`) so that image must exist in glance, or the build.sh script needs to be updated with the correct image. More images can be found at https://cloud-images.ubuntu.com.
 
-To check out what images are currently available do:
+Openstack client install for Macos:
 
-``` 
-openstack image list
-openstack image list
-+--------------------------------------+------------------------------+--------+
-| ID                                   | Name                         | Status |
-+--------------------------------------+------------------------------+--------+
-| a095f3b7-dc42-40c1-8d5f-8b67cc5c7e2a | CentOS-7-x86_64-GenericCloud | active |
-| 29261993-89af-405c-bd6d-b2336f9cac4d | Debian-9.5.2-stretch         | active |
-| 1b581cac-1fab-4529-b419-2a53ad6f7b36 | cirros-0.4.0                 | active |
-| ddbb5dd0-c6d2-4c05-8771-136a61111c93 | mobiledgex                   | active |
-| 34f6bab6-db1e-43f6-a102-17324c24f7bc | mobiledgex-16.04-2           | active |
-| 6d50ccb3-10df-4d88-9c22-c1ec92f313e9 | mobiledgex-16.04-3           | active |
-| 3ccda010-e10e-4844-907d-2fec04ee0201 | mobiledgex-16.04-3           | active |
-| 6a7888da-2112-4660-8d5a-8c06ab845d52 | xenial-server                | active |
-+--------------------------------------+------------------------------+--------+
+```
+pip3 install python-openstackclient
+
+## If you get an error like: `ERROR: Cannot uninstall 'six'. It is a distutils`, try:
+pip3 install python-openstackclient --ignore-installed six --user
+pip3 install python-heatclient
+pip3 install gnocchiclient
 ```
 
-You need to make sure that xenial-server or the equivalent image is present.  This image is based on xenial-server-cloudimg-amd64-disk1.img which can be downloaded from https://cloud-images.ubuntu.com/xenial/current/
+To check out what images are currently available in openstack glance, do 
+```
+openstack image list
+```
 
 ## Build and publish base VM
 
-The `build.sh` script does the build and publishing of the base VM.
-
+Run the build script passing your artifactory username and the version of the mobiledgex package built in the previous step. For example:
 ```
-./build.sh -h
-usage: build.sh <options>
-
- -f <flavor>      Image flavor (default: "m4.small")
- -i <image-tag>   Glance source image tag (default: "xenial-server")
- -o <output-tag>  Output image tag (default: same as tag below)
- -t <tag>         Artifactory tag name (default: "v0.0.12-7-g246dbe8")
- -F               Ignore source image checksum mismatch
- -T               Print trace debug messages during build
-
- -h               Display this help message
+cd edge-cloud-infra/openstack-tenant/packer
+./build.sh -u venky.tumkur -t 3.0.0
 ```
 
-The build downloads artifacts from Artifactory under the path
-"baseimage-build/<tag>".  The tag is computed from the state of the git repo
-where `build.sh` is being executed from.  Unless you are building from an
-official release tag, you might need to set the tag parameter to the latest tag
-in the `edge-cloud-infra` repo (e.g.: "v0.0.12").
+This will take some time to build, at the end of which, the new base image will be available in glance. The script will also publish the base image to Artifactory.
 
-## Updating Artifactory artifacts
+Note: Publishing the base image involves downloading the base image from glance to your local workstation, and then uploading it to Artifactory. If your local internet connection is a bottleneck, you can skip this step (or abort it while it is running) and do the glance download and Artifactory upload from a VM in the cloud or a cloud shell.
 
-The packer setup.sh script pulls files from Artifactory during the base VM
-build. These scripts are in the setup-scripts/ directory.  Publish updates
-using `make` from within that directory.
+## Build the Base Image for other platform flavors
 
-## Manual build steps
-
-**These steps are for reference only.  The `build.sh` script does all of these.**
-
-Once you have  xenial-server-cloudimg-amd64-disk1.img downloaed you can create instance of this in openstack glance by doing:
+Repeat the previous step passing the following additional arguments to build.sh:
 
 ```
-openstack image create --file  xenial-server-cloudimg-amd64-disk1.img --disk-format qcow2 xenial-server
+$ ./build.sh -u venky.tumkur -t 3.0.0 -p vcd
+...
+ 
+$ ./build.sh -u venky.tumkur -t 3.0.0 -p vsphere
+...
 ```
 
-Note the UUID of xenial-server image returned by `openstack image list`.  In the above example, it is 6a7888da-2112-4660-8d5a-8c06ab845d52.
-You will use this UUID to fill in `source_image` field inside `packer_template.mobiledgex.json`.  Unfortunately packer does not
-know how to properly use symbolic name so you have to use UUID and get it from the cloudlet's glance service and
-manually fill it in.
-The same is true of `networks` field of `packer_template.mobiledgex.json`. You need to get the network UUID by doing:
+## Update the Chef Policy
+
+If the APT repo snapshot has changed, update the chef recipe which updates the mobiledgex package.
 
 ```
-openstack network list
-+--------------------------------------+-------------------------+--------------------------------------+
-| ID                                   | Name                    | Subnets                              |
-+--------------------------------------+-------------------------+--------------------------------------+
-| 4b4ab7f2-df0f-4fb8-a827-3f99b49d60f4 | waf-m2m                 | c070f5f9-44ec-4250-bcfb-0017573e8995 |
-| 604b4b54-3aa7-488b-a381-f872366d1b91 | mex-k8s-net-1           |                                      |
-| 9405454b-59e4-4aef-a6df-c2a81305c5bf | waf-external            | 19eab730-715e-4dae-a34e-77338b931839 |
-| f99dfbb9-161c-4929-b0de-2eb00e765725 | external-network-shared | 391a345c-25e2-4388-9c66-1d7cc2213cc3 |
-+--------------------------------------+-------------------------+--------------------------------------+
+$ cd edge-cloud-infra/chef
+ 
+### Update the APT URL in the "apt_repository bionic" chef cookbook task
+$ vi cookbooks/upgrade_mobiledgex_package/recipes/default.rb
+### Eg: https://apt.mobiledgex.net/cirrus/2021-02-01
+ 
+### Update the cookbook "version"
+$ vi cookbooks/upgrade_mobiledgex_package/metadata.rb
+ 
+### Upload updated cookbook
+$ knife upload --chef-repo-path $PWD cookbooks/upgrade_mobiledgex_package
+ 
+### Verify that the updated cookbook is present in the server
+$ knife cookbook show upgrade_mobiledgex_package
+ 
+### Update the "upgrade_mobiledgex_package" cookbook version in the "base.rb" policy
+$ vi policyfiles/base.rb
+ 
+### Regenerate the lock file
+$ rm policyfiles/base.lock.json
+$ chef install policyfiles/base.rb
 ```
 
-In the above case we will use UUID for `external-network-shared` as value for `networks` field inside `packer_template.mobiledgex.json`.
+# !!! Push the updated policy ONLY AFTER all the supporting code has been rolled out !!!
+* Make sure any relevant platform updates are complete
+* Push the policy to the specific group ("main", "stage", "qa", or "dev")
+  * `chef push $POLICY_GROUP policyfiles/base.lock.json`
 
+# Code Changes
 
-Finally,
+Update the base image version in `vmlayer/props.go`.
 
+# Troubleshooting
+
+Build fails with package dependency issues
 ```
-PACKER_LOG=1 packer build packer_template.mobiledgex.json
+openstack: The following packages have unmet dependencies:
+openstack:  mobiledgex : Depends: kubeadm (= 1.16.2-00) but 1.16.3-00 is to be installed
+openstack:               Depends: kubectl (= 1.16.2-00) but 1.16.3-00 is to be installed
+openstack:               Depends: kubelet (= 1.16.2-00) but 1.16.3-00 is to be installed
+openstack: E: Unable to correct problems, you have held broken packages.
 ```
-
-This will produce a lot of debug log output. It takes a while. Finally, when it is finished you have created a new image and instantiated it in cloudlet's glance database. The name of the new image is `image_name` in  `packer_template.mobiledgex.json`.
-
-
-## mexpacker
-
-The `mexpacker.go` can be run as
-
-```
-go run mexpacker.go
-```
-
-Make sure you have OS_ and MEX_ environment variable set correctly before running. The `mexpacker` is a utility that installs `xenial-server` image into glance and then retrieves the ID which and long network ID will be used to create the json for packer to run. It automates the above manual steps.
+This indicates that the dependencies in the mobiledgex package need to be updated. Rebuild the mobiledgex package with updated dependencies.

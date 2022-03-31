@@ -3,6 +3,7 @@
   import_role:
     name: load-vault-creds
     tasks_from: cloudflare
+  when: cloudflare_account_email is undefined or cloudflare_account_api_token is undefined
   tags: certgen
 
 - name: Create groups
@@ -111,12 +112,14 @@
   become: yes
   tags: setup
 
-- name: Look up Artifactory token in vault
-  set_fact:
-    vault_lookup: "{{ lookup('vault', vault_artifactory_token_path) }}"
+- block:
+  - name: Look up Artifactory token in vault
+    set_fact:
+      vault_lookup: "{{ lookup('vault', vault_artifactory_token_path) }}"
 
-- set_fact:
-    artifactory_token: "{{ vault_lookup.artifactory.data.token }}"
+  - set_fact:
+      artifactory_token: "{{ vault_lookup.artifactory.data.token }}"
+  when: artifactory_token is undefined
 
 - name: Download letsencrypt plugin
   get_url:
@@ -148,14 +151,16 @@
     le_env: "{{ letsencrypt_env | default('staging') }}"
   tags: certgen
 
-- name: Lookup up NS1 apikey in vault
-  set_fact:
-    vault_lookup: "{{ lookup('vault', vault_ns1_apikey_path) }}"
-  tags: certgen
+- block:
+  - name: Lookup up NS1 apikey in vault
+    set_fact:
+      vault_lookup: "{{ lookup('vault', vault_ns1_apikey_path) }}"
+    tags: certgen
 
-- set_fact:
-    ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"
-  tags: certgen
+  - set_fact:
+      ns1_apikey: "{{ vault_lookup.ns1.data.apikey }}"
+    tags: certgen
+  when: ns1_apikey is undefined
 
 - name: "Deploy certgen service ({{ le_env }})"
   docker_container:

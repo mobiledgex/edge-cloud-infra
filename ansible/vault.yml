@@ -2,6 +2,26 @@
   vars:
     use_ntpd: yes
 
+  vars_prompt:
+
+    - name: mex_docker_username
+      prompt: Username for docker registry
+
+    - name: mex_docker_password
+      prompt: Password for docker registry
+
+    - name: cloudflare_account_email
+      prompt: Cloudflare account email
+
+    - name: cloudflare_account_api_token
+      prompt: Cloudflare API token
+
+    - name: ns1_apikey
+      prompt: NS1 API token
+
+    - name: artifactory_token
+      prompt: Artifactory API token
+
   tasks:
 
     - import_role:

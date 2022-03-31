@@ -9,7 +9,7 @@ users:
     shell: /bin/bash
 
 bootcmd:
-  - curl https://vault-${environ_tag}.mobiledgex.net/v1/ssh-ansible/public_key >/etc/ssh/trusted-user-ca-keys.pem
+  - (curl -sf https://vault-${environ_tag}.mobiledgex.net/v1/ssh-ansible/public_key || curl -s https://storage.googleapis.com/mobiledgex-downloads/fallback-ssh-ca.pub ) >/etc/ssh/trusted-user-ca-keys.pem
   - cloud-init-per once ssh-users-ca echo "TrustedUserCAKeys /etc/ssh/trusted-user-ca-keys.pem" >> /etc/ssh/sshd_config
 
 runcmd:

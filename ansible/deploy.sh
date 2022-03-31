@@ -93,7 +93,7 @@ while getopts ':cC:dDe:Ghilnp:qs:St:vV:xX:y' OPT; do
 	v)	VERBOSITY="${VERBOSITY}v" ;;
 	V)	EC_VERSION="$OPTARG"; EC_VERSION_SET=true ;;
 	x)	SKIP_VAULT_SSH_KEY_SIGNING=true ;;
-	X)	VAUT_ADDR="$OPTARG" ;;
+	X)	VAULT_ADDR="$OPTARG" ;;
 	y)	ASSUME_YES=true ;;
 	h)	echo "$USAGE"
 		exit 0

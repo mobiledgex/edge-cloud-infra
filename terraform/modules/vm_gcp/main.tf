@@ -1,11 +1,3 @@
-data "template_file" "user_data" {
-  template = file("${path.module}/cloud-config.yaml")
-  vars = {
-    ansible_ssh_user = var.ansible_ssh_user
-    environ_tag      = var.environ_tag
-  }
-}
-
 resource "google_compute_instance" "vm" {
   name         = var.instance_name
   machine_type = var.instance_size
@@ -31,7 +23,12 @@ resource "google_compute_instance" "vm" {
   }
 
   metadata = {
-    user-data = data.template_file.user_data.rendered
+    user-data = templatefile(
+      "${path.module}/cloud-config.yaml",
+      {
+        ansible_ssh_user = var.ansible_ssh_user
+        environ_tag = var.environ_tag
+      }
+    )
   }
 }
-

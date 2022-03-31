@@ -69,14 +69,17 @@
     hour: "2"
     job: docker system prune -f >/dev/null
 
-- name: Load registry docker creds
-  import_role:
-    name: load-vault-creds
-    tasks_from: mex_docker
+- block:
+  - name: Load registry docker creds
+    import_role:
+      name: load-vault-creds
+      tasks_from: mex_docker
+    when: mex_docker_username is undefined or mex_docker_password is undefined
 
-- name: Log in to Docker Registry
-  docker_login:
-    registry: "{{ mex_docker_registry }}"
-    username: "{{ mex_docker_username }}"
-    password: "{{ mex_docker_password }}"
+  - name: Log in to Docker Registry
+    docker_login:
+      registry: "{{ mex_docker_registry }}"
+      username: "{{ mex_docker_username }}"
+      password: "{{ mex_docker_password }}"
+
   when: docker_skip_registry_login is undefined or not docker_skip_registry_login

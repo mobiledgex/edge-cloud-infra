@@ -53,6 +53,10 @@
     when:
       - "be_get['resources']|length > 0"
 
+  - set_fact:
+      instance_group_list: "{{ instance_group_list|default([]) + [{'group': item}] }}"
+    with_items: "{{ instance_groups | map(attribute='group') | map(attribute='selfLink') }}"
+
   - block:
 
     - name: Set up backend service
@@ -61,7 +65,7 @@
         protocol: HTTPS
         health_checks:
           - "{{ health_check.selfLink }}"
-        backends: "{{ instance_groups }}"
+        backends: "{{ instance_group_list }}"
         project: "{{ gcp_project }}"
         auth_kind: serviceaccount
         service_account_file: "{{ gcp_creds_file }}"

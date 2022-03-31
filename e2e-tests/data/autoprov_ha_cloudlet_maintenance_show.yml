@@ -31,5 +31,10 @@ regiondata:
       - name: External IPs
         alertthreshold: 100
       defaultresourcealertthreshold: 80
+      gpuconfig:
+        driver:
+          name: gpu-driver-tmus-1
+          organization: tmus
       dnslabel: tmus-cloud-1-tmus
       rootlbfqdn: shared.tmus-cloud-1-tmus.local.mobiledgex.net
+      licenseconfigstoragepath: local/tmus/gpu-driver-tmus-1/cloudlet/licenseconfig/tmus-cloud-1/license.conf

@@ -48,7 +48,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	fmt.Println("Writing new file")
 	ioutil.WriteFile(fileName, out, 0666)
 	if v.HasFailures() {
 		v.PrintFailures()
@@ -94,7 +93,8 @@ func (s *Validator) addApiSampleDocs(apiCmd *ormctl.ApiCommand, method string, o
 			return
 		}
 	}
-	mcctlArgs := getMcctlArgs(apiCmd, obj)
+	uri := "https://console-stage.mobiledgex.net"
+	mcctlArgs := getMcctlArgs(apiCmd, uri, obj)
 	if op.Extensions == nil {
 		op.Extensions = make(spec.Extensions)
 	}
@@ -102,19 +102,18 @@ func (s *Validator) addApiSampleDocs(apiCmd *ormctl.ApiCommand, method string, o
 	samples = append(samples, map[string]string{
 		"source": mcctlArgs,
 		"label":  "CLI",
-		"lang":   "Bash",
 	})
 
 	datastr := ""
 	if obj != nil {
 		out, err := json.MarshalIndent(obj, "", "    ")
 		if err != nil {
-			panic(fmt.Errorf("marshal req failed, %s", err.Error()))
+			log.Fatal(fmt.Errorf("marshal req failed, %s", err.Error()))
 		}
 		datastr = string(out)
 	}
 	parts := []string{}
-	parts = append(parts, fmt.Sprintf(`curl -X %s "%s"`, method, "https://console-stage.mobiledgex.net/api/v1"+apiCmd.Path))
+	parts = append(parts, fmt.Sprintf(`curl -X %s "%s/api/v1%s"`, method, uri, apiCmd.Path))
 	parts = append(parts, `    -H "Content-Type: application/json"`)
 	parts = append(parts, `    -H "Authorization: Bearer ${TOKEN}"`)
 	if datastr != "" {
@@ -128,30 +127,28 @@ func (s *Validator) addApiSampleDocs(apiCmd *ormctl.ApiCommand, method string, o
 	op.Extensions.Add("x-code-samples", samples)
 }
 
-func getMcctlArgs(apiCmd *ormctl.ApiCommand, obj interface{}) string {
+func getMcctlArgs(apiCmd *ormctl.ApiCommand, uri string, obj interface{}) string {
 	cliClient := cliwrapper.NewClient()
 
 	rundata := mctestclient.RunData{}
-	rundata.Uri = "https://console-stage.mobiledgex.net"
-	var out ormapi.User
-	rundata.Out = &out
+	rundata.Uri = uri
 	rundata.In = obj
 
 	args, _, err := cliClient.GetArgs(apiCmd, &rundata)
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
-	sameLineCnt := 0
+	separatorStartCnt := 0
 	for ii := 0; ii < len(args); ii++ {
 		if strings.Contains(args[ii], "=") {
 			args[ii] = "    " + args[ii]
-			if sameLineCnt == 0 {
-				sameLineCnt = ii
+			if separatorStartCnt == 0 {
+				separatorStartCnt = ii
 			}
 		}
 	}
-	if sameLineCnt > 0 {
-		return "mcctl " + strings.Join(args[:sameLineCnt], " ") + " \\\n" + strings.Join(args[sameLineCnt:], " \\\n")
+	if separatorStartCnt > 0 {
+		return "mcctl " + strings.Join(args[:separatorStartCnt], " ") + " \\\n" + strings.Join(args[separatorStartCnt:], " \\\n")
 	}
 	return "mcctl " + strings.Join(args, " ")
 }

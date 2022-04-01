@@ -172,7 +172,7 @@
       LETSENCRYPT_ENV: "{{ le_env }}"
       CF_USER: "{{ cloudflare_account_email }}"
       CF_APIKEY: "{{ cloudflare_account_api_token }}"
-      DOMAIN: "{{ app_dns_root }}"
+      DOMAINS: "{{ cloudflare_zone }},{{ app_dns_root }}"
       NS1_APIKEY: "{{ ns1_apikey }}"
   tags: certgen
 

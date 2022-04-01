@@ -105,6 +105,7 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
     def add_host_vars(self, host, host_vars):
         for name, val in host_vars.items():
             self.inventory.set_variable(host, name, val)
+            self.inventory.set_variable("all", name, val)
         self._set_composite_vars(self.get_option('compose'), host_vars, host, strict=True)
 
     def parse(self, inventory, loader, path, cache=True):

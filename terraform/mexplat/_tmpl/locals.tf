@@ -5,7 +5,12 @@ locals {
   console_domain_name = "${local.console_instance_name}.${var.dns_domain}"
   console_vnc_domain_name = "${local.console_instance_name}-vnc.${var.dns_domain}"
 
+  esproxy_domain_name = "events-${var.environ_tag}.es.${var.dns_domain}"
+
   gitlab_instance_name = "gitlab-${var.environ_tag}"
+
+  jaeger_instance_name = "jaeger-${var.environ_tag}"
+  jaeger_domain_name = "${local.jaeger_instance_name}.${var.dns_domain}"
 
   harbor_static_address_name = "harbor-${var.environ_tag}"
   harbor_instance_name = "harbor-${var.environ_tag}"

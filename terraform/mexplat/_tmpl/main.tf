@@ -138,7 +138,6 @@ module "console" {
     "console-debug",
     "http-server",
     "https-server",
-    "jaeger",
     "mc-artifactory",
     "notifyroot",
     "restricted-ssh",
@@ -150,7 +149,7 @@ module "console" {
     "environ" = var.environ_tag
     "console" = "true"
     "owner"   = "ops"
-    "groups"  = "alertmanager,console,esproxy,jaeger,notifyroot"
+    "groups"  = "alertmanager,console,esproxy,notifyroot"
   }
 }
 
@@ -166,6 +165,12 @@ module "console_vnc_dns" {
   hostname = local.console_vnc_domain_name
   ip       = module.console.external_ip
   cloudflare_zone_id = var.cloudflare_zone_id
+}
+
+module "esproxy_dns" {
+  source   = "../../modules/cloudflare_record"
+  hostname = local.esproxy_domain_name
+  ip       = module.console.external_ip
 }
 
 module "alertmanager_dns" {
@@ -234,4 +239,25 @@ module "harbor_dns" {
   hostname = local.harbor_domain_name
   ip       = module.harbor.external_ip
   cloudflare_zone_id = var.cloudflare_zone_id
+}
+
+module "jaeger" {
+  source = "../../modules/vm_gcp"
+
+  instance_name  = local.jaeger_instance_name
+  environ_tag    = var.environ_tag
+  instance_size  = "custom-1-7680-ext"
+  zone           = var.gcp_zone
+  boot_disk_size = 20
+  tags           = ["http-server", "https-server", "jaeger"]
+  labels = {
+    "owner" = "ops"
+    "groups" = "jaeger"
+  }
+}
+
+module "jaeger_dns" {
+  source   = "../../modules/cloudflare_record"
+  hostname = local.jaeger_domain_name
+  ip       = module.jaeger.external_ip
 }

@@ -68,10 +68,27 @@ func (s *Client) addCliPaths(cmd *cobra.Command, parent []string) {
 }
 
 func (s *Client) Run(apiCmd *ormctl.ApiCommand, runData *mctestclient.RunData) {
+	runData.Parsable = true
+	runData.OutputFormat = "json-compact"
+	args, ops, err := s.GetArgs(apiCmd, runData)
+	if err != nil {
+		runData.RetStatus = 0
+		runData.RetError = err
+		return
+	}
+	runData.RetStatus, runData.RetError = s.runObjs(runData.Uri, runData.Token, args, runData.In, runData.Out, apiCmd, ops...)
+}
+
+func (s *Client) GetArgs(apiCmd *ormctl.ApiCommand, runData *mctestclient.RunData) ([]string, []runOp, error) {
 	args := []string{}
 	uri := strings.TrimSuffix(runData.Uri, "/api/v1")
-	args = append(args, "--parsable", "--output-format", "json-compact",
-		"--addr", uri)
+	args = append(args, "--addr", uri)
+	if runData.Parsable {
+		args = append(args, "--parsable")
+	}
+	if runData.OutputFormat != "" {
+		args = append(args, "--output-format", runData.OutputFormat)
+	}
 	if runData.Token != "" {
 		args = append(args, "--token", runData.Token)
 	}
@@ -88,29 +105,26 @@ func (s *Client) Run(apiCmd *ormctl.ApiCommand, runData *mctestclient.RunData) {
 	args = append(args, clipath...)
 
 	ops := []runOp{}
+	ignoreArgs := []string{}
 	if apiCmd.NoConfig != "" {
-		ops = append(ops, withIgnore(strings.Split(apiCmd.NoConfig, ",")))
+		ignoreArgs = strings.Split(apiCmd.NoConfig, ",")
+		ops = append(ops, withIgnore(ignoreArgs))
 	}
 	if apiCmd.StreamOutIncremental {
 		ops = append(ops, withStreamOutIncremental())
 	}
-	runData.RetStatus, runData.RetError = s.runObjs(runData.Uri, runData.Token, args, runData.In, runData.Out, apiCmd, ops...)
-}
-
-func (s *Client) runObjs(uri, token string, args []string, in, out interface{}, apiCmd *ormctl.ApiCommand, ops ...runOp) (int, error) {
-	opts := runOptions{}
-	opts.apply(ops)
-
-	if str, ok := in.(string); ok {
+	if str, ok := runData.In.(string); ok {
 		// json data
 		args = append(args, "--data", str)
 	} else {
 		if s.PrintTransformations {
-			fmt.Printf("%s: transforming input %#v to args\n", edgelog.GetLineno(0), in)
+			fmt.Printf("%s: transforming input %#v to args\n", edgelog.GetLineno(0), runData.In)
 		}
-		objArgs, err := cli.MarshalArgs(in, opts.ignore, strings.Fields(apiCmd.AliasArgs))
+		objArgs, err := cli.MarshalArgs(runData.In, ignoreArgs, strings.Fields(apiCmd.AliasArgs))
 		if err != nil {
-			return 0, err
+			runData.RetStatus = 0
+			runData.RetError = err
+			return nil, nil, err
 		}
 		if s.PrintTransformations {
 			fmt.Printf("%s: transformed to args %v\n", edgelog.GetLineno(0), objArgs)
@@ -120,6 +134,13 @@ func (s *Client) runObjs(uri, token string, args []string, in, out interface{}, 
 	if s.InjectRequiredArgs {
 		args = injectRequiredArgs(args, apiCmd)
 	}
+	return args, ops, nil
+}
+
+func (s *Client) runObjs(uri, token string, args []string, in, out interface{}, apiCmd *ormctl.ApiCommand, ops ...runOp) (int, error) {
+	opts := runOptions{}
+	opts.apply(ops)
+
 	if s.DebugLog {
 		log.Printf("running mcctl %s\n", strings.Join(args, " "))
 	}

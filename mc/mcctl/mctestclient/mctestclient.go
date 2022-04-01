@@ -8,12 +8,14 @@ type ClientRun interface {
 }
 
 type RunData struct {
-	Uri       string
-	Token     string
-	In        interface{}
-	Out       interface{}
-	RetStatus int
-	RetError  error
+	Uri          string
+	Token        string
+	In           interface{}
+	Out          interface{}
+	Parsable     bool
+	OutputFormat string
+	RetStatus    int
+	RetError     error
 }
 
 type Client struct {

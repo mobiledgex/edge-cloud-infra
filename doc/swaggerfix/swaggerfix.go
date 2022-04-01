@@ -7,11 +7,15 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
 	"sort"
 	"strings"
 
 	"github.com/go-openapi/loads"
 	"github.com/go-openapi/spec"
+	"github.com/mobiledgex/edge-cloud-infra/doc"
+	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/cliwrapper"
+	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/mctestclient"
 	"github.com/mobiledgex/edge-cloud-infra/mc/mcctl/ormctl"
 	"github.com/mobiledgex/edge-cloud-infra/mc/ormapi"
 	yaml "github.com/mobiledgex/yaml/v2"
@@ -44,6 +48,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	fmt.Println("Writing new file")
 	ioutil.WriteFile(fileName, out, 0666)
 	if v.HasFailures() {
 		v.PrintFailures()
@@ -72,6 +77,83 @@ func (s *Validator) Validate(doc *loads.Document) {
 	sw := doc.Spec()
 	s.validatePaths(sw)
 	s.sw = sw
+}
+
+func (s *Validator) addApiSampleDocs(apiCmd *ormctl.ApiCommand, method string, op *spec.Operation) {
+	var obj interface{}
+	if apiCmd.ReqData != nil {
+		objName := ""
+		if t := reflect.TypeOf(apiCmd.ReqData); t.Kind() == reflect.Ptr {
+			objName = t.Elem().Name()
+		} else {
+			objName = t.Name()
+		}
+		var ok bool
+		obj, ok = doc.APISampleData[objName]
+		if !ok {
+			return
+		}
+	}
+	mcctlArgs := getMcctlArgs(apiCmd, obj)
+	if op.Extensions == nil {
+		op.Extensions = make(spec.Extensions)
+	}
+	samples := []map[string]string{}
+	samples = append(samples, map[string]string{
+		"source": mcctlArgs,
+		"label":  "CLI",
+		"lang":   "Bash",
+	})
+
+	datastr := ""
+	if obj != nil {
+		out, err := json.MarshalIndent(obj, "", "    ")
+		if err != nil {
+			panic(fmt.Errorf("marshal req failed, %s", err.Error()))
+		}
+		datastr = string(out)
+	}
+	parts := []string{}
+	parts = append(parts, fmt.Sprintf(`curl -X %s "%s"`, method, "https://console-stage.mobiledgex.net/api/v1"+apiCmd.Path))
+	parts = append(parts, `    -H "Content-Type: application/json"`)
+	parts = append(parts, `    -H "Authorization: Bearer ${TOKEN}"`)
+	if datastr != "" {
+		parts = append(parts, `    -d '`+datastr+`'`)
+	}
+	samples = append(samples, map[string]string{
+		"source": strings.Join(parts, " \\\n"),
+		"label":  "Shell",
+		"lang":   "Shell",
+	})
+	op.Extensions.Add("x-code-samples", samples)
+}
+
+func getMcctlArgs(apiCmd *ormctl.ApiCommand, obj interface{}) string {
+	cliClient := cliwrapper.NewClient()
+
+	rundata := mctestclient.RunData{}
+	rundata.Uri = "https://console-stage.mobiledgex.net"
+	var out ormapi.User
+	rundata.Out = &out
+	rundata.In = obj
+
+	args, _, err := cliClient.GetArgs(apiCmd, &rundata)
+	if err != nil {
+		panic(err)
+	}
+	sameLineCnt := 0
+	for ii := 0; ii < len(args); ii++ {
+		if strings.Contains(args[ii], "=") {
+			args[ii] = "    " + args[ii]
+			if sameLineCnt == 0 {
+				sameLineCnt = ii
+			}
+		}
+	}
+	if sameLineCnt > 0 {
+		return "mcctl " + strings.Join(args[:sameLineCnt], " ") + " \\\n" + strings.Join(args[sameLineCnt:], " \\\n")
+	}
+	return "mcctl " + strings.Join(args, " ")
 }
 
 func (s *Validator) validatePaths(sw *spec.Swagger) {
@@ -145,6 +227,7 @@ func (s *Validator) validateOperation(api *ormctl.ApiCommand, noconfig, configLC
 		op.Summary = strings.TrimSpace(op.Summary)
 		op.Summary = strings.TrimSuffix(op.Summary, ".")
 	}
+	s.addApiSampleDocs(api, opName, op)
 	for _, param := range op.Parameters {
 		if param.Schema == nil {
 			continue

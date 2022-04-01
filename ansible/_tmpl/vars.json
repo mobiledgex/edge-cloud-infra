@@ -40,5 +40,15 @@
   "vault_ldap_groups": [],
   "vault_github_teams": [],
   "vault_github_users": [],
-  "crm_instances": []
+  "crm_instances": [],
+  "regions": [
+    {
+      "kubernetes_version": "1.20.15",
+      "latitude": 52.3667,
+      "location": "northeurope",
+      "longitude": 4.9,
+      "name": "mexplat-test-eu",
+      "region": "EU"
+    }
+  ]
 }

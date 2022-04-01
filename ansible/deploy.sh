@@ -163,7 +163,8 @@ fi
 # Figure out vault address
 if [[ -z "$VAULT_ADDR" ]]; then
 	# Pick vault address from Ansible
-	VAULT_ADDR=$( ansible-inventory -i "$ENVIRON" --list --export | jq -r .all.vars.vault_address )
+	VAULT_ADDR=$( ansible-playbook -i "$ENVIRON" vault-address.yml \
+		| sed -n 's/.*%%\(.*\)%%.*$/\1/p' )
 	[[ -z "$VAULT_ADDR" ]] && die "Unable to determine vault instance"
 fi
 

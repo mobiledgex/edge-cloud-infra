@@ -119,6 +119,10 @@ class InventoryModule(BaseInventoryPlugin, Constructable):
 
         self.inventory.add_group("vault")
 
+        self.inventory.add_group("platform")
+        self.inventory.add_host("localhost", group="platform")
+        self.inventory.set_variable("localhost", "ansible_connection", "local")
+
         with open(tfstate) as f:
             state = json.load(f)
 

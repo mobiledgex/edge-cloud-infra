@@ -1,0 +1,6 @@
+---
+- hosts: localhost
+  gather_facts: no
+  tasks:
+    - debug:
+        msg: "%%{{ vault_address }}%%"

@@ -1,0 +1,8 @@
+Package: exec-container
+Version: 0.1
+Section: misc
+Priority: optional
+Architecture: amd64
+Depends: 
+Maintainer: MobiledgeX <mobiledgex.ops@mobiledgex.com>
+Description: Tool run exec commands within containers

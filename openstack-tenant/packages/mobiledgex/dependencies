@@ -24,3 +24,4 @@ python3-deepmerge               >=0.3.0
 python3-distutils               >=3.6.9-1~18.04
 python3-netifaces               >=0.10.9-0.2
 unzip                           >=6.0-21ubuntu1
+exec-container                  >=0.1

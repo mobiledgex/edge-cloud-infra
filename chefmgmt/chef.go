@@ -520,6 +520,11 @@ func GetChefCloudletAttributes(ctx context.Context, cloudlet *edgeproto.Cloudlet
 		default:
 			return nil, fmt.Errorf("invalid service type: %s, valid service types are [%v]", serviceType, PlatformServices)
 		}
+
+		// Set envvars to nil as envvars will only be managed from controller and
+		// CRM on start up will get the envvars from controller (etcd)
+		envVars = nil
+
 		chefArgs := GetChefArgs(serviceCmdArgs)
 		serviceObj["args"] = chefArgs
 		chefDockerArgs := GetChefDockerArgs(dockerArgs)

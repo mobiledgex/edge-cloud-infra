@@ -151,6 +151,9 @@ func (o *OperatorApiGw) DeletePrioritySession(ctx context.Context, req *dme.QosP
 	// Get a generic QosPrioritySessionReply, then build a QosPrioritySessionDeleteReply based on the httpStatus.
 	reply, err := sessionsclient.CallTDGQosPriorityAPI(ctx, sessionId, http.MethodDelete, o.Servers.QosSesAddr, qosSessionsApiKey, sesInfo)
 	log.SpanLog(ctx, log.DebugLevelDmereq, "Response from TDG:", "reply", reply, "err", err)
+	if err != nil {
+		return nil, err
+	}
 	deleteReply := new(dme.QosPrioritySessionDeleteReply)
 	if reply.HttpStatus == http.StatusNotFound {
 		deleteReply.Status = dme.QosPrioritySessionDeleteReply_QDEL_NOT_FOUND

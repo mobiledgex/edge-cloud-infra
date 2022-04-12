@@ -125,10 +125,17 @@ func buildQosUrl(ctx context.Context, profileName string, qosSesAddr string) (st
 func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qosSesAddr string, apiKey string, reqBody QosSessionRequest) (*dme.QosPrioritySessionReply, error) {
 	reply := new(dme.QosPrioritySessionReply)
 	qos := QosProtoToTdg(reqBody.Qos)
+	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CallTDGQosPriorityAPI", "method", method, "qosSesAddr", qosSesAddr, "qos", qos)
+	if qos == "QOS_NO_PRIORITY" {
+		return nil, errors.New("Operation not permitted with profileName " + qos)
+	}
 	reqUrl, err := buildQosUrl(ctx, qos, qosSesAddr)
+	if err != nil {
+		return nil, err
+	}
 	log.SpanLog(ctx, log.DebugLevelDmereq, "Converting QOS Profile name from proto to TDG", "old", reqBody.Qos, "new", qos)
 	reqBody.Qos = qos
-	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CallTDGQosPriorityAPI", "qosSesAddr", qosSesAddr, "reqUrl", reqUrl, "reqBody", reqBody)
+	log.SpanLog(ctx, log.DebugLevelDmereq, "TDG CallTDGQosPriorityAPI", "reqUrl", reqUrl, "reqBody", reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -235,7 +242,7 @@ func CallTDGQosPriorityAPI(ctx context.Context, sesId string, method string, qos
 		// This status will be returned in the reply.
 	} else if status == http.StatusBadRequest {
 		log.SpanLog(ctx, log.DebugLevelDmereq, "400 Bad request")
-		// This status will be returned in the reply.
+		return nil, fmt.Errorf(respBody)
 	} else {
 		log.WarnLog("returning error", "received ", status)
 		return nil, fmt.Errorf(fmt.Sprintf("API call received unknown status: %d", status))
